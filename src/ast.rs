@@ -26,7 +26,7 @@ impl From<usize> for Name {
 pub type TypeRec = Rc<Type>;
 #[derive(Clone,Eq,PartialEq)]
 pub enum Type {
-    Base,      
+    Unit, Num, Str,
     Pair(TypeRec, TypeRec),
     Sum(TypeRec, TypeRec),
     Ref(TypeRec),
@@ -52,6 +52,7 @@ pub enum  TCtxt {
 pub type ExpRec = Rc<Exp>;
 #[derive(Clone,Eq,PartialEq)]
 pub enum Exp {
+    Anno(ExpRec,CType),
     Force(Val),
     Thunk(ExpRec),
     Fix(Var,ExpRec),
@@ -75,7 +76,8 @@ pub enum ExpTerm {
 pub type ValRec = Rc<Val>;
 #[derive(Clone,Eq,PartialEq)]
 pub enum Val {
-    Unit,
+    Anno(ValRec,Type),
+    Unit, Num(usize), Str(String),
     Pair(ValRec,ValRec),
     Injl(ValRec),
     Injr(ValRec),
