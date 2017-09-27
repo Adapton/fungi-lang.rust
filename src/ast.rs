@@ -1,8 +1,11 @@
 //!  IODyn Source AST definitions
 
+use std::rc::Rc;
+
 pub type Var = String;
 
-pub struct NameRec ( Box<Name> );
+pub type NameRec = Rc<Name>;
+#[derive(Clone,Eq,PartialEq)]
 pub enum Name {
     Leaf,
     Bin(NameRec, NameRec)
@@ -12,13 +15,16 @@ impl From<usize> for Name {
     fn from(n: usize) -> Self {
         match n {
             0 => Name::Leaf,
-            n => Name::Bin(NameRec(Box::new(Name::Leaf)),
-                           NameRec(Box::new(Name::from(n - 1))))
+            n => Name::Bin(
+                Rc::new(Name::Leaf),
+                Rc::new(Name::from(n - 1))
+            )
         }
     }
 }
 
-pub type TypeRec = Box<Type>;
+pub type TypeRec = Rc<Type>;
+#[derive(Clone,Eq,PartialEq)]
 pub enum Type {
     Base,      
     Pair(TypeRec, TypeRec),
@@ -27,21 +33,24 @@ pub enum Type {
     U(CTypeRec)
 }
 
-pub type CTypeRec = Box<CType>;
+pub type CTypeRec = Rc<CType>;
+#[derive(Clone,Eq,PartialEq)]
 pub enum CType {
     Arrow(TypeRec,CTypeRec),
     F(TypeRec)
 }
 
-pub type TCtxtRec = Box<TCtxt>;
+pub type TCtxtRec = Rc<TCtxt>;
+#[derive(Clone,Eq,PartialEq)]
 pub enum  TCtxt {
     Empty,
-    BindVal(TCtxtRec,Var,Type),
-    PointVal(TCtxtRec,Pointer,Type),
-    PointThunk(TCtxtRec,Pointer,CType),
+    Val(TCtxtRec,Var,Type),
+    Cell(TCtxtRec,Pointer,Type),
+    Thunk(TCtxtRec,Pointer,CType),
 }
 
-pub type ExpRec = Box<Exp>;
+pub type ExpRec = Rc<Exp>;
+#[derive(Clone,Eq,PartialEq)]
 pub enum Exp {
     Force(Val),
     Thunk(ExpRec),
@@ -57,12 +66,14 @@ pub enum Exp {
     Name(Name,ExpRec),
 }
 
+#[derive(Clone,Eq,PartialEq)]
 pub enum ExpTerm {
     Lam(Var, ExpRec),
     Ret(Val),
 }
 
-pub type ValRec = Box<Val>;
+pub type ValRec = Rc<Val>;
+#[derive(Clone,Eq,PartialEq)]
 pub enum Val {
     Unit,
     Pair(ValRec,ValRec),
@@ -73,11 +84,13 @@ pub enum Val {
     Thunk(Pointer),
 }
 
+#[derive(Clone,Eq,PartialEq)]
 pub struct Pointer(Name);
 
-pub type StoreRec = Box<Store>;
+pub type StoreRec = Rc<Store>;
+#[derive(Clone,Eq,PartialEq)]
 pub enum Store {
     Empty,
-    BindVal(StoreRec,Name,Val),
-    BindExp(StoreRec,Name,Exp),
+    Val(StoreRec,Name,Val),
+    Exp(StoreRec,Name,Exp),
 }
