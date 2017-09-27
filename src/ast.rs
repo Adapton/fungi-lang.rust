@@ -18,28 +18,37 @@ impl From<usize> for Name {
     }
 }
 
-type TypeRec = Box<Type>;
-enum Type {
+pub type TypeRec = Box<Type>;
+pub enum Type {
     Base,      
     Pair(TypeRec, TypeRec),
     Sum(TypeRec, TypeRec),
     Ref(TypeRec),
-    U(TypeRec)
+    U(CTypeRec)
 }
 
-type CTypeRec = Box<CType>;
-enum CType {
-    Arrow(Type,CTypeRec),
-    F(Type)
+pub type CTypeRec = Box<CType>;
+pub enum CType {
+    Arrow(TypeRec,CTypeRec),
+    F(TypeRec)
 }
 
-type ExpRec = Box<Exp>;
-enum Exp {
+pub type TCtxtRec = Box<TCtxt>;
+pub enum  TCtxt {
+    Empty,
+    BindVal(TCtxtRec,Var,Type),
+    PointVal(TCtxtRec,Pointer,Type),
+    PointThunk(TCtxtRec,Pointer,CType),
+}
+
+pub type ExpRec = Box<Exp>;
+pub enum Exp {
     Force(Val),
+    Thunk(ExpRec),
     Fix(Var,ExpRec),
     Ret(Val),
     Let(Var,ExpRec,ExpRec),
-    Lam(Var, ExpRec, ExpRec),
+    Lam(Var, ExpRec),
     App(ExpRec, Val),
     Split(Val, Var, Var, ExpRec),
     Case(Val, Var, ExpRec, Var, ExpRec),
@@ -48,12 +57,27 @@ enum Exp {
     Name(Name,ExpRec),
 }
 
-enum ExpTerm {
+pub enum ExpTerm {
     Lam(Var, ExpRec),
-    Ret(Val)
+    Ret(Val),
 }
 
-type ValRec = Box<Val>;
-enum Val {
-    TODO
+pub type ValRec = Box<Val>;
+pub enum Val {
+    Unit,
+    Pair(ValRec,ValRec),
+    Injl(ValRec),
+    Injr(ValRec),
+    Var(Var),
+    Ref(Pointer),
+    Thunk(Pointer),
+}
+
+pub struct Pointer(Name);
+
+pub type StoreRec = Box<Store>;
+pub enum Store {
+    Empty,
+    BindVal(StoreRec,Name,Val),
+    BindExp(StoreRec,Name,Exp),
 }
