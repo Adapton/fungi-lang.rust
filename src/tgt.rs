@@ -1,18 +1,4 @@
-pub struct NameRec ( Box<Name> );
-pub enum Name {
-    Leaf,
-    Bin(NameRec, NameRec)
-}
-
-pub fn name_from_usize(n:usize) -> Name {
-    match n {
-        0 => Name::Leaf,
-        n => Name::Bin(NameRec(Box::new(Name::Leaf)), 
-                       NameRec(Box::new(name_from_usize(n - 1))))
-    }
-}
-
-pub type Var = String;
+//! Target language AST --- aka, typed adapton AST defs
 
 /// Name Terms
 pub struct NameTmRec ( Box<NameTm> );
