@@ -1,0 +1,6 @@
+[package]
+name = "iodyn-lang"
+version = "0.1.0"
+authors = ["Matthew Hammer <matthew.hammer@colorado.edu>"]
+
+[dependencies]
