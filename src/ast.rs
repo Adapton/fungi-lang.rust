@@ -8,14 +8,15 @@ pub enum Name {
     Bin(NameRec, NameRec)
 }
 
-pub fn name_from_usize(n:usize) -> Name {
-    match n {
-        0 => Name::Leaf,
-        n => Name::Bin(NameRec(Box::new(Name::Leaf)), 
-                       NameRec(Box::new(name_from_usize(n - 1))))
+impl From<usize> for Name {
+    fn from(n: usize) -> Self {
+        match n {
+            0 => Name::Leaf,
+            n => Name::Bin(NameRec(Box::new(Name::Leaf)),
+                           NameRec(Box::new(Name::from(n - 1))))
+        }
     }
 }
-
 
 type TypeRec = Box<Type>;
 enum Type {
