@@ -42,11 +42,25 @@ pub enum CType {
 
 pub type TCtxtRec = Rc<TCtxt>;
 #[derive(Clone,Eq,PartialEq)]
-pub enum  TCtxt {
+pub enum TCtxt {
     Empty,
-    Val(TCtxtRec,Var,Type),
+    Var(TCtxtRec,Var,Type),
     Cell(TCtxtRec,Pointer,Type),
     Thunk(TCtxtRec,Pointer,CType),
+}
+impl TCtxt {
+    /// bind a var and type
+    pub fn var(self,v:Var,t:Type) -> TCtxt {
+        TCtxt::Var(Rc::new(self),v,t)
+    }
+    /// bind a pointer and value type
+    pub fn cell(self,p:Pointer,t:Type) -> TCtxt {
+        TCtxt::Cell(Rc::new(self),p,t)
+    }
+    /// bind a pointer and computation type
+    pub fn thk(self,p:Pointer,ct:CType) -> TCtxt {
+        TCtxt::Thunk(Rc::new(self),p,ct)
+    }
 }
 
 pub type ExpRec = Rc<Exp>;
