@@ -124,6 +124,21 @@ fn reverse_polish_calc_step1of3() {
                 exp_ret(val_var!(toks))
             ),
             cty);
-
     assert_eq!(ast, ast2);
+
+    // Do a fold-up, and count the number of characters in the input sequence:
+    let ast3 : Exp =
+        exp_anno(
+            exp_let!(
+                count = exp_seq_fold_up(
+                    val_var!(chars),
+                    val_nat(0),
+                    exp_lam!{n => exp_ret(val_nat(1)) },
+                    exp_lam!{l, r => exp_nat_add(val_var!(l), val_var!(r))}
+                );
+                exp_ret(val_var!(count))
+            ),
+            CType::F(Rc::new(Type::PrimApp(PrimTyApp::Nat)))
+        );
+    drop(ast3);
 }

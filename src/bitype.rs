@@ -49,8 +49,6 @@ pub fn synth_val(ctxt: TCtxt, v:Val) -> Option<Type> {
 pub fn check_val(ctxt: TCtxt, v:Val, t:Type) -> bool {
     match (v,t) {
         (Val::Unit, Type::Unit) => true,
-        (Val::Num(_), Type::Num) => true,
-        (Val::Str(_), Type::Str) => true,
         (Val::Pair(v1,v2), Type::Pair(t1,t2)) => {
             check_val(ctxt.clone(), (*v1).clone(), (*t1).clone() )
             & check_val(ctxt, (*v2).clone(), (*t2).clone() )

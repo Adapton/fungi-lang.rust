@@ -26,7 +26,7 @@ impl From<usize> for Name {
 pub type TypeRec = Rc<Type>;
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub enum Type {
-    Unit, Num, Str,
+    Unit,
     Pair(TypeRec, TypeRec),
     Sum(TypeRec, TypeRec),
     Ref(TypeRec),
@@ -103,8 +103,15 @@ pub enum Exp {
 /// generally requiring a polymorphic, higher-order type).
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub enum PrimApp {
+    /// nat_add
+    NatAdd(Val, Val),
+
+    /// seq_empty
+    SeqEmpty,
     /// seq_fold_seq( seq, accum0, \elm.\accum. ... )
     SeqFoldSeq(Val, Val, ExpRec),
+    /// seq_fold_up( seq, v_emp, \elm. ..., \l.\r. ... )
+    SeqFoldUp(Val, Val, ExpRec, ExpRec),
 
 }
 
@@ -118,7 +125,9 @@ pub type ValRec = Rc<Val>;
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub enum Val {
     Anno(ValRec,Type),
-    Unit, Num(usize), Str(String),
+    Unit,
+    Nat(usize),
+    Str(String),
     Pair(ValRec,ValRec),
     Injl(ValRec),
     Injr(ValRec),
@@ -141,11 +150,21 @@ pub enum Store {
 /// Utilities for constructing ASTs, including common constructor patterns.
 pub mod cons {
     use super::*;
+    pub fn val_nat(n:usize) -> Val { Val::Nat(n) }
     pub fn exp_ret(v:Val) -> Exp { Exp::Ret(v) }
     pub fn exp_anno(e:Exp, ct:CType) -> Exp { Exp::Anno(Rc::new(e), ct) }
     pub fn exp_force(v:Val) -> Exp { Exp::Force(v) }
-    pub fn exp_seq_fold_seq(v1:Val,v2:Val,e:Exp) -> Exp {
-        Exp::PrimApp(PrimApp::SeqFoldSeq(v1,v2,Rc::new(e)))
+    pub fn exp_nat_add(v1:Val, v2:Val) -> Exp {
+        Exp::PrimApp(PrimApp::NatAdd(v1, v2))
+    }
+    pub fn exp_seq_empty() -> Exp {
+        Exp::PrimApp(PrimApp::SeqEmpty)
+    }
+    pub fn exp_seq_fold_seq(v_seq:Val, v_acc:Val, e_body:Exp) -> Exp {
+        Exp::PrimApp(PrimApp::SeqFoldSeq(v_seq, v_acc, Rc::new(e_body)))
+    }
+    pub fn exp_seq_fold_up(v1:Val, v_nil:Val, e_elm:Exp, e_bin:Exp) -> Exp {
+        Exp::PrimApp(PrimApp::SeqFoldUp(v1, v_nil, Rc::new(e_elm), Rc::new(e_bin)))
     }
 }
 
