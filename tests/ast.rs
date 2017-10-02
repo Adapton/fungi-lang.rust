@@ -1,6 +1,76 @@
 #[macro_use]
 extern crate iodyn_lang;
 
+// Try to express all of the simple sequence operations for which
+// IODyn has evaluation examples
+#[test]
+fn seq_operations() {
+    use std::rc::Rc;
+    use iodyn_lang::bitype;
+    use iodyn_lang::ast::{Val,Exp,TCtxt,
+                          Type,PrimTyApp,CType};
+    use iodyn_lang::ast::cons::*;
+
+    let ctx : TCtxt = TCtxt::Empty;
+    let ctx : TCtxt =
+        TCtxt::Var(Rc::new(ctx),
+                   "chars".to_string(),
+                   Type::PrimApp(PrimTyApp::Seq(Rc::new(Type::PrimApp(PrimTyApp::Char)))));
+
+    let ast : Exp =
+        exp_anno(
+            exp_let!(
+
+                // count the number of characters
+                count = exp_seq_fold_up(
+                    val_var!(chars),
+                    val_nat(0),
+                    exp_lam!{n => exp_ret(val_nat(1)) },
+                    exp_lam!{l, r => exp_nat_add(val_var!(l), val_var!(r))}
+                ),
+
+                // get character codes (natural numbers) of chars
+                codes = exp_seq_map(
+                    val_var!(chars),
+                    exp_lam!{c => exp_nat_of_char(val_var!(c))}
+                ),
+
+                // map character codes (natural numbers) into strings
+                strings = exp_seq_map(
+                    val_var!(codes),
+                    exp_lam!{c => exp_str_of_nat(val_var!(c))}
+                ),
+
+                // reverse the character sequence
+                chars_rev = exp_seq_reverse(val_var!(chars)),
+
+                // filter the characters, keeping only "digits"
+                digits = exp_seq_filter(
+                    val_var!(chars),
+                    exp_lam!{c => exp_let!(
+                        n  = exp_nat_of_char(val_var!(c)),
+                        b1 = exp_nat_lte(val_nat('0' as usize), val_var!(c)),
+                        b2 = exp_nat_lte(val_var!(c), val_nat('9' as usize));
+                        exp_bool_and(val_var!(b1), val_var!(b2))
+                    )}
+                ),
+
+                // count the number of digits
+                digit_count = exp_seq_fold_up(
+                    val_var!(digits),
+                    val_nat(0),
+                    exp_lam!{n => exp_ret(val_nat(1)) },
+                    exp_lam!{l, r => exp_nat_add(val_var!(l), val_var!(r))}
+                );
+
+                exp_ret(val_var!(count))
+            ),
+            CType::F(Rc::new(Type::PrimApp(PrimTyApp::Nat)))
+        );
+    
+    assert!(bitype::synth_exp(ctx, ast.clone()) != None)
+}
+
 #[test]
 fn reverse_polish_calc_step1of3() {
     use std::rc::Rc;
@@ -83,19 +153,16 @@ fn reverse_polish_calc_step1of3() {
                     PrimApp::SeqFoldSeq(
                         Var("chars".to_string()),
                         Var("lex_st_init".to_string()),
-                        Rc::new(Lam("accum".to_string(),
-                                    Rc::new(Lam("char".to_string(),
+                        Rc::new(Lam("a".to_string(),
+                                    Rc::new(Lam("c".to_string(),
                                                 Rc::new(App(Rc::new(
                                                     App(Rc::new(
                                                         Force(Var("lex_step".to_string()))),
-                                                        Var("char".to_string()))),
-                                                            Var("accum".to_string())))))))))),
+                                                        Var("a".to_string()))),
+                                                            Var("c".to_string())))))))))),
                 Rc::new(Ret(Var("toks".to_string()))))),
             cty.clone()
         );
-
-    let cty2 = bitype::synth_exp(ctx, ast.clone());
-    assert_eq!(Some(cty.clone()), cty2);
 
     // 4. Use construction functions and macros instead of raw
     // constructors.
@@ -123,60 +190,12 @@ fn reverse_polish_calc_step1of3() {
                 );
                 exp_ret(val_var!(toks))
             ),
-            cty);
+            cty.clone());
+    
+    // assert that abbreviations above preserve the AST structure:
     assert_eq!(ast, ast2);
 
-    // Try to express all of the simple sequence operations for which
-    // IODyn has evaluation examples:
-    let ast3 : Exp =
-        exp_anno(
-            exp_let!(
-
-                // count the number of characters
-                count = exp_seq_fold_up(
-                    val_var!(chars),
-                    val_nat(0),
-                    exp_lam!{n => exp_ret(val_nat(1)) },
-                    exp_lam!{l, r => exp_nat_add(val_var!(l), val_var!(r))}
-                ),
-
-                // get character codes (natural numbers) of chars
-                codes = exp_seq_map(
-                    val_var!(chars),
-                    exp_lam!{c => exp_nat_of_char(val_var!(c))}
-                ),
-
-                // map character codes (natural numbers) into strings
-                strings = exp_seq_map(
-                    val_var!(codes),
-                    exp_lam!{c => exp_str_of_nat(val_var!(c))}
-                ),
-
-                // reverse the character sequence
-                chars_rev = exp_seq_reverse(val_var!(chars)),
-
-                // filter the characters, keeping only "digits"
-                digits = exp_seq_filter(
-                    val_var!(chars),
-                    exp_lam!{c => exp_let!(
-                        n  = exp_nat_of_char(val_var!(c)),
-                        b1 = exp_nat_lte(val_nat('0' as usize), val_var!(c)),
-                        b2 = exp_nat_lte(val_var!(c), val_nat('9' as usize));
-                        exp_bool_and(val_var!(b1), val_var!(b2))
-                    )}
-                ),
-
-                // count the number of digits
-                digit_count = exp_seq_fold_up(
-                    val_var!(digits),
-                    val_nat(0),
-                    exp_lam!{n => exp_ret(val_nat(1)) },
-                    exp_lam!{l, r => exp_nat_add(val_var!(l), val_var!(r))}
-                );
-
-                exp_ret(val_var!(count))
-            ),
-            CType::F(Rc::new(Type::PrimApp(PrimTyApp::Nat)))
-        );
-    drop(ast3);
+    // assert that the AST types:
+    let cty2 = bitype::synth_exp(ctx, ast.clone());
+    assert_eq!(Some(cty.clone()), cty2);
 }
