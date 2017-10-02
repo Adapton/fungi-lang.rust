@@ -4,9 +4,27 @@ extern crate iodyn_lang;
 #[test]
 fn reverse_polish_calc_step1of3() {
     use std::rc::Rc;
-    use iodyn_lang::ast::{Exp,PrimApp};
+    use iodyn_lang::bitype;
+    use iodyn_lang::ast::{Exp,PrimApp,TCtxt,Type,PrimTyApp,CType};
     use iodyn_lang::ast::Exp::*;
     use iodyn_lang::ast::Val::{Var};
+
+    // Initialize typing context
+
+    let ctx : TCtxt = TCtxt::Empty;
+    let ctx : TCtxt = 
+        TCtxt::Var(Rc::new(ctx),
+                   "list_emp".to_string(),
+                   Type::PrimApp(PrimTyApp::List(Rc::new(Type::PrimApp(PrimTyApp::Tok)))));
+    let ctx : TCtxt =
+        TCtxt::Var(Rc::new(ctx),
+                   "lex_step".to_string(),
+                   Type::U(
+                       Rc::new(CType::Arrow(
+                           Rc::new(Type::PrimApp(PrimTyApp::LexSt)),
+                           Rc::new(CType::Arrow(
+                               Rc::new(Type::PrimApp(PrimTyApp::Char)),
+                               Rc::new(CType::F(Rc::new(Type::PrimApp(PrimTyApp::LexSt))))))))));
 
     /* Matt Says:
        What I _want_ to write, someday, is something like this:
@@ -30,20 +48,30 @@ fn reverse_polish_calc_step1of3() {
     // complex than we'd like (again, due to them requiring
     // polymorphic, higher-order types).
     //
+    let cty : CType = 
+        CType::F(
+            Rc::new(Type::PrimApp(PrimTyApp::List(
+                Rc::new(Type::PrimApp(PrimTyApp::LexSt))))));
+
     let ast : Exp =
-        Let("toks".to_string(),
-            Rc::new(PrimApp(
-                PrimApp::ListFoldSeq(
-                    Var("list_emp".to_string()),
-                    Rc::new(Lam("accum".to_string(),
-                                Rc::new(Lam("char".to_string(),
-                                            Rc::new(App(Rc::new(
-                                                App(Rc::new(
-                                                    Force(Var("lex_step".to_string()))),
-                                                    Var("accum".to_string()))),
-                                                        Var("char".to_string())))))))))),
-            Rc::new(Ret(Var("toks".to_string()))));
-    drop(ast)
+        Anno(Rc::new(
+            Let("toks".to_string(),
+                Rc::new(PrimApp(
+                    PrimApp::ListFoldSeq(
+                        Var("list_emp".to_string()),
+                        Rc::new(Lam("accum".to_string(),
+                                    Rc::new(Lam("char".to_string(),
+                                                Rc::new(App(Rc::new(
+                                                    App(Rc::new(
+                                                        Force(Var("lex_step".to_string()))),
+                                                        Var("accum".to_string()))),
+                                                            Var("char".to_string())))))))))),
+                Rc::new(Ret(Var("toks".to_string()))))),
+            cty.clone()
+        );
+    
+    let cty2 = bitype::synth_exp(ctx, ast);
+    assert_eq!(Some(cty), cty2)
 
     // TODO: Rust macros to make the Rust code a bit closer to the
     // ideal, listed above in comments (e.g., avoid "Rc::new", and
