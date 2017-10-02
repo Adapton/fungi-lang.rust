@@ -79,6 +79,12 @@ pub enum Exp {
     Ref(Val),
     Get(Val),
     Name(Name,ExpRec),
+    PrimApp(PrimApp)
+}
+
+#[derive(Clone,Eq,PartialEq)]
+pub enum PrimApp {
+    ListFoldSeq(Val, ExpRec),
 }
 
 #[derive(Clone,Eq,PartialEq)]
