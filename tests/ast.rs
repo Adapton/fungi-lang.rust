@@ -86,8 +86,9 @@ fn reverse_polish_calc_step1of3() {
      let (ctx, ast, ctype) =
       iodyn_lang_parse("
 
-        val chars : Seq(Char)
+        val chars       : Seq(Char)
         val lex_st_init : LexSt
+        val lex_step    : U( Char -> LexSt -> F(LexSt) )
 
         let toks = seq_fold_seq(chars, lex_st_init,
                                  \char. \lexst. lex_step char lexst );
