@@ -92,7 +92,8 @@ pub enum Exp {
 
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub enum PrimApp {
-    ListFoldSeq(Val, ExpRec),
+    /// list_fold_seq( list, accum0, \elm.\accum. ... )
+    ListFoldSeq(Val, Val, ExpRec),
 }
 
 #[derive(Clone,Debug,Eq,PartialEq)]
