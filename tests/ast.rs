@@ -71,6 +71,21 @@ fn seq_operations() {
     assert!(bitype::synth_exp(ctx, ast.clone()) != None)
 }
 
+// Try to express all of the simple sequence operations for which
+// IODyn has evaluation examples
+#[test]
+fn quickhull() {
+    use std::rc::Rc;
+    use iodyn_lang::bitype;
+    use iodyn_lang::ast::{Val,Exp,TCtxt,
+                          Type,PrimTyApp,CType};
+    use iodyn_lang::ast::cons::*;
+
+    let ctx : TCtxt = TCtxt::Empty;
+
+    
+}
+
 #[test]
 fn reverse_polish_calc_step1of3() {
     use std::rc::Rc;

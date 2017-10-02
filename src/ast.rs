@@ -102,13 +102,13 @@ pub enum Exp {
 
 /// Primitive operation application forms.
 ///
-/// We build-in collection primitives because doing so permits us
-/// to avoid the machinery of polymorphic, higher-order functions in
-/// the type system and translation of simple examples.  Eventually,
-/// we want to handle these as "primitives" as "ordinary functions"
-/// (not built-in special cases), but for now, doing so is more
-/// complex than we'd like (again, due to each of these functions
-/// generally requiring a polymorphic, higher-order type).
+/// We build-in collection primitives because doing so permits us to
+/// avoid the machinery of polymorphic, higher-order functions in the
+/// type system and translation of simple examples.  Eventually, we
+/// want to handle these "primitives" as "ordinary functions" (not
+/// built-in special cases), but for now, doing so is more complex
+/// than we'd like (again, due to each of these functions generally
+/// requiring a polymorphic, higher-order type).
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub enum PrimApp {
     // Scalars (implemented with Rust primitive types)
