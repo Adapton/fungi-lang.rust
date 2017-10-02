@@ -126,16 +126,54 @@ fn reverse_polish_calc_step1of3() {
             cty);
     assert_eq!(ast, ast2);
 
-    // Do a fold-up, and count the number of characters in the input sequence:
+    // Try to express all of the simple sequence operations for which
+    // IODyn has evaluation examples:
     let ast3 : Exp =
         exp_anno(
             exp_let!(
+
+                // count the number of characters
                 count = exp_seq_fold_up(
                     val_var!(chars),
                     val_nat(0),
                     exp_lam!{n => exp_ret(val_nat(1)) },
                     exp_lam!{l, r => exp_nat_add(val_var!(l), val_var!(r))}
+                ),
+
+                // get character codes (natural numbers) of chars
+                codes = exp_seq_map(
+                    val_var!(chars),
+                    exp_lam!{c => exp_nat_of_char(val_var!(c))}
+                ),
+
+                // map character codes (natural numbers) into strings
+                strings = exp_seq_map(
+                    val_var!(codes),
+                    exp_lam!{c => exp_str_of_nat(val_var!(c))}
+                ),
+
+                // reverse the character sequence
+                chars_rev = exp_seq_reverse(val_var!(chars)),
+
+                // filter the characters, keeping only "digits"
+                digits = exp_seq_filter(
+                    val_var!(chars),
+                    exp_lam!{c => exp_let!(
+                        n  = exp_nat_of_char(val_var!(c)),
+                        b1 = exp_nat_lte(val_nat('0' as usize), val_var!(c)),
+                        b2 = exp_nat_lte(val_var!(c), val_nat('9' as usize));
+                        exp_bool_and(val_var!(b1), val_var!(b2))
+                    )}
+                ),
+
+                // count the number of digits
+                digit_count = exp_seq_fold_up(
+                    val_var!(digits),
+                    val_nat(0),
+                    exp_lam!{n => exp_ret(val_nat(1)) },
+                    exp_lam!{l, r => exp_nat_add(val_var!(l), val_var!(r))}
                 );
+
                 exp_ret(val_var!(count))
             ),
             CType::F(Rc::new(Type::PrimApp(PrimTyApp::Nat)))

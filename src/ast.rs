@@ -36,11 +36,19 @@ pub enum Type {
 
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub enum PrimTyApp {
-    Bool, Char, Nat, Int, Tok,
+    Bool,
+    Char,
+    Nat,
+    Int,
+    Option(TypeRec),
     Seq(TypeRec),
     List(TypeRec),
     Queue(TypeRec),
-    LexSt // TEMP(matthewhammer),
+    // Temporaries:
+    /// Tok -- TEMP(matthewhammer),
+    Tok,
+    /// LexSt -- TEMP(matthewhammer),
+    LexSt
 }
 
 pub type CTypeRec = Rc<CType>;
@@ -103,16 +111,37 @@ pub enum Exp {
 /// generally requiring a polymorphic, higher-order type).
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub enum PrimApp {
+    // Scalars (implemented with Rust primitive types)
+    // -----------------------------------------------
     /// nat_add
     NatAdd(Val, Val),
+    /// nat_lte
+    NatLte(Val, Val),
+    /// bool_and
+    BoolAnd(Val, Val),
+    /// nat_of_char
+    NatOfChar(Val),
+    /// char_of_nat
+    CharOfNat(Val),
+    /// str_of_nat
+    StrOfNat(Val),
+    /// nat_of_str (produces an optional nat, if no parse)
+    NatOfStr(Val),
 
+    // Sequences (implemented as level trees, an IODyn collection)
+    // ------------------------------------------------------------
     /// seq_empty
     SeqEmpty,
     /// seq_fold_seq( seq, accum0, \elm.\accum. ... )
     SeqFoldSeq(Val, Val, ExpRec),
     /// seq_fold_up( seq, v_emp, \elm. ..., \l.\r. ... )
     SeqFoldUp(Val, Val, ExpRec, ExpRec),
-
+    /// seq_map( seq, \elm. ... )
+    SeqMap(Val, ExpRec),
+    /// seq_filter( seq, \elm. ... )
+    SeqFilter(Val, ExpRec),
+    /// seq_reverse( seq )
+    SeqReverse(Val),
 }
 
 #[derive(Clone,Debug,Eq,PartialEq)]
@@ -148,14 +177,42 @@ pub enum Store {
 }
 
 /// Utilities for constructing ASTs, including common constructor patterns.
+///
+/// The objectives of the construction functions and macros are to:
+/// - avoid Rc::new(_) in client code, or thinking about when it's needed.
+/// - avoid quoting variable names in client code, or introducing strings for them.
+/// - avoid all of the parens for nested lets, lambdas, and
+///   applications (when these constructors are repeated in a nested
+///   way, we can use macros to make the concrete syntax use fewer
+///   parens)
+///
 pub mod cons {
     use super::*;
     pub fn val_nat(n:usize) -> Val { Val::Nat(n) }
     pub fn exp_ret(v:Val) -> Exp { Exp::Ret(v) }
     pub fn exp_anno(e:Exp, ct:CType) -> Exp { Exp::Anno(Rc::new(e), ct) }
     pub fn exp_force(v:Val) -> Exp { Exp::Force(v) }
+
+    pub fn exp_nat_of_char(v:Val) -> Exp {
+        Exp::PrimApp(PrimApp::NatOfChar(v))
+    }
+    pub fn exp_char_of_nat(v:Val) -> Exp {
+        Exp::PrimApp(PrimApp::CharOfNat(v))
+    }
     pub fn exp_nat_add(v1:Val, v2:Val) -> Exp {
         Exp::PrimApp(PrimApp::NatAdd(v1, v2))
+    }
+    pub fn exp_nat_lte(v1:Val, v2:Val) -> Exp {
+        Exp::PrimApp(PrimApp::NatLte(v1, v2))
+    }
+    pub fn exp_bool_and(v1:Val, v2:Val) -> Exp {
+        Exp::PrimApp(PrimApp::BoolAnd(v1, v2))
+    }
+    pub fn exp_nat_of_str(v:Val) -> Exp {
+        Exp::PrimApp(PrimApp::NatOfStr(v))
+    }
+    pub fn exp_str_of_nat(v:Val) -> Exp {
+        Exp::PrimApp(PrimApp::StrOfNat(v))
     }
     pub fn exp_seq_empty() -> Exp {
         Exp::PrimApp(PrimApp::SeqEmpty)
@@ -165,6 +222,15 @@ pub mod cons {
     }
     pub fn exp_seq_fold_up(v1:Val, v_nil:Val, e_elm:Exp, e_bin:Exp) -> Exp {
         Exp::PrimApp(PrimApp::SeqFoldUp(v1, v_nil, Rc::new(e_elm), Rc::new(e_bin)))
+    }
+    pub fn exp_seq_map(v1:Val, e_elm:Exp) -> Exp {
+        Exp::PrimApp(PrimApp::SeqMap(v1, Rc::new(e_elm)))
+    }
+    pub fn exp_seq_filter(v1:Val, e_elm:Exp) -> Exp {
+        Exp::PrimApp(PrimApp::SeqFilter(v1, Rc::new(e_elm)))
+    }
+    pub fn exp_seq_reverse(v1:Val) -> Exp {
+        Exp::PrimApp(PrimApp::SeqReverse(v1))
     }
 }
 
