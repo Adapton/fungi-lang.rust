@@ -16,10 +16,10 @@ fn reverse_polish_calc_step1of3() {
      let (ctx, ast, ctype) =
       iodyn_lang_parse("
 
-        val chars : List(Char)
+        val chars : Seq(Char)
         val lex_st_init : LexSt
 
-        let toks = list_fold_seq(chars, lex_st_init,
+        let toks = seq_fold_seq(chars, lex_st_init,
                                  \char. \lexst. lex_step char lexst );
         toks
         :
@@ -40,7 +40,7 @@ fn reverse_polish_calc_step1of3() {
     let ctx : TCtxt =
         TCtxt::Var(Rc::new(ctx),
                    "chars".to_string(),
-                   Type::PrimApp(PrimTyApp::List(Rc::new(Type::PrimApp(PrimTyApp::Char)))));
+                   Type::PrimApp(PrimTyApp::Seq(Rc::new(Type::PrimApp(PrimTyApp::Char)))));
 
     let ctx : TCtxt =
         TCtxt::Var(Rc::new(ctx),
@@ -60,18 +60,27 @@ fn reverse_polish_calc_step1of3() {
     // - - - - - - -
     // 2. Give computation type, for annotating the expression term:
     //
+    // cty =def= F(Seq(LexSt))
+    //
     let cty : CType =
         CType::F(
-            Rc::new(Type::PrimApp(PrimTyApp::List(
+            Rc::new(Type::PrimApp(PrimTyApp::Seq(
                 Rc::new(Type::PrimApp(PrimTyApp::LexSt))))));
 
     // 3. Give the expression, as an AST:
+    //
+    // ast =def= (
+    //         let toks = seq_fold_seq(chars, lex_st_init,
+    //                                  \char. \lexst.
+    //                                     force(lex_step) char lexst );
+    //         ret toks
+    //       )
     //
     let ast : Exp =
         Anno(Rc::new(
             Let("toks".to_string(),
                 Rc::new(PrimApp(
-                    PrimApp::ListFoldSeq(
+                    PrimApp::SeqFoldSeq(
                         Var("chars".to_string()),
                         Var("lex_st_init".to_string()),
                         Rc::new(Lam("accum".to_string(),
@@ -91,7 +100,7 @@ fn reverse_polish_calc_step1of3() {
     // 4. Use construction functions and macros instead of raw
     // constructors.
     //
-    //         let toks = list_fold_seq(chars, lex_st_init,
+    //         let toks = seq_fold_seq(chars, lex_st_init,
     //                                  \char. \lexst.
     //                                     force(lex_step) char lexst );
     //         ret toks
@@ -104,7 +113,7 @@ fn reverse_polish_calc_step1of3() {
     let ast2 : Exp =
         exp_anno(
             exp_let!(
-                toks = exp_list_fold_seq(
+                toks = exp_seq_fold_seq(
                     val_var!(chars),
                     val_var!(lex_st_init),
                     exp_lam!{a, c =>

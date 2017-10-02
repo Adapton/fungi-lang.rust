@@ -103,13 +103,13 @@ pub fn synth_exp(ctxt: TCtxt, e:Exp) -> Option<CType> {
                 Some(CType::F(t.clone()))
             } else { None }
         },
-        Exp::PrimApp(PrimApp::ListFoldSeq(_list, _accum, _body)) => {
+        Exp::PrimApp(PrimApp::SeqFoldSeq(_seq, _accum, _body)) => {
             /* 
-            Ctx |- v_list ==> List(A)
+            Ctx |- v_seq ==> Seq(A)
             Ctx |- v_accum ==> B
             Ctx |- e_body <== (A -> B -> F B)
-            ----------------------------------------------------- :: synth-list-fold-seq
-            Ctx |- list_fold_seq(v_list, v_accum, e_body) ==> F B
+            ----------------------------------------------------- :: synth-seq-fold-seq
+            Ctx |- seq_fold_seq(v_seq, v_accum, e_body) ==> F B
             */
             // TODO(matthewhammer): @kyleheadley, can you help me here?
             unimplemented!()
@@ -159,13 +159,13 @@ pub fn check_exp(ctxt: TCtxt, e:Exp, ct:CType) -> bool {
         (Exp::Name(_,e), ct) => {
             check_exp(ctxt,(*e).clone(),ct)
         },
-        (Exp::PrimApp(PrimApp::ListFoldSeq(_list, _accum, _body)), _ct) => {
+        (Exp::PrimApp(PrimApp::SeqFoldSeq(_seq, _accum, _body)), _ct) => {
             /* 
-            Ctx |- v_list ==> List(A)
+            Ctx |- v_seq ==> Seq(A)
             Ctx |- v_accum <== B
             Ctx |- e_body <== (A -> B -> F B)
-            ----------------------------------------------------- :: check-list-fold-seq
-            Ctx |- list_fold_seq(v_list, v_accum, e_body) <== F B
+            ----------------------------------------------------- :: check-seq-fold-seq
+            Ctx |- seq_fold_seq(v_list, v_accum, e_body) <== F B
             */
             unimplemented!()
         },

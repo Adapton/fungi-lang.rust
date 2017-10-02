@@ -37,7 +37,9 @@ pub enum Type {
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub enum PrimTyApp {
     Bool, Char, Nat, Int, Tok,
+    Seq(TypeRec),
     List(TypeRec),
+    Queue(TypeRec),
     LexSt // TEMP(matthewhammer),
 }
 
@@ -92,7 +94,7 @@ pub enum Exp {
 
 /// Primitive operation application forms.
 ///
-/// We build-in list/collection primitives because doing so permits us
+/// We build-in collection primitives because doing so permits us
 /// to avoid the machinery of polymorphic, higher-order functions in
 /// the type system and translation of simple examples.  Eventually,
 /// we want to handle these as "primitives" as "ordinary functions"
@@ -101,8 +103,9 @@ pub enum Exp {
 /// generally requiring a polymorphic, higher-order type).
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub enum PrimApp {
-    /// list_fold_seq( list, accum0, \elm.\accum. ... )
-    ListFoldSeq(Val, Val, ExpRec),
+    /// seq_fold_seq( seq, accum0, \elm.\accum. ... )
+    SeqFoldSeq(Val, Val, ExpRec),
+
 }
 
 #[derive(Clone,Debug,Eq,PartialEq)]
@@ -141,8 +144,8 @@ pub mod cons {
     pub fn exp_ret(v:Val) -> Exp { Exp::Ret(v) }
     pub fn exp_anno(e:Exp, ct:CType) -> Exp { Exp::Anno(Rc::new(e), ct) }
     pub fn exp_force(v:Val) -> Exp { Exp::Force(v) }
-    pub fn exp_list_fold_seq(v1:Val,v2:Val,e:Exp) -> Exp {
-        Exp::PrimApp(PrimApp::ListFoldSeq(v1,v2,Rc::new(e)))
+    pub fn exp_seq_fold_seq(v1:Val,v2:Val,e:Exp) -> Exp {
+        Exp::PrimApp(PrimApp::SeqFoldSeq(v1,v2,Rc::new(e)))
     }
 }
 
