@@ -1,24 +1,25 @@
-//#[macro_use]
+#[macro_use]
 extern crate iodyn_lang;
 
 #[test]
 fn reverse_polish_calc_step1of3() {
     use std::rc::Rc;
     use iodyn_lang::bitype;
-    use iodyn_lang::ast::{Exp,PrimApp,TCtxt,Type,PrimTyApp,CType};
+    use iodyn_lang::ast::{Val,Exp,PrimApp,TCtxt,Type,PrimTyApp,CType};
     use iodyn_lang::ast::Exp::*;
     use iodyn_lang::ast::Val::{Var};
+    use iodyn_lang::ast::cons::*;
 
     /* Matt Says:
        What I _want_ to write, someday, is something like this:
-    
-     let (ctx, ast, ctype) = 
+
+     let (ctx, ast, ctype) =
       iodyn_lang_parse("
 
         val chars : List(Char)
         val lex_st_init : LexSt
-        
-        let toks = list_fold_seq(chars, lex_st_init, 
+
+        let toks = list_fold_seq(chars, lex_st_init,
                                  \char. \lexst. lex_step char lexst );
         toks
         :
@@ -36,12 +37,12 @@ fn reverse_polish_calc_step1of3() {
 
     let ctx : TCtxt = TCtxt::Empty;
 
-    let ctx : TCtxt = 
+    let ctx : TCtxt =
         TCtxt::Var(Rc::new(ctx),
                    "chars".to_string(),
                    Type::PrimApp(PrimTyApp::List(Rc::new(Type::PrimApp(PrimTyApp::Char)))));
 
-    let ctx : TCtxt = 
+    let ctx : TCtxt =
         TCtxt::Var(Rc::new(ctx),
                    "lex_st_init".to_string(),
                    Type::PrimApp(PrimTyApp::LexSt));
@@ -56,10 +57,10 @@ fn reverse_polish_calc_step1of3() {
                                Rc::new(Type::PrimApp(PrimTyApp::LexSt)),
                                Rc::new(CType::F(Rc::new(Type::PrimApp(PrimTyApp::LexSt))))))))));
 
-    // - - - - - - - 
+    // - - - - - - -
     // 2. Give computation type, for annotating the expression term:
     //
-    let cty : CType = 
+    let cty : CType =
         CType::F(
             Rc::new(Type::PrimApp(PrimTyApp::List(
                 Rc::new(Type::PrimApp(PrimTyApp::LexSt))))));
@@ -83,21 +84,37 @@ fn reverse_polish_calc_step1of3() {
                 Rc::new(Ret(Var("toks".to_string()))))),
             cty.clone()
         );
-    
-    let cty2 = bitype::synth_exp(ctx, ast);
-    assert_eq!(Some(cty), cty2)
 
-    // TODO: Rust macros to make the Rust code a bit closer to the
-    // ideal, listed above in comments (e.g., avoid "Rc::new", and
-    // avoid having to quote and stringify every distinct variable
-    // name).
+    let cty2 = bitype::synth_exp(ctx, ast.clone());
+    assert_eq!(Some(cty.clone()), cty2);
 
-    // Note on PrimApp type: We build in list/collection primitives
-    // because it allows us to avoid the machinery of polymorphic,
-    // higher-order functions in the type system and translation
-    // rules.  Eventually, we want to handle these as "ordinary"
-    // functions (not built-ins), but for now, doing so is more
-    // complex than we'd like (again, due to them requiring
-    // polymorphic, higher-order types).
+    // 4. Use construction functions and macros instead of raw
+    // constructors.
+    //
+    //         let toks = list_fold_seq(chars, lex_st_init,
+    //                                  \char. \lexst.
+    //                                     force(lex_step) char lexst );
+    //         ret toks
+    //
+    // Below, we use Rust macros to make the Rust construction code a
+    // bit closer to the ideal, listed above in comments (e.g., avoid
+    // "Rc::new", and avoid having to quote and stringify every
+    // distinct variable name):
 
+    let ast2 : Exp =
+        exp_anno(
+            exp_let!(
+                toks = exp_list_fold_seq(
+                    val_var!(chars),
+                    val_var!(lex_st_init),
+                    exp_lam!{a, c =>
+                             exp_app!(exp_force(val_var!(lex_step)),
+                                      val_var!(a), val_var!(c))
+                    }
+                );
+                exp_ret(val_var!(toks))
+            ),
+            cty);
+
+    assert_eq!(ast, ast2);
 }

@@ -90,6 +90,15 @@ pub enum Exp {
     PrimApp(PrimApp)
 }
 
+/// Primitive operation application forms.
+///
+/// We build-in list/collection primitives because doing so permits us
+/// to avoid the machinery of polymorphic, higher-order functions in
+/// the type system and translation of simple examples.  Eventually,
+/// we want to handle these as "primitives" as "ordinary functions"
+/// (not built-in special cases), but for now, doing so is more
+/// complex than we'd like (again, due to each of these functions
+/// generally requiring a polymorphic, higher-order type).
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub enum PrimApp {
     /// list_fold_seq( list, accum0, \elm.\accum. ... )
@@ -124,4 +133,55 @@ pub enum Store {
     Empty,
     Val(StoreRec,Name,Val),
     Exp(StoreRec,Name,Exp),
+}
+
+/// Utilities for constructing ASTs, including common constructor patterns.
+pub mod cons {
+    use super::*;
+    pub fn exp_ret(v:Val) -> Exp { Exp::Ret(v) }
+    pub fn exp_anno(e:Exp, ct:CType) -> Exp { Exp::Anno(Rc::new(e), ct) }
+    pub fn exp_force(v:Val) -> Exp { Exp::Force(v) }
+    pub fn exp_list_fold_seq(v1:Val,v2:Val,e:Exp) -> Exp {
+        Exp::PrimApp(PrimApp::ListFoldSeq(v1,v2,Rc::new(e)))
+    }
+}
+
+#[macro_export]
+macro_rules! val_var {
+    ( $var:ident ) => {
+        Val::Var(stringify!($var).to_string())
+    }
+}
+
+#[macro_export]
+macro_rules! exp_lam {
+  { $var:ident => $body:expr } => {{
+    Exp::Lam(stringify!($var).to_string(), Rc::new($body))
+  }};
+  { $var1:ident , $( $var2:ident ),+ => $body:expr } => {{
+    exp_lam!( $var1 => exp_lam!( $( $var2 ),+ => $body ) )
+  }}
+}
+
+#[macro_export]
+macro_rules! exp_app {
+  ( $exp:expr ) => {{ $exp }}
+  ;
+  ( $exp:expr , $val:expr ) => {{
+    Exp::App(Rc::new($exp), $val)
+  }}
+  ;
+  ( $exp:expr , $val1:expr , $( $val2:expr ),+ ) => {{
+    exp_app!( exp_app!($exp, $val1), $( $val2 ),+ )
+  }}
+}
+
+#[macro_export]
+macro_rules! exp_let {
+  { $var:ident = $rhs:expr ; $body:expr } => {{
+    Exp::Let(stringify!($var).to_string(), Rc::new($rhs), Rc::new($body))
+  }};
+  { $var1:ident = $rhs1:expr , $( $var2:ident = $rhs2:expr ),+ ; $body:expr } => {{
+    exp_let!($var1 = $rhs1 ; exp_let!( $( $var2 = $rhs2 ),+ ; $body ))
+  }};
 }
