@@ -105,6 +105,21 @@ pub enum Exp {
     PrimApp(PrimApp)
 }
 
+/// Constructor for Exp
+#[macro_export]
+macro_rules! make_exp {
+  { let($var1:ident = $($rhs1:tt)+)$( ($var2:ident = $($rhs2:tt)+) )+ $($body:tt)*} => {{
+    Exp::Let(stringify!($var1).to_string(), Rc::new(make_exp!($($rhs1)+)), Rc::new(
+        make_exp!(let$( ($var2 = $($rhs2)+) )+ $($body)*)
+    ))
+  }};
+  { let($var1:ident = $($rhs1:tt)+) $($body:tt)*} => {{
+    Exp::Let(stringify!($var1).to_string(), Rc::new(make_exp!($($rhs1)+)), Rc::new(
+        make_exp!($($body)*))
+    )
+  }};
+}
+
 /// Primitive operation application forms.
 ///
 /// We build-in collection primitives because doing so permits us to
