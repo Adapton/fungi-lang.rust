@@ -183,8 +183,8 @@ pub enum Store {
 /// - avoid quoting variable names in client code, or introducing strings for them.
 /// - avoid all of the parens for nested lets, lambdas, and
 ///   applications (when these constructors are repeated in a nested
-///   way, we can use macros to make the concrete syntax use fewer
-///   parens)
+///   way, we can use macros to make the concrete syntax in Rust use
+///   fewer parens)
 ///
 pub mod cons {
     use super::*;

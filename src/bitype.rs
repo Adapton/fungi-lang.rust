@@ -105,9 +105,9 @@ pub fn synth_exp(ctxt: TCtxt, e:Exp) -> Option<CType> {
             /* 
             Ctx |- v_seq ==> Seq(A)
             Ctx |- v_accum ==> B
-            Ctx |- e_body <== (A -> B -> F B)
+            Ctx |- e_body <== (A -> B -> F(B))
             ----------------------------------------------------- :: synth-seq-fold-seq
-            Ctx |- seq_fold_seq(v_seq, v_accum, e_body) ==> F B
+            Ctx |- seq_fold_seq(v_seq, v_accum, e_body) ==> F(B)
             */
             // TODO(matthewhammer): @kyleheadley, can you help me here?
             unimplemented!()
