@@ -105,19 +105,43 @@ pub enum Exp {
     PrimApp(PrimApp)
 }
 
-/// Constructor for Exp
 #[macro_export]
+/// Constructor for Exp
+///
+/// e ::=
 macro_rules! make_exp {
-  { let($var1:ident = $($rhs1:tt)+)$( ($var2:ident = $($rhs2:tt)+) )+ $($body:tt)*} => {{
-    Exp::Let(stringify!($var1).to_string(), Rc::new(make_exp!($($rhs1)+)), Rc::new(
-        make_exp!(let$( ($var2 = $($rhs2)+) )+ $($body)*)
-    ))
-  }};
-  { let($var1:ident = $($rhs1:tt)+) $($body:tt)*} => {{
-    Exp::Let(stringify!($var1).to_string(), Rc::new(make_exp!($($rhs1)+)), Rc::new(
-        make_exp!($($body)*))
-    )
-  }};
+    /// {e} : t (annotation)
+    { {$($exp::tt)*} : $($ty:tt)+ } => {{
+        Exp::Anno(Rc::new(make_exp![$($exp)*]),make_ctype![$($ty)+])
+    }};
+    /// get v
+    { get $($ref::tt)+ } => {{ Exp::Get(make_val![$($ref)+] }};
+    /// frc v (force)
+    { frc $($ref::tt)+ } => {{ Exp::Force(make_val![$($ref)+] }};
+    /// ref v
+    { ref $($val::tt)+ } => {{ Exp::Ref(make_val![$($val)+] }};
+    /// thk e
+    { thk $($exp::tt)+ } => {{ Exp::Thunk(make_exp![$($exp)+]) }};
+    /// \r.e (lambda)
+    { \ $var::ident . $($body)+ } => {{
+        Exp::Lam(stringify![$var].to_string(),Rc::new(make_exp![$($body)+]))
+    }};
+    /// (e)v (application)
+    { ( $($fun::tt)+ ) $($par::tt)+ } => {{
+        Exp::App(Rc::new(make_exp![$($fun)+]),make_val![$($par)+])
+    }};
+    /// let a = {e} e
+    { let $var:ident = {$($rhs:tt)+} $($body:tt)*} => {{
+        Exp::Let(stringify![$var].to_string(), Rc::new(make_exp![$($rhs)+]), Rc::new(make_exp![$($body)*]))
+    }};
+    /// ret v
+    { ret $($ret::tt)+ } => {{ Exp::Ret(make_val![$($ret)+]) }};
+    /// [n] e (name-scoped)
+    { [$($nm::tt)*] $($exp)+ } => {{ Exp::Name(make_name![$($nm)*],make_exp![$($exp)+])}};
+    // /// prim(vars)
+    // { $ident($($vars))}
+    /// {e}
+    { {$($exp::tt)+} } => {{ make_exp![$($exp)+] }};
 }
 
 /// Primitive operation application forms.
