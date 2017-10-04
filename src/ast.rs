@@ -5,7 +5,7 @@ use std::rc::Rc;
 pub type Var = String;
 
 pub type NameRec = Rc<Name>;
-#[derive(Clone,Debug,Eq,PartialEq)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Name {
     Leaf,
     Bin(NameRec, NameRec)
@@ -144,12 +144,6 @@ pub enum PrimApp {
     SeqReverse(Val),
 }
 
-#[derive(Clone,Debug,Eq,PartialEq)]
-pub enum ExpTerm {
-    Lam(Var, ExpRec),
-    Ret(Val),
-}
-
 pub type ValRec = Rc<Val>;
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub enum Val {
@@ -165,8 +159,8 @@ pub enum Val {
     Thunk(Pointer),
 }
 
-#[derive(Clone,Debug,Eq,PartialEq)]
-pub struct Pointer(Name);
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub struct Pointer(pub Name);
 
 pub type StoreRec = Rc<Store>;
 #[derive(Clone,Debug,Eq,PartialEq)]
