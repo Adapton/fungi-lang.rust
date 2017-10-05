@@ -1,3 +1,9 @@
+//! Big-step reference evaluation semantics, for IODyn AST.
+//!
+//! Gives (non-incremental) reference semantics, using native Rust
+//! collections in place of the IODyn collections.  Does not use
+//! explicit names, nor the Adapton-based IODyn collections library.
+
 use ast::{Name,Var,Exp,Val,Pointer,PrimApp};
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -13,8 +19,8 @@ pub enum ExpTerm {
 
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub struct State {
-    store:Store, 
-    next_pointer:Name 
+    store:Store,
+    next_pointer:Name
 }
 
 #[derive(Clone,Debug,Eq,PartialEq)]
@@ -87,8 +93,8 @@ fn eval_type_error<A>(err:EvalTyErr, st:State, env:Env, e:Exp) -> A {
     panic!("eval_type_error: {:?}:\n\tstate:{:?}\n\tenv:{:?}\n\te:{:?}\n", err, st, env, e)
 }
 
-fn st_get(st:&State, p:&Pointer) -> Option<StoreObj> { 
-    st.store.get(p).map(|x|x.clone()) 
+fn st_get(st:&State, p:&Pointer) -> Option<StoreObj> {
+    st.store.get(p).map(|x|x.clone())
 }
 
 pub fn eval_prim(st:State, env:Env, p:PrimApp) -> (State, ExpTerm) {
@@ -101,7 +107,7 @@ pub fn eval(st:State, env:Env, e:Exp) -> (State, ExpTerm) {
         Exp::Ret(v)       => { (st, ExpTerm::Ret(close_val(&env, &v))) }
         Exp::Anno(e1,_ct) => { eval(st, env, (*e1).clone()) }
         Exp::Name(_nm,e1) => { eval(st, env, (*e1).clone()) }
-        Exp::Fix(f,e1) => { 
+        Exp::Fix(f,e1) => {
             let (st, ptr) = allocate_pointer(st, StoreObj::Thunk(env.clone(), (*e1).clone()));
             let mut env = env;
             env.insert(f, Val::Thunk(ptr));
@@ -125,7 +131,7 @@ pub fn eval(st:State, env:Env, e:Exp) -> (State, ExpTerm) {
                 (st, term) => eval_type_error(EvalTyErr::LetNonRet(term), st, env, e)
             }
         }
-        Exp::App(e1, v) => { 
+        Exp::App(e1, v) => {
             match eval(st, env.clone(), (*e1).clone()) {
                 (st, ExpTerm::Lam(env, x, e2)) => {
                     let mut env = env;
@@ -151,7 +157,7 @@ pub fn eval(st:State, env:Env, e:Exp) -> (State, ExpTerm) {
                 Val::Injl(v) => {
                     let mut env = env;
                     env.insert(x, (*v).clone());
-                    eval(st, env, (*ex).clone())                    
+                    eval(st, env, (*ex).clone())
                 },
                 Val::Injr(v) => {
                     let mut env = env;
