@@ -110,37 +110,37 @@ pub enum Exp {
 ///
 /// e ::=
 macro_rules! make_exp {
-    /// {e} : t (annotation)
+    // {e} : t (annotation)
     { {$($exp::tt)*} : $($ty:tt)+ } => {{
         Exp::Anno(Rc::new(make_exp![$($exp)*]),make_ctype![$($ty)+])
     }};
-    /// get v
+    // get v
     { get $($ref::tt)+ } => {{ Exp::Get(make_val![$($ref)+] }};
-    /// frc v (force)
+    // frc v (force)
     { frc $($ref::tt)+ } => {{ Exp::Force(make_val![$($ref)+] }};
-    /// ref v
+    // ref v
     { ref $($val::tt)+ } => {{ Exp::Ref(make_val![$($val)+] }};
-    /// thk e
+    // thk e
     { thk $($exp::tt)+ } => {{ Exp::Thunk(make_exp![$($exp)+]) }};
-    /// \r.e (lambda)
+    // \r.e (lambda)
     { \ $var::ident . $($body)+ } => {{
         Exp::Lam(stringify![$var].to_string(),Rc::new(make_exp![$($body)+]))
     }};
-    /// (e)v (application)
+    // (e)v (application)
     { ( $($fun::tt)+ ) $($par::tt)+ } => {{
         Exp::App(Rc::new(make_exp![$($fun)+]),make_val![$($par)+])
     }};
-    /// let a = {e} e
+    // let a = {e} e
     { let $var:ident = {$($rhs:tt)+} $($body:tt)*} => {{
         Exp::Let(stringify![$var].to_string(), Rc::new(make_exp![$($rhs)+]), Rc::new(make_exp![$($body)*]))
     }};
-    /// ret v
+    // ret v
     { ret $($ret::tt)+ } => {{ Exp::Ret(make_val![$($ret)+]) }};
-    /// [n] e (name-scoped)
+    // [n] e (name-scoped)
     { [$($nm::tt)*] $($exp)+ } => {{ Exp::Name(make_name![$($nm)*],make_exp![$($exp)+])}};
-    // /// prim(vars)
-    // { $ident($($vars))}
-    /// {e}
+    // // prim(vars)
+    // { $ident($($vars:tt)*)}
+    // {e}
     { {$($exp::tt)+} } => {{ make_exp![$($exp)+] }};
 }
 
