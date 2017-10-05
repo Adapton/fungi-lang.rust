@@ -1,4 +1,5 @@
 use ast::*;
+use std::rc::Rc;
 
 // Move this to the enum definition?
 impl TCtxt {
@@ -101,7 +102,7 @@ pub fn synth_exp(ctxt: TCtxt, e:Exp) -> Option<CType> {
                 Some(CType::F(t.clone()))
             } else { None }
         },
-        Exp::PrimApp(PrimApp::SeqFoldSeq(_seq, _accum, _body)) => {
+        Exp::PrimApp(PrimApp::SeqFoldSeq(seq, accum, body)) => {
             /* 
             Ctx |- v_seq ==> Seq(A)
             Ctx |- v_accum ==> B
@@ -109,8 +110,17 @@ pub fn synth_exp(ctxt: TCtxt, e:Exp) -> Option<CType> {
             ----------------------------------------------------- :: synth-seq-fold-seq
             Ctx |- seq_fold_seq(v_seq, v_accum, e_body) ==> F(B)
             */
-            // TODO(matthewhammer): @kyleheadley, can you help me here?
-            unimplemented!()
+            if let Some(Type::PrimApp(PrimTyApp::Seq(st))) = synth_val(ctxt.clone(),seq) {
+                if let Some(at) = synth_val(ctxt.clone(),accum) {
+                    let bt = CType::Arrow(st,Rc::new(CType::Arrow(
+                        Rc::new(at.clone()),
+                        Rc::new(CType::F(Rc::new(at.clone())))
+                    )));
+                    if check_exp(ctxt,(*body).clone(),bt) {
+                        Some(CType::F(Rc::new(at)))
+                    } else { None }
+                } else { None }
+            } else { None }
         },
         // TODO: No rule for fix
         // Exp::Fix(Var,ExpRec) => {},
@@ -157,7 +167,7 @@ pub fn check_exp(ctxt: TCtxt, e:Exp, ct:CType) -> bool {
         (Exp::Name(_,e), ct) => {
             check_exp(ctxt,(*e).clone(),ct)
         },
-        (Exp::PrimApp(PrimApp::SeqFoldSeq(_seq, _accum, _body)), _ct) => {
+        (Exp::PrimApp(PrimApp::SeqFoldSeq(seq, accum, body)), ct) => {
             /* 
             Ctx |- v_seq ==> Seq(A)
             Ctx |- v_accum <== B
@@ -165,7 +175,16 @@ pub fn check_exp(ctxt: TCtxt, e:Exp, ct:CType) -> bool {
             ----------------------------------------------------- :: check-seq-fold-seq
             Ctx |- seq_fold_seq(v_list, v_accum, e_body) <== F B
             */
-            unimplemented!()
+            if let CType::F(at) = ct {
+                if let Some(Type::PrimApp(PrimTyApp::Seq(st))) = synth_val(ctxt.clone(),seq) {
+                    if check_val(ctxt.clone(),accum,(*at).clone()) {
+                        let bt = CType::Arrow(st,Rc::new(CType::Arrow(
+                            at.clone(), Rc::new(CType::F(at))
+                        )));
+                        check_exp(ctxt,(*body).clone(),bt)
+                    } else { false }
+                } else { false }
+            } else { false }
         },
         (e,ct2) => {
             if let Some(ct1) = synth_exp(ctxt, e) {
