@@ -122,8 +122,6 @@ pub fn synth_exp(ctxt: TCtxt, e:Exp) -> Option<CType> {
                 } else { None }
             } else { None }
         },
-        // TODO: No rule for fix
-        // Exp::Fix(Var,ExpRec) => {},
         _ => None,
     }
 }
@@ -185,6 +183,14 @@ pub fn check_exp(ctxt: TCtxt, e:Exp, ct:CType) -> bool {
                     } else { false }
                 } else { false }
             } else { false }
+        },
+        (Exp::Fix(f,e),CType::F(t)) => {
+            /*
+            Ctx, f: A |- e <== F A
+            -----------------------------
+            Ctx |- fix(f.e) <== F A
+            */
+            check_exp(ctxt.var(f,(*t).clone()),(*e).clone(),CType::F(t))
         },
         (e,ct2) => {
             if let Some(ct1) = synth_exp(ctxt, e) {
