@@ -1,6 +1,8 @@
 //!  IODyn Source AST definitions
 
 use std::rc::Rc;
+use std::collections::hash_map::HashMap;
+use std::hash::Hash;
 
 pub type Var = String;
 
@@ -24,7 +26,7 @@ impl From<usize> for Name {
 }
 
 pub type TypeRec = Rc<Type>;
-#[derive(Clone,Debug,Eq,PartialEq)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Type {
     Unit,
     Pair(TypeRec, TypeRec),
@@ -34,7 +36,7 @@ pub enum Type {
     PrimApp(PrimTyApp)
 }
 
-#[derive(Clone,Debug,Eq,PartialEq)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum PrimTyApp {
     Bool,
     Char,
@@ -52,14 +54,14 @@ pub enum PrimTyApp {
 }
 
 pub type CTypeRec = Rc<CType>;
-#[derive(Clone,Debug,Eq,PartialEq)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum CType {
     Arrow(TypeRec,CTypeRec),
     F(TypeRec)
 }
 
 pub type TCtxtRec = Rc<TCtxt>;
-#[derive(Clone,Debug,Eq,PartialEq)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum TCtxt {
     Empty,
     Var(TCtxtRec,Var,Type),
@@ -82,7 +84,7 @@ impl TCtxt {
 }
 
 pub type ExpRec = Rc<Exp>;
-#[derive(Clone,Debug,Eq,PartialEq)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Exp {
     Anno(ExpRec,CType),
     Force(Val),
@@ -109,7 +111,7 @@ pub enum Exp {
 /// built-in special cases), but for now, doing so is more complex
 /// than we'd like (again, due to each of these functions generally
 /// requiring a polymorphic, higher-order type).
-#[derive(Clone,Debug,Eq,PartialEq)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum PrimApp {
     // Scalars (implemented with Rust primitive types)
     // -----------------------------------------------
@@ -145,19 +147,68 @@ pub enum PrimApp {
 }
 
 pub type ValRec = Rc<Val>;
-#[derive(Clone,Debug,Eq,PartialEq)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Val {
-    Anno(ValRec,Type),
-    Unit,
-    Nat(usize),
-    Str(String),
-    Pair(ValRec,ValRec),
-    Injl(ValRec),
-    Injr(ValRec),
+    /// free variable
     Var(Var),
+    /// Unit value
+    Unit,
+    /// Value pair
+    Pair(ValRec,ValRec),
+    /// Left injection
+    Injl(ValRec),
+    /// Right injection
+    Injr(ValRec),
+    /// Allocated reference; a pointer
     Ref(Pointer),
+    /// Allocated thunk; a pointer
     Thunk(Pointer),
+    /// Value type annotations
+    Anno(ValRec,Type),
+    /// Primitive natural number value
+    Nat(usize),
+    /// Primitive string value
+    Str(String),
+
+    /// Sequence of values
+    ///
+    /// Permits folds, splitting, concatenation
+    Seq(Seq<ValRec>),
+
+    /// Stack of values
+    ///
+    /// A sequence converts to a queue in XXX time.
+    Stack(Stack<ValRec>),
+
+    /// Queue of values
+    ///
+    /// A sequence converts to a queue in XXX time.
+    Queue(Queue<ValRec>),
+
+    /// Finite map of values, based on hashing key
+    ///
+    /// Hashmaps in IODyn permit lookups, extensions and folds, which
+    /// see the most recent value for each key (if any); older values,
+    /// if any, are forgotten.  A key-value log converts (in O(n)
+    /// time) to a hashmap that admits only the "most recent view" of
+    /// the key-value log to its folds.
+    Hashmap(Hashmap<ValRec,ValRec>),
+
+    /// Key-value logs record key-value association history.
+    ///
+    /// Key-value logs in IODyn permit lookups and extension.  Each
+    /// log permits folds in chronological and reverse-chronological
+    /// order over its key-value entries.  Unlike a Hashmap, the fold
+    /// may revisit a key multiple times (if it is associated with
+    /// multiple values).  A hashmap converts (in O(n) time) to a
+    /// key-value log.
+    Kvlog(Vec<(ValRec,ValRec)>),
+
+    /// Graphs are maps from node ids to
+    Graph(Graph)
 }
+
+//
 
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub struct Pointer(pub Name);
@@ -168,6 +219,41 @@ pub enum Store {
     Empty,
     Val(StoreRec,Name,Val),
     Exp(StoreRec,Name,Exp),
+}
+
+// Primitive collections, for reference semantics ("idiomatic Rust")
+// ----------------------------------------------------------------1
+/// Graphs
+///
+/// A graph is a set of nodes, each with a distinct identifier (a
+/// value).  Each node has data associated with it (another value,
+/// possibly different from its identifier).  Each edge of each node
+/// is identified by the node identifier of the edge's target (again,
+/// a value).  Each edge carries data (a value).  This edge
+/// representation does not (directly) permit graphs where there may
+/// be several edges between two nodes, though we can encode such
+/// graphs by using the data associated with each edge.
+#[derive(Clone,Debug,Eq,PartialEq)]
+pub struct Hashmap<K:Eq+Hash,V> ( HashMap<K,V> );
+
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub struct Graph { nodes:Hashmap<ValRec,Node> }
+
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub struct Node { data:ValRec, out:Hashmap<ValRec,Edge> }
+
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub struct Edge { data:ValRec }
+
+pub type Seq<A> = Vec<A>;
+pub type Stack<A> = Vec<A>;
+// TODO; want a FIFO implementation here
+pub type Queue<A> = Vec<A>;
+
+impl<K:Eq+Hash,V> Hash for Hashmap<K,V> {
+    fn hash<H>(&self, _state: &mut H) {
+        panic!("No")
+    }
 }
 
 /// Utilities for constructing ASTs, including common constructor patterns.

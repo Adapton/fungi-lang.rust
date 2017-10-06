@@ -5,7 +5,7 @@
 //! explicit names, nor the Adapton-based IODyn collections library.
 
 use ast::{Name,Var,Exp,Val,Pointer,PrimApp};
-use std::collections::HashMap;
+use std::collections::hash_map::HashMap;
 use std::rc::Rc;
 
 pub type Env   = HashMap<String,Val>;
@@ -29,7 +29,7 @@ pub enum StoreObj {
     Thunk(Env,Exp)
 }
 
-fn first_name() -> Name { Name::Leaf }
+//fn first_name() -> Name { Name::Leaf }
 fn next_name(nm:Name) -> Name { Name::Bin(Rc::new(Name::Leaf),Rc::new(nm)) }
 
 fn allocate_pointer(st:State, so:StoreObj) -> (State, Pointer) {
@@ -44,18 +44,33 @@ fn allocate_pointer(st:State, so:StoreObj) -> (State, Pointer) {
 fn close_val(env:&Env, v:&Val) -> Val {
     use ast::Val::*;
     match *v {
-       // variable case:
-       Var(ref x)   => env.get(x).unwrap().clone(),
-       // other cases: base cases, and structural recursion:
-       Unit         => Unit,
-       Nat(ref n)   => Nat(n.clone()),
-       Str(ref s)   => Str(s.clone()),
-       Ref(ref p)   => Ref(p.clone()),
-       Thunk(ref p) => Thunk(p.clone()),
-       Injl(ref v1) => Injl(close_val_rec(env, v1)),
-       Injr(ref v1) => Injr(close_val_rec(env, v1)),
-       Anno(ref v1, ref t)  => Anno(close_val_rec(env, v1), t.clone()),
-       Pair(ref v1, ref v2) => Pair(close_val_rec(env, v1), close_val_rec(env, v2)),
+        // variable case:
+        Var(ref x)   => env.get(x).unwrap().clone(),
+
+        // other cases: base cases, and structural recursion:
+        Unit         => Unit,
+        Nat(ref n)   => Nat(n.clone()),
+        Str(ref s)   => Str(s.clone()),
+        Ref(ref p)   => Ref(p.clone()),
+        Thunk(ref p) => Thunk(p.clone()),
+
+        // TODO: system invariant: collections always contain _closed_
+        // values; hence, no need to recur into them to close them
+        // here (which would be prohibitively expensive).  In this
+        // way, they are akin to "store-allocated" structures
+        // represented by pointers (viz., ref cells and thunks).
+        Seq(ref s)   => Seq(s.clone()),
+        Stack(ref s) => Stack(s.clone()),
+        Queue(ref q) => Queue(q.clone()),
+        Hashmap(ref m) => Hashmap(m.clone()),
+        Kvlog(ref l) => Kvlog(l.clone()),
+        Graph(ref g) => Graph(g.clone()),
+
+        // inductive cases
+        Injl(ref v1) => Injl(close_val_rec(env, v1)),
+        Injr(ref v1) => Injr(close_val_rec(env, v1)),
+        Anno(ref v1, ref t)  => Anno(close_val_rec(env, v1), t.clone()),
+        Pair(ref v1, ref v2) => Pair(close_val_rec(env, v1), close_val_rec(env, v2)),
     }
 }
 
@@ -98,6 +113,7 @@ fn st_get(st:&State, p:&Pointer) -> Option<StoreObj> {
 }
 
 pub fn eval_prim(st:State, env:Env, p:PrimApp) -> (State, ExpTerm) {
+    drop((st,env,p));
     unimplemented!()
 }
 
@@ -171,9 +187,9 @@ pub fn eval(st:State, env:Env, e:Exp) -> (State, ExpTerm) {
         Exp::Get(v) => {
             match close_val(&env, &v) {
                 Val::Ref(ptr) => match st_get(&st, &ptr) {
-                    Some(StoreObj::Cell(v))        => { (st, ExpTerm::Ret(v)) }
-                    Some(StoreObj::Thunk(env2,e2)) => eval_type_error(EvalTyErr::GetThunk(ptr), st, env, e),
-                    None                          => eval_type_error(EvalTyErr::GetDangling(ptr), st, env, e),
+                    Some(StoreObj::Cell(v))    => { (st, ExpTerm::Ret(v)) }
+                    Some(StoreObj::Thunk(_,_)) => eval_type_error(EvalTyErr::GetThunk(ptr), st, env, e),
+                    None                       => eval_type_error(EvalTyErr::GetDangling(ptr), st, env, e),
                 },
                 v => eval_type_error(EvalTyErr::GetNonRef(v), st, env, e)
             }
