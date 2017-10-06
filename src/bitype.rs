@@ -190,7 +190,7 @@ pub fn check_exp(ctxt: TCtxt, e:Exp, ct:CType) -> bool {
             -----------------------
             Ctx |- fix(f.e) <== C
             */
-            check_exp(ctxt.var(f,Type::U(ct.clone())),(*e).clone(),ct)
+            check_exp(ctxt.var(f,Type::U(Rc::new(ct.clone()))),(*e).clone(),ct)
         },
         (e,ct2) => {
             if let Some(ct1) = synth_exp(ctxt, e) {
