@@ -22,9 +22,12 @@ pub enum Name {
 macro_rules! make_name {
     // [] (leaf)
     { [] } => { Name::Leaf };
-    // TODO: name tuple
-    // [n]
-    { [$($name:tt)+] } => { make_name![$($name:tt)+] };
+    // [n] (extra braces ignored)
+    { [$(name:tt)*] } => { make_name![$(name)*] };
+    // [[n][n]...] (extended bin)
+    { [[$(name:tt)*] $($names:tt)+] } => {
+        Name::Bin(Rc::new(make_name![$(name)*]),Rc::new(make_name![$($names)+]))
+    };
 }
 
 impl From<usize> for Name {
@@ -54,17 +57,57 @@ pub enum Type {
 ///
 /// t ::=
 macro_rules! make_type {
-    // ()
-    { () } => { Type::Unit };
-    // TODO: pair
-    // TODO: Sum
+    // (t1 x t2 x ...) (extended product, unit, extra parens)
+    { ($($types:tt)*) } => { split_cross![parse_product $($types)*] };
+    // [t1 + t2 + ...] (extended coproduct, unit, extra parens)
+    { [$($types:tt)*] } => { split_plus![parse_coproduct $($types)*] };
     // ref t
     { ref $($t:tt)+ } => { Type::Ref(Rc::new(make_type![$($t:tt)+]))};
     // U ct
     { U $($ct:tt)+ } => { Type::U(Rc::new(make_ctype![$($ct:tt)+]))};
-    // TODO: PrimType
+    // Primtypes
+    { bool } => { Type::PrimApp(PrimTyApp::Bool) };
+    { char } => { Type::PrimApp(PrimTyApp::Char) };
+    { nat } => { Type::PrimApp(PrimTyApp::Nat) };
+    { int } => { Type::PrimApp(PrimTyApp::Int) };
+    { Option<$($type:tt)+> } => { Type::PrimApp(PrimTyApp::Option(Rc::new(
+        make_type![$($type)+]
+    ))) };
+    { Seq<$($type:tt)+> } => { Type::PrimApp(PrimTyApp::Seq(Rc::new(
+        make_type![$($type)+]
+    ))) };
+    { List<$($type:tt)+> } => { Type::PrimApp(PrimTyApp::List(Rc::new(
+        make_type![$($type)+]
+    ))) };
+    { Queue<$($type:tt)+> } => { Type::PrimApp(PrimTyApp::Queue(Rc::new(
+        make_type![$($type)+]
+    ))) };
+    { tok } => { Type::PrimApp(PrimTyApp::Tok) };
+    { LexSt } => { Type::PrimApp(PrimTyApp::LexSt) };
+}
+#[macro_export]
+macro_rules! parse_product {
+    // ()
+    { } => { Type::Unit };
     // (t)
-    { ( $($t:tt)+ ) } => { make_type![$($t:tt)+] };
+    { ($($type:tt)+) } => { make_type![$($type)+] };
+    // (t x ...)
+    { ($($type:tt)+) $($types:tt)+ } => { Type::Pair(
+        Rc::new(make_type![$($type)+]),
+        Rc::new(parse_type![$($types)+]),
+    )};
+}
+#[macro_export]
+macro_rules! parse_coproduct {
+    // [] (empty type, using: unit type)
+    { } => { Type::Unit };
+    // [t]
+    { ($($type:tt)+) } => { make_type![$($type)+] };
+    // [t + ...]
+    { ($($type:tt)+) $($types:tt)+ } => { Type::Sum(
+        Rc::new(make_type![$($type)+]),
+        Rc::new(parse_type![$($types)+]),
+    )};
 }
 
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
@@ -181,7 +224,7 @@ macro_rules! make_exp {
     // ret v
     { ret $($ret:tt)+ } => {{ Exp::Ret(make_val![$($ret)+]) }};
     // [n] e (name-scoped)
-    { [$($nm:tt)*] $($exp:tt)+ } => {{ Exp::Name(make_name![$($nm)*],make_exp![$($exp)+])}};
+    { [$($nm:tt)*] $($exp:tt)+ } => {{ Exp::Name(make_name!([$($nm)*]),make_exp![$($exp)+])}};
     // TODO: prim(vars)
     // { $ident($($vars:tt)*)}
     // {e}
@@ -308,14 +351,14 @@ macro_rules! make_val {
 
     // TODO: built-ins
 
-    // num
-    { $num:expr } => { Val::Nat($num) };
     // "string"
     { "$($s:tt)*" } => { Val::Str(stringify![$($s)*].to_string()) };
     // a (var)
     { $a:ident } => { Val::Var(stringify![$a])};
     // (v)
     { ($($v:tt)+) } => { make_val![$($v:tt)+] };
+    // num
+    { $num:expr } => { Val::Nat($num) };
 }
 
 /// Sequences of values, whose implementations use mutation.
@@ -504,4 +547,153 @@ macro_rules! exp_let {
   { $var1:ident = $rhs1:expr , $( $var2:ident = $rhs2:expr ),+ ; $body:expr } => {{
     exp_let!($var1 = $rhs1 ; exp_let!( $( $var2 = $rhs2 ),+ ; $body ))
   }};
+}
+
+////////////////////////
+// Macro parsing helpers
+////////////////////////
+
+#[macro_export]
+/// run a macro on a list of lists after splitting the input at commas
+macro_rules! split_comma {
+    // no defaults
+    {$fun:ident <= $($item:tt)*} => {
+        split_comma![$fun () () () <= $($item)*]
+    };
+    // give initial params to the function
+    {$fun:ident ($($first:tt)*) <= $($item:tt)*} => {
+        split_comma![$fun ($($first)*) () () <= $($item)*]
+    };
+    // give inital params and initial inner items in every group 
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) <= $($item:tt)*} => {
+        split_comma![$fun ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
+    };
+    // on non-final seperator, stash the accumulator and restart it
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= , $($item:tt)+} => {
+        split_comma![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*] 
+    };
+    // ignore final seperator, run the function
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= , } => {
+        $fun![$($first)* ($($current)*)] 
+    };
+    // on next item, add it to the accumulator
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= $next:tt $($item:tt)*} => {
+        split_comma![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*] 
+    };
+    // at end of items, run the function
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= } => {
+        $fun![$($first)* ($($current)*)] 
+    };
+    // if there were no items and no default, run with only initial params, if any
+    {$fun:ident ($($first:tt)*) () () <= } => {
+        $fun![$($first)*]
+    };
+}
+#[macro_export]
+/// run a macro on a list of lists after splitting the input at x (product types)
+macro_rules! split_cross {
+    // no defaults
+    {$fun:ident <= $($item:tt)*} => {
+        split_cross![$fun () () () <= $($item)*]
+    };
+    // give initial params to the function
+    {$fun:ident ($($first:tt)*) <= $($item:tt)*} => {
+        split_cross![$fun ($($first)*) () () <= $($item)*]
+    };
+    // give inital params and initial inner items in every group 
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) <= $($item:tt)*} => {
+        split_cross![$fun ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
+    };
+    // on non-final seperator, stash the accumulator and restart it
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= x $($item:tt)+} => {
+        split_cross![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*] 
+    };
+    // ignore final seperator, run the function
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= x } => {
+        $fun![$($first)* ($($current)*)] 
+    };
+    // on next item, add it to the accumulator
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= $next:tt $($item:tt)*} => {
+        split_cross![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*] 
+    };
+    // at end of items, run the function
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= } => {
+        $fun![$($first)* ($($current)*)] 
+    };
+    // if there were no items and no default, run with only initial params, if any
+    {$fun:ident ($($first:tt)*) () () <= } => {
+        $fun![$($first)*]
+    };
+}
+#[macro_export]
+/// run a macro on a list of lists after splitting the input at + (coproduct types)
+macro_rules! split_plus {
+    // no defaults
+    {$fun:ident <= $($item:tt)*} => {
+        split_plus![$fun () () () <= $($item)*]
+    };
+    // give initial params to the function
+    {$fun:ident ($($first:tt)*) <= $($item:tt)*} => {
+        split_plus![$fun ($($first)*) () () <= $($item)*]
+    };
+    // give inital params and initial inner items in every group 
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) <= $($item:tt)*} => {
+        split_plus![$fun ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
+    };
+    // on non-final seperator, stash the accumulator and restart it
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= + $($item:tt)+} => {
+        split_plus![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*] 
+    };
+    // ignore final seperator, run the function
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= + } => {
+        $fun![$($first)* ($($current)*)] 
+    };
+    // on next item, add it to the accumulator
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= $next:tt $($item:tt)*} => {
+        split_plus![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*] 
+    };
+    // at end of items, run the function
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= } => {
+        $fun![$($first)* ($($current)*)] 
+    };
+    // if there were no items and no default, run with only initial params, if any
+    {$fun:ident ($($first:tt)*) () () <= } => {
+        $fun![$($first)*]
+    };
+}
+#[macro_export]
+/// run a macro on a list of lists after splitting the input at -> (arrow types)
+macro_rules! split_arrow {
+    // no defaults
+    {$fun:ident <= $($item:tt)*} => {
+        split_plus![$fun () () () <= $($item)*]
+    };
+    // give initial params to the function
+    {$fun:ident ($($first:tt)*) <= $($item:tt)*} => {
+        split_plus![$fun ($($first)*) () () <= $($item)*]
+    };
+    // give inital params and initial inner items in every group 
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) <= $($item:tt)*} => {
+        split_plus![$fun ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
+    };
+    // on non-final seperator, stash the accumulator and restart it
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= -> $($item:tt)+} => {
+        split_plus![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*] 
+    };
+    // don't! ignore final seperator, run the function
+    // {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= -> } => {
+    //     $fun![$($first)* ($($current)*)] 
+    // };
+    // on next item, add it to the accumulator
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= $next:tt $($item:tt)*} => {
+        split_plus![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*] 
+    };
+    // at end of items, run the function
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= } => {
+        $fun![$($first)* ($($current)*)] 
+    };
+    // if there were no items and no default, run with only initial params, if any
+    {$fun:ident ($($first:tt)*) () () <= } => {
+        $fun![$($first)*]
+    };
 }
