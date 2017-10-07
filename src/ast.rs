@@ -15,6 +15,17 @@ pub enum Name {
     Leaf,
     Bin(NameRec, NameRec)
 }
+#[macro_export]
+/// Constructor for Name
+///
+/// n ::=
+macro_rules! make_name {
+    // [] (leaf)
+    { [] } => { Name::Leaf };
+    // TODO: name tuple
+    // [n]
+    { [$($name:tt)+] } => { make_name![$($name:tt)+] };
+}
 
 impl From<usize> for Name {
     fn from(n: usize) -> Self {
@@ -37,6 +48,23 @@ pub enum Type {
     Ref(TypeRec),
     U(CTypeRec),
     PrimApp(PrimTyApp)
+}
+#[macro_export]
+/// Constructor for Type
+///
+/// t ::=
+macro_rules! make_type {
+    // ()
+    { () } => { Type::Unit };
+    // TODO: pair
+    // TODO: Sum
+    // ref t
+    { ref $($t:tt)+ } => { Type::Ref(Rc::new(make_type![$($t:tt)+]))};
+    // U ct
+    { U $($ct:tt)+ } => { Type::U(Rc::new(make_ctype![$($ct:tt)+]))};
+    // TODO: PrimType
+    // (t)
+    { ( $($t:tt)+ ) } => { make_type![$($t:tt)+] };
 }
 
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
@@ -61,6 +89,17 @@ pub type CTypeRec = Rc<CType>;
 pub enum CType {
     Arrow(TypeRec,CTypeRec),
     F(TypeRec)
+}
+#[macro_export]
+/// Constructor for CType
+///
+/// ct ::=
+macro_rules! make_ctype {
+    // F t
+    { F $($vt:tt)*} => { CType::F(make_type![$($vt:tt)*]) };
+    // TODO: arrow
+    // (ct)
+    { ( $($ct:tt)+ ) } => { make_ctype![$($ct:tt)+] };
 }
 
 pub type TCtxtRec = Rc<TCtxt>;
@@ -122,7 +161,7 @@ macro_rules! make_exp {
     { ref $($val:tt)+ } => {{ Exp::Ref(make_val![$($val)+]) }};
     // thk e
     { thk $($exp:tt)+ } => {{ Exp::Thunk(make_exp![$($exp)+]) }};
-    // \r.e (lambda)
+    // λr.e (lambda)
     { λ$var:ident . $($body:tt)+ } => {{
         Exp:Lam(stringify![$var].to_string(),Rc::new(make_exp![$($body)+]))
     }};

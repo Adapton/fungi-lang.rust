@@ -43,6 +43,11 @@ pub fn synth_val(ctxt: TCtxt, v:Val) -> Option<Type> {
             } else { None }
         },
         Val::Var(var) => { ctxt.lookup_var(var) },
+        // Val::AnnoVar(var,t) => {
+        //     if let Some(vt) = ctxt.lookup_var(var) {
+        //         if vt == t { Some(t) } else { None }
+        //     } else { Some(t) }
+        // },
         _ => None,
     }
 }
