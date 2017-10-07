@@ -140,9 +140,20 @@ pub enum CType {
 macro_rules! make_ctype {
     // F t
     { F $($vt:tt)*} => { CType::F(make_type![$($vt:tt)*]) };
-    // TODO: arrow
     // (ct)
     { ( $($ct:tt)+ ) } => { make_ctype![$($ct:tt)+] };
+    // t1 -> t2 -> ... -> ct (arrow)
+    { $($arrows:tt)+ } => { split_arrow![parse_arrow $($arrows:tt)+] };
+}
+#[macro_export]
+macro_rules! parse_arrow {
+    // ct ( end arrow )
+    { ($($ctype:tt)+) } => { make_ctype![$($ctype:tt)+] };
+    // t -> ...
+    { ($($type:tt)+) $(($(types:tt)+))+ } => { CType::Arrow(
+        Rc::new(make_type![$($type)+]),
+        Rc::new(parse_arrow![$(($(types:tt)+))+]),
+    )};
 }
 
 pub type TCtxtRec = Rc<TCtxt>;
@@ -331,10 +342,14 @@ pub enum Val {
 ///
 /// v ::=
 macro_rules! make_val {
-    // ()
-    { () } => {Val::Unit};
-    // TODO: pair
-    // TODO: better injections
+    // (v) : t (annotation)
+    { ($($v:tt)+) : $($t:tt)+ } => { Val::Anno(
+        Rc::new(make_val![$($v:tt)+]),
+        make_type![$($t:tt)+]
+    )};
+    // (v1,v2,...) (tuples, unit, extra parens)
+    { ($($vals:tt)*) } => { split_comma![parse_tuple $($vals)*] };
+    // TODO: better injections?
     // injl v
     { injl $($v:tt)+ } => { Val::Injl(Rc::new(make_val![$($v:tt)+])) };
     // injr v
@@ -343,22 +358,41 @@ macro_rules! make_val {
     { ref $($name:tt)+ } => { Val::Ref(Pointer(make_name![$($name:tt)+])) };
     // thk n (thunk)
     { thk $($name:tt)+ } => { Val::Thunk(Pointer(make_name![$($name:tt)+])) };
-    // (v) : t (annotation)
-    { ($($v:tt)+) : $($t:tt)+ } => { Val::Anno(
-        Rc::new(make_val![$($v:tt)+]),
-        make_type![$($t:tt)+]
-    )};
-
-    // TODO: built-ins
+    // TODO: Seq
+    // Stack(v,v,...)
+    { Stack($($v:tt)*) } => { Val::Stack(split_comma![parse_valvec $($v:tt)*])};
+    // Queue(v,v,...)
+    { Queue($($v:tt)*) } => { Val::Queue(split_comma![parse_valvec $($v:tt)*])};
+    // TODO:
+    // Hashmap() (new)
+    { Hashmap() } => { Val::Hashmap(Hashmap::new()) };
+    // Kvlog() (new)
+    { Kvlog() } => { Val::Kvlog(Vec::new()) };
+    // Graph() (new)
+    { Graph() } => { Val::Graph{nodes: Hashmap::new() } };
 
     // "string"
     { "$($s:tt)*" } => { Val::Str(stringify![$($s)*].to_string()) };
     // a (var)
     { $a:ident } => { Val::Var(stringify![$a])};
-    // (v)
-    { ($($v:tt)+) } => { make_val![$($v:tt)+] };
     // num
     { $num:expr } => { Val::Nat($num) };
+}
+#[macro_export]
+macro_rules! parse_tuple {
+    // ()
+    { } => { Val::Unit };
+    // (v)
+    { ($($val:tt)*) } => { make_val![$($val:tt)*] };
+    // (v, ...)
+    { ($($val:tt)*) $($vals:tt)+ } => { Val::Pair(
+        Rc::new(make_val![$($val:tt)*]),
+        Rc::new(parse_tuple![$($vals)+]),
+    )};
+}
+#[macro_export]
+macro_rules! parse_valvec {
+    { $(($(v:tt)+))* } => { vec![$(Rc::new(make_val![$(v:tt)+]))*] };
 }
 
 /// Sequences of values, whose implementations use mutation.
@@ -666,19 +700,19 @@ macro_rules! split_plus {
 macro_rules! split_arrow {
     // no defaults
     {$fun:ident <= $($item:tt)*} => {
-        split_plus![$fun () () () <= $($item)*]
+        split_arrow![$fun () () () <= $($item)*]
     };
     // give initial params to the function
     {$fun:ident ($($first:tt)*) <= $($item:tt)*} => {
-        split_plus![$fun ($($first)*) () () <= $($item)*]
+        split_arrow![$fun ($($first)*) () () <= $($item)*]
     };
     // give inital params and initial inner items in every group 
     {$fun:ident ($($first:tt)*) ($($every:tt)*) <= $($item:tt)*} => {
-        split_plus![$fun ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
+        split_arrow![$fun ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
     };
     // on non-final seperator, stash the accumulator and restart it
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= -> $($item:tt)+} => {
-        split_plus![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*] 
+        split_arrow![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*] 
     };
     // don't! ignore final seperator, run the function
     // {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= -> } => {
@@ -686,7 +720,7 @@ macro_rules! split_arrow {
     // };
     // on next item, add it to the accumulator
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= $next:tt $($item:tt)*} => {
-        split_plus![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*] 
+        split_arrow![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*] 
     };
     // at end of items, run the function
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= } => {
