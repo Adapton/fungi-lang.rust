@@ -111,37 +111,44 @@ pub enum Exp {
 /// e ::=
 macro_rules! make_exp {
     // {e} : t (annotation)
-    { {$($exp::tt)*} : $($ty:tt)+ } => {{
+    { {$($exp:tt)*} : $($ty:tt)+ } => {{
         Exp::Anno(Rc::new(make_exp![$($exp)*]),make_ctype![$($ty)+])
     }};
     // get v
-    { get $($ref::tt)+ } => {{ Exp::Get(make_val![$($ref)+] }};
+    { get $($ref:tt)+ } => {{ Exp::Get(make_val![$($ref)+]) }};
     // frc v (force)
-    { frc $($ref::tt)+ } => {{ Exp::Force(make_val![$($ref)+] }};
+    { frc $($ref:tt)+ } => {{ Exp::Force(make_val![$($ref)+]) }};
     // ref v
-    { ref $($val::tt)+ } => {{ Exp::Ref(make_val![$($val)+] }};
+    { ref $($val:tt)+ } => {{ Exp::Ref(make_val![$($val)+]) }};
     // thk e
-    { thk $($exp::tt)+ } => {{ Exp::Thunk(make_exp![$($exp)+]) }};
+    { thk $($exp:tt)+ } => {{ Exp::Thunk(make_exp![$($exp)+]) }};
     // \r.e (lambda)
-    { \ $var::ident . $($body)+ } => {{
-        Exp::Lam(stringify![$var].to_string(),Rc::new(make_exp![$($body)+]))
+    { λ$var:ident . $($body:tt)+ } => {{
+        Exp:Lam(stringify![$var].to_string(),Rc::new(make_exp![$($body)+]))
+    }};
+    // fix f.e
+    { fix $var:ident . $($body:tt)+ } => {{
+        Exp::Fix(stringify![$var].to_string(),Rc::new(make_exp![$($body)+]))
     }};
     // (e)v (application)
-    { ( $($fun::tt)+ ) $($par::tt)+ } => {{
+    { ( $($fun:tt)+ ) $($par:tt)+ } => {{
         Exp::App(Rc::new(make_exp![$($fun)+]),make_val![$($par)+])
     }};
     // let a = {e} e
     { let $var:ident = {$($rhs:tt)+} $($body:tt)*} => {{
         Exp::Let(stringify![$var].to_string(), Rc::new(make_exp![$($rhs)+]), Rc::new(make_exp![$($body)*]))
     }};
+    // let (a,b) = {e} e (split)
+    {} => {{}};
+    // [case]
     // ret v
-    { ret $($ret::tt)+ } => {{ Exp::Ret(make_val![$($ret)+]) }};
+    { ret $($ret:tt)+ } => {{ Exp::Ret(make_val![$($ret)+]) }};
     // [n] e (name-scoped)
-    { [$($nm::tt)*] $($exp)+ } => {{ Exp::Name(make_name![$($nm)*],make_exp![$($exp)+])}};
+    { [$($nm:tt)*] $($exp:tt)+ } => {{ Exp::Name(make_name![$($nm)*],make_exp![$($exp)+])}};
     // // prim(vars)
     // { $ident($($vars:tt)*)}
     // {e}
-    { {$($exp::tt)+} } => {{ make_exp![$($exp)+] }};
+    { {$($exp:tt)+} } => {{ make_exp![$($exp)+] }};
 }
 
 /// Primitive operation application forms.
