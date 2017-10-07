@@ -488,35 +488,50 @@ macro_rules! parse_valvec {
     { $(($(v:tt)+))* } => { vec![$(Rc::new(make_val![$(v:tt)+]))*] };
 }
 
-/// Sequences of values, whose implementations use mutation.
+/// Sequences of values, whose implementations of push and pop must
+/// use mutation.
 ///
-/// The mutation in this implementation is not observable from within
-/// the IODyn program, however, since the IODyn language enforces an
-/// affine typing discipline (like Rust), with explicit cloning (like
-/// Rust).  Unlike Rust, IODyn lacks a notion of "borrowing", and
-/// cloning is O(1) for collections that use Adapton. By contrast,
-/// cloning with ordinary Rust collections is typically O(n).
+/// XXX: Move push and pop into the Stack/Queue trait only?
+///
+/// Note on observable effects: The mutation in a sequence's
+/// implementation is not observable from within the IODyn program,
+/// however, since the IODyn language enforces an affine typing
+/// discipline (like Rust), with explicit cloning (like Rust).
+///
+/// Cost to clone/duplicate: Unlike Rust, IODyn lacks a notion of
+/// "borrowing", and cloning is O(1) for collections that use
+/// Adapton. By contrast, cloning with ordinary Rust collections is
+/// typically O(n).  We use the term "duplicate" instead of "clone" to
+/// disambiguate the IODyn primitive from the Rust primitive.
 pub trait SeqObj : Debug {
-    fn push(&self, Val);
-    fn pop(&self) -> Option<Val>;
-    fn fold(&self, Val, &Env, &Exp) -> Val;
+    fn dup(&self) -> Box<SeqObj>;
+    fn push(&mut self, Val);
+    fn pop(&mut self) -> Option<Val>;
+    fn fold_seq(&self, Val, &Env, &Exp) -> Val;
+    fn fold_up(&self, Val, &Env, &Exp, &Exp) -> Val;
 }
 
-impl SeqObj for RefCell<Vec<Val>> {
-    fn push(&self, v:Val) {
-        self.borrow_mut().push(v)
+impl SeqObj for Vec<Val> {
+    fn dup(&self) -> Box<SeqObj> {
+        Box::new(self.clone())
     }
-    fn pop(&self) -> Option<Val> {
-        self.borrow_mut().pop()
+    fn push(&mut self, v:Val) {
+        self.push(v)
     }
-    fn fold(&self, _v:Val, _env:&Env, _exp:&Exp) -> Val {
+    fn pop(&mut self) -> Option<Val> {
+        self.pop()
+    }
+    fn fold_seq(&self, _v_nil:Val, _env:&Env, _exp_cons:&Exp) -> Val {
+        unimplemented!()
+    }
+    fn fold_up(&self, _v_nil:Val, _env:&Env, _exp_leaf:&Exp, _exp_bin:&Exp) -> Val {
         unimplemented!()
     }
 }
 
 #[derive(Clone,Debug)]
 pub struct Seq {
-    pub seq:Rc<SeqObj>
+    pub seq:Rc<RefCell<SeqObj>>
 }
 impl Eq        for Seq { }
 impl PartialEq for Seq { fn eq(&self, _other:&Self) -> bool { unimplemented!() } }

@@ -123,11 +123,11 @@ pub fn eval_prim(st:State, env:Env, p:PrimApp) -> (State, ExpTerm) {
             (st, ExpTerm::Ret(v_empty))
         },
         PrimApp::SeqPush(Val::Seq(so), v_elm) => {
-            so.seq.push(v_elm);
+            so.seq.borrow_mut().push(v_elm);
             (st, ExpTerm::Ret(Val::Seq(so)))
         },
         PrimApp::SeqPop(Val::Seq(so)) => {
-            let v_op : Val = val_option(so.seq.pop());
+            let v_op : Val = val_option(so.seq.borrow_mut().pop());
             (st, ExpTerm::Ret(val_pair(Val::Seq(so), v_op )))
         },
         _ => unimplemented!()
