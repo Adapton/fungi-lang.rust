@@ -4,7 +4,9 @@
 //! collections in place of the IODyn collections.  Does not use
 //! explicit names, nor the Adapton-based IODyn collections library.
 
-use ast::{Name,Var,Exp,Val,Pointer,PrimApp};
+use std::cell::RefCell;
+use ast::{Name,Var,Exp,Val,Pointer,PrimApp,Seq};
+use ast::cons::{val_pair, val_option};
 use std::collections::hash_map::HashMap;
 use std::rc::Rc;
 
@@ -113,8 +115,23 @@ fn st_get(st:&State, p:&Pointer) -> Option<StoreObj> {
 }
 
 pub fn eval_prim(st:State, env:Env, p:PrimApp) -> (State, ExpTerm) {
-    drop((st,env,p));
-    unimplemented!()
+    match p {
+        PrimApp::SeqEmpty => {
+            let v_empty = Val::Seq(Seq{
+                 seq:Rc::new(RefCell::new(Vec::new()))
+             });
+            (st, ExpTerm::Ret(v_empty))
+        },
+        PrimApp::SeqPush(Val::Seq(so), v_elm) => {
+            so.seq.push(v_elm);
+            (st, ExpTerm::Ret(Val::Seq(so)))
+        },
+        PrimApp::SeqPop(Val::Seq(so)) => {
+            let v_op : Val = val_option(so.seq.pop());
+            (st, ExpTerm::Ret(val_pair(Val::Seq(so), v_op )))
+        },
+        _ => unimplemented!()
+    }
 }
 
 pub fn eval(st:State, env:Env, e:Exp) -> (State, ExpTerm) {

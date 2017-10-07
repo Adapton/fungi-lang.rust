@@ -1,8 +1,11 @@
 //!  IODyn Source AST definitions
 
+use std::fmt::Debug;
+use std::cell::RefCell;
 use std::rc::Rc;
 use std::collections::hash_map::HashMap;
 use std::hash::Hash;
+use eval::Env;
 
 pub type Var = String;
 
@@ -115,34 +118,24 @@ pub enum Exp {
 pub enum PrimApp {
     // Scalars (implemented with Rust primitive types)
     // -----------------------------------------------
-    /// nat_add
     NatAdd(Val, Val),
-    /// nat_lte
     NatLte(Val, Val),
-    /// bool_and
     BoolAnd(Val, Val),
-    /// nat_of_char
     NatOfChar(Val),
-    /// char_of_nat
     CharOfNat(Val),
-    /// str_of_nat
     StrOfNat(Val),
-    /// nat_of_str (produces an optional nat, if no parse)
+    /// parses nat into string; produces an optional nat, if no parse
     NatOfStr(Val),
 
     // Sequences (implemented as level trees, an IODyn collection)
     // ------------------------------------------------------------
-    /// seq_empty
     SeqEmpty,
-    /// seq_fold_seq( seq, accum0, \elm.\accum. ... )
+    SeqPush(Val, Val),
+    SeqPop(Val),
     SeqFoldSeq(Val, Val, ExpRec),
-    /// seq_fold_up( seq, v_emp, \elm. ..., \l.\r. ... )
     SeqFoldUp(Val, Val, ExpRec, ExpRec),
-    /// seq_map( seq, \elm. ... )
     SeqMap(Val, ExpRec),
-    /// seq_filter( seq, \elm. ... )
     SeqFilter(Val, ExpRec),
-    /// seq_reverse( seq )
     SeqReverse(Val),
 }
 
@@ -173,7 +166,7 @@ pub enum Val {
     /// Sequence of values
     ///
     /// Permits folds, splitting, concatenation
-    Seq(Seq<ValRec>),
+    Seq(Seq),
 
     /// Stack of values
     ///
@@ -208,7 +201,39 @@ pub enum Val {
     Graph(Graph)
 }
 
-//
+/// Sequences of values, whose implementations use mutation.
+///
+/// The mutation in this implementation is not observable from within
+/// the IODyn program, however, since the IODyn language enforces an
+/// affine typing discipline (like Rust), with explicit cloning (like
+/// Rust).  Unlike Rust, IODyn lacks a notion of "borrowing", and
+/// cloning is O(1) for collections that use Adapton. By contrast,
+/// cloning with ordinary Rust collections is typically O(n).
+pub trait SeqObj : Debug {
+    fn push(&self, Val);
+    fn pop(&self) -> Option<Val>;
+    fn fold(&self, Val, &Env, &Exp) -> Val;
+}
+
+impl SeqObj for RefCell<Vec<Val>> {
+    fn push(&self, v:Val) {
+        self.borrow_mut().push(v)
+    }
+    fn pop(&self) -> Option<Val> {
+        self.borrow_mut().pop()
+    }
+    fn fold(&self, _v:Val, _env:&Env, _exp:&Exp) -> Val {
+        unimplemented!()
+    }
+}
+
+#[derive(Clone,Debug)]
+pub struct Seq {
+    pub seq:Rc<SeqObj>
+}
+impl Eq        for Seq { }
+impl PartialEq for Seq { fn eq(&self, _other:&Self) -> bool { unimplemented!() } }
+impl Hash      for Seq { fn hash<H>(&self, _state: &mut H) { unimplemented!() } }
 
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub struct Pointer(pub Name);
@@ -233,9 +258,6 @@ pub enum Store {
 /// representation does not (directly) permit graphs where there may
 /// be several edges between two nodes, though we can encode such
 /// graphs by using the data associated with each edge.
-#[derive(Clone,Debug,Eq,PartialEq)]
-pub struct Hashmap<K:Eq+Hash,V> ( HashMap<K,V> );
-
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub struct Graph { nodes:Hashmap<ValRec,Node> }
 
@@ -245,7 +267,11 @@ pub struct Node { data:ValRec, out:Hashmap<ValRec,Edge> }
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub struct Edge { data:ValRec }
 
-pub type Seq<A> = Vec<A>;
+// A Hashmap is nearly a HashMap; we will (eventually) implement Hash for Hashmap.
+#[derive(Clone,Debug,Eq,PartialEq)]
+pub struct Hashmap<K:Eq+Hash,V> ( HashMap<K,V> );
+
+//pub type Seq<A> = Vec<A>;
 pub type Stack<A> = Vec<A>;
 // TODO; want a FIFO implementation here
 pub type Queue<A> = Vec<A>;
@@ -269,6 +295,15 @@ impl<K:Eq+Hash,V> Hash for Hashmap<K,V> {
 pub mod cons {
     use super::*;
     pub fn val_nat(n:usize) -> Val { Val::Nat(n) }
+    pub fn val_pair(v1:Val, v2:Val) -> Val { Val::Pair(Rc::new(v1), Rc::new(v2)) }
+    pub fn val_option(v:Option<Val>) -> Val {
+        match v {
+            None     => val_none(),
+            Some(v1) => val_some(v1),
+        }
+    }
+    pub fn val_none() -> Val { Val::Injl(Rc::new(Val::Unit)) }
+    pub fn val_some(v:Val) -> Val { Val::Injr(Rc::new(v)) }
     pub fn exp_ret(v:Val) -> Exp { Exp::Ret(v) }
     pub fn exp_anno(e:Exp, ct:CType) -> Exp { Exp::Anno(Rc::new(e), ct) }
     pub fn exp_force(v:Val) -> Exp { Exp::Force(v) }
