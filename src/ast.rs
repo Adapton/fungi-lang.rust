@@ -143,7 +143,6 @@ pub enum Exp {
     Name(Name,ExpRec),
     PrimApp(PrimApp)
 }
-
 #[macro_export]
 /// Constructor for Exp
 ///
@@ -177,14 +176,13 @@ macro_rules! make_exp {
     { let $var:ident = {$($rhs:tt)+} $($body:tt)*} => {{
         Exp::Let(stringify![$var].to_string(), Rc::new(make_exp![$($rhs)+]), Rc::new(make_exp![$($body)*]))
     }};
-    // let (a,b) = {e} e (split)
-    {} => {{}};
-    // [case]
+    // TODO: let (a,b) = {e} e (split)
+    // TODO: (case)
     // ret v
     { ret $($ret:tt)+ } => {{ Exp::Ret(make_val![$($ret)+]) }};
     // [n] e (name-scoped)
     { [$($nm:tt)*] $($exp:tt)+ } => {{ Exp::Name(make_name![$($nm)*],make_exp![$($exp)+])}};
-    // // prim(vars)
+    // TODO: prim(vars)
     // { $ident($($vars:tt)*)}
     // {e}
     { {$($exp:tt)+} } => {{ make_exp![$($exp)+] }};
@@ -284,6 +282,40 @@ pub enum Val {
 
     /// Graphs are maps from node ids to
     Graph(Graph)
+}
+#[macro_export]
+/// Constructor for Val
+///
+/// v ::=
+macro_rules! make_val {
+    // ()
+    { () } => {Val::Unit};
+    // TODO: pair
+    // TODO: better injections
+    // injl v
+    { injl $($v:tt)+ } => { Val::Injl(Rc::new(make_val![$($v:tt)+])) };
+    // injr v
+    { injr $($v:tt)+ } => { Val::Injr(Rc::new(make_val![$($v:tt)+])) };
+    // ref n
+    { ref $($name:tt)+ } => { Val::Ref(Pointer(make_name![$($name:tt)+])) };
+    // thk n (thunk)
+    { thk $($name:tt)+ } => { Val::Thunk(Pointer(make_name![$($name:tt)+])) };
+    // (v) : t (annotation)
+    { ($($v:tt)+) : $($t:tt)+ } => { Val::Anno(
+        Rc::new(make_val![$($v:tt)+]),
+        make_type![$($t:tt)+]
+    )};
+
+    // TODO: built-ins
+
+    // num
+    { $num:expr } => { Val::Nat($num) };
+    // "string"
+    { "$($s:tt)*" } => { Val::Str(stringify![$($s)*].to_string()) };
+    // a (var)
+    { $a:ident } => { Val::Var(stringify![$a])};
+    // (v)
+    { ($($v:tt)+) } => { make_val![$($v:tt)+] };
 }
 
 /// Sequences of values, whose implementations use mutation.
