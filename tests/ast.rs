@@ -207,9 +207,21 @@ fn reverse_polish_calc_step1of3() {
                 exp_ret(val_var!(toks))
             ),
             cty.clone());
+
+    let ast3 = make_exp![
+        {
+            let toks = {
+                SeqFoldSeq(chars,lex_st_init,lam a.lam c.
+                    {{force lex_step} a} c
+                )
+            }
+            ret toks
+        } : F Seq(LexSt)
+    ];
     
     // assert that abbreviations above preserve the AST structure:
     assert_eq!(ast, ast2);
+    assert_eq!(ast2, ast3);
 
     // assert that the AST types:
     let cty2 = bitype::synth_exp(ctx, ast.clone());
