@@ -58,32 +58,17 @@ pub enum Type {
 /// t ::=
 macro_rules! make_type {
     // (t1 x t2 x ...) (extended product, unit, extra parens)
-    { ($($types:tt)*) } => { split_cross![parse_product $($types)*] };
+    { ($($types:tt)*) } => { split_cross![parse_product <= $($types)*] };
     // [t1 + t2 + ...] (extended coproduct, unit, extra parens)
-    { [$($types:tt)*] } => { split_plus![parse_coproduct $($types)*] };
+    { [$($types:tt)*] } => { split_plus![parse_coproduct <= $($types)*] };
     // ref t
     { ref $($t:tt)+ } => { Type::Ref(Rc::new(make_type![$($t:tt)+]))};
     // U ct
     { U $($ct:tt)+ } => { Type::U(Rc::new(make_ctype![$($ct:tt)+]))};
-    // Primtypes
-    { bool } => { Type::PrimApp(PrimTyApp::Bool) };
-    { char } => { Type::PrimApp(PrimTyApp::Char) };
-    { nat } => { Type::PrimApp(PrimTyApp::Nat) };
-    { int } => { Type::PrimApp(PrimTyApp::Int) };
-    { Option<$($type:tt)+> } => { Type::PrimApp(PrimTyApp::Option(Rc::new(
-        make_type![$($type)+]
-    ))) };
-    { Seq<$($type:tt)+> } => { Type::PrimApp(PrimTyApp::Seq(Rc::new(
-        make_type![$($type)+]
-    ))) };
-    { List<$($type:tt)+> } => { Type::PrimApp(PrimTyApp::List(Rc::new(
-        make_type![$($type)+]
-    ))) };
-    { Queue<$($type:tt)+> } => { Type::PrimApp(PrimTyApp::Queue(Rc::new(
-        make_type![$($type)+]
-    ))) };
-    { tok } => { Type::PrimApp(PrimTyApp::Tok) };
-    { LexSt } => { Type::PrimApp(PrimTyApp::LexSt) };
+    // Prim
+    { $ty:ident } => { Type::PrimApp(parse_prim_t![$ty]) };
+    // Prim<vars>
+    { $ty:ident<$(vars:tt)*> } => { Type::PrimApp(split_comma![parse_prim_t ($ty) <= $(vars:tt)*]) };
 }
 #[macro_export]
 macro_rules! parse_product {
@@ -126,6 +111,27 @@ pub enum PrimTyApp {
     /// LexSt -- TEMP(matthewhammer),
     LexSt
 }
+#[macro_export]
+macro_rules! parse_prim_t {
+    { bool } => { PrimTyApp::Bool };
+    { char } => { PrimTyApp::Char };
+    { nat } => { PrimTyApp::Nat };
+    { int } => { PrimTyApp::Int };
+    { Option($($type:tt)+) } => { PrimTyApp::Option(Rc::new(
+        make_type![$($type)+]
+    )) };
+    { Seq($($type:tt)+) } => { PrimTyApp::Seq(Rc::new(
+        make_type![$($type)+]
+    )) };
+    { List($($type:tt)+) } => { PrimTyApp::List(Rc::new(
+        make_type![$($type)+]
+    )) };
+    { Queue($($type:tt)+) } => { PrimTyApp::Queue(Rc::new(
+        make_type![$($type)+]
+    )) };
+    { tok } => { PrimTyApp::Tok };
+    { LexSt } => { PrimTyApp::LexSt };
+}
 
 pub type CTypeRec = Rc<CType>;
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
@@ -143,7 +149,7 @@ macro_rules! make_ctype {
     // (ct)
     { ( $($ct:tt)+ ) } => { make_ctype![$($ct:tt)+] };
     // t1 -> t2 -> ... -> ct (arrow)
-    { $($arrows:tt)+ } => { split_arrow![parse_arrow $($arrows:tt)+] };
+    { $($arrows:tt)+ } => { split_arrow![parse_arrow <= $($arrows:tt)+] };
 }
 #[macro_export]
 macro_rules! parse_arrow {
@@ -227,21 +233,48 @@ macro_rules! make_exp {
         Exp::App(Rc::new(make_exp![$($fun)+]),make_val![$($par)+])
     }};
     // let a = {e} e
-    { let $var:ident = {$($rhs:tt)+} $($body:tt)*} => {{
+    { let $var:ident = {$($rhs:tt)+} $($body:tt)+} => {{
         Exp::Let(stringify![$var].to_string(), Rc::new(make_exp![$($rhs)+]), Rc::new(make_exp![$($body)*]))
     }};
-    // TODO: let (a,b) = {e} e (split)
-    // TODO: (case)
+    // TODO: let (a,b,...) = {e} e (split)
+    // split(v) x.y.e
+    { split($($v:tt)+) $x:ident . $y:ident . $($body:tt)+ } => {{
+        Exp::Split(
+            make_val![$($v:tt)+],
+            stringify![$x].to_string(),
+            stringify![$y].to_string(),
+            Rc::new(make_exp![$($body)+]),
+        )
+    }};
+    // case(v) x.{e0} y.{e1}
+    { case($($v:tt)*) $var0:ident . {$(e0:tt)+} $var1:ident . {$(e1:tt)+} } => {{
+        Exp::Case(
+            make_val![$($v:tt)*],
+            stringify![$var0].to_string(),
+            Rc::new(make_exp![$(e0)+]),
+            stringify![$var1].to_string(),
+            Rc::new(make_exp![$(e1)+]),
+        )
+    }};
+    // case(v) x.{e0} y.{e1} z.{e2} ...
+    { case($($v:tt)*) $var0:ident . {$(e0:tt)+} $var1:ident . {$(e1:tt)+} $( $var2:ident . {$(e2:tt)+} )+} => {{
+        Exp::Case(
+            make_val![$($v:tt)*],
+            stringify![$var0].to_string(),
+            Rc::new(make_exp![$(e0)+]),
+            stringify![case].to_string(),
+            Rc::new(make_exp![case(case) $var1 . {$(e1)+} $( $var2 . {$(e2)+} )+]),
+        )
+    }};
     // ret v
     { ret $($ret:tt)+ } => {{ Exp::Ret(make_val![$($ret)+]) }};
     // [n] e (name-scoped)
     { [$($nm:tt)*] $($exp:tt)+ } => {{ Exp::Name(make_name!([$($nm)*]),make_exp![$($exp)+])}};
-    // TODO: prim(vars)
-    // { $ident($($vars:tt)*)}
+    // prim(vars)
+    { $fun:ident($($vars:tt)*)} => {{ Exp::PrimApp(split_comma![parse_prim_e ($fun) <= $($vars)*]) }};
     // {e}
     { {$($exp:tt)+} } => {{ make_exp![$($exp)+] }};
 }
-
 /// Primitive operation application forms.
 ///
 /// We build-in collection primitives because doing so permits us to
@@ -274,6 +307,67 @@ pub enum PrimApp {
     SeqMap(Val, ExpRec),
     SeqFilter(Val, ExpRec),
     SeqReverse(Val),
+}
+#[macro_export]
+macro_rules! parse_prim_e {
+    { NatAdd($($v1:tt)+)($($v2:tt)+) } => {
+        PrimApp::NatAdd(make_val![$($v1)+],make_val![$($v2)+])
+    };
+    { NatLte($($v1:tt)+)($($v2:tt)+) } => {
+        PrimApp::NatLte(make_val![$($v1)+],make_val![$($v2)+])
+    };
+    { BoolAnd($($v1:tt)+)($($v2:tt)+) } => {
+        PrimApp::BoolAnd(make_val![$($v1)+],make_val![$($v2)+])
+    };
+    { NatOfChar($($v:tt)+) } => {
+        PrimApp::NatOfChar(make_val![$($v)+])
+    };
+    { CharOfNat($($v:tt)+) } => {
+        PrimApp::CharOfNat(make_val![$($v)+])
+    };
+    { StrOfNat($($v:tt)+) } => {
+        PrimApp::StrOfNat(make_val![$($v)+])
+    };
+    { NatOfStr($($v:tt)+) } => {
+        PrimApp::NatOfStr(make_val![$($v)+])
+    };
+    { SeqEmpty } => { PrimApp::SeqEmpty };
+    { SeqPush($($v1:tt)+)($($v2:tt)+) } => {
+        PrimApp::SeqPush(make_val![$($v1)+],make_val![$($v2)+])
+    };
+    { SeqPop($($v:tt)+) } => {
+        PrimApp::SeqPop(make_val![$($v)+])
+    };
+    { SeqFoldSeq($($v1:tt)+)($($v2:tt)+)($($e1:tt)+) } => {
+        PrimApp::SeqFoldSeq(
+            make_val![$($v1)+],
+            make_val![$($v2)+],
+            Rc::new(make_exp![$($e1)+]),
+        )
+    };
+    { SeqFoldUp($($v1:tt)+)($($v2:tt)+)($($e1:tt)+)($($e2:tt)+) } => {
+        PrimApp::SeqFoldUp(
+            make_val![$($v1)+],
+            make_val![$($v2)+],
+            Rc::new(make_exp![$($e1)+]),
+            Rc::new(make_exp![$($e2)+]),
+        )
+    };
+    { SeqMap($($v1:tt)+)($($e1:tt)+) } => {
+        PrimApp::SeqMap(
+            make_val![$($v1)+],
+            Rc::new(make_exp![$($e1)+]),
+        )
+    };
+    { SeqFilter($($v1:tt)+)($($e1:tt)+) } => {
+        PrimApp::SeqFilter(
+            make_val![$($v1)+],
+            Rc::new(make_exp![$($e1)+]),
+        )
+    };
+    { SeqReverse($($v:tt)+) } => {
+        PrimApp::SeqReverse(make_val![$($v)+])
+    };
 }
 
 pub type ValRec = Rc<Val>;
@@ -348,7 +442,7 @@ macro_rules! make_val {
         make_type![$($t:tt)+]
     )};
     // (v1,v2,...) (tuples, unit, extra parens)
-    { ($($vals:tt)*) } => { split_comma![parse_tuple $($vals)*] };
+    { ($($vals:tt)*) } => { split_comma![parse_tuple <= $($vals)*] };
     // TODO: better injections?
     // injl v
     { injl $($v:tt)+ } => { Val::Injl(Rc::new(make_val![$($v:tt)+])) };
@@ -360,17 +454,15 @@ macro_rules! make_val {
     { thk $($name:tt)+ } => { Val::Thunk(Pointer(make_name![$($name:tt)+])) };
     // TODO: Seq
     // Stack(v,v,...)
-    { Stack($($v:tt)*) } => { Val::Stack(split_comma![parse_valvec $($v:tt)*])};
+    { Stack($($v:tt)*) } => { Val::Stack(split_comma![parse_valvec <= $($v:tt)*])};
     // Queue(v,v,...)
-    { Queue($($v:tt)*) } => { Val::Queue(split_comma![parse_valvec $($v:tt)*])};
-    // TODO:
+    { Queue($($v:tt)*) } => { Val::Queue(split_comma![parse_valvec <= $($v:tt)*])};
     // Hashmap() (new)
     { Hashmap() } => { Val::Hashmap(Hashmap::new()) };
     // Kvlog() (new)
     { Kvlog() } => { Val::Kvlog(Vec::new()) };
     // Graph() (new)
     { Graph() } => { Val::Graph{nodes: Hashmap::new() } };
-
     // "string"
     { "$($s:tt)*" } => { Val::Str(stringify![$($s)*].to_string()) };
     // a (var)
