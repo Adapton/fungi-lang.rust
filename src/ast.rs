@@ -62,13 +62,13 @@ macro_rules! make_type {
     // [t1 + t2 + ...] (extended coproduct, unit, extra parens)
     { [$($types:tt)*] } => { split_plus![parse_coproduct <= $($types)*] };
     // ref t
-    { ref $($t:tt)+ } => { Type::Ref(Rc::new(make_type![$($t:tt)+]))};
+    { ref $($t:tt)+ } => { Type::Ref(Rc::new(make_type![$($t)+]))};
     // U ct
-    { U $($ct:tt)+ } => { Type::U(Rc::new(make_ctype![$($ct:tt)+]))};
+    { U $($ct:tt)+ } => { Type::U(Rc::new(make_ctype![$($ct)+]))};
     // Prim
     { $ty:ident } => { Type::PrimApp(parse_prim_t![$ty]) };
     // Prim<vars>
-    { $ty:ident<$(vars:tt)*> } => { Type::PrimApp(split_comma![parse_prim_t ($ty) <= $(vars:tt)*]) };
+    { $ty:ident($($vars:tt)*) } => { Type::PrimApp(split_comma![parse_prim_t ($ty) <= $($vars)*]) };
 }
 #[macro_export]
 macro_rules! parse_product {
@@ -113,6 +113,7 @@ pub enum PrimTyApp {
 }
 #[macro_export]
 macro_rules! parse_prim_t {
+    {} => { PrimTyApp::Bool };
     { bool } => { PrimTyApp::Bool };
     { char } => { PrimTyApp::Char };
     { nat } => { PrimTyApp::Nat };
@@ -129,7 +130,7 @@ macro_rules! parse_prim_t {
     { Queue($($type:tt)+) } => { PrimTyApp::Queue(Rc::new(
         make_type![$($type)+]
     )) };
-    { tok } => { PrimTyApp::Tok };
+    { Tok } => { PrimTyApp::Tok };
     { LexSt } => { PrimTyApp::LexSt };
 }
 
@@ -145,20 +146,20 @@ pub enum CType {
 /// ct ::=
 macro_rules! make_ctype {
     // F t
-    { F $($vt:tt)*} => { CType::F(make_type![$($vt:tt)*]) };
+    { F $($vt:tt)*} => { CType::F(Rc::new(make_type![$($vt)*])) };
     // (ct)
-    { ( $($ct:tt)+ ) } => { make_ctype![$($ct:tt)+] };
+    { ( $($ct:tt)+ ) } => { make_ctype![$($ct)+] };
     // t1 -> t2 -> ... -> ct (arrow)
-    { $($arrows:tt)+ } => { split_arrow![parse_arrow <= $($arrows:tt)+] };
+    { $($arrows:tt)+ } => { split_arrow![parse_arrow <= $($arrows)+] };
 }
 #[macro_export]
 macro_rules! parse_arrow {
     // ct ( end arrow )
-    { ($($ctype:tt)+) } => { make_ctype![$($ctype:tt)+] };
+    { ($($ctype:tt)+) } => { make_ctype![$($ctype)+] };
     // t -> ...
-    { ($($type:tt)+) $(($(types:tt)+))+ } => { CType::Arrow(
+    { ($($type:tt)+) $(($(types)+))+ } => { CType::Arrow(
         Rc::new(make_type![$($type)+]),
-        Rc::new(parse_arrow![$(($(types:tt)+))+]),
+        Rc::new(parse_arrow![$(($(types)+))+]),
     )};
 }
 
@@ -209,27 +210,27 @@ pub enum Exp {
 /// e ::=
 macro_rules! make_exp {
     // {e} : t (annotation)
-    { {$($exp:tt)*} : $($ty:tt)+ } => {{
+    { { $($exp:tt)* } : $($ty:tt)+ } => {{
         Exp::Anno(Rc::new(make_exp![$($exp)*]),make_ctype![$($ty)+])
     }};
     // get v
     { get $($ref:tt)+ } => {{ Exp::Get(make_val![$($ref)+]) }};
-    // frc v (force)
-    { frc $($ref:tt)+ } => {{ Exp::Force(make_val![$($ref)+]) }};
+    // force v (force)
+    { force $($ref:tt)+ } => {{ Exp::Force(make_val![$($ref)+]) }};
     // ref v
     { ref $($val:tt)+ } => {{ Exp::Ref(make_val![$($val)+]) }};
     // thk e
     { thk $($exp:tt)+ } => {{ Exp::Thunk(make_exp![$($exp)+]) }};
-    // λr.e (lambda)
-    { λ$var:ident . $($body:tt)+ } => {{
-        Exp:Lam(stringify![$var].to_string(),Rc::new(make_exp![$($body)+]))
+    // lam r.e (lambda)
+    { lam $var:ident . $($body:tt)+ } => {{
+        Exp::Lam(stringify![$var].to_string(),Rc::new(make_exp![$($body)+]))
     }};
     // fix f.e
     { fix $var:ident . $($body:tt)+ } => {{
         Exp::Fix(stringify![$var].to_string(),Rc::new(make_exp![$($body)+]))
     }};
-    // (e)v (application)
-    { ( $($fun:tt)+ ) $($par:tt)+ } => {{
+    // {e} v (application)
+    { { $($fun:tt)+ } $($par:tt)+ } => {{
         Exp::App(Rc::new(make_exp![$($fun)+]),make_val![$($par)+])
     }};
     // let a = {e} e
@@ -466,7 +467,7 @@ macro_rules! make_val {
     // "string"
     { "$($s:tt)*" } => { Val::Str(stringify![$($s)*].to_string()) };
     // a (var)
-    { $a:ident } => { Val::Var(stringify![$a])};
+    { $a:ident } => { Val::Var(stringify![$a].to_string())};
     // num
     { $num:expr } => { Val::Nat($num) };
 }
