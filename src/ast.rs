@@ -18,7 +18,12 @@ pub enum Name {
 #[macro_export]
 /// Constructor for Name
 ///
+/// ```
 /// n ::=
+///     []              (leaf)
+///     [n]             (extra braces ignored)
+///     [[n][n]...]     (extended bin)
+/// ```
 macro_rules! make_name {
     // [] (leaf)
     { [] } => { Name::Leaf };
@@ -55,7 +60,15 @@ pub enum Type {
 #[macro_export]
 /// Constructor for Type
 ///
+/// ```
 /// t ::=
+///     (t1 x t2 x ...) (extended product, unit, extra parens)
+///     [t1 + t2 + ...] (extended coproduct, unit, extra parens)
+///     ref t
+///     U ct
+///     Prim
+///     Prim(vars)
+/// ```
 macro_rules! make_type {
     // (t1 x t2 x ...) (extended product, unit, extra parens)
     { ($($types:tt)*) } => { split_cross![parse_product <= $($types)*] };
@@ -67,7 +80,7 @@ macro_rules! make_type {
     { U $($ct:tt)+ } => { Type::U(Rc::new(make_ctype![$($ct)+]))};
     // Prim
     { $ty:ident } => { Type::PrimApp(parse_prim_t![$ty]) };
-    // Prim<vars>
+    // Prim(vars)
     { $ty:ident($($vars:tt)*) } => { Type::PrimApp(split_comma![parse_prim_t ($ty) <= $($vars)*]) };
 }
 #[macro_export]
@@ -143,7 +156,12 @@ pub enum CType {
 #[macro_export]
 /// Constructor for CType
 ///
+/// ```
 /// ct ::=
+///     F t
+///     (ct)
+///     t1 -> t2 -> ... -> ct       (arrow)
+/// ```
 macro_rules! make_ctype {
     // F t
     { F $($vt:tt)*} => { CType::F(Rc::new(make_type![$($vt)*])) };
@@ -207,7 +225,25 @@ pub enum Exp {
 #[macro_export]
 /// Constructor for Exp
 ///
+/// ```
 /// e ::=
+///     {e} : t                 (annotation)
+///     get v
+///     force v                 (force)
+///     ref v
+///     thk e
+///     lam r.e                 (lambda)
+///     fix f.e
+///     {e} v                   (application)
+///     let a = {e} e
+///     split(v) x.y.e
+///     case(v) x.{e0} y.{e1}
+///     case(v) x.{e0} y.{e1} z.{e2} ...
+///     ret v
+///     [n] e                   (name-scoped)
+///     prim(vars)
+///     {e}
+/// ```
 macro_rules! make_exp {
     // {e} : t (annotation)
     { { $($exp:tt)* } : $($ty:tt)+ } => {{
@@ -374,11 +410,9 @@ macro_rules! parse_prim_e {
         PrimApp::NatOfStr(make_val![$($v)+])
     };
     { SeqEmpty } => { PrimApp::SeqEmpty };
-    { SeqPush($($v1:tt)+)($($v2:tt)+) } => {
+    { SeqDup } => { PrimApp::SeqDup };
+    { SeqAppend($($v1:tt)+)($($v2:tt)+) } => {
         PrimApp::SeqPush(make_val![$($v1)+],make_val![$($v2)+])
-    };
-    { SeqPop($($v:tt)+) } => {
-        PrimApp::SeqPop(make_val![$($v)+])
     };
     { SeqFoldSeq($($v1:tt)+)($($v2:tt)+)($($e1:tt)+) } => {
         PrimApp::SeqFoldSeq(
@@ -395,6 +429,18 @@ macro_rules! parse_prim_e {
             Rc::new(make_exp![$($e2)+]),
         )
     };
+    { SeqIntoStack($($v1:tt)+)($($v2:tt)+) } => {
+        PrimApp::SeqIntoStack(make_val![$($v1)+],make_val![$($v2)+])
+    };
+    { SeqIntoQueue($($v1:tt)+)($($v2:tt)+) } => {
+        PrimApp::SeqIntoQueue(make_val![$($v1)+],make_val![$($v2)+])
+    };
+    { SeqIntoHashmap($($v:tt)+) } => {
+        PrimApp::SeqIntoHashmap(make_val![$($v)+])
+    };
+    { SeqIntoKvlog($($v:tt)+) } => {
+        PrimApp::SeqIntoKvlog(make_val![$($v)+])
+    };
     { SeqMap($($v1:tt)+)($($e1:tt)+) } => {
         PrimApp::SeqMap(
             make_val![$($v1)+],
@@ -410,6 +456,54 @@ macro_rules! parse_prim_e {
     { SeqReverse($($v:tt)+) } => {
         PrimApp::SeqReverse(make_val![$($v)+])
     };
+    { StackEmpty } => { PrimApp::StackEmpty };
+    { StackIsEmpty($($v:tt)+) } => {
+        PrimApp::StackIsEmpty(make_val![$($v)+])
+    };
+
+    { StackDup($($v:tt)+) } => {
+        PrimApp::StackDup(make_val![$($v)+])
+    };
+    { StackPush($($v1:tt)+)($($v2:tt)+) } => {
+        PrimApp::StackPush(make_val![$($v1)+],make_val![$($v2)+])
+    };
+    { StackPop($($v:tt)+) } => {
+        PrimApp::StackPop(make_val![$($v)+])
+    };
+    { StackPeek($($v:tt)+) } => {
+        PrimApp::StackPeek(make_val![$($v)+])
+    };
+    { StackIntoSeq($($v:tt)+) } => {
+        PrimApp::StackIntoSeq(make_val![$($v)+])
+    };
+
+    { QueueEmpty } => { PrimApp::QueueEmpty };
+    { QueueIsEmpty($($v:tt)+) } => {
+        PrimApp::QueueIsEmpty(make_val![$($v)+])
+    };
+    { QueueDup($($v:tt)+) } => {
+        PrimApp::QueueDup(make_val![$($v)+])
+    };
+    { QueuePush($($v1:tt)+)($($v2:tt)+) } => {
+        PrimApp::QueuePush(make_val![$($v1)+],make_val![$($v2)+])
+    };
+    { QueuePop($($v:tt)+) } => {
+        PrimApp::QueuePop(make_val![$($v)+])
+    };
+    { QueuePeek($($v:tt)+) } => {
+        PrimApp::QueuePeek(make_val![$($v)+])
+    };
+    { QueueIntoSeq($($v:tt)+) } => {
+        PrimApp::QueueIntoSeq(make_val![$($v)+])
+    };
+
+    { KvlogDup } => { PrimApp::KvlogDup };
+    { KvlogEmpty } => { PrimApp::KvlogEmpty };
+    { KvlogIsEmpty } => { PrimApp::KvlogIsEmpty };
+    { KvlogGet } => { PrimApp::KvlogGet };
+    { KvlogPut } => { PrimApp::KvlogPut };
+    { KvlogIntoSeq } => { PrimApp::KvlogIntoSeq };
+    { KvlogIntoHashmap } => { PrimApp::KvlogIntoHashmap };
 }
 
 pub type ValRec = Rc<Val>;
@@ -476,7 +570,19 @@ pub enum Val {
 #[macro_export]
 /// Constructor for Val
 ///
+/// ```
 /// v ::=
+///     (v) : t         (annotation)
+///     (v1,v2,...)     (tuples, unit, extra parens)
+///     injl v
+///     injr v
+///     ref n
+///     thk n           (thunk)
+///     Stack(v,v,...)
+///     "string"
+///     a               (var)
+///     num
+/// ```
 macro_rules! make_val {
     // (v) : t (annotation)
     { ($($v:tt)+) : $($t:tt)+ } => { Val::Anno(
@@ -497,14 +603,6 @@ macro_rules! make_val {
     // TODO: Seq
     // Stack(v,v,...)
     { Stack($($v:tt)*) } => { Val::Stack(split_comma![parse_valvec <= $($v:tt)*])};
-    // Queue(v,v,...)
-    { Queue($($v:tt)*) } => { Val::Queue(split_comma![parse_valvec <= $($v:tt)*])};
-    // Hashmap() (new)
-    { Hashmap() } => { Val::Hashmap(Hashmap::new()) };
-    // Kvlog() (new)
-    { Kvlog() } => { Val::Kvlog(Vec::new()) };
-    // Graph() (new)
-    { Graph() } => { Val::Graph{nodes: Hashmap::new() } };
     // "string"
     { "$($s:tt)*" } => { Val::Str(stringify![$($s)*].to_string()) };
     // a (var)
@@ -517,10 +615,10 @@ macro_rules! parse_tuple {
     // ()
     { } => { Val::Unit };
     // (v)
-    { ($($val:tt)*) } => { make_val![$($val:tt)*] };
+    { ($($val:tt)+) } => { make_val![$($val:tt)+] };
     // (v, ...)
-    { ($($val:tt)*) $($vals:tt)+ } => { Val::Pair(
-        Rc::new(make_val![$($val:tt)*]),
+    { ($($val:tt)+) $($vals:tt)+ } => { Val::Pair(
+        Rc::new(make_val![$($val:tt)+]),
         Rc::new(parse_tuple![$($vals)+]),
     )};
 }
