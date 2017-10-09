@@ -5,7 +5,7 @@
 //! explicit names, nor the Adapton-based IODyn collections library.
 
 use std::cell::RefCell;
-use ast::{Name,Var,Exp,Val,Pointer,PrimApp,Seq};
+use ast::{Name,Var,Exp,Val,Pointer,PrimApp,Seq,Stack};
 use ast::cons::{val_pair, val_option};
 use std::collections::hash_map::HashMap;
 use std::rc::Rc;
@@ -63,10 +63,10 @@ fn close_val(env:&Env, v:&Val) -> Val {
         // represented by pointers (viz., ref cells and thunks).
         Seq(ref s)   => Seq(s.clone()),
         Stack(ref s) => Stack(s.clone()),
-        Queue(ref q) => Queue(q.clone()),
-        Hashmap(ref m) => Hashmap(m.clone()),
-        Kvlog(ref l) => Kvlog(l.clone()),
-        Graph(ref g) => Graph(g.clone()),
+        //Queue(ref q) => Queue(q.clone()),
+        //Hashmap(ref m) => Hashmap(m.clone()),
+        //Kvlog(ref l) => Kvlog(l.clone()),
+        //Graph(ref g) => Graph(g.clone()),
 
         // inductive cases
         Injl(ref v1) => Injl(close_val_rec(env, v1)),
@@ -114,21 +114,21 @@ fn st_get(st:&State, p:&Pointer) -> Option<StoreObj> {
     st.store.get(p).map(|x|x.clone())
 }
 
-pub fn eval_prim(st:State, env:Env, p:PrimApp) -> (State, ExpTerm) {
+pub fn eval_prim(st:State, env:&Env, p:PrimApp) -> (State, ExpTerm) {
     match p {
-        PrimApp::SeqEmpty => {
-            let v_empty = Val::Seq(Seq{
-                 seq:Rc::new(RefCell::new(Vec::new()))
+        PrimApp::StackEmpty => {
+            let v_empty = Val::Stack(Stack{
+                 stack:Rc::new(RefCell::new(Vec::new()))
              });
             (st, ExpTerm::Ret(v_empty))
         },
-        PrimApp::SeqPush(Val::Seq(so), v_elm) => {
-            so.seq.borrow_mut().push(v_elm);
-            (st, ExpTerm::Ret(Val::Seq(so)))
+        PrimApp::StackPush(Val::Stack(so), v_elm) => {
+            so.stack.borrow_mut().push(close_val(env, &v_elm));
+            (st, ExpTerm::Ret(Val::Stack(so)))
         },
-        PrimApp::SeqPop(Val::Seq(so)) => {
-            let v_op : Val = val_option(so.seq.borrow_mut().pop());
-            (st, ExpTerm::Ret(val_pair(Val::Seq(so), v_op )))
+        PrimApp::StackPop(Val::Stack(so)) => {
+            let v_op : Val = val_option(so.stack.borrow_mut().pop());
+            (st, ExpTerm::Ret(val_pair(Val::Stack(so), v_op )))
         },
         _ => unimplemented!()
     }
@@ -200,7 +200,7 @@ pub fn eval(st:State, env:Env, e:Exp) -> (State, ExpTerm) {
                 v => eval_type_error(EvalTyErr::SplitNonPair(v), st, env, e)
             }
         }
-        Exp::PrimApp(p) => { eval_prim(st, env, p) }
+        Exp::PrimApp(p) => { eval_prim(st, &env, p) }
         Exp::Get(v) => {
             match close_val(&env, &v) {
                 Val::Ref(ptr) => match st_get(&st, &ptr) {

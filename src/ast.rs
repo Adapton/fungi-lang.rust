@@ -1,7 +1,7 @@
 //!  IODyn Source AST definitions
 
-use std::fmt::Debug;
 use std::cell::RefCell;
+use std::fmt::Debug;
 use std::rc::Rc;
 use std::collections::hash_map::HashMap;
 use std::hash::Hash;
@@ -301,13 +301,54 @@ pub enum PrimApp {
     // Sequences (implemented as level trees, an IODyn collection)
     // ------------------------------------------------------------
     SeqEmpty,
-    SeqPush(Val, Val),
-    SeqPop(Val),
+    SeqDup,
+    SeqAppend(Val, Val),
     SeqFoldSeq(Val, Val, ExpRec),
     SeqFoldUp(Val, Val, ExpRec, ExpRec),
+    SeqIntoStack(Val, Val),
+    SeqIntoQueue(Val, Val),
+    SeqIntoHashmap(Val),
+    SeqIntoKvlog(Val),    
     SeqMap(Val, ExpRec),
     SeqFilter(Val, ExpRec),
     SeqReverse(Val),
+
+    // Stacks
+    // ---------
+    StackEmpty,
+    StackIsEmpty(Val),
+    /// asdfasdf
+    /// 
+    /// ```
+    /// asdf
+    /// -----
+    /// asdfas
+    /// ```
+    StackDup(Val),
+    StackPush(Val, Val),
+    StackPop(Val),
+    StackPeek(Val),
+    StackIntoSeq(Val),
+
+    // Queues
+    // ---------
+    QueueEmpty,
+    QueueIsEmpty(Val),
+    QueueDup(Val),
+    QueuePush(Val, Val),
+    QueuePop(Val),
+    QueuePeek(Val),
+    QueueIntoSeq(Val),
+
+    // Kvlog
+    // --------------
+    KvlogDup,
+    KvlogEmpty,
+    KvlogIsEmpty,
+    KvlogGet,
+    KvlogPut,
+    KvlogIntoSeq,
+    KvlogIntoHashmap,
 }
 #[macro_export]
 macro_rules! parse_prim_e {
@@ -403,34 +444,34 @@ pub enum Val {
     /// Stack of values
     ///
     /// A sequence converts to a queue in XXX time.
-    Stack(Stack<ValRec>),
+    Stack(Stack),
 
-    /// Queue of values
-    ///
-    /// A sequence converts to a queue in XXX time.
-    Queue(Queue<ValRec>),
+    // /// Queue of values
+    // ///
+    // /// A sequence converts to a queue in XXX time.
+    // //Queue(Queue<ValRec>),
 
-    /// Finite map of values, based on hashing key
-    ///
-    /// Hashmaps in IODyn permit lookups, extensions and folds, which
-    /// see the most recent value for each key (if any); older values,
-    /// if any, are forgotten.  A key-value log converts (in O(n)
-    /// time) to a hashmap that admits only the "most recent view" of
-    /// the key-value log to its folds.
-    Hashmap(Hashmap<ValRec,ValRec>),
+    // /// Finite map of values, based on hashing key
+    // ///
+    // /// Hashmaps in IODyn permit lookups, extensions and folds, which
+    // /// see the most recent value for each key (if any); older values,
+    // /// if any, are forgotten.  A key-value log converts (in O(n)
+    // /// time) to a hashmap that admits only the "most recent view" of
+    // /// the key-value log to its folds.
+    // //Hashmap(Hashmap<ValRec,ValRec>),
 
-    /// Key-value logs record key-value association history.
-    ///
-    /// Key-value logs in IODyn permit lookups and extension.  Each
-    /// log permits folds in chronological and reverse-chronological
-    /// order over its key-value entries.  Unlike a Hashmap, the fold
-    /// may revisit a key multiple times (if it is associated with
-    /// multiple values).  A hashmap converts (in O(n) time) to a
-    /// key-value log.
-    Kvlog(Vec<(ValRec,ValRec)>),
+    // /// Key-value logs record key-value association history.
+    // ///
+    // /// Key-value logs in IODyn permit lookups and extension.  Each
+    // /// log permits folds in chronological and reverse-chronological
+    // /// order over its key-value entries.  Unlike a Hashmap, the fold
+    // /// may revisit a key multiple times (if it is associated with
+    // /// multiple values).  A hashmap converts (in O(n) time) to a
+    // /// key-value log.
+    // // Kvlog(Vec<(ValRec,ValRec)>),
 
-    /// Graphs are maps from node ids to
-    Graph(Graph)
+    // /// Graphs are maps from node ids to
+    // Graph(Graph)
 }
 #[macro_export]
 /// Constructor for Val
@@ -488,45 +529,98 @@ macro_rules! parse_valvec {
     { $(($(v:tt)+))* } => { vec![$(Rc::new(make_val![$(v:tt)+]))*] };
 }
 
+// ///
+// /// XXX: Move push and pop into the Stack/Queue trait only?
+// ///
+// /// Note on observable effects: The mutation in a sequence's
+// /// implementation is not observable from within the IODyn program,
+// /// however, since the IODyn language enforces an affine typing
+// /// discipline (like Rust), with explicit cloning (like Rust).
+// ///
+// /// Cost to clone/duplicate: Unlike Rust, IODyn lacks a notion of
+// /// "borrowing", and cloning is O(1) for collections that use
+// /// Adapton. By contrast, cloning with ordinary Rust collections is
+// /// typically O(n).  We use the term "duplicate" instead of "clone" to
+// /// disambiguate the IODyn primitive from the Rust primitive.
+
 /// Sequences of values, whose implementations of push and pop must
 /// use mutation.
-///
-/// XXX: Move push and pop into the Stack/Queue trait only?
-///
-/// Note on observable effects: The mutation in a sequence's
-/// implementation is not observable from within the IODyn program,
-/// however, since the IODyn language enforces an affine typing
-/// discipline (like Rust), with explicit cloning (like Rust).
-///
-/// Cost to clone/duplicate: Unlike Rust, IODyn lacks a notion of
-/// "borrowing", and cloning is O(1) for collections that use
-/// Adapton. By contrast, cloning with ordinary Rust collections is
-/// typically O(n).  We use the term "duplicate" instead of "clone" to
-/// disambiguate the IODyn primitive from the Rust primitive.
 pub trait SeqObj : Debug {
+    /// asdfasdf
+    /// 
+    /// ```
+    /// asdf
+    /// -----
+    /// asdfas
+    /// ```
     fn dup(&self) -> Box<SeqObj>;
-    fn push(&mut self, Val);
-    fn pop(&mut self) -> Option<Val>;
+    fn empty(&self) -> Box<SeqObj>;
+    fn append(&self, Val) -> Box<SeqObj>;
     fn fold_seq(&self, Val, &Env, &Exp) -> Val;
     fn fold_up(&self, Val, &Env, &Exp, &Exp) -> Val;
+    fn map(&self, &Env, &Exp) -> Box<SeqObj>;
+    fn reverse(&mut self);
+    fn filter(&self, &Env, &Exp) -> Box<SeqObj>;
+    fn into_stack(&self, rev:bool) -> Box<StackObj>;
+    fn into_queue(&self, rev:bool) -> Box<QueueObj>;
+    fn into_hashmap(&self) -> Box<HashmapObj>;
+    fn into_kvlog(&self) -> Box<KvlogObj>;
 }
 
-impl SeqObj for Vec<Val> {
-    fn dup(&self) -> Box<SeqObj> {
-        Box::new(self.clone())
-    }
-    fn push(&mut self, v:Val) {
-        self.push(v)
-    }
-    fn pop(&mut self) -> Option<Val> {
-        self.pop()
-    }
-    fn fold_seq(&self, _v_nil:Val, _env:&Env, _exp_cons:&Exp) -> Val {
-        unimplemented!()
-    }
-    fn fold_up(&self, _v_nil:Val, _env:&Env, _exp_leaf:&Exp, _exp_bin:&Exp) -> Val {
-        unimplemented!()
-    }
+pub trait HashmapObj : Debug {
+    fn dup(&self) -> Box<SeqObj>;
+    fn empty(&self) -> Box<SeqObj>;
+    fn append(&self, Val) -> Box<SeqObj>;
+    fn get(&self, Val) -> Option<Val>;
+    fn fold_seq(&self, Val, &Env, &Exp) -> Val;
+    fn fold_up(&self, Val, &Env, &Exp, &Exp) -> Val;
+    fn into_seq(&self) -> Box<SeqObj>;
+    fn into_kvlog(&self) -> Box<KvlogObj>;
+}
+
+pub trait StackObj : Debug {
+    fn dup(&self) -> Box<SeqObj>;
+    fn empty(&self) -> Box<SeqObj>;
+    fn is_empty(&self) -> bool;
+    fn push(&mut self, Val);
+    fn pop(&mut self) -> Option<Val>;
+    fn peek(&self) -> Option<Val>;
+    fn into_seq(&self) -> Box<SeqObj>;
+}
+
+pub trait QueueObj : Debug {
+    fn dup(&self) -> Box<SeqObj>;
+    fn empty(&self) -> Box<SeqObj>;
+    fn is_empty(&self) -> bool;
+    fn push(&mut self, Val);
+    fn pop(&mut self) -> Option<Val>;
+    fn peek(&self) -> Option<Val>;
+    fn into_seq(&self) -> Box<SeqObj>;
+}
+
+pub trait KvlogObj : Debug {
+    fn dup(&self) -> Box<SeqObj>;
+    fn empty(&self) -> Box<SeqObj>;
+    fn is_empty(&self) -> bool;
+    fn get(&mut self, Val) -> Option<Val>;
+    fn put(&mut self, Val, Val) -> Option<Val>;
+    fn into_seq(&self) -> Box<SeqObj>;
+    fn into_hashmap(&self) -> Box<HashmapObj>;
+}
+
+/// A graph is a binary relation between node identifiers, where nodes
+/// and edges carry data.
+///
+/// A graph is a set of nodes, each with a distinct identifier (a
+/// value).  Each node has data associated with it (another value,
+/// possibly different from its identifier).  Each edge of each node
+/// is identified by the node identifier of the edge's target (again,
+/// a value).  Each edge carries data (a value).  This edge
+/// representation does not (directly) permit graphs where there may
+/// be several edges between two nodes, though we can encode such
+/// graphs by using the data associated with each edge.
+pub trait GraphObj : Debug {
+
 }
 
 #[derive(Clone,Debug)]
@@ -537,6 +631,14 @@ impl Eq        for Seq { }
 impl PartialEq for Seq { fn eq(&self, _other:&Self) -> bool { unimplemented!() } }
 impl Hash      for Seq { fn hash<H>(&self, _state: &mut H) { unimplemented!() } }
 
+#[derive(Clone,Debug)]
+pub struct Stack {
+    pub stack:Rc<RefCell<StackObj>>
+}
+impl Eq        for Stack { }
+impl PartialEq for Stack { fn eq(&self, _other:&Self) -> bool { unimplemented!() } }
+impl Hash      for Stack { fn hash<H>(&self, _state: &mut H) { unimplemented!() } }
+
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub struct Pointer(pub Name);
 
@@ -546,42 +648,6 @@ pub enum Store {
     Empty,
     Val(StoreRec,Name,Val),
     Exp(StoreRec,Name,Exp),
-}
-
-// Primitive collections, for reference semantics ("idiomatic Rust")
-// ----------------------------------------------------------------1
-/// Graphs
-///
-/// A graph is a set of nodes, each with a distinct identifier (a
-/// value).  Each node has data associated with it (another value,
-/// possibly different from its identifier).  Each edge of each node
-/// is identified by the node identifier of the edge's target (again,
-/// a value).  Each edge carries data (a value).  This edge
-/// representation does not (directly) permit graphs where there may
-/// be several edges between two nodes, though we can encode such
-/// graphs by using the data associated with each edge.
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
-pub struct Graph { nodes:Hashmap<ValRec,Node> }
-
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
-pub struct Node { data:ValRec, out:Hashmap<ValRec,Edge> }
-
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
-pub struct Edge { data:ValRec }
-
-// A Hashmap is nearly a HashMap; we will (eventually) implement Hash for Hashmap.
-#[derive(Clone,Debug,Eq,PartialEq)]
-pub struct Hashmap<K:Eq+Hash,V> ( HashMap<K,V> );
-
-//pub type Seq<A> = Vec<A>;
-pub type Stack<A> = Vec<A>;
-// TODO; want a FIFO implementation here
-pub type Queue<A> = Vec<A>;
-
-impl<K:Eq+Hash,V> Hash for Hashmap<K,V> {
-    fn hash<H>(&self, _state: &mut H) {
-        panic!("No")
-    }
 }
 
 /// Utilities for constructing ASTs, including common constructor patterns.
