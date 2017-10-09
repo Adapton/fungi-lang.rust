@@ -150,8 +150,7 @@ fn reverse_polish_calc_step1of3() {
     //
     let cty : CType =
         CType::F(
-            Rc::new(Type::PrimApp(PrimTyApp::Seq(
-                Rc::new(Type::PrimApp(PrimTyApp::LexSt))))));
+            Rc::new(Type::PrimApp(PrimTyApp::LexSt)));
 
     // 3. Give the expression, as an AST:
     //
@@ -216,7 +215,7 @@ fn reverse_polish_calc_step1of3() {
                 )
             }
             ret toks
-        } : F Seq(LexSt)
+        } : F LexSt
     ];
     
     // assert that abbreviations above preserve the AST structure:
