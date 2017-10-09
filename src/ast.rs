@@ -308,7 +308,7 @@ pub enum PrimApp {
     SeqIntoStack(Val, Val),
     SeqIntoQueue(Val, Val),
     SeqIntoHashmap(Val),
-    SeqIntoKvlog(Val),    
+    SeqIntoKvlog(Val),
     SeqMap(Val, ExpRec),
     SeqFilter(Val, ExpRec),
     SeqReverse(Val),
@@ -318,7 +318,7 @@ pub enum PrimApp {
     StackEmpty,
     StackIsEmpty(Val),
     /// asdfasdf
-    /// 
+    ///
     /// ```
     /// asdf
     /// -----
@@ -547,7 +547,7 @@ macro_rules! parse_valvec {
 /// use mutation.
 pub trait SeqObj : Debug {
     /// asdfasdf
-    /// 
+    ///
     /// ```
     /// asdf
     /// -----
@@ -772,25 +772,25 @@ macro_rules! split_comma {
     {$fun:ident ($($first:tt)*) <= $($item:tt)*} => {
         split_comma![$fun ($($first)*) () () <= $($item)*]
     };
-    // give inital params and initial inner items in every group 
+    // give inital params and initial inner items in every group
     {$fun:ident ($($first:tt)*) ($($every:tt)*) <= $($item:tt)*} => {
         split_comma![$fun ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
     };
     // on non-final seperator, stash the accumulator and restart it
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= , $($item:tt)+} => {
-        split_comma![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*] 
+        split_comma![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*]
     };
     // ignore final seperator, run the function
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= , } => {
-        $fun![$($first)* ($($current)*)] 
+        $fun![$($first)* ($($current)*)]
     };
     // on next item, add it to the accumulator
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= $next:tt $($item:tt)*} => {
-        split_comma![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*] 
+        split_comma![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*]
     };
     // at end of items, run the function
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= } => {
-        $fun![$($first)* ($($current)*)] 
+        $fun![$($first)* ($($current)*)]
     };
     // if there were no items and no default, run with only initial params, if any
     {$fun:ident ($($first:tt)*) () () <= } => {
@@ -808,25 +808,25 @@ macro_rules! split_cross {
     {$fun:ident ($($first:tt)*) <= $($item:tt)*} => {
         split_cross![$fun ($($first)*) () () <= $($item)*]
     };
-    // give inital params and initial inner items in every group 
+    // give inital params and initial inner items in every group
     {$fun:ident ($($first:tt)*) ($($every:tt)*) <= $($item:tt)*} => {
         split_cross![$fun ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
     };
     // on non-final seperator, stash the accumulator and restart it
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= x $($item:tt)+} => {
-        split_cross![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*] 
+        split_cross![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*]
     };
     // ignore final seperator, run the function
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= x } => {
-        $fun![$($first)* ($($current)*)] 
+        $fun![$($first)* ($($current)*)]
     };
     // on next item, add it to the accumulator
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= $next:tt $($item:tt)*} => {
-        split_cross![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*] 
+        split_cross![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*]
     };
     // at end of items, run the function
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= } => {
-        $fun![$($first)* ($($current)*)] 
+        $fun![$($first)* ($($current)*)]
     };
     // if there were no items and no default, run with only initial params, if any
     {$fun:ident ($($first:tt)*) () () <= } => {
@@ -844,25 +844,25 @@ macro_rules! split_plus {
     {$fun:ident ($($first:tt)*) <= $($item:tt)*} => {
         split_plus![$fun ($($first)*) () () <= $($item)*]
     };
-    // give inital params and initial inner items in every group 
+    // give inital params and initial inner items in every group
     {$fun:ident ($($first:tt)*) ($($every:tt)*) <= $($item:tt)*} => {
         split_plus![$fun ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
     };
     // on non-final seperator, stash the accumulator and restart it
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= + $($item:tt)+} => {
-        split_plus![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*] 
+        split_plus![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*]
     };
     // ignore final seperator, run the function
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= + } => {
-        $fun![$($first)* ($($current)*)] 
+        $fun![$($first)* ($($current)*)]
     };
     // on next item, add it to the accumulator
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= $next:tt $($item:tt)*} => {
-        split_plus![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*] 
+        split_plus![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*]
     };
     // at end of items, run the function
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= } => {
-        $fun![$($first)* ($($current)*)] 
+        $fun![$($first)* ($($current)*)]
     };
     // if there were no items and no default, run with only initial params, if any
     {$fun:ident ($($first:tt)*) () () <= } => {
@@ -880,25 +880,25 @@ macro_rules! split_arrow {
     {$fun:ident ($($first:tt)*) <= $($item:tt)*} => {
         split_arrow![$fun ($($first)*) () () <= $($item)*]
     };
-    // give inital params and initial inner items in every group 
+    // give inital params and initial inner items in every group
     {$fun:ident ($($first:tt)*) ($($every:tt)*) <= $($item:tt)*} => {
         split_arrow![$fun ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
     };
     // on non-final seperator, stash the accumulator and restart it
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= -> $($item:tt)+} => {
-        split_arrow![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*] 
+        split_arrow![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*]
     };
     // don't! ignore final seperator, run the function
     // {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= -> } => {
-    //     $fun![$($first)* ($($current)*)] 
+    //     $fun![$($first)* ($($current)*)]
     // };
     // on next item, add it to the accumulator
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= $next:tt $($item:tt)*} => {
-        split_arrow![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*] 
+        split_arrow![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*]
     };
     // at end of items, run the function
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= } => {
-        $fun![$($first)* ($($current)*)] 
+        $fun![$($first)* ($($current)*)]
     };
     // if there were no items and no default, run with only initial params, if any
     {$fun:ident ($($first:tt)*) () () <= } => {
