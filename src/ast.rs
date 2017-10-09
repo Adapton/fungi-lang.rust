@@ -18,7 +18,7 @@ pub enum Name {
 #[macro_export]
 /// Constructor for Name
 ///
-/// ```
+/// ```text
 /// n ::=
 ///     []              (leaf)
 ///     [n]             (extra braces ignored)
@@ -60,7 +60,7 @@ pub enum Type {
 #[macro_export]
 /// Constructor for Type
 ///
-/// ```
+/// ```text
 /// t ::=
 ///     (t1 x t2 x ...) (extended product, unit, extra parens)
 ///     [t1 + t2 + ...] (extended coproduct, unit, extra parens)
@@ -156,7 +156,7 @@ pub enum CType {
 #[macro_export]
 /// Constructor for CType
 ///
-/// ```
+/// ```text
 /// ct ::=
 ///     F t
 ///     (ct)
@@ -225,7 +225,7 @@ pub enum Exp {
 #[macro_export]
 /// Constructor for Exp
 ///
-/// ```
+/// ```text
 /// e ::=
 ///     {e} : t                 (annotation)
 ///     get v
@@ -355,7 +355,7 @@ pub enum PrimApp {
     StackIsEmpty(Val),
     /// asdfasdf
     ///
-    /// ```
+    /// ```text
     /// asdf
     /// -----
     /// asdfas
@@ -570,7 +570,7 @@ pub enum Val {
 #[macro_export]
 /// Constructor for Val
 ///
-/// ```
+/// ```text
 /// v ::=
 ///     (v) : t         (annotation)
 ///     (v1,v2,...)     (tuples, unit, extra parens)
@@ -646,7 +646,7 @@ macro_rules! parse_valvec {
 pub trait SeqObj : Debug {
     /// asdfasdf
     ///
-    /// ```
+    /// ```text
     /// asdf
     /// -----
     /// asdfas
