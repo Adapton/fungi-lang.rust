@@ -1,7 +1,7 @@
 //!  IODyn Source AST definitions
 
 use std::cell::RefCell;
-use std::fmt::Debug;
+use std::fmt::{self,Debug};
 use std::rc::Rc;
 use std::collections::hash_map::HashMap;
 use std::hash::Hash;
@@ -13,7 +13,17 @@ pub type NameRec = Rc<Name>;
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Name {
     Leaf,
+    Sym(String),
     Bin(NameRec, NameRec)
+}
+impl fmt::Display for Name {
+    fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Name::Leaf => write!(f,"[]"),
+            Name::Sym(ref s) => write!(f,"[{}]",s),
+            Name::Bin(ref n1, ref n2) => write!(f,"[{}{}]",&**n1,&**n2),
+        }
+    }
 }
 #[macro_export]
 /// Constructor for Name
@@ -21,12 +31,15 @@ pub enum Name {
 /// ```text
 /// n ::=
 ///     []              (leaf)
+///     [sym s]         (symbol)
 ///     [n]             (extra braces ignored)
 ///     [[n][n]...]     (extended bin)
 /// ```
 macro_rules! make_name {
     // [] (leaf)
     { [] } => { Name::Leaf };
+    // [sym s] (symbol)
+    { [sym $($s:tt)+]} => { Name::Sym(stringify![$($s:tt)+].to_string())};
     // [n] (extra braces ignored)
     { [$(name:tt)*] } => { make_name![$(name)*] };
     // [[n][n]...] (extended bin)
@@ -191,16 +204,16 @@ pub enum TCtxt {
 }
 impl TCtxt {
     /// bind a var and type
-    pub fn var(self,v:Var,t:Type) -> TCtxt {
-        TCtxt::Var(Rc::new(self),v,t)
+    pub fn var(&self,v:Var,t:Type) -> TCtxt {
+        TCtxt::Var(Rc::new(self.clone()),v,t)
     }
     /// bind a pointer and value type
-    pub fn cell(self,p:Pointer,t:Type) -> TCtxt {
-        TCtxt::Cell(Rc::new(self),p,t)
+    pub fn cell(&self,p:Pointer,t:Type) -> TCtxt {
+        TCtxt::Cell(Rc::new(self.clone()),p,t)
     }
     /// bind a pointer and computation type
-    pub fn thk(self,p:Pointer,ct:CType) -> TCtxt {
-        TCtxt::Thunk(Rc::new(self),p,ct)
+    pub fn thk(&self,p:Pointer,ct:CType) -> TCtxt {
+        TCtxt::Thunk(Rc::new(self.clone()),p,ct)
     }
 }
 
