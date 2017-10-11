@@ -48,25 +48,79 @@ enum TypeError {
 impl fmt::Display for TypeError {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
         let s = match *self {
-            _ => "TypeError"
+            TypeError::AnnoMism => "annotation mismatch",
+            TypeError::NoSynthRule => "no synth rule found",
+            TypeError::NoCheckRule => "no check rule found",
+            TypeError::InvalidPtr => "invalid pointer",
+            TypeError::ParamMism => "parameter type incorrect",
+            TypeError::ParamNoSynth => "unknown parameter type",
+            TypeError::AppNotArrow => "application of non-arrow type",
         };
         write!(f,"{}",s)
     }
 }
 
+impl Val {
+    fn short(&self) -> &str {
+        match *self {
+            Val::Var(_) => "var",
+            Val::Unit => "unit",
+            Val::Pair(_,_) => "pair",
+            Val::Injl(_) => "injl",
+            Val::Injr(_) => "injr",
+            Val::Ref(_) => "ref",
+            Val::Thunk(_) => "thunk",
+            Val::Anno(_,_) => "annotation",
+            Val::Nat(_) => "nat",
+            Val::Str(_) => "string",
+            Val::Seq(_) => "sequence",
+            Val::Stack(_) => "stack",
+        }
+    }
+}
+
+impl Exp {
+    fn short(&self) -> &str {
+        match *self {
+            Exp::Anno(_,_) => "annotation",
+            Exp::Force(_) => "force",
+            Exp::Thunk(_) => "thunk",
+            Exp::Fix(_,_) => "fix",
+            Exp::Ret(_) => "ret",
+            Exp::Let(_,_,_) => "let",
+            Exp::Lam(_, _) => "lam",
+            Exp::App(_, _) => "app",
+            Exp::Split(_, _, _, _) => "split",
+            Exp::Case(_, _, _, _, _) => "case",
+            Exp::Ref(_) => "ref",
+            Exp::Get(_) => "get",
+            Exp::Name(_,_) => "name",
+            Exp::PrimApp(_) => "primitive",
+        }
+    }
+}
+
 fn fail_synth_val(scope:Option<&Name>, err:TypeError, v:&Val) -> Option<Type> {
+    if let Some(nm) = scope {print!("At {}, ", nm)}
+    println!("Failed to synthesize {} value, error: {}", v.short(), err);
     None
 }
 
 fn fail_check_val(scope:Option<&Name>, err:TypeError, v:&Val) -> bool {
+    if let Some(nm) = scope {print!("At {}, ", nm)}
+    println!("Failed to check {} value, error: {}", v.short(), err);
     false
 }
 
 fn fail_synth_exp(scope:Option<&Name>, err:TypeError, e:&Exp) -> Option<CType> {
+    if let Some(nm) = scope {print!("At {}, ", nm)}
+    println!("Failed to synthesize {} expression, error: {}", e.short(), err);
     None
 }
 
 fn fail_check_exp(scope:Option<&Name>, err:TypeError, e:&Exp) -> bool {
+    if let Some(nm) = scope {print!("At {}, ", nm)}
+    println!("Failed to check {} expression, error: {}", e.short(), err);
     false
 }
 
@@ -76,6 +130,10 @@ pub fn synth_val(scope:Option<&Name>, ctxt:&TCtxt, val:&Val) -> Option<Type> {
             if check_val(scope, ctxt, v, t) {
                 Some(t.clone())
             } else { fail_synth_val(scope, TypeError::AnnoMism,val) }
+        },
+        &Val::Nat(_) => { Some(Type::PrimApp(PrimTyApp::Nat)) },
+        &Val::Seq(ref s) => {
+            unimplemented!("synth_val seq")
         },
         &Val::Var(ref v) => { ctxt.lookup_var(v) },
         // Val::AnnoVar(var,t) => {
