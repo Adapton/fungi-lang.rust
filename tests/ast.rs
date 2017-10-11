@@ -68,7 +68,7 @@ fn seq_operations() {
             CType::F(Rc::new(Type::PrimApp(PrimTyApp::Nat)))
         );
     
-    assert!(bitype::synth_exp(ctx, ast.clone()) != None)
+    assert!(bitype::synth_exp(None, &ctx, &ast) != None)
 }
 
 // Try to express all of the simple sequence operations for which
@@ -146,7 +146,7 @@ fn reverse_polish_calc_step1of3() {
     // - - - - - - -
     // 2. Give computation type, for annotating the expression term:
     //
-    // cty =def= F(Seq(LexSt))
+    // cty =def= F(LexSt)
     //
     let cty : CType =
         CType::F(
@@ -223,6 +223,6 @@ fn reverse_polish_calc_step1of3() {
     assert_eq!(ast2, ast3);
 
     // assert that the AST types:
-    let cty2 = bitype::synth_exp(ctx, ast.clone());
+    let cty2 = bitype::synth_exp(None, &ctx, &ast);
     assert_eq!(Some(cty.clone()), cty2);
 }
