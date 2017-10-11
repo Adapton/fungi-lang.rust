@@ -44,29 +44,132 @@ enum TypeError {
     ParamMism,
     ParamNoSynth,
     AppNotArrow,
+    BadCheck,
 }
 impl fmt::Display for TypeError {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
         let s = match *self {
-            _ => "TypeError"
+            TypeError::AnnoMism => "annotation mismatch",
+            TypeError::NoSynthRule => "no synth rule found",
+            TypeError::NoCheckRule => "no check rule found",
+            TypeError::InvalidPtr => "invalid pointer",
+            TypeError::ParamMism => "parameter type incorrect",
+            TypeError::ParamNoSynth => "unknown parameter type",
+            TypeError::AppNotArrow => "application of non-arrow type",
+            TypeError::BadCheck => "checked type inappropriate for value",
         };
         write!(f,"{}",s)
     }
 }
 
+impl Val {
+    fn short(&self) -> &str {
+        match *self {
+            Val::Var(_) => "var",
+            Val::Unit => "unit",
+            Val::Pair(_,_) => "pair",
+            Val::Injl(_) => "injl",
+            Val::Injr(_) => "injr",
+            Val::Ref(_) => "ref",
+            Val::Thunk(_) => "thunk",
+            Val::Anno(_,_) => "annotation",
+            Val::Nat(_) => "nat",
+            Val::Str(_) => "string",
+            Val::Seq(_) => "sequence",
+            Val::Stack(_) => "stack",
+        }
+    }
+}
+
+impl Exp {
+    fn short(&self) -> &str {
+        match *self {
+            Exp::Anno(_,_) => "annotation",
+            Exp::Force(_) => "force",
+            Exp::Thunk(_) => "thunk",
+            Exp::Fix(_,_) => "fix",
+            Exp::Ret(_) => "ret",
+            Exp::Let(_,_,_) => "let",
+            Exp::Lam(_, _) => "lam",
+            Exp::App(_, _) => "app",
+            Exp::Split(_, _, _, _) => "split",
+            Exp::Case(_, _, _, _, _) => "case",
+            Exp::Ref(_) => "ref",
+            Exp::Get(_) => "get",
+            Exp::Name(_,_) => "name",
+            Exp::PrimApp(ref p) => p.short(),
+        }
+    }
+}
+
+impl PrimApp {
+    fn short(&self) -> &str {
+        match *self {
+            PrimApp::NatAdd(_, _) => "NatAdd",
+            PrimApp::NatLte(_, _) => "NatLte",
+            PrimApp::BoolAnd(_, _) => "BoolAnd",
+            PrimApp::NatOfChar(_) => "NatOfChar",
+            PrimApp::CharOfNat(_) => "CharOfNat",
+            PrimApp::StrOfNat(_) => "StrOfNat",
+            PrimApp::NatOfStr(_) => "NatOfStr",
+            PrimApp::SeqEmpty => "SeqEmpty",
+            PrimApp::SeqDup => "SeqDup",
+            PrimApp::SeqAppend(_, _) => "SeqAppend",
+            PrimApp::SeqFoldSeq(_, _, _) => "SeqFoldSeq",
+            PrimApp::SeqFoldUp(_, _, _, _) => "SeqFoldUp",
+            PrimApp::SeqIntoStack(_, _) => "SeqIntoStack",
+            PrimApp::SeqIntoQueue(_, _) => "SeqIntoQueue",
+            PrimApp::SeqIntoHashmap(_) => "SeqIntoHashmap",
+            PrimApp::SeqIntoKvlog(_) => "SeqIntoKvlog",
+            PrimApp::SeqMap(_, _) => "SeqMap",
+            PrimApp::SeqFilter(_, _) => "SeqFilter",
+            PrimApp::SeqReverse(_) => "SeqReverse",
+            PrimApp::StackEmpty => "StackEmpty",
+            PrimApp::StackIsEmpty(_) => "StackIsEmpty",
+            PrimApp::StackDup(_) => "StackDup",
+            PrimApp::StackPush(_, _) => "StackPush",
+            PrimApp::StackPop(_) => "StackPop",
+            PrimApp::StackPeek(_) => "StackPeek",
+            PrimApp::StackIntoSeq(_) => "StackIntoSeq",
+            PrimApp::QueueEmpty => "QueueEmpty",
+            PrimApp::QueueIsEmpty(_) => "QueueIsEmpty",
+            PrimApp::QueueDup(_) => "QueueDup",
+            PrimApp::QueuePush(_, _) => "QueuePush",
+            PrimApp::QueuePop(_) => "QueuePop",
+            PrimApp::QueuePeek(_) => "QueuePeek",
+            PrimApp::QueueIntoSeq(_) => "QueueIntoSeq",
+            PrimApp::KvlogDup => "KvlogDup",
+            PrimApp::KvlogEmpty => "KvlogEmpty",
+            PrimApp::KvlogIsEmpty => "KvlogIsEmpty",
+            PrimApp::KvlogGet => "KvlogGet",
+            PrimApp::KvlogPut => "KvlogPut",
+            PrimApp::KvlogIntoSeq => "KvlogIntoSeq",
+            PrimApp::KvlogIntoHashmap => "KvlogIntoHashmap",
+        }
+    }
+}
+
 fn fail_synth_val(scope:Option<&Name>, err:TypeError, v:&Val) -> Option<Type> {
+    if let Some(nm) = scope {print!("At {}, ", nm)}
+    println!("Failed to synthesize {} value, error: {}", v.short(), err);
     None
 }
 
 fn fail_check_val(scope:Option<&Name>, err:TypeError, v:&Val) -> bool {
+    if let Some(nm) = scope {print!("At {}, ", nm)}
+    println!("Failed to check {} value, error: {}", v.short(), err);
     false
 }
 
 fn fail_synth_exp(scope:Option<&Name>, err:TypeError, e:&Exp) -> Option<CType> {
+    if let Some(nm) = scope {print!("At {}, ", nm)}
+    println!("Failed to synthesize {} expression, error: {}", e.short(), err);
     None
 }
 
 fn fail_check_exp(scope:Option<&Name>, err:TypeError, e:&Exp) -> bool {
+    if let Some(nm) = scope {print!("At {}, ", nm)}
+    println!("Failed to check {} expression, error: {}", e.short(), err);
     false
 }
 
@@ -76,6 +179,10 @@ pub fn synth_val(scope:Option<&Name>, ctxt:&TCtxt, val:&Val) -> Option<Type> {
             if check_val(scope, ctxt, v, t) {
                 Some(t.clone())
             } else { fail_synth_val(scope, TypeError::AnnoMism,val) }
+        },
+        &Val::Nat(_) => { Some(Type::PrimApp(PrimTyApp::Nat)) },
+        &Val::Seq(ref s) => {
+            unimplemented!("synth_val seq")
         },
         &Val::Var(ref v) => { ctxt.lookup_var(v) },
         // Val::AnnoVar(var,t) => {
@@ -150,7 +257,29 @@ pub fn synth_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp) -> Option<CType> {
             & check_val(scope, ctxt, n2, &Type::PrimApp(PrimTyApp::Nat)) {
                 Some(CType::F(Rc::new(Type::PrimApp(PrimTyApp::Nat))))
             } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
-        }
+        },
+        &Exp::PrimApp(PrimApp::NatOfChar(ref c)) => {
+            if check_val(scope, ctxt, c, &make_type![char]) {
+                Some(make_ctype![F nat])
+            } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
+        },
+        &Exp::PrimApp(PrimApp::NatLte(ref n1, ref n2)) => {
+            if check_val(scope, ctxt, n1, &make_type![nat])
+            & check_val(scope, ctxt, n2, &make_type![nat]) {
+                Some(make_ctype![F bool])
+            } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
+        },
+        &Exp::PrimApp(PrimApp::BoolAnd(ref b1, ref b2)) => {
+            if check_val(scope, ctxt, b1, &make_type![bool])
+            & check_val(scope, ctxt, b2, &make_type![bool]) {
+                Some(make_ctype![F bool])
+            } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
+        },
+        &Exp::PrimApp(PrimApp::StrOfNat(ref n)) => {
+            if check_val(scope, ctxt, n, &make_ctype![nat]) {
+                Some(make_ctype![F string])
+            } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
+        },
         &Exp::PrimApp(PrimApp::SeqFoldSeq(ref v_seq, ref v_accum, ref e_body)) => {
             /* 
             Ctx |- v_seq ==> Seq(A)
@@ -195,6 +324,35 @@ pub fn synth_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp) -> Option<CType> {
                         } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
                     } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
                 } else { fail_synth_exp(scope, TypeError::ParamNoSynth, exp) }
+            } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
+        },
+        &Exp::PrimApp(PrimApp::SeqFilter(ref v_seq, ref e_filt)) => {
+            /*
+            Ctx |- v_seq ==> Seq(A)
+            Ctx |- e_filt <== (A -> F bool)
+            --------------------------------- :: synth-seq-filter
+            Ctx |- seq_filter(v_seq, e_filt) ==> F Seq(A)
+            */
+            if let Some(Type::PrimApp(PrimTyApp::Seq(a))) = synth_val(scope, ctxt, v_seq) {
+                let a = (*a).clone();
+                // let ft = CType::Arrow(a.clone(),Rc::new(CType::F(
+                //     Rc::new(Type::PrimApp(PrimTyApp::Bool))
+                // )));
+                let ft = make_ctype![(outerctx a.clone()) -> F bool];
+                if check_exp(scope, ctxt, e_filt, &ft) {
+                    // Some(CType::F(Rc::new(Type::PrimApp(PrimTyApp::Seq(a)))))
+                    Some(make_ctype![F Seq(outerctx a)])
+                } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
+            } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
+        },
+        &Exp::PrimApp(PrimApp::SeqReverse(ref v_seq)) => {
+            /*
+            Ctx |- v_seq ==> Seq(A)
+            --------------------------------- :: synth-seq-filter
+            Ctx |- seq_reverse(v_seq) ==> F Seq(A)
+            */
+            if let Some(Type::PrimApp(PrimTyApp::Seq(a))) = synth_val(scope, ctxt, v_seq) {
+                Some(make_ctype![F Seq(outerctx (*a).clone())])
             } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
         },
         _ => fail_synth_exp(scope, TypeError::NoSynthRule, exp),
@@ -259,7 +417,23 @@ pub fn check_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp, ctype:&CType) -> bo
                         check_exp(scope, ctxt, e_body, &bt)
                     } else { fail_check_exp(scope, TypeError::ParamMism, exp) }
                 } else { fail_check_exp(scope, TypeError::ParamMism, exp) }
-            } else { fail_check_exp(scope, TypeError::ParamMism, exp) }
+            } else { fail_check_exp(scope, TypeError::BadCheck, exp) }
+        },
+        (&Exp::PrimApp(PrimApp::SeqMap(ref v_seq, ref e_map)), ct) => {
+            /*
+            Ctx |- v_seq ==> Seq(A)
+            Ctx |- e_map <== (A -> F(B))
+            --------------------------------- :: synth-seq-map
+            Ctx |- seq_map(v_seq, e_map) <== F Seq(B)
+            */
+            if let CType::F(ref s) = *ct {
+                if let Type::PrimApp(PrimTyApp::Seq(ref b)) = **s {
+                    if let Some(Type::PrimApp(PrimTyApp::Seq(a))) = synth_val(scope, ctxt, v_seq) {
+                        let mt = CType::Arrow(a, Rc::new(CType::F(b.clone())));
+                        check_exp(scope, ctxt, e_map, &mt)
+                    } else { fail_check_exp(scope, TypeError::ParamMism, exp) }
+                } else { fail_check_exp(scope, TypeError::BadCheck, exp) }
+            } else { fail_check_exp(scope, TypeError::BadCheck, exp) }
         },
         (&Exp::Fix(ref f, ref e), ct) => {
             /*

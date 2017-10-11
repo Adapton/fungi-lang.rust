@@ -39,12 +39,12 @@ macro_rules! make_name {
     // [] (leaf)
     { [] } => { Name::Leaf };
     // [sym s] (symbol)
-    { [sym $($s:tt)+]} => { Name::Sym(stringify![$($s:tt)+].to_string())};
+    { [sym $($s:tt)+]} => { Name::Sym(stringify![$($s)+].to_string())};
     // [n] (extra braces ignored)
-    { [$(name:tt)*] } => { make_name![$(name)*] };
+    { [$(name:tt)+] } => { make_name![$(name)+] };
     // [[n][n]...] (extended bin)
     { [[$(name:tt)*] $($names:tt)+] } => {
-        Name::Bin(Rc::new(make_name![$(name)*]),Rc::new(make_name![$($names)+]))
+        Name::Bin(Rc::new(make_name![[$(name)*]]),Rc::new(make_name![$($names)+]))
     };
 }
 
@@ -75,14 +75,17 @@ pub enum Type {
 ///
 /// ```text
 /// t ::=
-///     (t1 x t2 x ...) (extended product, unit, extra parens)
-///     [t1 + t2 + ...] (extended coproduct, unit, extra parens)
+///     outerctx rust_expr  (insert variables, etc.)
+///     (t1 x t2 x ...)     (extended product, unit, extra parens)
+///     [t1 + t2 + ...]     (extended coproduct, unit, extra parens)
 ///     ref t
 ///     U ct
 ///     Prim
 ///     Prim(vars)
 /// ```
 macro_rules! make_type {
+    // outerctx rust_expr (insert variables, etc.)
+    { outerctx $out:expr } => { $out };
     // (t1 x t2 x ...) (extended product, unit, extra parens)
     { ($($types:tt)*) } => { split_cross![parse_product <= $($types)*] };
     // [t1 + t2 + ...] (extended coproduct, unit, extra parens)
@@ -91,6 +94,8 @@ macro_rules! make_type {
     { ref $($t:tt)+ } => { Type::Ref(Rc::new(make_type![$($t)+]))};
     // U ct
     { U $($ct:tt)+ } => { Type::U(Rc::new(make_ctype![$($ct)+]))};
+    // F t  (not a value type, parse it and let the typechecker handle it)
+    { F $($t:tt)+ } => { CType::F(Rc::new(make_type![$($t)+]))};
     // Prim
     { $ty:ident } => { Type::PrimApp(parse_prim_t![$ty]) };
     // Prim(vars)
@@ -127,6 +132,7 @@ pub enum PrimTyApp {
     Char,
     Nat,
     Int,
+    String,
     Option(TypeRec),
     Seq(TypeRec),
     List(TypeRec),
@@ -144,6 +150,7 @@ macro_rules! parse_prim_t {
     { char } => { PrimTyApp::Char };
     { nat } => { PrimTyApp::Nat };
     { int } => { PrimTyApp::Int };
+    { string } => { PrimTyApp::String };
     { Option($($type:tt)+) } => { PrimTyApp::Option(Rc::new(
         make_type![$($type)+]
     )) };
@@ -171,13 +178,16 @@ pub enum CType {
 ///
 /// ```text
 /// ct ::=
+///     outerctx rust_expr          (insert variables, etc.)
 ///     F t
 ///     (ct)
 ///     t1 -> t2 -> ... -> ct       (arrow)
 /// ```
 macro_rules! make_ctype {
+    // outerctx rust_expr (insert variables, etc.)
+    { outerctx $out:expr } => { $out };
     // F t
-    { F $($vt:tt)*} => { CType::F(Rc::new(make_type![$($vt)*])) };
+    { F $($vt:tt)+} => { CType::F(Rc::new(make_type![$($vt)+])) };
     // (ct)
     { ( $($ct:tt)+ ) } => { make_ctype![$($ct)+] };
     // t1 -> t2 -> ... -> ct (arrow)
@@ -185,12 +195,17 @@ macro_rules! make_ctype {
 }
 #[macro_export]
 macro_rules! parse_arrow {
-    // ct ( end arrow )
-    { ($($ctype:tt)+) } => { make_ctype![$($ctype)+] };
-    // t -> ...
-    { ($($type:tt)+) $(($(types)+))+ } => { CType::Arrow(
+    // t (no arrow, make type and leave it up to the type checker)
+    { ($($type:tt)+) } => { make_type![$($type)+] };
+    // t -> ct
+    { ($($type:tt)+) ($($ctype:tt)+) } => { CType::Arrow (
         Rc::new(make_type![$($type)+]),
-        Rc::new(parse_arrow![$(($(types)+))+]),
+        Rc::new(make_ctype![$($ctype)+]),
+    )};
+    // t1 -> t2 -> ... ct
+    { ($($type1:tt)+) ($($type2:tt)+) $(($(types)+))+ } => { CType::Arrow(
+        Rc::new(make_type![$($type1)+]),
+        Rc::new(parse_arrow![($($type2)+) $(($(types)+))+]),
     )};
 }
 
@@ -319,7 +334,7 @@ macro_rules! make_exp {
     // ret v
     { ret $($ret:tt)+ } => {{ Exp::Ret(make_val![$($ret)+]) }};
     // [n] e (name-scoped)
-    { [$($nm:tt)*] $($exp:tt)+ } => {{ Exp::Name(make_name!([$($nm)*]),make_exp![$($exp)+])}};
+    { [$($nm:tt)*] $($exp:tt)+ } => {{ Exp::Name(make_name!([$($nm)*]),Rc::new(make_exp![$($exp)+])) }};
     // prim(vars)
     { $fun:ident($($vars:tt)*)} => {{ Exp::PrimApp(split_comma![parse_prim_e ($fun) <= $($vars)*]) }};
     // {e}

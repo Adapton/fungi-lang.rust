@@ -8,7 +8,7 @@ fn seq_operations() {
     use std::rc::Rc;
     use iodyn_lang::bitype;
     use iodyn_lang::ast::{Val,Exp,TCtxt,
-                          Type,PrimTyApp,CType};
+                          Type,PrimTyApp,CType,Name};
     use iodyn_lang::ast::cons::*;
 
     let ctx : TCtxt = TCtxt::Empty;
@@ -30,16 +30,20 @@ fn seq_operations() {
                 ),
 
                 // get character codes (natural numbers) of chars
-                codes = exp_seq_map(
+                codes = exp_anno(exp_seq_map(
                     val_var!(chars),
                     exp_lam!{c => exp_nat_of_char(val_var!(c))}
-                ),
+                ), CType::F(Rc::new(Type::PrimApp(PrimTyApp::Seq(
+                    Rc::new(Type::PrimApp(PrimTyApp::Nat))
+                ))))),
 
                 // map character codes (natural numbers) into strings
-                strings = exp_seq_map(
+                strings = exp_anno(exp_seq_map(
                     val_var!(codes),
                     exp_lam!{c => exp_str_of_nat(val_var!(c))}
-                ),
+                ), CType::F(Rc::new(Type::PrimApp(PrimTyApp::Seq(
+                    Rc::new(Type::PrimApp(PrimTyApp::String))
+                ))))),
 
                 // reverse the character sequence
                 chars_rev = exp_seq_reverse(val_var!(chars)),
@@ -49,8 +53,8 @@ fn seq_operations() {
                     val_var!(chars),
                     exp_lam!{c => exp_let!(
                         n  = exp_nat_of_char(val_var!(c)),
-                        b1 = exp_nat_lte(val_nat('0' as usize), val_var!(c)),
-                        b2 = exp_nat_lte(val_var!(c), val_nat('9' as usize));
+                        b1 = exp_nat_lte(val_nat('0' as usize), val_var!(n)),
+                        b2 = exp_nat_lte(val_var!(n), val_nat('9' as usize));
                         exp_bool_and(val_var!(b1), val_var!(b2))
                     )}
                 ),
@@ -78,7 +82,7 @@ fn quickhull() {
     use std::rc::Rc;
     use iodyn_lang::bitype;
     use iodyn_lang::ast::{Val,Exp,TCtxt,
-                          Type,PrimTyApp,CType};
+                          Type,PrimTyApp,CType,Name};
     use iodyn_lang::ast::cons::*;
 
     let ctx : TCtxt = TCtxt::Empty;
@@ -90,7 +94,7 @@ fn quickhull() {
 fn reverse_polish_calc_step1of3() {
     use std::rc::Rc;
     use iodyn_lang::bitype;
-    use iodyn_lang::ast::{Val,Exp,PrimApp,TCtxt,Type,PrimTyApp,CType};
+    use iodyn_lang::ast::{Val,Exp,PrimApp,TCtxt,Type,PrimTyApp,CType,Name};
     use iodyn_lang::ast::Exp::*;
     use iodyn_lang::ast::Val::{Var};
     use iodyn_lang::ast::cons::*;
