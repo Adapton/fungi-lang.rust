@@ -44,6 +44,7 @@ enum TypeError {
     ParamMism,
     ParamNoSynth,
     AppNotArrow,
+    BadCheck,
 }
 impl fmt::Display for TypeError {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
@@ -55,6 +56,7 @@ impl fmt::Display for TypeError {
             TypeError::ParamMism => "parameter type incorrect",
             TypeError::ParamNoSynth => "unknown parameter type",
             TypeError::AppNotArrow => "application of non-arrow type",
+            TypeError::BadCheck => "checked type inappropriate for value",
         };
         write!(f,"{}",s)
     }
@@ -95,7 +97,54 @@ impl Exp {
             Exp::Ref(_) => "ref",
             Exp::Get(_) => "get",
             Exp::Name(_,_) => "name",
-            Exp::PrimApp(_) => "primitive",
+            Exp::PrimApp(ref p) => p.short(),
+        }
+    }
+}
+
+impl PrimApp {
+    fn short(&self) -> &str {
+        match *self {
+            PrimApp::NatAdd(_, _) => "NatAdd",
+            PrimApp::NatLte(_, _) => "NatLte",
+            PrimApp::BoolAnd(_, _) => "BoolAnd",
+            PrimApp::NatOfChar(_) => "NatOfChar",
+            PrimApp::CharOfNat(_) => "CharOfNat",
+            PrimApp::StrOfNat(_) => "StrOfNat",
+            PrimApp::NatOfStr(_) => "NatOfStr",
+            PrimApp::SeqEmpty => "SeqEmpty",
+            PrimApp::SeqDup => "SeqDup",
+            PrimApp::SeqAppend(_, _) => "SeqAppend",
+            PrimApp::SeqFoldSeq(_, _, _) => "SeqFoldSeq",
+            PrimApp::SeqFoldUp(_, _, _, _) => "SeqFoldUp",
+            PrimApp::SeqIntoStack(_, _) => "SeqIntoStack",
+            PrimApp::SeqIntoQueue(_, _) => "SeqIntoQueue",
+            PrimApp::SeqIntoHashmap(_) => "SeqIntoHashmap",
+            PrimApp::SeqIntoKvlog(_) => "SeqIntoKvlog",
+            PrimApp::SeqMap(_, _) => "SeqMap",
+            PrimApp::SeqFilter(_, _) => "SeqFilter",
+            PrimApp::SeqReverse(_) => "SeqReverse",
+            PrimApp::StackEmpty => "StackEmpty",
+            PrimApp::StackIsEmpty(_) => "StackIsEmpty",
+            PrimApp::StackDup(_) => "StackDup",
+            PrimApp::StackPush(_, _) => "StackPush",
+            PrimApp::StackPop(_) => "StackPop",
+            PrimApp::StackPeek(_) => "StackPeek",
+            PrimApp::StackIntoSeq(_) => "StackIntoSeq",
+            PrimApp::QueueEmpty => "QueueEmpty",
+            PrimApp::QueueIsEmpty(_) => "QueueIsEmpty",
+            PrimApp::QueueDup(_) => "QueueDup",
+            PrimApp::QueuePush(_, _) => "QueuePush",
+            PrimApp::QueuePop(_) => "QueuePop",
+            PrimApp::QueuePeek(_) => "QueuePeek",
+            PrimApp::QueueIntoSeq(_) => "QueueIntoSeq",
+            PrimApp::KvlogDup => "KvlogDup",
+            PrimApp::KvlogEmpty => "KvlogEmpty",
+            PrimApp::KvlogIsEmpty => "KvlogIsEmpty",
+            PrimApp::KvlogGet => "KvlogGet",
+            PrimApp::KvlogPut => "KvlogPut",
+            PrimApp::KvlogIntoSeq => "KvlogIntoSeq",
+            PrimApp::KvlogIntoHashmap => "KvlogIntoHashmap",
         }
     }
 }
@@ -208,7 +257,29 @@ pub fn synth_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp) -> Option<CType> {
             & check_val(scope, ctxt, n2, &Type::PrimApp(PrimTyApp::Nat)) {
                 Some(CType::F(Rc::new(Type::PrimApp(PrimTyApp::Nat))))
             } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
-        }
+        },
+        &Exp::PrimApp(PrimApp::NatOfChar(ref c)) => {
+            if check_val(scope, ctxt, c, &make_type![char]) {
+                Some(make_ctype![F nat])
+            } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
+        },
+        &Exp::PrimApp(PrimApp::NatLte(ref n1, ref n2)) => {
+            if check_val(scope, ctxt, n1, &make_type![nat])
+            & check_val(scope, ctxt, n2, &make_type![nat]) {
+                Some(make_ctype![F bool])
+            } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
+        },
+        &Exp::PrimApp(PrimApp::BoolAnd(ref b1, ref b2)) => {
+            if check_val(scope, ctxt, b1, &make_type![bool])
+            & check_val(scope, ctxt, b2, &make_type![bool]) {
+                Some(make_ctype![F bool])
+            } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
+        },
+        &Exp::PrimApp(PrimApp::StrOfNat(ref n)) => {
+            if check_val(scope, ctxt, n, &make_ctype![nat]) {
+                Some(make_ctype![F string])
+            } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
+        },
         &Exp::PrimApp(PrimApp::SeqFoldSeq(ref v_seq, ref v_accum, ref e_body)) => {
             /* 
             Ctx |- v_seq ==> Seq(A)
@@ -253,6 +324,35 @@ pub fn synth_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp) -> Option<CType> {
                         } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
                     } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
                 } else { fail_synth_exp(scope, TypeError::ParamNoSynth, exp) }
+            } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
+        },
+        &Exp::PrimApp(PrimApp::SeqFilter(ref v_seq, ref e_filt)) => {
+            /*
+            Ctx |- v_seq ==> Seq(A)
+            Ctx |- e_filt <== (A -> F bool)
+            --------------------------------- :: synth-seq-filter
+            Ctx |- seq_filter(v_seq, e_filt) ==> F Seq(A)
+            */
+            if let Some(Type::PrimApp(PrimTyApp::Seq(a))) = synth_val(scope, ctxt, v_seq) {
+                let a = (*a).clone();
+                // let ft = CType::Arrow(a.clone(),Rc::new(CType::F(
+                //     Rc::new(Type::PrimApp(PrimTyApp::Bool))
+                // )));
+                let ft = make_ctype![(outerctx a.clone()) -> F bool];
+                if check_exp(scope, ctxt, e_filt, &ft) {
+                    // Some(CType::F(Rc::new(Type::PrimApp(PrimTyApp::Seq(a)))))
+                    Some(make_ctype![F Seq(outerctx a)])
+                } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
+            } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
+        },
+        &Exp::PrimApp(PrimApp::SeqReverse(ref v_seq)) => {
+            /*
+            Ctx |- v_seq ==> Seq(A)
+            --------------------------------- :: synth-seq-filter
+            Ctx |- seq_reverse(v_seq) ==> F Seq(A)
+            */
+            if let Some(Type::PrimApp(PrimTyApp::Seq(a))) = synth_val(scope, ctxt, v_seq) {
+                Some(make_ctype![F Seq(outerctx (*a).clone())])
             } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
         },
         _ => fail_synth_exp(scope, TypeError::NoSynthRule, exp),
@@ -317,7 +417,23 @@ pub fn check_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp, ctype:&CType) -> bo
                         check_exp(scope, ctxt, e_body, &bt)
                     } else { fail_check_exp(scope, TypeError::ParamMism, exp) }
                 } else { fail_check_exp(scope, TypeError::ParamMism, exp) }
-            } else { fail_check_exp(scope, TypeError::ParamMism, exp) }
+            } else { fail_check_exp(scope, TypeError::BadCheck, exp) }
+        },
+        (&Exp::PrimApp(PrimApp::SeqMap(ref v_seq, ref e_map)), ct) => {
+            /*
+            Ctx |- v_seq ==> Seq(A)
+            Ctx |- e_map <== (A -> F(B))
+            --------------------------------- :: synth-seq-map
+            Ctx |- seq_map(v_seq, e_map) <== F Seq(B)
+            */
+            if let CType::F(ref s) = *ct {
+                if let Type::PrimApp(PrimTyApp::Seq(ref b)) = **s {
+                    if let Some(Type::PrimApp(PrimTyApp::Seq(a))) = synth_val(scope, ctxt, v_seq) {
+                        let mt = CType::Arrow(a, Rc::new(CType::F(b.clone())));
+                        check_exp(scope, ctxt, e_map, &mt)
+                    } else { fail_check_exp(scope, TypeError::ParamMism, exp) }
+                } else { fail_check_exp(scope, TypeError::BadCheck, exp) }
+            } else { fail_check_exp(scope, TypeError::BadCheck, exp) }
         },
         (&Exp::Fix(ref f, ref e), ct) => {
             /*

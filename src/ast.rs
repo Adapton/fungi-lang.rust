@@ -75,14 +75,17 @@ pub enum Type {
 ///
 /// ```text
 /// t ::=
-///     (t1 x t2 x ...) (extended product, unit, extra parens)
-///     [t1 + t2 + ...] (extended coproduct, unit, extra parens)
+///     outerctx rust_expr  (insert variables, etc.)
+///     (t1 x t2 x ...)     (extended product, unit, extra parens)
+///     [t1 + t2 + ...]     (extended coproduct, unit, extra parens)
 ///     ref t
 ///     U ct
 ///     Prim
 ///     Prim(vars)
 /// ```
 macro_rules! make_type {
+    // outerctx rust_expr (insert variables, etc.)
+    { outerctx $out:expr } => { $out };
     // (t1 x t2 x ...) (extended product, unit, extra parens)
     { ($($types:tt)*) } => { split_cross![parse_product <= $($types)*] };
     // [t1 + t2 + ...] (extended coproduct, unit, extra parens)
@@ -129,6 +132,7 @@ pub enum PrimTyApp {
     Char,
     Nat,
     Int,
+    String,
     Option(TypeRec),
     Seq(TypeRec),
     List(TypeRec),
@@ -146,6 +150,7 @@ macro_rules! parse_prim_t {
     { char } => { PrimTyApp::Char };
     { nat } => { PrimTyApp::Nat };
     { int } => { PrimTyApp::Int };
+    { string } => { PrimTyApp::String };
     { Option($($type:tt)+) } => { PrimTyApp::Option(Rc::new(
         make_type![$($type)+]
     )) };
@@ -173,11 +178,14 @@ pub enum CType {
 ///
 /// ```text
 /// ct ::=
+///     outerctx rust_expr          (insert variables, etc.)
 ///     F t
 ///     (ct)
 ///     t1 -> t2 -> ... -> ct       (arrow)
 /// ```
 macro_rules! make_ctype {
+    // outerctx rust_expr (insert variables, etc.)
+    { outerctx $out:expr } => { $out };
     // F t
     { F $($vt:tt)+} => { CType::F(Rc::new(make_type![$($vt)+])) };
     // (ct)
