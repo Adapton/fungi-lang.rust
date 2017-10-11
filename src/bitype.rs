@@ -182,7 +182,7 @@ pub fn synth_val(scope:Option<&Name>, ctxt:&TCtxt, val:&Val) -> Option<Type> {
         },
         &Val::Nat(_) => { Some(Type::PrimApp(PrimTyApp::Nat)) },
         &Val::Seq(ref s) => {
-            unimplemented!("synth_val seq")
+            panic!("synth_val seq")
         },
         &Val::Var(ref v) => { ctxt.lookup_var(v) },
         // Val::AnnoVar(var,t) => {
