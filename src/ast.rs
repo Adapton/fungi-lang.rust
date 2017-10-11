@@ -506,6 +506,21 @@ macro_rules! parse_prim_e {
     { KvlogIntoHashmap } => { PrimApp::KvlogIntoHashmap };
 }
 
+/*
+#[derive(IODynAst)]
+pub enum Option<A> { None, Some(A) }
+
+let s = ...
+let t = filter(dup(s), ...)
+let r = map(s, ...)
+
+type      : Val::get_iodyn_type() : Type
+toIOdyn   : Option<Val> -> Val
+fromIODyn : Val -> Option<Val>
+fromIODyn(toIOdyn(None)) = None
+//let t : Type = Val::get_iodyn_type() 
+*/
+
 pub type ValRec = Rc<Val>;
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Val {
@@ -567,6 +582,82 @@ pub enum Val {
     // /// Graphs are maps from node ids to
     // Graph(Graph)
 }
+
+/// Representations of ASTs as typing derivations.
+///
+/// One may think of a **typing derivation** as an AST that is
+/// _annotated with typing contexts and types_.  The constructors of
+/// this typing derivation correspond 1-1 with the constructors for
+/// values and expressions, where the syntax tree structures of the
+/// program term (expression or value) and its typing derivation
+/// correspond 1-1.
+//
+pub mod typing {
+    use std::rc::Rc;
+    use super::{TCtxt,Type,CType,Var,Pointer,Name,PrimApp,Seq,Stack};
+
+    /// Bidirectional bit: Synth or Check
+    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+    pub enum Dir {
+        Synth,
+        Check,
+    }
+    
+    /// Value typing derivation
+    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+    pub struct ValTD { 
+        pub ctxt:TCtxt,
+        pub val:Rc<Val>,
+        pub dir:Dir,
+        pub typ:Type,
+    }
+    
+    /// Value forms, with typing sub-derivations for sub-values
+    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+    pub enum Val {
+        Var(Var),
+        Unit,
+        Pair(ValTD,ValTD),
+        Injl(ValTD),
+        Injr(ValTD),
+        Ref(Pointer),
+        Thunk(Pointer),
+        Anno(ValTD,Type),
+        Nat(usize),
+        Str(String),
+        Seq(Seq),
+        Stack(Stack),
+    }
+
+    /// Expression typing derivation
+    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+    pub struct ExpTD { 
+        pub ctxt:TCtxt,
+        pub exp:Rc<Exp>,
+        pub dir:Dir,
+        pub ctyp:CType,
+    }
+
+    /// Expression forms, with typing sub-derivations for sub-expressions
+    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+    pub enum Exp {
+        Anno(ExpTD,CType),
+        Force(Val),
+        Thunk(ExpTD),
+        Fix(Var,ExpTD),
+        Ret(Val),
+        Let(Var,ExpTD,ExpTD),
+        Lam(Var, ExpTD),
+        App(ExpTD, Val),
+        Split(Val, Var, Var, ExpTD),
+        Case(Val, Var, ExpTD, Var, ExpTD),
+        Ref(Val),
+        Get(Val),
+        Name(Name,ExpTD),
+        PrimApp(PrimApp)
+    }
+}
+
 #[macro_export]
 /// Constructor for Val
 ///
@@ -644,13 +735,6 @@ macro_rules! parse_valvec {
 /// Sequences of values, whose implementations of push and pop must
 /// use mutation.
 pub trait SeqObj : Debug {
-    /// asdfasdf
-    ///
-    /// ```text
-    /// asdf
-    /// -----
-    /// asdfas
-    /// ```
     fn dup(&self) -> Box<SeqObj>;
     fn empty(&self) -> Box<SeqObj>;
     fn append(&self, Val) -> Box<SeqObj>;
