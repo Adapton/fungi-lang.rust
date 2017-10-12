@@ -150,47 +150,52 @@ impl PrimApp {
 }
 
 fn fail_synth_val(scope:Option<&Name>, err:TypeError, v:&Val) -> Option<Type> {
-    if let Some(nm) = scope {print!("At {}, ", nm)}
+    if let Some(nm) = scope {print!("Within {}, ", nm)}
     println!("Failed to synthesize {} value, error: {}", v.short(), err);
     None
 }
 
 fn fail_check_val(scope:Option<&Name>, err:TypeError, v:&Val) -> bool {
-    if let Some(nm) = scope {print!("At {}, ", nm)}
+    if let Some(nm) = scope {print!("Within {}, ", nm)}
     println!("Failed to check {} value, error: {}", v.short(), err);
     false
 }
 
 fn fail_synth_exp(scope:Option<&Name>, err:TypeError, e:&Exp) -> Option<CType> {
-    if let Some(nm) = scope {print!("At {}, ", nm)}
+    if let Some(nm) = scope {print!("Within {}, ", nm)}
     println!("Failed to synthesize {} expression, error: {}", e.short(), err);
     None
 }
 
 fn fail_check_exp(scope:Option<&Name>, err:TypeError, e:&Exp) -> bool {
-    if let Some(nm) = scope {print!("At {}, ", nm)}
+    if let Some(nm) = scope {print!("Within {}, ", nm)}
     println!("Failed to check {} expression, error: {}", e.short(), err);
     false
 }
 
 pub fn synth_val(scope:Option<&Name>, ctxt:&TCtxt, val:&Val) -> Option<Type> {
     match val {
+        /* Note for implementers:
+            one or both of `synth_val` or `check_val` should be implemented
+            for your new data type
+            (check_val defaults to synth_val)
+        */
+        &Val::Var(ref v) => { ctxt.lookup_var(v) },
+        &Val::Unit => { Some(Type::Unit) },
+        &Val::Pair(_,_) => { fail_synth_val(scope, TypeError::NoSynthRule,val) },
+        &Val::Injl(_) => { fail_synth_val(scope, TypeError::NoSynthRule,val) },
+        &Val::Injr(_) => { fail_synth_val(scope, TypeError::NoSynthRule,val) },
+        &Val::Ref(_) => { fail_synth_val(scope, TypeError::NoSynthRule,val) },
+        &Val::Thunk(_) => { fail_synth_val(scope, TypeError::NoSynthRule,val) },
         &Val::Anno(ref v,ref t) => {
             if check_val(scope, ctxt, v, t) {
                 Some(t.clone())
             } else { fail_synth_val(scope, TypeError::AnnoMism,val) }
         },
         &Val::Nat(_) => { Some(Type::PrimApp(PrimTyApp::Nat)) },
-        &Val::Seq(ref s) => {
-            panic!("synth_val seq")
-        },
-        &Val::Var(ref v) => { ctxt.lookup_var(v) },
-        // Val::AnnoVar(var,t) => {
-        //     if let Some(vt) = ctxt.lookup_var(var) {
-        //         if vt == t { Some(t) } else { None }
-        //     } else { Some(t) }
-        // },
-        _ => fail_synth_val(scope, TypeError::NoSynthRule,val),
+        &Val::Str(_) => { fail_synth_val(scope, TypeError::NoSynthRule,val) },
+        &Val::Seq(ref s) => { fail_synth_val(scope, TypeError::NoSynthRule,val) },
+        &Val::Stack(_) => { fail_synth_val(scope, TypeError::NoSynthRule,val) },
     }
 }
 
@@ -227,14 +232,26 @@ pub fn check_val(scope:Option<&Name>, ctxt:&TCtxt, val:&Val, typ:&Type) -> bool 
 
 pub fn synth_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp) -> Option<CType> {
     match exp {
-        &Exp::Name(ref nm, ref e) => {
-            synth_exp(Some(nm), ctxt, e)
-        }
+        /* Note for implementers:
+            one or both of `synth_exp` or `check_exp` should be implemented
+            for your new data type
+            (check_exp defaults to synth_exp)
+        */
         &Exp::Anno(ref e, ref ct) => {
             if check_exp(scope, ctxt, e, ct) {
                 Some(ct.clone())
             } else { fail_synth_exp(scope, TypeError::AnnoMism, exp) }
         },
+        &Exp::Force(ref v) => {
+            if let Some(Type::U(ct)) = synth_val(scope, ctxt, v) {
+                Some((*ct).clone())
+            } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
+        },
+        &Exp::Thunk(_) => { fail_synth_exp(scope, TypeError::NoSynthRule, exp) },
+        &Exp::Fix(_,_) => { fail_synth_exp(scope, TypeError::NoSynthRule, exp) },
+        &Exp::Ret(_) => { fail_synth_exp(scope, TypeError::NoSynthRule, exp) },
+        &Exp::Let(_,_,_) => { fail_synth_exp(scope, TypeError::NoSynthRule, exp) },
+        &Exp::Lam(_, _) => { fail_synth_exp(scope, TypeError::NoSynthRule, exp) },
         &Exp::App(ref e, ref v) => {
             if let Some(CType::Arrow(t,ct)) = synth_exp(scope, ctxt, e) {
                 if check_val(scope, ctxt, v, &t) {
@@ -242,16 +259,17 @@ pub fn synth_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp) -> Option<CType> {
                 } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
             } else { fail_synth_exp(scope, TypeError::AppNotArrow, exp) }
         },
-        &Exp::Force(ref v) => {
-            if let Some(Type::U(ct)) = synth_val(scope, ctxt, v) {
-                Some((*ct).clone())
-            } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
-        },
+        &Exp::Split(_, _, _, _) => { fail_synth_exp(scope, TypeError::NoSynthRule, exp) },
+        &Exp::Case(_, _, _, _, _) => { fail_synth_exp(scope, TypeError::NoSynthRule, exp) },
+        &Exp::Ref(_) => { fail_synth_exp(scope, TypeError::NoSynthRule, exp) },
         &Exp::Get(ref v) => {
             if let Some(Type::Ref(t)) = synth_val(scope, ctxt, v) {
                 Some(CType::F(t))
             } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
         },
+        &Exp::Name(ref nm, ref e) => {
+            synth_exp(Some(nm), ctxt, e)
+        }
         &Exp::PrimApp(PrimApp::NatAdd(ref n1, ref n2)) => {
             if check_val(scope, ctxt, n1, &Type::PrimApp(PrimTyApp::Nat))
             & check_val(scope, ctxt, n2, &Type::PrimApp(PrimTyApp::Nat)) {
@@ -355,7 +373,8 @@ pub fn synth_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp) -> Option<CType> {
                 Some(make_ctype![F Seq(outerctx (*a).clone())])
             } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
         },
-        _ => fail_synth_exp(scope, TypeError::NoSynthRule, exp),
+        // TODO: explicitly implement each with failure as needed
+        &Exp::PrimApp(_) => {panic!("unimplemented primitive expression type synthesizing")}
     }
 }
 
@@ -400,6 +419,14 @@ pub fn check_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp, ctype:&CType) -> bo
                 check_val(scope, ctxt, v, t)
             } else { fail_check_exp(scope, TypeError::ParamMism, exp) }
         },
+        (&Exp::Fix(ref f, ref e), ct) => {
+            /*
+            Ctx, f: U(C) |- e <== C
+            -----------------------
+            Ctx |- fix(f.e) <== C
+            */
+            check_exp(scope, &ctxt.var(f.clone(), Type::U(Rc::new(ct.clone()))), e, ct)
+        },
         (&Exp::PrimApp(PrimApp::SeqFoldSeq(ref v_seq, ref v_accum, ref e_body)), ct) => {
             /* 
             Ctx |- v_seq ==> Seq(A)
@@ -434,14 +461,6 @@ pub fn check_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp, ctype:&CType) -> bo
                     } else { fail_check_exp(scope, TypeError::ParamMism, exp) }
                 } else { fail_check_exp(scope, TypeError::BadCheck, exp) }
             } else { fail_check_exp(scope, TypeError::BadCheck, exp) }
-        },
-        (&Exp::Fix(ref f, ref e), ct) => {
-            /*
-            Ctx, f: U(C) |- e <== C
-            -----------------------
-            Ctx |- fix(f.e) <== C
-            */
-            check_exp(scope, &ctxt.var(f.clone(), Type::U(Rc::new(ct.clone()))), e, ct)
         },
         (e, ct2) => {
             if let Some(ref ct1) = synth_exp(scope, ctxt, e) {
