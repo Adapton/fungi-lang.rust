@@ -46,6 +46,7 @@ enum TypeError {
     AppNotArrow,
     BadCheck,
     DSLiteral,
+    EmptyDT,
 }
 impl fmt::Display for TypeError {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
@@ -59,6 +60,7 @@ impl fmt::Display for TypeError {
             TypeError::AppNotArrow => "application of non-arrow type",
             TypeError::BadCheck => "checked type inappropriate for value",
             TypeError::DSLiteral => "data structure litterals not allowed",
+            TypeError::EmptyDT => "ambiguous empty data type",
         };
         write!(f,"{}",s)
     }
@@ -284,11 +286,6 @@ pub fn synth_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp) -> Option<CType> {
                 Some(CType::F(Rc::new(Type::PrimApp(PrimTyApp::Nat))))
             } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
         },
-        &Exp::PrimApp(PrimApp::NatOfChar(ref c)) => {
-            if check_val(scope, ctxt, c, &make_type![char]) {
-                Some(make_ctype![F nat])
-            } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
-        },
         &Exp::PrimApp(PrimApp::NatLte(ref n1, ref n2)) => {
             if check_val(scope, ctxt, n1, &make_type![nat])
             & check_val(scope, ctxt, n2, &make_type![nat]) {
@@ -301,11 +298,29 @@ pub fn synth_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp) -> Option<CType> {
                 Some(make_ctype![F bool])
             } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
         },
+        &Exp::PrimApp(PrimApp::NatOfChar(ref c)) => {
+            if check_val(scope, ctxt, c, &make_type![char]) {
+                Some(make_ctype![F nat])
+            } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
+        },
+        &Exp::PrimApp(PrimApp::CharOfNat(ref n)) => {
+            if check_val(scope, ctxt, c, &make_type![nat]) {
+                Some(make_ctype![F char])
+            } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
+        },
         &Exp::PrimApp(PrimApp::StrOfNat(ref n)) => {
             if check_val(scope, ctxt, n, &make_ctype![nat]) {
                 Some(make_ctype![F string])
             } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
         },
+        &Exp::PrimApp(PrimApp::NatOfStr(ref s)) => {
+            if check_val(scope, ctxt, n, &make_ctype![string]) {
+                Some(make_ctype![F nat])
+            } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
+        },
+        &Exp::PrimApp(PrimApp::SeqEmpty) => {
+            fail_synth_exp(scope, TypeError::EmptyDT, exp)
+        }
         &Exp::PrimApp(PrimApp::SeqFoldSeq(ref v_seq, ref v_accum, ref e_body)) => {
             /* 
             Ctx |- v_seq ==> Seq(A)
