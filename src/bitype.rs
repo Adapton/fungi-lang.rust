@@ -45,6 +45,7 @@ enum TypeError {
     ParamNoSynth,
     AppNotArrow,
     BadCheck,
+    DSLiteral,
 }
 impl fmt::Display for TypeError {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
@@ -57,6 +58,7 @@ impl fmt::Display for TypeError {
             TypeError::ParamNoSynth => "unknown parameter type",
             TypeError::AppNotArrow => "application of non-arrow type",
             TypeError::BadCheck => "checked type inappropriate for value",
+            TypeError::DSLiteral => "data structure litterals not allowed",
         };
         write!(f,"{}",s)
     }
@@ -192,10 +194,10 @@ pub fn synth_val(scope:Option<&Name>, ctxt:&TCtxt, val:&Val) -> Option<Type> {
                 Some(t.clone())
             } else { fail_synth_val(scope, TypeError::AnnoMism,val) }
         },
-        &Val::Nat(_) => { Some(Type::PrimApp(PrimTyApp::Nat)) },
-        &Val::Str(_) => { fail_synth_val(scope, TypeError::NoSynthRule,val) },
-        &Val::Seq(ref s) => { fail_synth_val(scope, TypeError::NoSynthRule,val) },
-        &Val::Stack(_) => { fail_synth_val(scope, TypeError::NoSynthRule,val) },
+        &Val::Nat(_) => { Some(make_type![nat]) },
+        &Val::Str(_) => { Some(make_type![string]) },
+        &Val::Seq(_) => { fail_synth_val(scope, TypeError::DSLiteral,val) },
+        &Val::Stack(_) => { fail_synth_val(scope, TypeError::DSLiteral,val) },
     }
 }
 
@@ -222,11 +224,17 @@ pub fn check_val(scope:Option<&Name>, ctxt:&TCtxt, val:&Val, typ:&Type) -> bool 
                 **ct == t
             } else { fail_check_val(scope, TypeError::InvalidPtr,val) }
         },
+        (&Val::Nat(_), &make_type![nat]) => true,
+        (&Val::Seq(_), &make_type![string]) => true,
+        (&Val::Stack(_), _) => {
+            fail_check_val(scope, TypeError::DSLiteral, val)
+        }
         (v, t2) => {
             if let Some(ref t1) = synth_val(scope, ctxt, v) {
                 t2 == t1
             } else { fail_check_val(scope, TypeError::NoCheckRule,val) }
         },
+
     }
 }
 
