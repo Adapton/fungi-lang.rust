@@ -365,12 +365,12 @@ pub enum PrimApp {
     // Sequences (implemented as level trees, an IODyn collection)
     // ------------------------------------------------------------
     SeqEmpty,
-    SeqDup,
+    SeqDup(Val),
     SeqAppend(Val, Val),
     SeqFoldSeq(Val, Val, ExpRec),
     SeqFoldUp(Val, Val, ExpRec, ExpRec),
-    SeqIntoStack(Val, Val),
-    SeqIntoQueue(Val, Val),
+    SeqIntoStack(Val),
+    SeqIntoQueue(Val),
     SeqIntoHashmap(Val),
     SeqIntoKvlog(Val),
     SeqMap(Val, ExpRec),
@@ -406,13 +406,13 @@ pub enum PrimApp {
 
     // Kvlog
     // --------------
-    KvlogDup,
     KvlogEmpty,
-    KvlogIsEmpty,
-    KvlogGet,
-    KvlogPut,
-    KvlogIntoSeq,
-    KvlogIntoHashmap,
+    KvlogDup(Val),
+    KvlogIsEmpty(Val),
+    KvlogGet(Val,Val),
+    KvlogPut(Val,Val,Val),
+    KvlogIntoSeq(Val),
+    KvlogIntoHashmap(Val),
 }
 #[macro_export]
 macro_rules! parse_prim_e {
@@ -438,7 +438,9 @@ macro_rules! parse_prim_e {
         PrimApp::NatOfStr(make_val![$($v)+])
     };
     { SeqEmpty } => { PrimApp::SeqEmpty };
-    { SeqDup } => { PrimApp::SeqDup };
+    { SeqDup($($v:tt)+) } => {
+        PrimApp::SeqDup(make_val![$($v)+])
+    };
     { SeqAppend($($v1:tt)+)($($v2:tt)+) } => {
         PrimApp::SeqPush(make_val![$($v1)+],make_val![$($v2)+])
     };
@@ -457,11 +459,11 @@ macro_rules! parse_prim_e {
             Rc::new(make_exp![$($e2)+]),
         )
     };
-    { SeqIntoStack($($v1:tt)+)($($v2:tt)+) } => {
-        PrimApp::SeqIntoStack(make_val![$($v1)+],make_val![$($v2)+])
+    { SeqIntoStack($($v:tt)+) } => {
+        PrimApp::SeqIntoStack(make_val![$($v)+])
     };
-    { SeqIntoQueue($($v1:tt)+)($($v2:tt)+) } => {
-        PrimApp::SeqIntoQueue(make_val![$($v1)+],make_val![$($v2)+])
+    { SeqIntoQueue($($v:tt)+) } => {
+        PrimApp::SeqIntoQueue(make_val![$($v)+])
     };
     { SeqIntoHashmap($($v:tt)+) } => {
         PrimApp::SeqIntoHashmap(make_val![$($v)+])
@@ -525,13 +527,24 @@ macro_rules! parse_prim_e {
         PrimApp::QueueIntoSeq(make_val![$($v)+])
     };
 
-    { KvlogDup } => { PrimApp::KvlogDup };
-    { KvlogEmpty } => { PrimApp::KvlogEmpty };
-    { KvlogIsEmpty } => { PrimApp::KvlogIsEmpty };
-    { KvlogGet } => { PrimApp::KvlogGet };
-    { KvlogPut } => { PrimApp::KvlogPut };
-    { KvlogIntoSeq } => { PrimApp::KvlogIntoSeq };
-    { KvlogIntoHashmap } => { PrimApp::KvlogIntoHashmap };
+    { KvlogDup($($v:tt)+) } => {
+        PrimApp::KvlogDup(make_val![$($v)+])
+    };
+    { KvlogEmpty($($v:tt)+) } => {
+        PrimApp::KvlogEmpty(make_val![$($v)+])
+    };
+    { KvlogGet($($v1:tt)+)($($v2:tt)+) } => {
+        PrimApp::KvlogGet(make_val![$($v1)+],make_val![$($v2)+])
+    };
+    { KvlogPut($($v1:tt)+)($($v2:tt)+)($($v3:tt)+) } => {
+        PrimApp::KvlogPut(make_val![$($v1)+],make_val![$($v2)+],make_val![$($v3)+])
+    };
+    { KvlogIntoSeq($($v:tt)+) } => {
+        PrimApp::KvlogIntoSeq(make_val![$($v)+])
+    };
+    { KvlogIntoHashmap($($v:tt)+) } => {
+        PrimApp::KvlogIntoHashmap(make_val![$($v)+])
+    };
 }
 
 /*

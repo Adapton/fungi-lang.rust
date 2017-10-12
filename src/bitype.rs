@@ -117,12 +117,12 @@ impl PrimApp {
             PrimApp::StrOfNat(_) => "StrOfNat",
             PrimApp::NatOfStr(_) => "NatOfStr",
             PrimApp::SeqEmpty => "SeqEmpty",
-            PrimApp::SeqDup => "SeqDup",
+            PrimApp::SeqDup(_) => "SeqDup",
             PrimApp::SeqAppend(_, _) => "SeqAppend",
             PrimApp::SeqFoldSeq(_, _, _) => "SeqFoldSeq",
             PrimApp::SeqFoldUp(_, _, _, _) => "SeqFoldUp",
-            PrimApp::SeqIntoStack(_, _) => "SeqIntoStack",
-            PrimApp::SeqIntoQueue(_, _) => "SeqIntoQueue",
+            PrimApp::SeqIntoStack(_) => "SeqIntoStack",
+            PrimApp::SeqIntoQueue(_) => "SeqIntoQueue",
             PrimApp::SeqIntoHashmap(_) => "SeqIntoHashmap",
             PrimApp::SeqIntoKvlog(_) => "SeqIntoKvlog",
             PrimApp::SeqMap(_, _) => "SeqMap",
@@ -142,13 +142,13 @@ impl PrimApp {
             PrimApp::QueuePop(_) => "QueuePop",
             PrimApp::QueuePeek(_) => "QueuePeek",
             PrimApp::QueueIntoSeq(_) => "QueueIntoSeq",
-            PrimApp::KvlogDup => "KvlogDup",
+            PrimApp::KvlogDup(_) => "KvlogDup",
             PrimApp::KvlogEmpty => "KvlogEmpty",
-            PrimApp::KvlogIsEmpty => "KvlogIsEmpty",
-            PrimApp::KvlogGet => "KvlogGet",
-            PrimApp::KvlogPut => "KvlogPut",
-            PrimApp::KvlogIntoSeq => "KvlogIntoSeq",
-            PrimApp::KvlogIntoHashmap => "KvlogIntoHashmap",
+            PrimApp::KvlogIsEmpty(_) => "KvlogIsEmpty",
+            PrimApp::KvlogGet(_, _) => "KvlogGet",
+            PrimApp::KvlogPut(_, _, _) => "KvlogPut",
+            PrimApp::KvlogIntoSeq(_) => "KvlogIntoSeq",
+            PrimApp::KvlogIntoHashmap(_) => "KvlogIntoHashmap",
         }
     }
 }
@@ -304,7 +304,7 @@ pub fn synth_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp) -> Option<CType> {
             } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
         },
         &Exp::PrimApp(PrimApp::CharOfNat(ref n)) => {
-            if check_val(scope, ctxt, c, &make_type![nat]) {
+            if check_val(scope, ctxt, n, &make_type![nat]) {
                 Some(make_ctype![F char])
             } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
         },
@@ -314,7 +314,7 @@ pub fn synth_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp) -> Option<CType> {
             } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
         },
         &Exp::PrimApp(PrimApp::NatOfStr(ref s)) => {
-            if check_val(scope, ctxt, n, &make_ctype![string]) {
+            if check_val(scope, ctxt, s, &make_ctype![string]) {
                 Some(make_ctype![F nat])
             } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
         },
