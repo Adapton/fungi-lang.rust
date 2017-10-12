@@ -110,7 +110,7 @@ macro_rules! parse_product {
     // (t x ...)
     { ($($type:tt)+) $($types:tt)+ } => { Type::Pair(
         Rc::new(make_type![$($type)+]),
-        Rc::new(parse_type![$($types)+]),
+        Rc::new(parse_product![$($types)+]),
     )};
 }
 #[macro_export]
@@ -122,7 +122,7 @@ macro_rules! parse_coproduct {
     // [t + ...]
     { ($($type:tt)+) $($types:tt)+ } => { Type::Sum(
         Rc::new(make_type![$($type)+]),
-        Rc::new(parse_type![$($types)+]),
+        Rc::new(parse_coproduct![$($types)+]),
     )};
 }
 
@@ -135,8 +135,10 @@ pub enum PrimTyApp {
     String,
     Option(TypeRec),
     Seq(TypeRec),
-    List(TypeRec),
+    Stack(TypeRec),
     Queue(TypeRec),
+    Hashmap(TypeRec,TypeRec),
+    Kvlog(TypeRec,TypeRec),
     // Temporaries:
     /// Tok -- TEMP(matthewhammer),
     Tok,
@@ -157,12 +159,20 @@ macro_rules! parse_prim_t {
     { Seq($($type:tt)+) } => { PrimTyApp::Seq(Rc::new(
         make_type![$($type)+]
     )) };
-    { List($($type:tt)+) } => { PrimTyApp::List(Rc::new(
+    { Stack($($type:tt)+) } => { PrimTyApp::Stack(Rc::new(
         make_type![$($type)+]
     )) };
     { Queue($($type:tt)+) } => { PrimTyApp::Queue(Rc::new(
         make_type![$($type)+]
     )) };
+    { Hashmap($($key:tt)+)($($value:tt)+) } => { PrimTyApp::Hashmap(
+        Rc::new(make_type![$($key)+]),
+        Rc::new(make_type![$($value)+]),
+    ) };
+    { Kvlog($($key:tt)+)($($value:tt)+) } => { PrimTyApp::Kvlog(
+        Rc::new(make_type![$($key)+]),
+        Rc::new(make_type![$($value)+]),
+    ) };
     { Tok } => { PrimTyApp::Tok };
     { LexSt } => { PrimTyApp::LexSt };
 }
@@ -365,6 +375,7 @@ pub enum PrimApp {
     // Sequences (implemented as level trees, an IODyn collection)
     // ------------------------------------------------------------
     SeqEmpty,
+    SeqIsEmpty(Val),
     SeqDup(Val),
     SeqAppend(Val, Val),
     SeqFoldSeq(Val, Val, ExpRec),
@@ -441,8 +452,11 @@ macro_rules! parse_prim_e {
     { SeqDup($($v:tt)+) } => {
         PrimApp::SeqDup(make_val![$($v)+])
     };
+    { SeqIsEmpty($($v:tt)+) } => {
+        PrimApp::SeqIsEmpty(make_val![$($v)+])
+    };
     { SeqAppend($($v1:tt)+)($($v2:tt)+) } => {
-        PrimApp::SeqPush(make_val![$($v1)+],make_val![$($v2)+])
+        PrimApp::SeqAppend(make_val![$($v1)+],make_val![$($v2)+])
     };
     { SeqFoldSeq($($v1:tt)+)($($v2:tt)+)($($e1:tt)+) } => {
         PrimApp::SeqFoldSeq(
