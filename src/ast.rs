@@ -242,6 +242,22 @@ impl TCtxt {
     }
 }
 
+
+/// Ambient name data flow
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum LetHint {
+    ParAmb,
+    SeqAmb,
+}
+
+/// Translation hint
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum TrHint {
+    Memo,
+    ScopeAmb,
+    ScopeHere(Name),
+}
+
 pub type ExpRec = Rc<Exp>;
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Exp {
@@ -250,15 +266,16 @@ pub enum Exp {
     Thunk(ExpRec),
     Fix(Var,ExpRec),
     Ret(Val),
-    Let(Var,ExpRec,ExpRec),
+    Let(LetHint,Var,ExpRec,ExpRec),
     Lam(Var, ExpRec),
     App(ExpRec, Val),
     Split(Val, Var, Var, ExpRec),
     Case(Val, Var, ExpRec, Var, ExpRec),
     Ref(Val),
     Get(Val),
-    Name(Name,ExpRec),
-    PrimApp(PrimApp)
+    Label(Name,ExpRec),
+    PrimApp(PrimApp),
+    TrHint(TrHint,ExpRec),
 }
 #[macro_export]
 /// Constructor for Exp
@@ -753,7 +770,7 @@ pub mod typing {
         Thunk(ExpTD),
         Fix(Var,ExpTD),
         Ret(Val),
-        Let(Var,ExpTD,ExpTD),
+        Let(Var,ExpTD,ExpTD,LetHint),
         Lam(Var, ExpTD),
         App(ExpTD, Val),
         Split(Val, Var, Var, ExpTD),
@@ -761,7 +778,7 @@ pub mod typing {
         Ref(Val),
         Get(Val),
         Name(Name,ExpTD),
-        PrimApp(PrimApp)
+        PrimApp(PrimApp),
     }
 }
 
