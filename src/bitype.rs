@@ -218,6 +218,7 @@ pub fn synth_val(scope:Option<&Name>, ctxt:&TCtxt, val:&Val) -> Option<Type> {
     }
 }
 
+
 pub fn check_val(scope:Option<&Name>, ctxt:&TCtxt, val:&Val, typ:&Type) -> bool {
     match (val, typ) {
         (&Val::Unit, &Type::Unit) => true,
