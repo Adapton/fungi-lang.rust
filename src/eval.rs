@@ -139,7 +139,8 @@ pub fn eval(st:State, env:Env, e:Exp) -> (State, ExpTerm) {
         Exp::Lam(x, e)    => { (st, ExpTerm::Lam(env, x, e)) }
         Exp::Ret(v)       => { (st, ExpTerm::Ret(close_val(&env, &v))) }
         Exp::Anno(e1,_ct) => { eval(st, env, (*e1).clone()) }
-        Exp::Name(_nm,e1) => { eval(st, env, (*e1).clone()) }
+        Exp::Label(_nm,e1) => { eval(st, env, (*e1).clone()) }
+        Exp::TrHint(_h,e1) => { eval(st, env, (*e1).clone()) }
         Exp::Fix(f,e1) => {
             let (st, ptr) = allocate_pointer(st, StoreObj::Thunk(env.clone(), (*e1).clone()));
             let mut env = env;
@@ -154,7 +155,7 @@ pub fn eval(st:State, env:Env, e:Exp) -> (State, ExpTerm) {
             let (st, ptr) = allocate_pointer(st, StoreObj::Cell(close_val(&env, &v)));
             (st, ExpTerm::Ret(Val::Ref(ptr)))
         }
-        Exp::Let(x,e1,e2) => {
+        Exp::Let(_,x,e1,e2) => {
             match eval(st, env.clone(), (*e1).clone()) {
                 (st, ExpTerm::Ret(v)) => {
                     let mut env = env;

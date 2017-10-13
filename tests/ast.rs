@@ -8,7 +8,7 @@ fn seq_operations() {
     use std::rc::Rc;
     use iodyn_lang::bitype;
     use iodyn_lang::ast::{Val,Exp,TCtxt,
-                          Type,PrimTyApp,CType,Name};
+                          Type,PrimTyApp,CType,Name,LetHint};
     use iodyn_lang::ast::cons::*;
 
     let ctx : TCtxt = TCtxt::Empty;
@@ -94,7 +94,7 @@ fn quickhull() {
 fn reverse_polish_calc_step1of3() {
     use std::rc::Rc;
     use iodyn_lang::bitype;
-    use iodyn_lang::ast::{Val,Exp,PrimApp,TCtxt,Type,PrimTyApp,CType,Name};
+    use iodyn_lang::ast::{Val,Exp,PrimApp,TCtxt,Type,PrimTyApp,CType,Name,LetHint};
     use iodyn_lang::ast::Exp::*;
     use iodyn_lang::ast::Val::{Var};
     use iodyn_lang::ast::cons::*;
@@ -167,7 +167,8 @@ fn reverse_polish_calc_step1of3() {
     //
     let ast : Exp =
         Anno(Rc::new(
-            Let("toks".to_string(),
+            Let(LetHint::ParAmb,
+                "toks".to_string(),
                 Rc::new(PrimApp(
                     PrimApp::SeqFoldSeq(
                         Var("chars".to_string()),

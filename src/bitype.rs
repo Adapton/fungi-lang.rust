@@ -93,14 +93,15 @@ impl Exp {
             Exp::Thunk(_) => "thunk",
             Exp::Fix(_,_) => "fix",
             Exp::Ret(_) => "ret",
-            Exp::Let(_,_,_) => "let",
+            Exp::Let(_,_,_,_) => "let",
             Exp::Lam(_, _) => "lam",
             Exp::App(_, _) => "app",
             Exp::Split(_, _, _, _) => "split",
             Exp::Case(_, _, _, _, _) => "case",
             Exp::Ref(_) => "ref",
             Exp::Get(_) => "get",
-            Exp::Name(_,_) => "name",
+            Exp::TrHint(_,_) => "translation hint",
+            Exp::Label(_,_) => "label",
             Exp::PrimApp(ref p) => p.short(),
         }
     }
@@ -274,7 +275,7 @@ pub fn synth_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp) -> Option<CType> {
         &Exp::Thunk(_) => { fail_synth_exp(scope, TypeError::NoSynthRule, exp) },
         &Exp::Fix(_,_) => { fail_synth_exp(scope, TypeError::NoSynthRule, exp) },
         &Exp::Ret(_) => { fail_synth_exp(scope, TypeError::NoSynthRule, exp) },
-        &Exp::Let(_,_,_) => { fail_synth_exp(scope, TypeError::NoSynthRule, exp) },
+        &Exp::Let(_,_,_,_) => { fail_synth_exp(scope, TypeError::NoSynthRule, exp) },
         &Exp::Lam(_, _) => { fail_synth_exp(scope, TypeError::NoSynthRule, exp) },
         &Exp::App(ref e, ref v) => {
             if let Some(CType::Arrow(t,ct)) = synth_exp(scope, ctxt, e) {
@@ -291,9 +292,12 @@ pub fn synth_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp) -> Option<CType> {
                 Some(CType::F(t))
             } else { fail_synth_exp(scope, TypeError::ParamMism, exp) }
         },
-        &Exp::Name(ref nm, ref e) => {
+        &Exp::Label(ref nm, ref e) => {
             synth_exp(Some(nm), ctxt, e)
         },
+        &Exp::TrHint(ref h, ref e) => {
+            synth_exp(scope, ctxt, e)
+        }
         &Exp::PrimApp(PrimApp::NatAdd(ref n1, ref n2)) => {
             if check_val(scope, ctxt, n1, &Type::PrimApp(PrimTyApp::Nat))
             & check_val(scope, ctxt, n2, &Type::PrimApp(PrimTyApp::Nat)) {
@@ -574,7 +578,7 @@ pub fn synth_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp) -> Option<CType> {
 pub fn check_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp, ctype:&CType) -> bool {
     // TODO: remove ctype from match, check it in body and maybe give type error
     match (exp, ctype) {
-        (&Exp::Name(ref nm, ref e), ct) => {
+        (&Exp::Label(ref nm, ref e), ct) => {
             check_exp(Some(nm), ctxt, e, ct)
         },
         (&Exp::Thunk(ref e), &CType::F(ref t)) => {
@@ -585,7 +589,7 @@ pub fn check_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp, ctype:&CType) -> bo
         (&Exp::Ret(ref v), &CType::F(ref t)) => {
             check_val(scope, ctxt, v, t)
         },
-        (&Exp::Let(ref x, ref e1, ref e2), ct) => {
+        (&Exp::Let(_,ref x, ref e1, ref e2), ct) => {
             if let Some(CType::F(t)) = synth_exp(scope, ctxt, e1) {
                 check_exp(scope, &ctxt.var(x.clone(), (*t).clone()), e2, ct)
             } else { fail_check_exp(scope, TypeError::ParamMism, exp) }

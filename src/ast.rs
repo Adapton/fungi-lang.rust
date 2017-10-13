@@ -291,11 +291,16 @@ pub enum Exp {
 ///     fix f.e
 ///     {e} v                   (application)
 ///     let a = {e} e
+///     let[par] a = {e} e       (Let binding with parallel naming option (default))
+///     let[seq] a = {e} e       (Let binding with sequential naming option)
 ///     split(v) x.y.e
 ///     case(v) x.{e0} y.{e1}
 ///     case(v) x.{e0} y.{e1} z.{e2} ...
 ///     ret v
-///     [n] e                   (name-scoped)
+///     n e                 (name-labeled, for debug messages)
+///     [m] e               (translation hint - memoize)
+///     [s] e               (translation hint - scope with ambient name)
+///     [s n] e             (translation hint - scope with given name)
 ///     prim(vars)
 ///     {e}
 /// ```
@@ -326,7 +331,30 @@ macro_rules! make_exp {
     }};
     // let a = {e} e
     { let $var:ident = {$($rhs:tt)+} $($body:tt)+} => {{
-        Exp::Let(stringify![$var].to_string(), Rc::new(make_exp![$($rhs)+]), Rc::new(make_exp![$($body)*]))
+        Exp::Let(
+            LetHint::ParAmb,
+            stringify![$var].to_string(),
+            Rc::new(make_exp![$($rhs)+]),
+            Rc::new(make_exp![$($body)*])
+        )
+    }};
+    // let[par] a = {e} e (Let binding with parallel naming option (default))
+    { let[par] $var:ident = {$($rhs:tt)+} $($body:tt)+} => {{
+        Exp::Let(
+            LetHint::ParAmb,
+            stringify![$var].to_string(),
+            Rc::new(make_exp![$($rhs)+]),
+            Rc::new(make_exp![$($body)*])
+        )
+    }};
+    // let[seq] a = {e} e (Let binding with sequential naming option)
+    { let[seq] $var:ident = {$($rhs:tt)+} $($body:tt)+} => {{
+        Exp::Let(
+            LetHint::SeqAmb,
+            stringify![$var].to_string(),
+            Rc::new(make_exp![$($rhs)+]),
+            Rc::new(make_exp![$($body)*])
+        )
     }};
     // TODO: let (a,b,...) = {e} e (split)
     // split(v) x.y.e
@@ -360,8 +388,17 @@ macro_rules! make_exp {
     }};
     // ret v
     { ret $($ret:tt)+ } => {{ Exp::Ret(make_val![$($ret)+]) }};
-    // [n] e (name-scoped)
-    { [$($nm:tt)*] $($exp:tt)+ } => {{ Exp::Name(make_name!([$($nm)*]),Rc::new(make_exp![$($exp)+])) }};
+    // [m] e               (translation hint - memoize)
+    { [m] $($exp:tt)+ } => {{ Exp::TrHint(TrHint::memo, Rc::new(make_exp![$($exp)+])) }};
+    // [s] e               (translation hint - scope with ambient name)
+    { [s] $($exp:tt)+ } => {{ Exp::TrHint(TrHint::ScopeAmb, Rc::new(make_exp![$($exp)+])) }};
+    // [s n] e             (translation hint - scope with given name)
+    { [s $($nm:tt)*] $($exp:tt)+ } => {{ Exp::TrHint(
+        TrHint::ScopeHere(make_name![$($nm:tt)*]),
+        Rc::new(make_exp![$($exp)+])
+    )}};
+    // n e                 (name-labeled, for debug messages)
+    { [$($nm:tt)*] $($exp:tt)+ } => {{ Exp::Label(make_name!([$($nm)*]),Rc::new(make_exp![$($exp)+])) }};
     // prim(vars)
     { $fun:ident($($vars:tt)*)} => {{ Exp::PrimApp(split_comma![parse_prim_e ($fun) <= $($vars)*]) }};
     // {e}
@@ -718,7 +755,7 @@ macro_rules! parse_tuple {
 //
 pub mod typing {
     use std::rc::Rc;
-    use super::{TCtxt,Type,CType,Var,Pointer,Name,PrimApp,Seq,Stack};
+    use super::{TCtxt,Type,CType,Var,Pointer,Name,PrimApp,Seq,Stack,LetHint};
 
     /// Bidirectional bit: Synth or Check
     #[derive(Clone,Debug,Eq,PartialEq,Hash)]
@@ -770,7 +807,7 @@ pub mod typing {
         Thunk(ExpTD),
         Fix(Var,ExpTD),
         Ret(Val),
-        Let(Var,ExpTD,ExpTD,LetHint),
+        Let(LetHint,Var,ExpTD,ExpTD),
         Lam(Var, ExpTD),
         App(ExpTD, Val),
         Split(Val, Var, Var, ExpTD),
@@ -996,7 +1033,7 @@ macro_rules! exp_app {
 #[macro_export]
 macro_rules! exp_let {
   { $var:ident = $rhs:expr ; $body:expr } => {{
-    Exp::Let(stringify!($var).to_string(), Rc::new($rhs), Rc::new($body))
+    Exp::Let(LetHint::ParAmb,stringify!($var).to_string(), Rc::new($rhs), Rc::new($body))
   }};
   { $var1:ident = $rhs1:expr , $( $var2:ident = $rhs2:expr ),+ ; $body:expr } => {{
     exp_let!($var1 = $rhs1 ; exp_let!( $( $var2 = $rhs2 ),+ ; $body ))
