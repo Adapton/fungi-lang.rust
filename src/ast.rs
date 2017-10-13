@@ -638,6 +638,58 @@ pub enum Val {
     // Graph(Graph)
 }
 
+#[macro_export]
+/// Constructor for Val
+///
+/// ```text
+/// v ::=
+///     (v) : t         (annotation)
+///     (v1,v2,...)     (tuples, unit, extra parens)
+///     injl v
+///     injr v
+///     ref n
+///     thk n           (thunk)
+///     "string"
+///     a               (var)
+///     num
+/// ```
+macro_rules! make_val {
+    // (v) : t (annotation)
+    { ($($v:tt)+) : $($t:tt)+ } => { Val::Anno(
+        Rc::new(make_val![$($v:tt)+]),
+        make_type![$($t:tt)+]
+    )};
+    // (v1,v2,...) (tuples, unit, extra parens)
+    { ($($vals:tt)*) } => { split_comma![parse_tuple <= $($vals)*] };
+    // TODO: better injections?
+    // injl v
+    { injl $($v:tt)+ } => { Val::Injl(Rc::new(make_val![$($v:tt)+])) };
+    // injr v
+    { injr $($v:tt)+ } => { Val::Injr(Rc::new(make_val![$($v:tt)+])) };
+    // ref n
+    { ref $($name:tt)+ } => { Val::Ref(Pointer(make_name![$($name:tt)+])) };
+    // thk n (thunk)
+    { thk $($name:tt)+ } => { Val::Thunk(Pointer(make_name![$($name:tt)+])) };
+    // "string"
+    { "$($s:tt)*" } => { Val::Str(stringify![$($s)*].to_string()) };
+    // a (var)
+    { $a:ident } => { Val::Var(stringify![$a].to_string())};
+    // num
+    { $num:expr } => { Val::Nat($num) };
+}
+#[macro_export]
+macro_rules! parse_tuple {
+    // ()
+    { } => { Val::Unit };
+    // (v)
+    { ($($val:tt)+) } => { make_val![$($val:tt)+] };
+    // (v, ...)
+    { ($($val:tt)+) $($vals:tt)+ } => { Val::Pair(
+        Rc::new(make_val![$($val:tt)+]),
+        Rc::new(parse_tuple![$($vals)+]),
+    )};
+}
+
 /// Representations of ASTs as typing derivations.
 ///
 /// One may think of a **typing derivation** as an AST that is
@@ -711,66 +763,6 @@ pub mod typing {
         Name(Name,ExpTD),
         PrimApp(PrimApp)
     }
-}
-
-#[macro_export]
-/// Constructor for Val
-///
-/// ```text
-/// v ::=
-///     (v) : t         (annotation)
-///     (v1,v2,...)     (tuples, unit, extra parens)
-///     injl v
-///     injr v
-///     ref n
-///     thk n           (thunk)
-///     Stack(v,v,...)
-///     "string"
-///     a               (var)
-///     num
-/// ```
-macro_rules! make_val {
-    // (v) : t (annotation)
-    { ($($v:tt)+) : $($t:tt)+ } => { Val::Anno(
-        Rc::new(make_val![$($v:tt)+]),
-        make_type![$($t:tt)+]
-    )};
-    // (v1,v2,...) (tuples, unit, extra parens)
-    { ($($vals:tt)*) } => { split_comma![parse_tuple <= $($vals)*] };
-    // TODO: better injections?
-    // injl v
-    { injl $($v:tt)+ } => { Val::Injl(Rc::new(make_val![$($v:tt)+])) };
-    // injr v
-    { injr $($v:tt)+ } => { Val::Injr(Rc::new(make_val![$($v:tt)+])) };
-    // ref n
-    { ref $($name:tt)+ } => { Val::Ref(Pointer(make_name![$($name:tt)+])) };
-    // thk n (thunk)
-    { thk $($name:tt)+ } => { Val::Thunk(Pointer(make_name![$($name:tt)+])) };
-    // TODO: Seq
-    // Stack(v,v,...)
-    { Stack($($v:tt)*) } => { Val::Stack(split_comma![parse_valvec <= $($v:tt)*])};
-    // "string"
-    { "$($s:tt)*" } => { Val::Str(stringify![$($s)*].to_string()) };
-    // a (var)
-    { $a:ident } => { Val::Var(stringify![$a].to_string())};
-    // num
-    { $num:expr } => { Val::Nat($num) };
-}
-#[macro_export]
-macro_rules! parse_tuple {
-    // ()
-    { } => { Val::Unit };
-    // (v)
-    { ($($val:tt)+) } => { make_val![$($val:tt)+] };
-    // (v, ...)
-    { ($($val:tt)+) $($vals:tt)+ } => { Val::Pair(
-        Rc::new(make_val![$($val:tt)+]),
-        Rc::new(parse_tuple![$($vals)+]),
-    )};
-}
-#[macro_export]
-macro_rules! parse_valvec {
-    { $(($(v:tt)+))* } => { vec![$(Rc::new(make_val![$(v:tt)+]))*] };
 }
 
 // ///

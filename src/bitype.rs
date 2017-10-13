@@ -182,25 +182,39 @@ pub fn synth_val(scope:Option<&Name>, ctxt:&TCtxt, val:&Val) -> Option<Type> {
     match val {
         /* Note for implementers:
             one or both of `synth_val` or `check_val` should be implemented
-            for your new data type
+            for your new Val variant
             (check_val defaults to synth_val)
         */
         &Val::Var(ref v) => { ctxt.lookup_var(v) },
         &Val::Unit => { Some(Type::Unit) },
-        &Val::Pair(_,_) => { fail_synth_val(scope, TypeError::NoSynthRule,val) },
-        &Val::Injl(_) => { fail_synth_val(scope, TypeError::NoSynthRule,val) },
-        &Val::Injr(_) => { fail_synth_val(scope, TypeError::NoSynthRule,val) },
-        &Val::Ref(_) => { fail_synth_val(scope, TypeError::NoSynthRule,val) },
-        &Val::Thunk(_) => { fail_synth_val(scope, TypeError::NoSynthRule,val) },
+        &Val::Pair(ref x, ref y) => {
+            if let Some(a) = synth_val(scope, ctxt, x) {
+                if let Some(b) = synth_val(scope, ctxt, y) {
+                    Some(make_type![(outerctx a x outerctx b)])
+                } else { fail_synth_val(scope, TypeError::ParamNoSynth, val) }
+            } else { fail_synth_val(scope, TypeError::ParamNoSynth, val) }
+        },
+        &Val::Injl(_) => { fail_synth_val(scope, TypeError::NoSynthRule, val) },
+        &Val::Injr(_) => { fail_synth_val(scope, TypeError::NoSynthRule, val) },
+        &Val::Ref(ref p) => {
+            if let Some(t) = ctxt.lookup_cell(p) {
+                Some(make_type![ref outerctx t])
+            } else { fail_synth_val(scope, TypeError::InvalidPtr, val) }
+        },
+        &Val::Thunk(ref p) => {
+            if let Some(t) = ctxt.lookup_thunk(p) {
+                Some(make_type![U outerctx t])
+            } else { fail_synth_val(scope, TypeError::InvalidPtr, val) }
+        },
         &Val::Anno(ref v,ref t) => {
             if check_val(scope, ctxt, v, t) {
                 Some(t.clone())
-            } else { fail_synth_val(scope, TypeError::AnnoMism,val) }
+            } else { fail_synth_val(scope, TypeError::AnnoMism, val) }
         },
         &Val::Nat(_) => { Some(make_type![nat]) },
         &Val::Str(_) => { Some(make_type![string]) },
-        &Val::Seq(_) => { fail_synth_val(scope, TypeError::DSLiteral,val) },
-        &Val::Stack(_) => { fail_synth_val(scope, TypeError::DSLiteral,val) },
+        &Val::Seq(_) => { fail_synth_val(scope, TypeError::DSLiteral, val) },
+        &Val::Stack(_) => { fail_synth_val(scope, TypeError::DSLiteral, val) },
     }
 }
 
@@ -228,10 +242,7 @@ pub fn check_val(scope:Option<&Name>, ctxt:&TCtxt, val:&Val, typ:&Type) -> bool 
             } else { fail_check_val(scope, TypeError::InvalidPtr,val) }
         },
         (&Val::Nat(_), &make_type![nat]) => true,
-        (&Val::Seq(_), &make_type![string]) => true,
-        (&Val::Stack(_), _) => {
-            fail_check_val(scope, TypeError::DSLiteral, val)
-        },
+        (&Val::Str(_), &make_type![string]) => true,
         (v, t2) => {
             if let Some(ref t1) = synth_val(scope, ctxt, v) {
                 t2 == t1
@@ -242,10 +253,11 @@ pub fn check_val(scope:Option<&Name>, ctxt:&TCtxt, val:&Val, typ:&Type) -> bool 
 }
 
 pub fn synth_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp) -> Option<CType> {
+    // TODO: synth rules for all capable expressions
     match exp {
         /* Note for implementers:
             one or both of `synth_exp` or `check_exp` should be implemented
-            for your new data type
+            for your new Exp variant
             (check_exp defaults to synth_exp)
         */
         &Exp::Anno(ref e, ref ct) => {
@@ -559,6 +571,7 @@ pub fn synth_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp) -> Option<CType> {
 }
 
 pub fn check_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp, ctype:&CType) -> bool {
+    // TODO: remove ctype from match, check it in body and maybe give type error
     match (exp, ctype) {
         (&Exp::Name(ref nm, ref e), ct) => {
             check_exp(Some(nm), ctxt, e, ct)
