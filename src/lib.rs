@@ -1,3 +1,5 @@
+#![recursion_limit="128"]
+
 // Source language
 // ------------------
 #[macro_use] pub mod ast;

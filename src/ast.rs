@@ -14,6 +14,7 @@ pub type NameRec = Rc<Name>;
 pub enum Name {
     Leaf,
     Sym(String),
+    Fileline(String,usize,Option<usize>),
     Bin(NameRec, NameRec)
 }
 impl fmt::Display for Name {
@@ -22,6 +23,7 @@ impl fmt::Display for Name {
             Name::Leaf => write!(f,"[]"),
             Name::Sym(ref s) => write!(f,"[{}]",s),
             Name::Bin(ref n1, ref n2) => write!(f,"[{}{}]",&**n1,&**n2),
+            Name::Fileline(ref file, ref line, ref c) => write!(f,"[{}:{}-{:?}]",&**file,&*line,&*c),
         }
     }
 }
@@ -40,6 +42,12 @@ macro_rules! make_name {
     { [] } => { Name::Leaf };
     // [sym s] (symbol)
     { [sym $($s:tt)+]} => { Name::Sym(stringify![$($s)+].to_string())};
+    // [#] (file-line, of macro invocation's root)
+    { [#] } => { Name::Fileline(file!().to_string(),line!() as usize,None)};
+    // [#] (symbol)
+    { [# 1 ] } => { Name::Fileline(file!().to_string(),line!() as usize,Some(1))};
+    // [#] (symbol)
+    { [# 2 ] } => { Name::Fileline(file!().to_string(),line!() as usize,Some(2))};
     // [n] (extra braces ignored)
     { [$(name:tt)+] } => { make_name![$(name)+] };
     // [[n][n]...] (extended bin)
@@ -366,6 +374,15 @@ macro_rules! make_exp {
             Rc::new(make_exp![$($body)+]),
         )
     }};
+    // let (x,y) = {v} e
+    { let ( $x:ident , $y:ident ) = { $($v:tt)+ } $($body:tt)+ } => {{
+        Exp::Split(
+            make_val![$($v:tt)+],
+            stringify![$x].to_string(),
+            stringify![$y].to_string(),
+            Rc::new(make_exp![$($body)+]),
+        )
+    }};
     // case(v) x.{e0} y.{e1}
     { case($($v:tt)*) $var0:ident . {$(e0:tt)+} $var1:ident . {$(e1:tt)+} } => {{
         Exp::Case(
@@ -429,6 +446,8 @@ pub enum PrimApp {
     // Sequences (implemented as level trees, an IODyn collection)
     // ------------------------------------------------------------
     SeqEmpty,
+    SeqGetFirst,
+    SeqSingleton(Val),
     SeqIsEmpty(Val),
     SeqDup(Val),
     SeqAppend(Val, Val),
@@ -440,6 +459,7 @@ pub enum PrimApp {
     SeqIntoKvlog(Val),
     SeqMap(Val, ExpRec),
     SeqFilter(Val, ExpRec),
+    SeqSplit(Val, ExpRec),
     SeqReverse(Val),
 
     // Stacks
@@ -503,6 +523,12 @@ macro_rules! parse_prim_e {
         PrimApp::NatOfStr(make_val![$($v)+])
     };
     { SeqEmpty } => { PrimApp::SeqEmpty };
+    { SeqGetFirst($($v:tt)+) } => {
+        PrimApp::SeqGetFirst(make_val![$($v)+])
+    };
+    { SeqSingleton($($v:tt)+) } => {
+        PrimApp::SeqSingleton(make_val![$($v)+])
+    };
     { SeqDup($($v:tt)+) } => {
         PrimApp::SeqDup(make_val![$($v)+])
     };
@@ -547,6 +573,12 @@ macro_rules! parse_prim_e {
     };
     { SeqFilter($($v1:tt)+)($($e1:tt)+) } => {
         PrimApp::SeqFilter(
+            make_val![$($v1)+],
+            Rc::new(make_exp![$($e1)+]),
+        )
+    };
+    { SeqSplit($($v1:tt)+)($($e1:tt)+) } => {
+        PrimApp::SeqSplit(
             make_val![$($v1)+],
             Rc::new(make_exp![$($e1)+]),
         )
