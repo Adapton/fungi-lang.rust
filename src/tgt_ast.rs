@@ -113,6 +113,32 @@ pub enum CEffect {
     ForallIdx(Var,Sort,Prop,CEffectRec)
 }
 
+pub type TCtxtRec = Rc<TCtxt>;
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum TCtxt {
+    Empty,
+    Var(TCtxtRec,Var,Type),
+    Cell(TCtxtRec,Pointer,Type),
+    Thunk(TCtxtRec,Pointer,CType),
+    Equiv(IdxTm,IdxTm,Sort),
+    Apart(IdxTm,IdxTm,Sort),
+    PropTrue(Prop),
+}
+impl TCtxt {
+    /// bind a var and type
+    pub fn var(&self,v:Var,t:Type) -> TCtxt {
+        TCtxt::Var(Rc::new(self.clone()),v,t)
+    }
+    /// bind a pointer and value type
+    pub fn cell(&self,p:Pointer,t:Type) -> TCtxt {
+        TCtxt::Cell(Rc::new(self.clone()),p,t)
+    }
+    /// bind a pointer and computation type
+    pub fn thk(&self,p:Pointer,ct:CType) -> TCtxt {
+        TCtxt::Thunk(Rc::new(self.clone()),p,ct)
+    }
+}
+
 pub type ValRec = Rc<Val>;
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 /// Value terms
@@ -210,4 +236,78 @@ pub enum PrimApp {
     KvlogPut,
     KvlogIntoSeq,
     KvlogIntoHashmap,
+}
+
+/// Representations of ASTs as typing derivations.
+///
+/// One may think of a **typing derivation** as an AST that is
+/// _annotated with typing contexts and types_.  The constructors of
+/// this typing derivation correspond 1-1 with the constructors for
+/// values and expressions, where the syntax tree structures of the
+/// program term (expression or value) and its typing derivation
+/// correspond 1-1.
+//
+pub mod typing {
+    use std::rc::Rc;
+    use super::{TCtxt,Type,CType,Var,Pointer,Name,PrimApp,NameTm};
+
+    /// Bidirectional bit: Synth or Check
+    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+    pub enum Dir {
+        Synth,
+        Check,
+    }
+
+    /// Value typing derivation
+    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+    pub struct ValTD {
+        pub ctxt:TCtxt,
+        pub val:Rc<Val>,
+        pub dir:Dir,
+        pub typ:Type,
+    }
+
+    /// Value forms, with typing sub-derivations for sub-values
+    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+    pub enum Val {
+        Var(Var),
+        Unit,
+        Pair(ValTD,ValTD),
+        Inj1(ValTD),
+        Inj2(ValTD),
+        NameTm(NameTm),
+        Ref(Pointer),
+        Thunk(Pointer),
+        Anno(ValTD,Type),
+        Nat(usize),
+        Str(String),
+    }
+
+    /// Expression typing derivation
+    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+    pub struct ExpTD {
+        pub ctxt:TCtxt,
+        pub exp:Rc<Exp>,
+        pub dir:Dir,
+        pub ctyp:CType,
+    }
+
+    /// Expression forms, with typing sub-derivations for sub-expressions
+    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+    pub enum Exp {
+        Anno(ExpTD,CType),
+        Force(Val),
+        Thunk(ExpTD),
+        Fix(Var,ExpTD),
+        Ret(Val),
+        Let(Var,ExpTD,ExpTD),
+        Lam(Var, ExpTD),
+        App(ExpTD, Val),
+        Split(Val, Var, Var, ExpTD),
+        Case(Val, Var, ExpTD, Var, ExpTD),
+        Ref(Val),
+        Get(Val),
+        Name(Name,ExpTD),
+        PrimApp(PrimApp),
+    }
 }

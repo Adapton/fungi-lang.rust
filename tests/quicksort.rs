@@ -27,7 +27,7 @@ fn qs_w_accumulator() {
                 let lte_gt = {SeqSplit(inp, lam x. NatLte(x, piv))}
                 let (lte,gt) = lte_gt
                 let sorted = {{{force qs} gt}  sorted}
-                let sorted = {{{force gs} lte} sorted}
+                let sorted = {{{force qs} lte} sorted}
                 ret sorted
             })
     ];
