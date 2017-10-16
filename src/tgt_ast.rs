@@ -100,8 +100,8 @@ pub enum Type {
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 /// Computation types
 pub enum CType {
-    Lift,
-    Fun(TypeRec,CEffectRec)
+    Lift(Type),
+    Arrow(TypeRec,CEffectRec)
 }
 
 pub type CEffectRec = Rc<CEffect>;
@@ -289,7 +289,7 @@ pub mod typing {
         pub ctxt:TCtxt,
         pub exp:Rc<Exp>,
         pub dir:Dir,
-        pub ctyp:CType,
+        pub ctype:CType,
     }
 
     /// Expression forms, with typing sub-derivations for sub-expressions

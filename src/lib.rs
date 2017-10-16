@@ -9,7 +9,6 @@ pub mod eval;
 // ------------------
 pub mod tgt_ast;
 
-
 // Translation
 // ------------------
-// XXX todo
+pub mod translate;
