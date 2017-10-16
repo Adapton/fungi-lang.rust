@@ -45,7 +45,7 @@ macro_rules! make_name {
     // [#] (file-line, of macro invocation's root)
     { [#] } => { Name::Fileline(file!().to_string(),line!() as usize,None)};
     // [# num] (file-line, of macro invocation's root, with number)
-    { [# $num:expr] } => { Name::Fileline(file!().to_string(),line!() as usize,Some($num))};
+    { [# $num:expr] } => { Name::Fileline(file!().to_string(),line!() as usize,Some($num as usize))};
     // [n] (extra braces ignored)
     { [$(name:tt)+] } => { make_name![$(name)+] };
     // [[n][n]...] (extended bin)

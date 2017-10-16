@@ -42,9 +42,13 @@ pub fn tr_val(v:&AstVal, tg:TgtCtx) -> TgtCtx {
 
 /// Translation context (for expressions)
 pub struct TrCtx {
+    /// target typing context
     tgt_ctx:TgtCtx,
+    /// name space is full path of scopes
     tgt_ns:NmTm,
+    /// ambient name, variable
     amb_nm:Var,
+    /// set from which ambient name is drawn
     amb_nmset:IdxTm,
 }
 
@@ -75,7 +79,7 @@ pub fn tr_exp(e:&AstExp, c:TrCtx) -> TgtExpTD {
             let tr_e1 = tr_exp(e1, c);
             match tr_e1.ctype {
                 TgtCType::Arrow(_, _) => { panic!("XXX") },
-                TgtCType::Lift(tx) => {
+G                TgtCType::Lift(tx) => {
                     match match_nm_prod(tx) {
                         Some((tx, nm_set)) => {
                             // case: e1 returns a value of type `tx`, _and_ additionally, a name.
@@ -85,8 +89,8 @@ pub fn tr_exp(e:&AstExp, c:TrCtx) -> TgtExpTD {
                                     // todo: programmer does not want
                                     // this additional name, so apply
                                     // the translation rule that
-                                    // splits and drops the additional
-                                    // name.
+                                    // projects out ret value and
+                                    // drops the additional name.
                                     unimplemented!()
                                 },
                                 LetHint::SeqAmb => {
@@ -105,9 +109,6 @@ pub fn tr_exp(e:&AstExp, c:TrCtx) -> TgtExpTD {
                                     let c2 = tr_ctx_bind_var(c.clone(), x, tx);
                                     let tr_e2 = tr_exp(e2, c2);
                                     let ct = tr_e2.ctype.clone();
-                                    let pair_var = format!("{}_{}", x, c2.amb_nm);
-                                    let pair_val = tgt_val_td(c2, TgtVal::Var(pair_var), tx);
-                                    let tr_e2 = tgt_exp_td(c2, TgtExp::Split(pair_val, x, c2.amb_nm, tr_e2), ct.clone());
                                     tgt_exp_td(c, TgtExp::Let(pair_var, tr_e1, tr_e2), ct.clone())
                                 },
                                 LetHint::SeqAmb => {

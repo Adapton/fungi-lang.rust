@@ -63,7 +63,7 @@ use iodyn_lang::ast::*;
 //            SeqFoldUp(inp, 
 //             sorted,
 //             lam elm. {StackPush(elm, sorted)},
-//             lam l. lam r.
+//             lam l. lam r.{
 //                 let inp = {SeqAppend(l,r)}
 //                 let ave = {{force seq_ave} inp}
 //                 let eq_lt_gt = {SeqSplit3(inp, lam x. NatEq(x, ave), lam x. NatLte(x, ave))}
@@ -72,7 +72,7 @@ use iodyn_lang::ast::*;
 //                 let sorted = {SeqFoldSeq(eq, sorted, lam x. StackPush(x, sorted))}
 //                 let sorted = {{{force rs} lte} sorted}
 //                 ret sorted
-//            )
+//             })
 //     ];
 //     ()
 // }

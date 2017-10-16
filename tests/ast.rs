@@ -214,8 +214,9 @@ fn reverse_polish_calc_step1of3() {
 
     let ast3 = make_exp![
         {
-            let toks = { SeqFoldSeq(chars,lex_st_init,
-                               lam a.lam c. {{force lex_step} a} c ) }
+            let toks = { 
+              SeqFoldSeq(chars,lex_st_init,
+              lam a.lam c. {{force lex_step} a} c ) }
             ret toks
         } : F LexSt
     ];
