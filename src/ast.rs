@@ -218,10 +218,10 @@ macro_rules! parse_arrow {
         Rc::new(make_type![$($type)+]),
         Rc::new(make_ctype![$($ctype)+]),
     )};
-    // t1 -> t2 -> ... ct
-    { ($($type1:tt)+) ($($type2:tt)+) $(($(types)+))+ } => { CType::Arrow(
+    // t1 -> t2 -> ...
+    { ($($type1:tt)+) ($($type2:tt)+) $(($($types:tt)+))+ } => { CType::Arrow(
         Rc::new(make_type![$($type1)+]),
-        Rc::new(parse_arrow![($($type2)+) $(($(types)+))+]),
+        Rc::new(parse_arrow![($($type2)+) $(($($types)+))+]),
     )};
 }
 
@@ -288,6 +288,7 @@ pub enum Exp {
 ///
 /// ```text
 /// e ::=
+///     outerctx rust_expr      (insert variables, etc.)
 ///     {e} : t                 (annotation)
 ///     get v
 ///     force v                 (force)
@@ -295,22 +296,24 @@ pub enum Exp {
 ///     thk e
 ///     lam r.e                 (lambda)
 ///     fix f.e
-///     {e} v                   (application)
+///     {e} v1 ...              (application)
 ///     let a = {e} e
-///     let[par] a = {e} e       (Let binding with parallel naming option (default))
-///     let[seq] a = {e} e       (Let binding with sequential naming option)
+///     let[par] a = {e} e      (Let binding with parallel naming option (default))
+///     let[seq] a = {e} e      (Let binding with sequential naming option)
 ///     split(v) x.y.e
 ///     case(v) x.{e0} y.{e1}
 ///     case(v) x.{e0} y.{e1} z.{e2} ...
 ///     ret v
-///     n e                 (name-labeled, for debug messages)
-///     [m] e               (translation hint - memoize)
-///     [s] e               (translation hint - scope with ambient name)
-///     [s n] e             (translation hint - scope with given name)
+///     n e                     (name-labeled, for debug messages)
+///     [m] e                   (translation hint - memoize)
+///     [s] e                   (translation hint - scope with ambient name)
+///     [s n] e                 (translation hint - scope with given name)
 ///     prim(vars)
 ///     {e}
 /// ```
 macro_rules! make_exp {
+    // outerctx rust_expr (insert variables, etc.)
+    { outerctx $out:expr } => { $out };
     // {e} : t (annotation)
     { { $($exp:tt)* } : $($ty:tt)+ } => {{
         Exp::Anno(Rc::new(make_exp![$($exp)*]),make_ctype![$($ty)+])
@@ -331,9 +334,9 @@ macro_rules! make_exp {
     { fix $var:ident . $($body:tt)+ } => {{
         Exp::Fix(stringify![$var].to_string(),Rc::new(make_exp![$($body)+]))
     }};
-    // {e} v (application)
-    { { $($fun:tt)+ } $($par:tt)+ } => {{
-        Exp::App(Rc::new(make_exp![$($fun)+]),make_val![$($par)+])
+    // {e} v1 ... (application)
+    { { $($fun:tt)+ } $($pars:tt)+ } => {{
+        curry_app![make_exp![$($fun)+] ; $($pars)+]
     }};
     // let a = {e} e
     { let $var:ident = {$($rhs:tt)+} $($body:tt)+} => {{
@@ -418,6 +421,11 @@ macro_rules! make_exp {
     { $fun:ident($($vars:tt)*)} => {{ Exp::PrimApp(split_comma![parse_prim_e ($fun) <= $($vars)*]) }};
     // {e}
     { {$($exp:tt)+} } => {{ make_exp![$($exp)+] }};
+}
+#[macro_export]
+macro_rules! curry_app {
+    { $fun:expr ; $par:tt } => { Exp::App(Rc::new($fun),make_val!($par)) };
+    { $fun:expr ; $par:tt $($pars:tt)+ } => { curry_app![Exp::App(Rc::new($fun), make_val!($par)) ; $($pars)+] };
 }
 /// Primitive operation application forms.
 ///
