@@ -2,6 +2,7 @@
 ///
 ///
 
+use std::rc::Rc;
 use ast;
 use tgt_ast;
 
@@ -36,11 +37,12 @@ pub fn tr_ctype(g: &AstCtx, t:&AstCType, tg:TgtCtx) -> (TgtCtx, AstCType) {
 // - name variable, and its nameset variable
 // - name space
 
-pub fn tr_val(v:&AstVal, tg:TgtCtx) -> TgtCtx {
+pub fn tr_val(c:TrCtx, v:&AstVal) -> TgtValTD {
     unimplemented!()
 }
 
 /// Translation context (for expressions)
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub struct TrCtx {
     /// target typing context
     tgt_ctx:TgtCtx,
@@ -72,31 +74,59 @@ pub fn match_nm_prod(t:TgtType) -> Option<(TgtType,IdxTm)> {
     unimplemented!()
 }
 
-pub fn tr_exp(e:&AstExp, c:TrCtx) -> TgtExpTD {
-    match e.clone() {
+pub fn tr_proj2(c:TrCtx, e:TgtExpTD, snd_type:TgtType) -> TgtExpTD {
+    // todo make fresh names?
+    let p = "$p".to_string(); 
+    let x = "$x".to_string(); 
+    let y = "$y".to_string();
+    let ct = TgtCType::Lift(snd_type);
+    // use pair p to compute the projection:
+    let proj2_p = 
+        tgt_exp_td(c.clone(), TgtExp::Split(
+            TgtVal::Var(p.clone()), x, y.clone(), 
+            tgt_exp_td(c.clone(), 
+                       TgtExp::Ret(TgtVal::Var(y)), ct.clone())),
+                   ct.clone());
+    // bind pair p, and then do the projection
+    tgt_exp_td(c, TgtExp::Let(p, e, proj2_p), ct.clone())
+}
 
+pub fn tr_exp(c:TrCtx, e:&AstExp) -> TgtExpTD {
+    match e.clone() {
+        AstExp::Ret(v) => {
+            let tr_v = tr_val(c.clone(), &v);
+            let nt = TgtType::Nm(c.amb_nmset.clone());
+            let pt = TgtType::Prod(Rc::new(nt.clone()), Rc::new(tr_v.typ.clone()));
+            let ct = TgtCType::Lift(pt);
+            let amb = tgt_val_td(c.clone(), TgtVal::Var(c.amb_nm.clone()), nt);
+            tgt_exp_td(c.clone(), TgtExp::Ret(TgtVal::Pair(amb, tr_v)), ct)
+        },
         AstExp::Let(hint, x, e1, e2) => {
-            let tr_e1 = tr_exp(e1, c);
-            match tr_e1.ctype {
+            let tr_e1 = tr_exp(c.clone(), &*e1.exp);
+            match tr_e1.ctype.clone() {
                 TgtCType::Arrow(_, _) => { panic!("XXX") },
-G                TgtCType::Lift(tx) => {
-                    match match_nm_prod(tx) {
+                TgtCType::Lift(tx) => {
+                    match match_nm_prod(tx.clone()) {
                         Some((tx, nm_set)) => {
                             // case: e1 returns a value of type `tx`, _and_ additionally, a name.
                             // the name is drawn from a set described by index term `nm_set`.
                             match hint {
                                 LetHint::ParAmb => {
-                                    // todo: programmer does not want
-                                    // this additional name, so apply
-                                    // the translation rule that
-                                    // projects out ret value and
-                                    // drops the additional name.
-                                    unimplemented!()
+                                    // programmer does not want this
+                                    // additional name, so apply the
+                                    // translation rule that projects
+                                    // out ret value and drops the
+                                    // additional name.
+                                    let tr_proj2_e1 = tr_proj2(c.clone(), tr_e1, tx.clone());
+                                    let c2 = tr_ctx_bind_var(c.clone(), x.clone(), tx);
+                                    let tr_e2 = tr_exp(c2, &*e2.exp);
+                                    let ct = tr_e2.ctype.clone();                                    
+                                    tgt_exp_td(c, TgtExp::Let(x, tr_proj2_e1, tr_e2), ct)
                                 },
                                 LetHint::SeqAmb => {
-                                    let c2 = tr_ctx_bind_var(c.clone(), x, tx);
+                                    let c2 = tr_ctx_bind_var(c.clone(), x.clone(), tx.clone());
                                     let c2 = tr_ctx_bind_amb_nm(c2, nm_set);
-                                    let tr_e2 = tr_exp(e2, c2);
+                                    let tr_e2 = tr_exp(c2, &*e2.exp);
                                     let ct = tr_e2.ctype.clone();
                                     tgt_exp_td(c, TgtExp::Let(x, tr_e1, tr_e2), ct)
                                 }
@@ -106,10 +136,10 @@ G                TgtCType::Lift(tx) => {
                             // case: e1 returns a value, and no additional name.
                             match hint {
                                 LetHint::ParAmb => {
-                                    let c2 = tr_ctx_bind_var(c.clone(), x, tx);
-                                    let tr_e2 = tr_exp(e2, c2);
+                                    let c2 = tr_ctx_bind_var(c.clone(), x.clone(), tx);
+                                    let tr_e2 = tr_exp(c2, &*e2.exp);
                                     let ct = tr_e2.ctype.clone();
-                                    tgt_exp_td(c, TgtExp::Let(pair_var, tr_e1, tr_e2), ct.clone())
+                                    tgt_exp_td(c, TgtExp::Let(x, tr_e1, tr_e2), ct)
                                 },
                                 LetHint::SeqAmb => {
                                     // translation error: programmer
@@ -123,5 +153,6 @@ G                TgtCType::Lift(tx) => {
                 },
             }
         },
+        _ => unimplemented!()
     }
 }
