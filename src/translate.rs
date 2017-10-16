@@ -77,7 +77,7 @@ pub fn match_nm_prod(t:TgtType) -> Option<(TgtType,IdxTm)> {
 pub fn tr_proj2(c:TrCtx, e:TgtExpTD, snd_type:TgtType) -> TgtExpTD {
     // todo make fresh names?
     let p = "$p".to_string(); 
-    let x = "$x".to_string(); 
+    let x = "$_".to_string(); 
     let y = "$y".to_string();
     let ct = TgtCType::Lift(snd_type);
     // use pair p to compute the projection:
@@ -104,10 +104,10 @@ pub fn tr_exp(c:TrCtx, e:&AstExp) -> TgtExpTD {
         AstExp::Let(hint, x, e1, e2) => {
             let tr_e1 = tr_exp(c.clone(), &*e1.exp);
             match tr_e1.ctype.clone() {
-                TgtCType::Arrow(_, _) => { panic!("XXX") },
+                TgtCType::Arrow(_, _) => { unreachable!() },
                 TgtCType::Lift(tx) => {
                     match match_nm_prod(tx.clone()) {
-                        Some((tx, nm_set)) => {
+                        Some((tx_snd, nm_set)) => {
                             // case: e1 returns a value of type `tx`, _and_ additionally, a name.
                             // the name is drawn from a set described by index term `nm_set`.
                             match hint {
@@ -117,17 +117,21 @@ pub fn tr_exp(c:TrCtx, e:&AstExp) -> TgtExpTD {
                                     // translation rule that projects
                                     // out ret value and drops the
                                     // additional name.
-                                    let tr_proj2_e1 = tr_proj2(c.clone(), tr_e1, tx.clone());
-                                    let c2 = tr_ctx_bind_var(c.clone(), x.clone(), tx);
+                                    let tr_proj2_e1 = tr_proj2(c.clone(), tr_e1, tx_snd.clone());
+                                    let c2 = tr_ctx_bind_var(c.clone(), x.clone(), tx_snd);
                                     let tr_e2 = tr_exp(c2, &*e2.exp);
-                                    let ct = tr_e2.ctype.clone();                                    
+                                    let ct = tr_e2.ctype.clone();
                                     tgt_exp_td(c, TgtExp::Let(x, tr_proj2_e1, tr_e2), ct)
                                 },
                                 LetHint::SeqAmb => {
-                                    let c2 = tr_ctx_bind_var(c.clone(), x.clone(), tx.clone());
+                                    // translate e2 with x and new ambient name in scope
+                                    let c2 = tr_ctx_bind_var(c.clone(), x.clone(), tx_snd.clone());
                                     let c2 = tr_ctx_bind_amb_nm(c2, nm_set);
                                     let tr_e2 = tr_exp(c2, &*e2.exp);
                                     let ct = tr_e2.ctype.clone();
+                                    // split x into (amb_nm, x)
+                                    let split_tr_e2 = TgtExp::Split(TgtVal::Var(x.clone()), c.amb_nm.clone(), x.clone(), tr_e2);
+                                    let tr_e2 = tgt_exp_td(c.clone(), split_tr_e2, ct.clone());
                                     tgt_exp_td(c, TgtExp::Let(x, tr_e1, tr_e2), ct)
                                 }
                             }
