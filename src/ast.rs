@@ -44,10 +44,8 @@ macro_rules! make_name {
     { [sym $($s:tt)+]} => { Name::Sym(stringify![$($s)+].to_string())};
     // [#] (file-line, of macro invocation's root)
     { [#] } => { Name::Fileline(file!().to_string(),line!() as usize,None)};
-    // [#] (symbol)
-    { [# 1 ] } => { Name::Fileline(file!().to_string(),line!() as usize,Some(1))};
-    // [#] (symbol)
-    { [# 2 ] } => { Name::Fileline(file!().to_string(),line!() as usize,Some(2))};
+    // [# num] (file-line, of macro invocation's root, with number)
+    { [# $num:expr] } => { Name::Fileline(file!().to_string(),line!() as usize,Some($num))};
     // [n] (extra braces ignored)
     { [$(name:tt)+] } => { make_name![$(name)+] };
     // [[n][n]...] (extended bin)
@@ -368,16 +366,16 @@ macro_rules! make_exp {
     // split(v) x.y.e
     { split($($v:tt)+) $x:ident . $y:ident . $($body:tt)+ } => {{
         Exp::Split(
-            make_val![$($v:tt)+],
+            make_val![$($v)+],
             stringify![$x].to_string(),
             stringify![$y].to_string(),
             Rc::new(make_exp![$($body)+]),
         )
     }};
-    // let (x,y) = {v} e
-    { let ( $x:ident , $y:ident ) = { $($v:tt)+ } $($body:tt)+ } => {{
+    // let (x,y) = (v) e
+    { let ( $x:ident , $y:ident ) = $v:tt $($body:tt)+ } => {{
         Exp::Split(
-            make_val![$($v:tt)+],
+            make_val![$v],
             stringify![$x].to_string(),
             stringify![$y].to_string(),
             Rc::new(make_exp![$($body)+]),
@@ -386,7 +384,7 @@ macro_rules! make_exp {
     // case(v) x.{e0} y.{e1}
     { case($($v:tt)*) $var0:ident . {$(e0:tt)+} $var1:ident . {$(e1:tt)+} } => {{
         Exp::Case(
-            make_val![$($v:tt)*],
+            make_val![$($v)*],
             stringify![$var0].to_string(),
             Rc::new(make_exp![$(e0)+]),
             stringify![$var1].to_string(),
@@ -396,7 +394,7 @@ macro_rules! make_exp {
     // case(v) x.{e0} y.{e1} z.{e2} ...
     { case($($v:tt)*) $var0:ident . {$(e0:tt)+} $var1:ident . {$(e1:tt)+} $( $var2:ident . {$(e2:tt)+} )+} => {{
         Exp::Case(
-            make_val![$($v:tt)*],
+            make_val![$($v)*],
             stringify![$var0].to_string(),
             Rc::new(make_exp![$(e0)+]),
             stringify![case].to_string(),
@@ -411,7 +409,7 @@ macro_rules! make_exp {
     { [s] $($exp:tt)+ } => {{ Exp::TrHint(TrHint::ScopeAmb, Rc::new(make_exp![$($exp)+])) }};
     // [s n] e             (translation hint - scope with given name)
     { [s $($nm:tt)*] $($exp:tt)+ } => {{ Exp::TrHint(
-        TrHint::ScopeHere(make_name![$($nm:tt)*]),
+        TrHint::ScopeHere(make_name![$($nm)*]),
         Rc::new(make_exp![$($exp)+])
     )}};
     // n e                 (name-labeled, for debug messages)
@@ -446,7 +444,7 @@ pub enum PrimApp {
     // Sequences (implemented as level trees, an IODyn collection)
     // ------------------------------------------------------------
     SeqEmpty,
-    SeqGetFirst,
+    SeqGetFirst(Val),
     SeqSingleton(Val),
     SeqIsEmpty(Val),
     SeqDup(Val),
@@ -742,20 +740,20 @@ pub enum Val {
 macro_rules! make_val {
     // (v) : t (annotation)
     { ($($v:tt)+) : $($t:tt)+ } => { Val::Anno(
-        Rc::new(make_val![$($v:tt)+]),
-        make_type![$($t:tt)+]
+        Rc::new(make_val![$($v)+]),
+        make_type![$($t)+]
     )};
     // (v1,v2,...) (tuples, unit, extra parens)
     { ($($vals:tt)*) } => { split_comma![parse_tuple <= $($vals)*] };
     // TODO: better injections?
     // injl v
-    { injl $($v:tt)+ } => { Val::Injl(Rc::new(make_val![$($v:tt)+])) };
+    { injl $($v:tt)+ } => { Val::Injl(Rc::new(make_val![$($v)+])) };
     // injr v
-    { injr $($v:tt)+ } => { Val::Injr(Rc::new(make_val![$($v:tt)+])) };
+    { injr $($v:tt)+ } => { Val::Injr(Rc::new(make_val![$($v)+])) };
     // ref n
-    { ref $($name:tt)+ } => { Val::Ref(Pointer(make_name![$($name:tt)+])) };
+    { ref $($name:tt)+ } => { Val::Ref(Pointer(make_name![$($name)+])) };
     // thk n (thunk)
-    { thk $($name:tt)+ } => { Val::Thunk(Pointer(make_name![$($name:tt)+])) };
+    { thk $($name:tt)+ } => { Val::Thunk(Pointer(make_name![$($name)+])) };
     // "string"
     { "$($s:tt)*" } => { Val::Str(stringify![$($s)*].to_string()) };
     // a (var)
@@ -768,10 +766,10 @@ macro_rules! parse_tuple {
     // ()
     { } => { Val::Unit };
     // (v)
-    { ($($val:tt)+) } => { make_val![$($val:tt)+] };
+    { ($($val:tt)+) } => { make_val![$($val)+] };
     // (v, ...)
     { ($($val:tt)+) $($vals:tt)+ } => { Val::Pair(
-        Rc::new(make_val![$($val:tt)+]),
+        Rc::new(make_val![$($val)+]),
         Rc::new(parse_tuple![$($vals)+]),
     )};
 }

@@ -118,7 +118,7 @@ impl PrimApp {
             PrimApp::StrOfNat(_) => "StrOfNat",
             PrimApp::NatOfStr(_) => "NatOfStr",
             PrimApp::SeqEmpty => "SeqEmpty",
-            PrimApp::SeqGetFirst => "SeqGetFirst",
+            PrimApp::SeqGetFirst(_) => "SeqGetFirst",
             PrimApp::SeqIsEmpty(_) => "SeqIsEmpty",
             PrimApp::SeqSingleton(_) => "SeqSingleton",
             PrimApp::SeqDup(_) => "SeqDup",
@@ -342,7 +342,7 @@ pub fn synth_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp) -> Option<CType> {
         &Exp::PrimApp(PrimApp::SeqEmpty) => {
             fail_synth_exp(scope, TypeError::EmptyDT, exp)
         },
-        &Exp::PrimApp(PrimApp::SeqGetFirst) => {
+        &Exp::PrimApp(PrimApp::SeqGetFirst(ref s)) => {
             unimplemented!("SeqGetFirst")
         },
         &Exp::PrimApp(PrimApp::SeqIsEmpty(ref s)) => {

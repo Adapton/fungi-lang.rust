@@ -24,7 +24,7 @@ use iodyn_lang::ast::*;
 //                 let piv = {SeqGetFirst(r)}
 //                 let inp = {SeqAppend(l,r)}
 //                 let lte_gt = {SeqSplit(inp, lam x. NatLte(x, piv))}
-//                 let (lte,gt) = {lte_gt}
+//                 let (lte,gt) = lte_gt
 //                 let sorted = {{{force qs} gt}  sorted}
 //                 let sorted = {{{force gs} lte} sorted}
 //                 ret sorted
@@ -49,7 +49,7 @@ use iodyn_lang::ast::*;
 //                 let piv = {SeqGetFirst(r)}
 //                 let inp = {SeqAppend(l,r)}
 //                 let lte_gt = {SeqSplit(inp, lam x. NatLte(x, piv))}
-//                 let (lte,gt) = {lte_gt}
+//                 let (lte,gt) = lte_gt
 //                 let sorted_lte = {{force qs} gt}
 //                 let sorted_gt = {{force gs} lte}
 //                 {SeqAppend(sorted_lte, sorted_gt)}
