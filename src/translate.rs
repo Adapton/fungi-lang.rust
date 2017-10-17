@@ -112,11 +112,8 @@ pub fn tr_exp(c:TrCtx, e:&AstExp) -> TgtExpTD {
                             // the name is drawn from a set described by index term `nm_set`.
                             match hint {
                                 LetHint::ParAmb => {
-                                    // programmer does not want this
-                                    // additional name, so apply the
-                                    // translation rule that projects
-                                    // out ret value and drops the
-                                    // additional name.
+                                    // programmer does not want this additional name, so apply the
+                                    // translation rule that projects out ret value and drops the additional name.
                                     let tr_proj2_e1 = tr_proj2(c.clone(), tr_e1, tx_snd.clone());
                                     let c2 = tr_ctx_bind_var(c.clone(), x.clone(), tx_snd);
                                     let tr_e2 = tr_exp(c2, &*e2.exp);
@@ -129,7 +126,7 @@ pub fn tr_exp(c:TrCtx, e:&AstExp) -> TgtExpTD {
                                     let c2 = tr_ctx_bind_amb_nm(c2, nm_set);
                                     let tr_e2 = tr_exp(c2, &*e2.exp);
                                     let ct = tr_e2.ctype.clone();
-                                    // split x into (amb_nm, x)
+                                    // assemble let body to split x into (amb_nm, x), putting the new ambient name into scope for tr_e2
                                     let split_tr_e2 = TgtExp::Split(TgtVal::Var(x.clone()), c.amb_nm.clone(), x.clone(), tr_e2);
                                     let tr_e2 = tgt_exp_td(c.clone(), split_tr_e2, ct.clone());
                                     tgt_exp_td(c, TgtExp::Let(x, tr_e1, tr_e2), ct)
