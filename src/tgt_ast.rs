@@ -101,14 +101,14 @@ pub enum Type {
 /// Computation types
 pub enum CType {
     Lift(Type),
-    Arrow(TypeRec,CEffectRec)
+    Arrow(Type,CEffectRec)
 }
 
 pub type CEffectRec = Rc<CEffect>;
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 /// Computation effects
 pub enum CEffect {
-    Cons(CType,EffectRec),
+    Cons(CType,Effect),
     ForallType(Var,Kind,CEffectRec),
     ForallIdx(Var,Sort,Prop,CEffectRec)
 }
@@ -249,7 +249,7 @@ pub enum PrimApp {
 //
 pub mod typing {
     use std::rc::Rc;
-    use super::{TCtxt,Type,CType,Var,Pointer,Name,PrimApp,NameTm};
+    use super::{TCtxt,CType,Type,CEffect,Var,Pointer,Name,PrimApp,NameTm};
 
     /// Bidirectional bit: Synth or Check
     #[derive(Clone,Debug,Eq,PartialEq,Hash)]
@@ -289,7 +289,7 @@ pub mod typing {
         pub ctxt:TCtxt,
         pub exp:Rc<Exp>,
         pub dir:Dir,
-        pub ctype:CType,
+        pub ceffect:CEffect,
     }
 
     /// Expression forms, with typing sub-derivations for sub-expressions
