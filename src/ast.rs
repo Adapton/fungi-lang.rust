@@ -298,8 +298,8 @@ pub enum Exp {
 ///     fix f.e
 ///     {e} v1 ...              (application)
 ///     let a = {e} e
-///     let[par] a = {e} e      (Let binding with parallel naming option (default))
-///     let[seq] a = {e} e      (Let binding with sequential naming option)
+///     let[par] a = {e} e      (Let binding with old ambient name (default))
+///     let[amb] a = {e} e      (Let binding shadowing old ambient name)
 ///     split(v) x.y.e
 ///     case(v) x.{e0} y.{e1}
 ///     case(v) x.{e0} y.{e1} z.{e2} ...
@@ -347,7 +347,7 @@ macro_rules! make_exp {
             Rc::new(make_exp![$($body)*])
         )
     }};
-    // let[par] a = {e} e (Let binding with parallel naming option (default))
+    // let[par] a = {e} e (Let binding with old ambient name (default))
     { let[par] $var:ident = {$($rhs:tt)+} $($body:tt)+} => {{
         Exp::Let(
             LetHint::ParAmb,
@@ -356,8 +356,8 @@ macro_rules! make_exp {
             Rc::new(make_exp![$($body)*])
         )
     }};
-    // let[seq] a = {e} e (Let binding with sequential naming option)
-    { let[seq] $var:ident = {$($rhs:tt)+} $($body:tt)+} => {{
+    // let[amb] a = {e} e (Let binding creating new ambient name)
+    { let[amb] $var:ident = {$($rhs:tt)+} $($body:tt)+} => {{
         Exp::Let(
             LetHint::SeqAmb,
             stringify![$var].to_string(),

@@ -59,7 +59,7 @@ impl fmt::Display for TypeError {
             TypeError::ParamNoSynth(num) => format!("parameter {} unknown type",num),
             TypeError::AppNotArrow => format!("application of non-arrow type"),
             TypeError::BadCheck => format!("checked type inappropriate for value"),
-            TypeError::DSLiteral => format!("data structure litterals not allowed"),
+            TypeError::DSLiteral => format!("data structure literals not allowed"),
             TypeError::EmptyDT => format!("ambiguous empty data type"),
         };
         write!(f,"{}",s)
@@ -224,7 +224,6 @@ pub fn synth_val(scope:Option<&Name>, ctxt:&TCtxt, val:&Val) -> Option<Type> {
 
 
 pub fn check_val(scope:Option<&Name>, ctxt:&TCtxt, val:&Val, typ:&Type) -> bool {
-    //TODO: Add Empty data types
     match (val, typ) {
         (&Val::Unit, &Type::Unit) => true,
         (&Val::Pair(ref v1, ref v2), &Type::Pair(ref t1, ref t2)) => {
@@ -276,9 +275,17 @@ pub fn synth_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp) -> Option<CType> {
                 Some((*ct).clone())
             } else { fail_synth_exp(scope, TypeError::ParamMism(0), exp) }
         },
-        &Exp::Thunk(_) => { fail_synth_exp(scope, TypeError::NoSynthRule, exp) },
+        &Exp::Thunk(ref e) => {
+            if let Some(ct) = synth_exp(scope, ctxt, e) {
+                Some(make_ctype![F U outerctx ct])
+            } else { fail_synth_exp(scope, TypeError::ParamNoSynth(0), exp) }
+        },
         &Exp::Fix(_,_) => { fail_synth_exp(scope, TypeError::NoSynthRule, exp) },
-        &Exp::Ret(_) => { fail_synth_exp(scope, TypeError::NoSynthRule, exp) },
+        &Exp::Ret(ref v) => {
+            if let Some(t) = synth_val(scope, ctxt, v) {
+                Some(make_ctype![F outerctx t])
+            } else { fail_synth_exp(scope, TypeError::ParamNoSynth(0), exp) }
+        },
         &Exp::Let(_, ref x,ref e1, ref e2) => {
             if let Some(CType::F(t)) = synth_exp(scope, ctxt, e1) {
                 synth_exp(scope, &ctxt.var(x.clone(), (*t).clone()), e2)
@@ -654,6 +661,13 @@ pub fn check_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp, ctype:&CType) -> bo
             */
             check_exp(scope, &ctxt.var(f.clone(), Type::U(Rc::new(ct.clone()))), e, ct)
         },
+        (&Exp::PrimApp(PrimApp::SeqEmpty), ct) => {
+            if let CType::F(ref a) = *ct {
+                if let Type::PrimApp(PrimTyApp::Seq(_)) = **a {
+                    true
+                } else { fail_check_exp(scope, TypeError::BadCheck, exp) }
+            } else { fail_check_exp(scope, TypeError::BadCheck, exp) }
+        },
         (&Exp::PrimApp(PrimApp::SeqFoldSeq(ref v_seq, ref v_accum, ref e_body)), ct) => {
             /* 
             Ctx |- v_seq ==> Seq(A)
@@ -686,6 +700,27 @@ pub fn check_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp, ctype:&CType) -> bo
                         let mt = CType::Arrow(a, Rc::new(CType::F(b.clone())));
                         check_exp(scope, ctxt, e_map, &mt)
                     } else { fail_check_exp(scope, TypeError::ParamMism(0), exp) }
+                } else { fail_check_exp(scope, TypeError::BadCheck, exp) }
+            } else { fail_check_exp(scope, TypeError::BadCheck, exp) }
+        },
+        (&Exp::PrimApp(PrimApp::StackEmpty), ct) => {
+            if let CType::F(ref a) = *ct {
+                if let Type::PrimApp(PrimTyApp::Stack(_)) = **a {
+                    true
+                } else { fail_check_exp(scope, TypeError::BadCheck, exp) }
+            } else { fail_check_exp(scope, TypeError::BadCheck, exp) }
+        },
+        (&Exp::PrimApp(PrimApp::QueueEmpty), ct) => {
+            if let CType::F(ref a) = *ct {
+                if let Type::PrimApp(PrimTyApp::Queue(_)) = **a {
+                    true
+                } else { fail_check_exp(scope, TypeError::BadCheck, exp) }
+            } else { fail_check_exp(scope, TypeError::BadCheck, exp) }
+        },
+        (&Exp::PrimApp(PrimApp::KvlogEmpty), ct) => {
+            if let CType::F(ref a) = *ct {
+                if let Type::PrimApp(PrimTyApp::Kvlog(_,_)) = **a {
+                    true
                 } else { fail_check_exp(scope, TypeError::BadCheck, exp) }
             } else { fail_check_exp(scope, TypeError::BadCheck, exp) }
         },
