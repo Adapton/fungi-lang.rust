@@ -120,9 +120,9 @@ pub enum TCtxt {
     Var(TCtxtRec,Var,Type),
     Cell(TCtxtRec,Pointer,Type),
     Thunk(TCtxtRec,Pointer,CType),
-    Equiv(IdxTm,IdxTm,Sort),
-    Apart(IdxTm,IdxTm,Sort),
-    PropTrue(Prop),
+    Equiv(TCtxtRec,IdxTm,IdxTm,Sort),
+    Apart(TCtxtRec,IdxTm,IdxTm,Sort),
+    PropTrue(TCtxtRec,Prop),
 }
 impl TCtxt {
     /// bind a var and type
@@ -136,6 +136,18 @@ impl TCtxt {
     /// bind a pointer and computation type
     pub fn thk(&self,p:Pointer,ct:CType) -> TCtxt {
         TCtxt::Thunk(Rc::new(self.clone()),p,ct)
+    }
+    /// bind an index equivalence
+    pub fn equiv(&self,i1:IdxTm,i2:IdxTm,s:Sort) -> TCtxt {
+        TCtxt::Equiv(Rc::new(self.clone()),i1,i2,s)
+    }
+    /// bind an index apartness
+    pub fn apart(&self,i1:IdxTm,i2:IdxTm,s:Sort) -> TCtxt {
+        TCtxt::Apart(Rc::new(self.clone()),i1,i2,s)
+    }
+    /// bind a true proposition
+    pub fn prop(&self,p:Prop) -> TCtxt {
+        TCtxt::PropTrue(Rc::new(self.clone()),p)
     }
 }
 
@@ -195,22 +207,33 @@ pub enum PrimApp {
     // Sequences (implemented as level trees, an IODyn collection)
     // ------------------------------------------------------------
     SeqEmpty,
-    SeqDup,
+    SeqGetFirst(Val),
+    SeqSingleton(Val),
+    SeqIsEmpty(Val),
+    SeqDup(Val),
     SeqAppend(Val, Val),
     SeqFoldSeq(Val, Val, ExpRec),
     SeqFoldUp(Val, Val, ExpRec, ExpRec),
-    SeqIntoStack(Val, Val),
-    SeqIntoQueue(Val, Val),
+    SeqIntoStack(Val),
+    SeqIntoQueue(Val),
     SeqIntoHashmap(Val),
     SeqIntoKvlog(Val),
     SeqMap(Val, ExpRec),
     SeqFilter(Val, ExpRec),
+    SeqSplit(Val, ExpRec),
     SeqReverse(Val),
 
     // Stacks
     // ---------
     StackEmpty,
     StackIsEmpty(Val),
+    /// asdfasdf
+    ///
+    /// ```text
+    /// asdf
+    /// -----
+    /// asdfas
+    /// ```
     StackDup(Val),
     StackPush(Val, Val),
     StackPop(Val),
@@ -229,13 +252,13 @@ pub enum PrimApp {
 
     // Kvlog
     // --------------
-    KvlogDup,
     KvlogEmpty,
-    KvlogIsEmpty,
-    KvlogGet,
-    KvlogPut,
-    KvlogIntoSeq,
-    KvlogIntoHashmap,
+    KvlogDup(Val),
+    KvlogIsEmpty(Val),
+    KvlogGet(Val,Val),
+    KvlogPut(Val,Val,Val),
+    KvlogIntoSeq(Val),
+    KvlogIntoHashmap(Val),
 }
 
 /// Representations of ASTs as typing derivations.
