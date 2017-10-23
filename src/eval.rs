@@ -43,6 +43,7 @@ fn allocate_pointer(st:State, so:StoreObj) -> (State, Pointer) {
 }
 
 // panics if the environment fails to close the given value's variables
+/// Substitution on all values
 fn close_val(env:&Env, v:&Val) -> Val {
     use ast::Val::*;
     match *v {

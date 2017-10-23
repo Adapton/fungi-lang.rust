@@ -400,8 +400,8 @@ macro_rules! make_exp {
             make_val![$($v)*],
             stringify![$var0].to_string(),
             Rc::new(make_exp![$(e0)+]),
-            stringify![case].to_string(),
-            Rc::new(make_exp![case(case) $var1 . {$(e1)+} $( $var2 . {$(e2)+} )+]),
+            stringify![extend_case_with_additional_matches].to_string(),
+            Rc::new(make_exp![case(extend_case_with_additional_matches) $var1 . {$(e1)+} $( $var2 . {$(e2)+} )+]),
         )
     }};
     // ret v

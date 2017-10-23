@@ -26,11 +26,14 @@ pub use tgt_ast::IdxTm         as IdxTm;
 pub use tgt_ast::CEffect       as CEffect;
 pub use tgt_ast::Effect        as Effect;
 
-
+/// Translate a value type
 pub fn tr_type(c:TrCtx, t:&AstType) -> (TrCtx, TgtType) {
+    // may need to introduce variables, where do they come from?
+    // TODO: talk to Joshua
     unimplemented!()
 }
 
+/// Translate a computation type
 pub fn tr_ctype(c:TrCtx, t:&AstCType) -> (TrCtx, AstCType) {
     unimplemented!()
 }
@@ -57,6 +60,7 @@ pub struct TrCtx {
     amb_nmset:IdxTm,
 }
 
+/// bind x with type t in c
 pub fn tr_ctx_bind_var(c:TrCtx, x:Var, t:TgtType) -> TrCtx {
     unimplemented!()
 }
@@ -69,13 +73,17 @@ pub fn tgt_val_td(c:TrCtx, v:TgtVal, t:TgtType) -> TgtValTD {
     unimplemented!()
 }
 
+/// Constructor for derivation
 pub fn tgt_exp_td(c:TrCtx, e:TgtExp, ct:CEffect) -> TgtExpTD {
     unimplemented!()
 }
 
+/// does this type have a paired name? what is the refinment?
 pub fn match_nm_prod(t:TgtType) -> Option<(TgtType,IdxTm)> {
     unimplemented!()
 }
+
+// Effect Constructors
 
 fn eff_empty() -> Effect {
     Effect::WR(IdxTm::Empty,IdxTm::Empty)
@@ -93,6 +101,7 @@ fn ceffect_after_eff(ce:CEffect, eff:Effect) -> CEffect {
     unimplemented!()
 }
 
+/// desugar ast e:F(AxB), return e2:F(B) all as TD
 pub fn tr_proj2(c:TrCtx, e:TgtExpTD, snd_type:TgtType) -> TgtExpTD {
     // todo make fresh names?
     let p = "$p".to_string();
@@ -110,6 +119,7 @@ pub fn tr_proj2(c:TrCtx, e:TgtExpTD, snd_type:TgtType) -> TgtExpTD {
     tgt_exp_td(c, TgtExp::Let(p, e, proj2_p), ct.clone())
 }
 
+/// Main translation function
 pub fn tr_exp(c:TrCtx, e:&AstExp) -> TgtExpTD {
     match e.clone() {
         AstExp::Lam(x,e1) => {
