@@ -295,12 +295,6 @@ pub fn check_val(scope:Option<&Name>, ctxt:&TCtxt, val:&Val, typ:&Type) -> bool 
         },
         (&Val::Nat(_), _) => unimplemented!("check val nat"),
         (&Val::Str(_), _) => unimplemented!("check val string"),
-
-
-///////////////
-// Editing here
-///////////////
-
         (v, t2) => {
             if let Some(ref t1) = synth_val(scope, ctxt, v) {
                 t2 == t1
@@ -339,7 +333,7 @@ pub fn synth_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp) -> Option<CType> {
                 Some(make_ctype![F outerctx t])
             } else { fail_synth_exp(scope, TypeError::ParamNoSynth(0), exp) }
         },
-        &Exp::Let(_, ref x,ref e1, ref e2) => {
+        &Exp::Let(ref x,ref e1, ref e2) => {
             if let Some(CType::F(t)) = synth_exp(scope, ctxt, e1) {
                 synth_exp(scope, &ctxt.var(x.clone(), (*t).clone()), e2)
             } else { fail_synth_exp(scope, TypeError::ParamMism(2), exp) }
@@ -360,12 +354,9 @@ pub fn synth_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp) -> Option<CType> {
                 Some(CType::F(t))
             } else { fail_synth_exp(scope, TypeError::ParamMism(0), exp) }
         },
-        &Exp::Label(ref nm, ref e) => {
+        &Exp::Name(ref nm, ref e) => {
             synth_exp(Some(nm), ctxt, e)
         },
-        &Exp::TrHint(ref h, ref e) => {
-            synth_exp(scope, ctxt, e)
-        }
         &Exp::PrimApp(PrimApp::NatAdd(ref n1, ref n2)) => {
             if check_val(scope, ctxt, n1, &Type::PrimApp(PrimTyApp::Nat)) {
                 if check_val(scope, ctxt, n2, &Type::PrimApp(PrimTyApp::Nat)) {
@@ -667,7 +658,7 @@ pub fn synth_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp) -> Option<CType> {
 pub fn check_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp, ctype:&CType) -> bool {
     // TODO: remove ctype from match, check it in body and maybe give type error
     match (exp, ctype) {
-        (&Exp::Label(ref nm, ref e), ct) => {
+        (&Exp::Name(ref nm, ref e), ct) => {
             check_exp(Some(nm), ctxt, e, ct)
         },
         (&Exp::Thunk(ref e), &CType::F(ref t)) => {
@@ -678,7 +669,7 @@ pub fn check_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp, ctype:&CType) -> bo
         (&Exp::Ret(ref v), &CType::F(ref t)) => {
             check_val(scope, ctxt, v, t)
         },
-        (&Exp::Let(_,ref x, ref e1, ref e2), ct) => {
+        (&Exp::Let(ref x, ref e1, ref e2), ct) => {
             if let Some(CType::F(t)) = synth_exp(scope, ctxt, e1) {
                 check_exp(scope, &ctxt.var(x.clone(), (*t).clone()), e2, ct)
             } else { fail_check_exp(scope, TypeError::ParamMism(0), exp) }
