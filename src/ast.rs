@@ -34,7 +34,9 @@ impl fmt::Display for Name {
 /// n ::=
 ///     []              (leaf)
 ///     [sym s]         (symbol)
-///     [n]             (extra braces ignored)
+///     [#]             (file-line, of macro invocation's root)
+///     [# num]         (file-line, of macro invocation's root, with number)
+///     [n]             (name, extra braces ignored)
 ///     [[n][n]...]     (extended bin)
 /// ```
 macro_rules! make_name {
@@ -274,6 +276,7 @@ pub enum Exp {
     Ret(Val),
     Let(LetHint,Var,ExpRec,ExpRec),
     Lam(Var, ExpRec),
+    Archivist(ExpRec),
     App(ExpRec, Val),
     Split(Val, Var, Var, ExpRec),
     Case(Val, Var, ExpRec, Var, ExpRec),
@@ -295,6 +298,7 @@ pub enum Exp {
 ///     ref v
 ///     thk e
 ///     lam r.e                 (lambda)
+///     archivist e             (switch to archivist mode)
 ///     fix f.e
 ///     {e} v1 ...              (application)
 ///     let a = {e} e
@@ -325,11 +329,13 @@ macro_rules! make_exp {
     // ref v
     { ref $($val:tt)+ } => {{ Exp::Ref(make_val![$($val)+]) }};
     // thk e
-    { thk $($exp:tt)+ } => {{ Exp::Thunk(make_exp![$($exp)+]) }};
+    { thk $($exp:tt)+ } => {{ Exp::Thunk(Rc::new(make_exp![$($exp)+])) }};
     // lam r.e (lambda)
     { lam $var:ident . $($body:tt)+ } => {{
         Exp::Lam(stringify![$var].to_string(),Rc::new(make_exp![$($body)+]))
     }};
+    // archivist e (switch to archivist mode)
+    { archivist $($exp:tt)+ } => {{ Exp::Archivist(Rc::new(make_exp![$($exp)+])) }};
     // fix f.e
     { fix $var:ident . $($body:tt)+ } => {{
         Exp::Fix(stringify![$var].to_string(),Rc::new(make_exp![$($body)+]))

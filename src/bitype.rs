@@ -94,6 +94,7 @@ impl Exp {
             Exp::Fix(_,_) => "fix",
             Exp::Ret(_) => "ret",
             Exp::Let(_,_,_,_) => "let",
+            Exp::Archivist(_) => "archivist",
             Exp::Lam(_, _) => "lam",
             Exp::App(_, _) => "app",
             Exp::Split(_, _, _, _) => "split",
@@ -291,6 +292,9 @@ pub fn synth_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp) -> Option<CType> {
                 synth_exp(scope, &ctxt.var(x.clone(), (*t).clone()), e2)
             } else { fail_synth_exp(scope, TypeError::ParamMism(2), exp) }
         },
+        &Exp::Archivist(ref e) => {
+            synth_exp(scope, ctxt, e)
+        }
         &Exp::Lam(_, _) => { fail_synth_exp(scope, TypeError::NoSynthRule, exp) },
         &Exp::App(ref e, ref v) => {
             if let Some(CType::Arrow(t,ct)) = synth_exp(scope, ctxt, e) {
@@ -310,7 +314,7 @@ pub fn synth_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp) -> Option<CType> {
         &Exp::Label(ref nm, ref e) => {
             synth_exp(Some(nm), ctxt, e)
         },
-        &Exp::TrHint(ref h, ref e) => {
+        &Exp::TrHint(_, ref e) => {
             synth_exp(scope, ctxt, e)
         }
         &Exp::PrimApp(PrimApp::NatAdd(ref n1, ref n2)) => {
@@ -357,7 +361,7 @@ pub fn synth_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp) -> Option<CType> {
         &Exp::PrimApp(PrimApp::SeqEmpty) => {
             fail_synth_exp(scope, TypeError::EmptyDT, exp)
         },
-        &Exp::PrimApp(PrimApp::SeqGetFirst(ref s)) => {
+        &Exp::PrimApp(PrimApp::SeqGetFirst(ref _s)) => {
             unimplemented!("SeqGetFirst")
         },
         &Exp::PrimApp(PrimApp::SeqIsEmpty(ref s)) => {
@@ -365,7 +369,7 @@ pub fn synth_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp) -> Option<CType> {
                 Some(make_ctype![F bool])
             } else { fail_synth_exp(scope, TypeError::ParamMism(0), exp) }
         },
-        &Exp::PrimApp(PrimApp::SeqSingleton(ref s)) => {
+        &Exp::PrimApp(PrimApp::SeqSingleton(ref _s)) => {
             unimplemented!("SeqSingleton")
         },
         &Exp::PrimApp(PrimApp::SeqDup(ref s)) => {
