@@ -53,6 +53,7 @@ fn close_val(env:&Env, v:&Val) -> Val {
         // other cases: base cases, and structural recursion:
         Unit         => Unit,
         Nat(ref n)   => Nat(n.clone()),
+        Bool(ref b)  => Bool(b.clone()),
         Str(ref s)   => Str(s.clone()),
         Ref(ref p)   => Ref(p.clone()),
         Thunk(ref p) => Thunk(p.clone()),
@@ -95,6 +96,8 @@ pub enum EvalTyErr {
     AppNonLam(ExpTerm),
     // split case
     SplitNonPair(Val),
+    // if case
+    IfNonBool(Val),
     // case case
     CaseNonInj(Val),
     // force cases
@@ -186,6 +189,13 @@ pub fn eval(st:State, env:Env, e:Exp) -> (State, ExpTerm) {
                     eval(st, env, (*e1).clone())
                 },
                 v => eval_type_error(EvalTyErr::SplitNonPair(v), st, env, e)
+            }
+        }
+        Exp::If(v,e0,e1) => {
+            match close_val(&env, &v) {
+                Val::Bool(false) => eval(st, env, (*e0).clone()),
+                Val::Bool(true) => eval(st, env, (*e1).clone()),
+                v => eval_type_error(EvalTyErr::IfNonBool(v), st, env, e)
             }
         }
         Exp::Case(v, x, ex, y, ey) => {
