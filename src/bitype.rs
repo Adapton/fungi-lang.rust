@@ -651,7 +651,7 @@ pub fn check_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp, ctype:&CType) -> bo
         (&Exp::If(ref v, ref e0, ref e1), ct) => {
             if let Some(Type::PrimApp(PrimTyApp::Bool)) = synth_val(scope, ctxt, v) {
                 check_exp(scope, ctxt, e0, ct)
-                & check_exp(scope, ctxt, e0, ct)
+                & check_exp(scope, ctxt, e1, ct)
             } else { fail_check_exp(scope, TypeError::ParamMism(0), exp) }
         },
         (&Exp::Case(ref v, ref x1, ref e1, ref x2, ref e2), ct) => {
