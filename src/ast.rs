@@ -423,7 +423,7 @@ macro_rules! make_exp {
     // ret v
     { ret $($ret:tt)+ } => {{ Exp::Ret(make_val![$($ret)+]) }};
     // [m] e               (translation hint - memoize)
-    { [m] $($exp:tt)+ } => {{ Exp::TrHint(TrHint::memo, Rc::new(make_exp![$($exp)+])) }};
+    { [m] $($exp:tt)+ } => {{ Exp::TrHint(TrHint::Memo, Rc::new(make_exp![$($exp)+])) }};
     // [s] e               (translation hint - scope with ambient name)
     { [s] $($exp:tt)+ } => {{ Exp::TrHint(TrHint::ScopeAmb, Rc::new(make_exp![$($exp)+])) }};
     // [s n] e             (translation hint - scope with given name)

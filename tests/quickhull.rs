@@ -24,13 +24,13 @@ fn test_main_algo() {
         [#line!()] let mid = { SeqFoldUp(pts, (0,0), lam p.ret p, force highest) }
         [#line!()] let hull = {
           [#line!()] let r_line = { {force make_r_line} mid line }
-          [#line!()] let r_pts = { SeqFilter(pts, {force above_line} r_line) }
-          [#line!()] {force qh} r_pts r_line hull
+          [#line!()] let r_pts = { [s [sym filt-r]] SeqFilter(pts, {force above_line} r_line) }
+          [#line!()] [s [sym rec-r]] {force qh} r_pts r_line hull
         }
         [#line!()] let hull = { SeqAppend(hull, mid) }
         [#line!()] let l_line = { {force make_l_line} line mid }
-        [#line!()] let l_pts = { SeqFilter(pts, {force above_line} l_line) }
-        [#line!()] {force qh} l_pts l_line hull
+        [#line!()] let l_pts = { [s [sym filt-l]] SeqFilter(pts, {force above_line} l_line) }
+        [#line!()] [s [sym rec-l]] {force qh} l_pts l_line hull
       }} : Seq((nat x nat)) ->
           ((nat x nat) x (nat x nat)) ->
           Seq((nat x nat)) ->
