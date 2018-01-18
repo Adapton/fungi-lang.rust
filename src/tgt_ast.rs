@@ -3,18 +3,25 @@
 use std::rc::Rc;
 use ast::{Var,Name,Pointer};
 
+pub type NameRec = Rc<Name>;
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum Name {
+    Leaf,
+//    Sym(String),
+//    Fileline(String,usize,Option<usize>),
+    Bin(NameRec, NameRec)
+}
+
 pub type NameTmRec = Rc<NameTm>;
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 /// Name Terms
 pub enum NameTm {
-    Unit,
     Name(Name),
     Bin(NameTmRec, NameTmRec),
-    Pair(NameTmRec, NameTmRec),
     Var(Var),
     Lam(Var,NameTmRec)
+    App(NameTmRec, NameTmRec)
 }
-
 
 pub type IdxTmRec = Box<IdxTm>;
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
@@ -30,6 +37,10 @@ pub enum IdxTm {
     Proj1(IdxTmRec),
     Proj2(IdxTmRec),
     Lam(Var, IdxTmRec),
+    App(IdxTmRec, IdxTmRec),
+    Map(NameTmRec, IdxTmRec),
+    FlatMap(IdxTmRec, IdxTmRec),
+    Star(IdxTmRec, IdxTmRec),
 }
 
 
@@ -39,7 +50,9 @@ pub type SortRec = Rc<Sort>;
 pub enum Sort {
     Nm,
     NmSet,
-    Arrow(SortRec,SortRec),
+    NmArrow(SortRec,SortRec),
+    IdxArrow(SortRec,SortRec),
+    Unit,
     Prod(SortRec,SortRec),
 }
 
