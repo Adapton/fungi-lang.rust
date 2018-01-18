@@ -78,6 +78,7 @@ impl Val {
             Val::Thunk(_) => "thunk",
             Val::Anno(_,_) => "annotation",
             Val::Nat(_) => "nat",
+            Val::Bool(_) => "bool",
             Val::Str(_) => "string",
             Val::Seq(_) => "sequence",
             Val::Stack(_) => "stack",
@@ -98,6 +99,7 @@ impl Exp {
             Exp::Lam(_, _) => "lam",
             Exp::App(_, _) => "app",
             Exp::Split(_, _, _, _) => "split",
+            Exp::If(_, _, _) => "if",
             Exp::Case(_, _, _, _, _) => "case",
             Exp::Ref(_) => "ref",
             Exp::Get(_) => "get",
@@ -217,6 +219,7 @@ pub fn synth_val(scope:Option<&Name>, ctxt:&TCtxt, val:&Val) -> Option<Type> {
             } else { fail_synth_val(scope, TypeError::AnnoMism, val) }
         },
         &Val::Nat(_) => { Some(make_type![nat]) },
+        &Val::Bool(_) => { Some(make_type![bool]) },
         &Val::Str(_) => { Some(make_type![string]) },
         &Val::Seq(_) => { fail_synth_val(scope, TypeError::DSLiteral, val) },
         &Val::Stack(_) => { fail_synth_val(scope, TypeError::DSLiteral, val) },
@@ -304,6 +307,7 @@ pub fn synth_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp) -> Option<CType> {
             } else { fail_synth_exp(scope, TypeError::AppNotArrow, exp) }
         },
         &Exp::Split(_, _, _, _) => { fail_synth_exp(scope, TypeError::NoSynthRule, exp) },
+        &Exp::If(_, _, _) => { fail_synth_exp(scope, TypeError::NoSynthRule, exp) },
         &Exp::Case(_, _, _, _, _) => { fail_synth_exp(scope, TypeError::NoSynthRule, exp) },
         &Exp::Ref(_) => { fail_synth_exp(scope, TypeError::NoSynthRule, exp) },
         &Exp::Get(ref v) => {
@@ -642,6 +646,12 @@ pub fn check_exp(scope:Option<&Name>, ctxt:&TCtxt, exp:&Exp, ctype:&CType) -> bo
                 let t1 = (*t1).clone();
                 let t2 = (*t2).clone();
                 check_exp(scope, &ctxt.var(x1.clone(),t1).var(x2.clone(),t2), e, ct)
+            } else { fail_check_exp(scope, TypeError::ParamMism(0), exp) }
+        },
+        (&Exp::If(ref v, ref e0, ref e1), ct) => {
+            if let Some(Type::PrimApp(PrimTyApp::Bool)) = synth_val(scope, ctxt, v) {
+                check_exp(scope, ctxt, e0, ct)
+                & check_exp(scope, ctxt, e1, ct)
             } else { fail_check_exp(scope, TypeError::ParamMism(0), exp) }
         },
         (&Exp::Case(ref v, ref x1, ref e1, ref x2, ref e2), ct) => {

@@ -279,6 +279,7 @@ pub enum Exp {
     Archivist(ExpRec),
     App(ExpRec, Val),
     Split(Val, Var, Var, ExpRec),
+    If(Val,ExpRec,ExpRec),
     Case(Val, Var, ExpRec, Var, ExpRec),
     Ref(Val),
     Get(Val),
@@ -305,6 +306,7 @@ pub enum Exp {
 ///     let[par] a = {e} e      (Let binding with old ambient name (default))
 ///     let[amb] a = {e} e      (Let binding shadowing old ambient name)
 ///     split(v) x.y.e
+///     if (v) then {e0} else {e1}
 ///     case(v) x.{e0} y.{e1}
 ///     case(v) x.{e0} y.{e1} z.{e2} ...
 ///     ret v
@@ -390,24 +392,32 @@ macro_rules! make_exp {
             Rc::new(make_exp![$($body)+]),
         )
     }};
+    // if (v) then {e0} else {e1}
+    { if ($($b:tt)*) then {$($e0:tt)+} else {$($e1:tt)+} } => {{
+        Exp::If(
+            make_val![$($b)*],
+            Rc::new(make_exp![$($e0)+]),
+            Rc::new(make_exp![$($e1)+]),
+        )
+    }};
     // case(v) x.{e0} y.{e1}
-    { case($($v:tt)*) $var0:ident . {$(e0:tt)+} $var1:ident . {$(e1:tt)+} } => {{
+    { case($($v:tt)*) $var0:ident . {$($e0:tt)+} $var1:ident . {$($e1:tt)+} } => {{
         Exp::Case(
             make_val![$($v)*],
             stringify![$var0].to_string(),
-            Rc::new(make_exp![$(e0)+]),
+            Rc::new(make_exp![$($e0)+]),
             stringify![$var1].to_string(),
-            Rc::new(make_exp![$(e1)+]),
+            Rc::new(make_exp![$($e1)+]),
         )
     }};
     // case(v) x.{e0} y.{e1} z.{e2} ...
-    { case($($v:tt)*) $var0:ident . {$(e0:tt)+} $var1:ident . {$(e1:tt)+} $( $var2:ident . {$(e2:tt)+} )+} => {{
+    { case($($v:tt)*) $var0:ident . {$($e0:tt)+} $var1:ident . {$($e1:tt)+} $( $var2:ident . {$($e2:tt)+} )+} => {{
         Exp::Case(
             make_val![$($v)*],
             stringify![$var0].to_string(),
-            Rc::new(make_exp![$(e0)+]),
+            Rc::new(make_exp![$($e0)+]),
             stringify![extend_case_with_additional_matches].to_string(),
-            Rc::new(make_exp![case(extend_case_with_additional_matches) $var1 . {$(e1)+} $( $var2 . {$(e2)+} )+]),
+            Rc::new(make_exp![case(extend_case_with_additional_matches) $var1 . {$($e1)+} $( $var2 . {$($e2)+} )+]),
         )
     }};
     // ret v
@@ -695,6 +705,8 @@ pub enum Val {
     Anno(ValRec,Type),
     /// Primitive natural number value
     Nat(usize),
+    /// Primitive boolean value
+    Bool(bool),
     /// Primitive string value
     Str(String),
 
@@ -748,6 +760,8 @@ pub enum Val {
 ///     ref n
 ///     thk n           (thunk)
 ///     "string"
+///     false
+///     true
 ///     a               (var)
 ///     num
 /// ```
@@ -770,6 +784,10 @@ macro_rules! make_val {
     { thk $($name:tt)+ } => { Val::Thunk(Pointer(make_name![$($name)+])) };
     // "string"
     { "$($s:tt)*" } => { Val::Str(stringify![$($s)*].to_string()) };
+    // false
+    { false } => { Val::Bool(false) };
+    // true
+    { true } => { Val::Bool(true) };
     // a (var)
     { $a:ident } => { Val::Var(stringify![$a].to_string())};
     // num
