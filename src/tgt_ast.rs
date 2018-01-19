@@ -97,7 +97,7 @@ pub type TypeRec = Rc<Type>;
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 /// Value types
 pub enum Type {
-    TVar(Var)
+    TVar(Var),
     Var(Var),
     Cons(TypeCons),
     Sum(TypeRec, TypeRec),
@@ -135,7 +135,7 @@ pub enum TCtxt {
     Var(TCtxtRec,Var,Type),
     IVar(TCtxtRec,Var,Sort),
     TVar(TCtxtRec,Var,Kind),
-    TCons(TCtxtRec,TCons,Kind),
+    TCons(TCtxtRec,TypeCons,Kind),
     Ref(TCtxtRec,Pointer,Type),
     Thunk(TCtxtRec,Pointer,CType),
     Equiv(TCtxtRec,IdxTm,IdxTm,Sort),
@@ -157,10 +157,10 @@ impl TCtxt {
     }
     /// bind a type constructor and kind
     pub fn tcons(&self,d:TypeCons,k:Kind) -> TCtxt {
-        TCtxt::TCons(Rc::new(self.clone()),v,k)
+        TCtxt::TCons(Rc::new(self.clone()),d,k)
     }
     /// bind a pointer and value type
-    pub fn ref(&self,p:Pointer,t:Type) -> TCtxt {
+    pub fn refr(&self,p:Pointer,t:Type) -> TCtxt {
         TCtxt::Ref(Rc::new(self.clone()),p,t)
     }
     /// bind a pointer and computation type
