@@ -8,6 +8,7 @@ pub mod eval;
 // Target language
 // ------------------
 pub mod tgt_ast;
+// pub mod tgt_bitype;
 
 // Translation
 // ------------------

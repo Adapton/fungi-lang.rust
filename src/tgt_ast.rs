@@ -1,7 +1,10 @@
 //! Target language AST --- aka, typed adapton AST defs
 
 use std::rc::Rc;
-use ast::{Var,Name,Pointer};
+
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub struct Pointer(pub Name);
+pub type Var = String;
 
 pub type NameRec = Rc<Name>;
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
@@ -19,8 +22,8 @@ pub enum NameTm {
     Name(Name),
     Bin(NameTmRec, NameTmRec),
     Var(Var),
-    Lam(Var,NameTmRec)
-    App(NameTmRec, NameTmRec)
+    Lam(Var,NameTmRec),
+    App(NameTmRec, NameTmRec),
 }
 
 pub type IdxTmRec = Box<IdxTm>;
@@ -42,7 +45,6 @@ pub enum IdxTm {
     FlatMap(IdxTmRec, IdxTmRec),
     Star(IdxTmRec, IdxTmRec),
 }
-
 
 pub type SortRec = Rc<Sort>;
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
@@ -95,6 +97,7 @@ pub type TypeRec = Rc<Type>;
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 /// Value types
 pub enum Type {
+    TVar(Var)
     Var(Var),
     Cons(TypeCons),
     Sum(TypeRec, TypeRec),
@@ -103,12 +106,11 @@ pub enum Type {
     Ref(IdxTm, TypeRec),
     Thk(IdxTm, CEffectRec),
     IdxApp(TypeRec, IdxTm),
-    TypeApp(TypeRec, TypeRec),
+    TypeApp(TypeCons, TypeRec),
     Nm(IdxTm),
     NmFn(NameTm),
     Rec(Var, TypeRec)
 }
-
 
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 /// Computation types
@@ -131,7 +133,10 @@ pub type TCtxtRec = Rc<TCtxt>;
 pub enum TCtxt {
     Empty,
     Var(TCtxtRec,Var,Type),
-    Cell(TCtxtRec,Pointer,Type),
+    IVar(TCtxtRec,Var,Sort),
+    TVar(TCtxtRec,Var,Kind),
+    TCons(TCtxtRec,TCons,Kind),
+    Ref(TCtxtRec,Pointer,Type),
     Thunk(TCtxtRec,Pointer,CType),
     Equiv(TCtxtRec,IdxTm,IdxTm,Sort),
     Apart(TCtxtRec,IdxTm,IdxTm,Sort),
@@ -142,9 +147,21 @@ impl TCtxt {
     pub fn var(&self,v:Var,t:Type) -> TCtxt {
         TCtxt::Var(Rc::new(self.clone()),v,t)
     }
+    /// bind a index var and sort
+    pub fn ivar(&self,v:Var,s:Sort) -> TCtxt {
+        TCtxt::IVar(Rc::new(self.clone()),v,s)
+    }
+    /// bind a type var and kind
+    pub fn tvar(&self,v:Var,k:Kind) -> TCtxt {
+        TCtxt::TVar(Rc::new(self.clone()),v,k)
+    }
+    /// bind a type constructor and kind
+    pub fn tcons(&self,d:TypeCons,k:Kind) -> TCtxt {
+        TCtxt::TCons(Rc::new(self.clone()),v,k)
+    }
     /// bind a pointer and value type
-    pub fn cell(&self,p:Pointer,t:Type) -> TCtxt {
-        TCtxt::Cell(Rc::new(self.clone()),p,t)
+    pub fn ref(&self,p:Pointer,t:Type) -> TCtxt {
+        TCtxt::Ref(Rc::new(self.clone()),p,t)
     }
     /// bind a pointer and computation type
     pub fn thk(&self,p:Pointer,ct:CType) -> TCtxt {
@@ -173,7 +190,8 @@ pub enum Val {
     Pair(ValRec, ValRec),
     Inj1(ValRec),
     Inj2(ValRec),
-    NameTm(NameTm),
+    Name(Name),
+    NameFn(NameTm),
     Ref(Pointer),
     Thunk(Pointer),
     Anno(ValRec,Type),
@@ -197,9 +215,13 @@ pub enum Exp {
     Case(Val, Var, ExpRec, Var, ExpRec),
     Ref(Val),
     Get(Val),
-    Name(Name,ExpRec),
-    PrimApp(PrimApp)
+    Scope(NameTm,ExpRec),
+    // TODO: One more, `v_M v`
+    DebugLabel(String,ExpRec),
 }
+
+/**********
+TODO: Include additional features from Source Language
 
 /// Primitive applications
 ///
@@ -347,3 +369,5 @@ pub mod typing {
         PrimApp(PrimApp),
     }
 }
+
+**************/
