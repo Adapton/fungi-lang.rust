@@ -6,30 +6,35 @@ extern crate iodyn_lang;
 
 
 #[test]
-fn examples {
+fn examples() {
 
-    use std::rc::Rc;
-    use iodyn_lang::bitype;
-    use iodyn_lang::tgt_ast::*;
-    use iodyn_lang::tgt_ast::cons::*;
+  use std::rc::Rc;
+  use iodyn_lang::bitype;
+  use iodyn_lang::tgt_ast::*;
+  // use iodyn_lang::tgt_ast::cons::*;
 
-    let ctx : TCtxt = TCtxt::Empty;
+  let ctx : TCtxt = TCtxt::Empty;
 
-    let max : Exp = make_tgt_exp![
-        {
-            fix max. lam seq.
-               match seq {
-                   vec => vec_max vec,
-                   bin => { let (n,_,l,r) = bin
-                            let (_,ml) = memo[n@1](max !l)
-                            let (_,mr) = memo[n@2](max !r)
-                            if ml > mr then ml else mr
-                   } : All X:NmSet.
-                       Seq[X] -> Nat
-                       |> (\x:Nm.{x.1} % {x.2})[X]
-               ];
+  let max : Exp = tgt_exp![
+    //? type Seq[X] = { lam seq.(+ Vec + (x Nm x Nat x Ref[X] seq x Ref[X] seq)) }
+    //? let nums = {{ unimplemented }:Seq[X]}
+    let vec_max = {{ unimplemented }:Vec -> F Nat}
+    let max = {thunk [sym max] {
+      fix max. lam seq.
+      match seq {
+        vec => { vec_max vec },
+        bin => {
+          let (n,_,l,r) = { ret bin }
+          let (_,ml) = { memo[n.1](!max !l) }
+          let (_,mr) = { memo[n.2](!max !r) }
+          if (ml > mr) then {ret ml} else {ret mr}
         }
-    }
+      }
+    }:All X:NmSet.
+    Seq[X] -> F Nat
+    |> (lam x:Nm.[x.1] % [x.2])[X] }
+    //? {force max} nums
+  ];
 }
 
 /* 

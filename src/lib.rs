@@ -12,4 +12,4 @@ pub mod tgt_ast;
 
 // Translation
 // ------------------
-pub mod translate;
+// pub mod translate;

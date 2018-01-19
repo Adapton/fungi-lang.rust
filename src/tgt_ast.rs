@@ -216,7 +216,8 @@ pub enum Exp {
     Ref(Val),
     Get(Val),
     Scope(NameTm,ExpRec),
-    // TODO: One more, `v_M v`
+    NameApp(Val,Val),
+    Unimp,
     DebugLabel(String,ExpRec),
 }
 
