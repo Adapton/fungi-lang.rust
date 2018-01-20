@@ -1,17 +1,16 @@
-//! Big-step reference evaluation semantics, for IODyn AST.
+//! Big-step reference evaluation semantics, for IODyn Target AST.
 //!
-//! Gives (non-incremental) reference semantics, using native Rust
-//! collections in place of the IODyn collections.  Does not use
-//! explicit names, nor the Adapton-based IODyn collections library.
+//! Gives the incremental semantics of programs, using an external
+//! library (Adapton in Rust) to create and maintain the DCG.
 
 use std::cell::RefCell;
-use ast::{Name,Var,Exp,Val,Pointer,PrimApp,Stack};
+use ast::{Name,Var,Exp,Val,Pointer,PrimApp,Seq,Stack};
 use ast::cons::{val_pair, val_option};
 use std::collections::hash_map::HashMap;
 use std::rc::Rc;
 
 pub type Env   = HashMap<String,Val>;
-pub type Store = HashMap<Pointer,StoreObj>;
+//pub type Store = HashMap<Pointer,StoreObj>;
 
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub enum ExpTerm {
@@ -21,26 +20,26 @@ pub enum ExpTerm {
 
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub struct State {
-    store:Store,
+//    store:Store,
     next_pointer:Name
 }
 
-#[derive(Clone,Debug,Eq,PartialEq)]
-pub enum StoreObj {
-    Cell(Val),
-    Thunk(Env,Exp)
-}
+// #[derive(Clone,Debug,Eq,PartialEq)]
+// pub enum StoreObj {
+//     Cell(Val),
+//     Thunk(Env,Exp)
+// }
 
 //fn first_name() -> Name { Name::Leaf }
 fn next_name(nm:Name) -> Name { Name::Bin(Rc::new(Name::Leaf),Rc::new(nm)) }
 
-fn allocate_pointer(st:State, so:StoreObj) -> (State, Pointer) {
-    let mut st = st;
-    let ptr = st.next_pointer.clone();
-    st.next_pointer = next_name(ptr.clone());
-    drop(st.store.insert(Pointer(ptr.clone()), so));
-    (st, Pointer(ptr))
-}
+// fn allocate_pointer(st:State, so:StoreObj) -> (State, Pointer) {
+//     let mut st = st;
+//     let ptr = st.next_pointer.clone();
+//     st.next_pointer = next_name(ptr.clone());
+//     drop(st.store.insert(Pointer(ptr.clone()), so));
+//     (st, Pointer(ptr))
+// }
 
 // panics if the environment fails to close the given value's variables
 /// Substitution on all values
@@ -114,9 +113,9 @@ fn eval_type_error<A>(err:EvalTyErr, st:State, env:Env, e:Exp) -> A {
     panic!("eval_type_error: {:?}:\n\tstate:{:?}\n\tenv:{:?}\n\te:{:?}\n", err, st, env, e)
 }
 
-fn st_get(st:&State, p:&Pointer) -> Option<StoreObj> {
-    st.store.get(p).map(|x|x.clone())
-}
+//fn st_get(st:&State, p:&Pointer) -> Option<StoreObj> {
+//    st.store.get(p).map(|x|x.clone())
+//}
 
 pub fn eval_prim(st:State, env:&Env, p:PrimApp) -> (State, ExpTerm) {
     match p {
@@ -147,17 +146,20 @@ pub fn eval(st:State, env:Env, e:Exp) -> (State, ExpTerm) {
         Exp::TrHint(_h,e1) => { eval(st, env, (*e1).clone()) }
         Exp::Archivist(e) => { unimplemented!("eval archivist") }
         Exp::Fix(f,e1) => {
-            let (st, ptr) = allocate_pointer(st, StoreObj::Thunk(env.clone(), (*e1).clone()));
+            //let (st, ptr) = allocate_pointer(st, StoreObj::Thunk(env.clone(), (*e1).clone()));
+            let (st, ptr) = panic!("");
             let mut env = env;
             env.insert(f, Val::Thunk(ptr));
             eval(st, env, (*e1).clone())
         }
         Exp::Thunk(e1) => {
-            let (st, ptr) = allocate_pointer(st, StoreObj::Thunk(env.clone(), (*e1).clone()));
+            //let (st, ptr) = allocate_pointer(st, StoreObj::Thunk(env.clone(), (*e1).clone()));
+            let (st, ptr) = panic!("");
             (st, ExpTerm::Ret(Val::Thunk(ptr)))
         }
         Exp::Ref(v) => {
-            let (st, ptr) = allocate_pointer(st, StoreObj::Cell(close_val(&env, &v)));
+            //let (st, ptr) = allocate_pointer(st, StoreObj::Cell(close_val(&env, &v)));
+            let (st, ptr) = panic!("");
             (st, ExpTerm::Ret(Val::Ref(ptr)))
         }
         Exp::Let(_,x,e1,e2) => {
@@ -216,22 +218,18 @@ pub fn eval(st:State, env:Env, e:Exp) -> (State, ExpTerm) {
         Exp::PrimApp(p) => { eval_prim(st, &env, p) }
         Exp::Get(v) => {
             match close_val(&env, &v) {
-                Val::Ref(ptr) => match st_get(&st, &ptr) {
-                    Some(StoreObj::Cell(v))    => { (st, ExpTerm::Ret(v)) }
-                    Some(StoreObj::Thunk(_,_)) => eval_type_error(EvalTyErr::GetThunk(ptr), st, env, e),
-                    None                       => eval_type_error(EvalTyErr::GetDangling(ptr), st, env, e),
+                Val::Ref(ptr) => {
+                    panic!("")
                 },
                 v => eval_type_error(EvalTyErr::GetNonRef(v), st, env, e)
             }
         }
         Exp::Force(v) => {
             match close_val(&env, &v) {
-                Val::Thunk(ptr) => match st_get(&st, &ptr) {
-                    Some(StoreObj::Thunk(env2,e2)) => eval(st, env2, e2),
-                    Some(StoreObj::Cell(_v))       => eval_type_error(EvalTyErr::ForceCell(ptr), st, env, e),
-                    None                           => eval_type_error(EvalTyErr::ForceDangling(ptr), st, env, e),
+                Val::Thunk(ptr) => {
+                    panic!("")
                 },
-                v => eval_type_error(EvalTyErr::ForceNonThunk(v), st, env, e)
+                v => eval_type_error(EvalTyErr::ForceNonThunk(v), st, env, e)                    
             }
         }
     }

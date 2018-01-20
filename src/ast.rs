@@ -3,7 +3,7 @@
 use std::cell::RefCell;
 use std::fmt::{self,Debug};
 use std::rc::Rc;
-use std::collections::hash_map::HashMap;
+//use std::collections::hash_map::HashMap;
 use std::hash::Hash;
 use eval::Env;
 
