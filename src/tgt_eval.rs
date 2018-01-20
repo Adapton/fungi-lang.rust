@@ -4,8 +4,9 @@
 //! library (Adapton in Rust) to create and maintain the DCG.
 
 use std::cell::RefCell;
-use ast::{Name,Var,Exp,Val,Pointer,PrimApp,Seq,Stack};
-use ast::cons::{val_pair, val_option};
+use ast::{Name,Pointer,Var};
+use tgt_ast::{Exp,Val};
+//use ast::cons::{val_pair, val_option};
 use std::collections::hash_map::HashMap;
 use std::rc::Rc;
 
@@ -44,34 +45,24 @@ fn next_name(nm:Name) -> Name { Name::Bin(Rc::new(Name::Leaf),Rc::new(nm)) }
 // panics if the environment fails to close the given value's variables
 /// Substitution on all values
 fn close_val(env:&Env, v:&Val) -> Val {
-    use ast::Val::*;
+    use tgt_ast::Val::*;
     match *v {
         // variable case:
         Var(ref x)   => env.get(x).unwrap().clone(),
 
         // other cases: base cases, and structural recursion:
+        Name(ref n)    => Name(n.clone()), // XXX/TODO --- Descend into name terms and continue substitution..?.
+        NameFn(ref nf) => NameFn(nf.clone()), // XXX/TODO --- Descend into name terms and continue substitution...?
+        
         Unit         => Unit,
         Nat(ref n)   => Nat(n.clone()),
-        Bool(ref b)  => Bool(b.clone()),
         Str(ref s)   => Str(s.clone()),
         Ref(ref p)   => Ref(p.clone()),
         Thunk(ref p) => Thunk(p.clone()),
 
-        // TODO: system invariant: collections always contain _closed_
-        // values; hence, no need to recur into them to close them
-        // here (which would be prohibitively expensive).  In this
-        // way, they are akin to "store-allocated" structures
-        // represented by pointers (viz., ref cells and thunks).
-        Seq(ref s)   => Seq(s.clone()),
-        Stack(ref s) => Stack(s.clone()),
-        //Queue(ref q) => Queue(q.clone()),
-        //Hashmap(ref m) => Hashmap(m.clone()),
-        //Kvlog(ref l) => Kvlog(l.clone()),
-        //Graph(ref g) => Graph(g.clone()),
-
         // inductive cases
-        Injl(ref v1) => Injl(close_val_rec(env, v1)),
-        Injr(ref v1) => Injr(close_val_rec(env, v1)),
+        Inj1(ref v1) => Inj1(close_val_rec(env, v1)),
+        Inj2(ref v1) => Inj2(close_val_rec(env, v1)),
         Anno(ref v1, ref t)  => Anno(close_val_rec(env, v1), t.clone()),
         Pair(ref v1, ref v2) => Pair(close_val_rec(env, v1), close_val_rec(env, v2)),
     }
@@ -117,34 +108,34 @@ fn eval_type_error<A>(err:EvalTyErr, st:State, env:Env, e:Exp) -> A {
 //    st.store.get(p).map(|x|x.clone())
 //}
 
-pub fn eval_prim(st:State, env:&Env, p:PrimApp) -> (State, ExpTerm) {
-    match p {
-        PrimApp::StackEmpty => {
-            let v_empty = Val::Stack(Stack{
-                 stack:Rc::new(RefCell::new(Vec::new()))
-             });
-            (st, ExpTerm::Ret(v_empty))
-        },
-        PrimApp::StackPush(Val::Stack(so), v_elm) => {
-            so.stack.borrow_mut().push(close_val(env, &v_elm));
-            (st, ExpTerm::Ret(Val::Stack(so)))
-        },
-        PrimApp::StackPop(Val::Stack(so)) => {
-            let v_op : Val = val_option(so.stack.borrow_mut().pop());
-            (st, ExpTerm::Ret(val_pair(Val::Stack(so), v_op )))
-        },
-        _ => unimplemented!()
-    }
-}
+// pub fn eval_prim(st:State, env:&Env, p:PrimApp) -> (State, ExpTerm) {
+//     match p {
+//         PrimApp::StackEmpty => {
+//             let v_empty = Val::Stack(Stack{
+//                  stack:Rc::new(RefCell::new(Vec::new()))
+//              });
+//             (st, ExpTerm::Ret(v_empty))
+//         },
+//         PrimApp::StackPush(Val::Stack(so), v_elm) => {
+//             so.stack.borrow_mut().push(close_val(env, &v_elm));
+//             (st, ExpTerm::Ret(Val::Stack(so)))
+//         },
+//         PrimApp::StackPop(Val::Stack(so)) => {
+//             let v_op : Val = val_option(so.stack.borrow_mut().pop());
+//             (st, ExpTerm::Ret(val_pair(Val::Stack(so), v_op )))
+//         },
+//         _ => unimplemented!()
+//     }
+// }
 
 pub fn eval(st:State, env:Env, e:Exp) -> (State, ExpTerm) {
-    match e.clone() {
+    match e.clone() {       
         Exp::Lam(x, e)    => { (st, ExpTerm::Lam(env, x, e)) }
         Exp::Ret(v)       => { (st, ExpTerm::Ret(close_val(&env, &v))) }
         Exp::Anno(e1,_ct) => { eval(st, env, (*e1).clone()) }
-        Exp::Label(_nm,e1) => { eval(st, env, (*e1).clone()) }
-        Exp::TrHint(_h,e1) => { eval(st, env, (*e1).clone()) }
-        Exp::Archivist(e) => { unimplemented!("eval archivist") }
+//        Exp::Label(_nm,e1) => { eval(st, env, (*e1).clone()) }
+//        Exp::TrHint(_h,e1) => { eval(st, env, (*e1).clone()) }
+//        Exp::Archivist(e) => { unimplemented!("eval archivist") }
         Exp::Fix(f,e1) => {
             //let (st, ptr) = allocate_pointer(st, StoreObj::Thunk(env.clone(), (*e1).clone()));
             let (st, ptr) = panic!("");
@@ -162,7 +153,7 @@ pub fn eval(st:State, env:Env, e:Exp) -> (State, ExpTerm) {
             let (st, ptr) = panic!("");
             (st, ExpTerm::Ret(Val::Ref(ptr)))
         }
-        Exp::Let(_,x,e1,e2) => {
+        Exp::Let(x,e1,e2) => {
             match eval(st, env.clone(), (*e1).clone()) {
                 (st, ExpTerm::Ret(v)) => {
                     let mut env = env;
@@ -193,21 +184,21 @@ pub fn eval(st:State, env:Env, e:Exp) -> (State, ExpTerm) {
                 v => eval_type_error(EvalTyErr::SplitNonPair(v), st, env, e)
             }
         }
-        Exp::If(v,e0,e1) => {
-            match close_val(&env, &v) {
-                Val::Bool(false) => eval(st, env, (*e0).clone()),
-                Val::Bool(true) => eval(st, env, (*e1).clone()),
-                v => eval_type_error(EvalTyErr::IfNonBool(v), st, env, e)
-            }
-        }
+        // Exp::If(v,e0,e1) => {
+        //     match close_val(&env, &v) {
+        //         Val::Bool(false) => eval(st, env, (*e0).clone()),
+        //         Val::Bool(true) => eval(st, env, (*e1).clone()),
+        //         v => eval_type_error(EvalTyErr::IfNonBool(v), st, env, e)
+        //     }
+        // }
         Exp::Case(v, x, ex, y, ey) => {
             match close_val(&env, &v) {
-                Val::Injl(v) => {
+                Val::Inj1(v) => {
                     let mut env = env;
                     env.insert(x, (*v).clone());
                     eval(st, env, (*ex).clone())
                 },
-                Val::Injr(v) => {
+                Val::Inj2(v) => {
                     let mut env = env;
                     env.insert(y, (*v).clone());
                     eval(st, env, (*ey).clone())
@@ -215,7 +206,7 @@ pub fn eval(st:State, env:Env, e:Exp) -> (State, ExpTerm) {
                 v => eval_type_error(EvalTyErr::SplitNonPair(v), st, env, e)
             }
         }
-        Exp::PrimApp(p) => { eval_prim(st, &env, p) }
+//        Exp::PrimApp(p) => { panic!("eval_prim(st, &env, p)") }
         Exp::Get(v) => {
             match close_val(&env, &v) {
                 Val::Ref(ptr) => {
@@ -232,5 +223,16 @@ pub fn eval(st:State, env:Env, e:Exp) -> (State, ExpTerm) {
                 v => eval_type_error(EvalTyErr::ForceNonThunk(v), st, env, e)                    
             }
         }
+        Exp::Scope(v, e) => {
+            panic!("")
+        }
+        Exp::NameApp(_, _) => {
+            panic!("")
+        }
+        Exp::DebugLabel(_,e) => {
+            // XXX/TODO -- Insert label/text/message into Adapton's trace structure
+            return eval(st, env, (*e).clone())
+        }
+        Exp::Unimp => unimplemented!(),
     }
 }
