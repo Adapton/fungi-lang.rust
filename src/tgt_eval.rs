@@ -42,11 +42,6 @@ pub enum ExpTerm {
     Ret(RtVal),
 }
 
-#[derive(Clone,Debug,Eq,PartialEq)]
-pub struct State {
-    next_name:usize
-}
-
 fn name_of_name(_n:&Name) -> engine::Name {
     panic!("")
 }
@@ -113,31 +108,27 @@ pub enum EvalTyErr {
     GetNonRef(RtVal),
 }
 
-fn eval_type_error<A>(err:EvalTyErr, st:State, env:Env, e:Exp) -> A {
-    panic!("eval_type_error: {:?}:\n\tstate:{:?}\n\tenv:{:?}\n\te:{:?}\n", err, st, env, e)
+fn eval_type_error<A>(err:EvalTyErr, env:Env, e:Exp) -> A {
+    panic!("eval_type_error: {:?}:\n\tenv:{:?}\n\te:{:?}\n", err, env, e)
 }
 
-pub fn eval_st(env:Env, e:Exp, st:State) -> ExpTerm {
-    eval(st, env, e)
-}
-
-pub fn eval(st:State, mut env:Env, e:Exp) -> ExpTerm {
+pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
     match e.clone() {       
         Exp::Lam(x, e)    => { ExpTerm::Lam(env, x, e) }
         Exp::Ret(v)       => { ExpTerm::Ret(close_val(&env, &v)) }
-        Exp::Anno(e1,_ct) => { eval(st, env, (*e1).clone()) }
+        Exp::Anno(e1,_ct) => { eval(env, (*e1).clone()) }
         Exp::Fix(f,e1) => {
             let env_saved = env.clone();
             env.push((f, RtVal::FixThunk(env_saved, (*e1).clone())));
-            eval(st, env, (*e1).clone())
+            eval(env, (*e1).clone())
         }
         Exp::Thunk(v, e1) => {
             match close_val(&env, &v) {
                 RtVal::Name(n) => {
-                    let t = thunk!([Some(n)]? eval_st ; env:env, e:(*e1).clone() ;; st:st);
+                    let t = thunk!([Some(n)]? eval ; env:env, e:(*e1).clone() );
                     ExpTerm::Ret(RtVal::Thunk(t))
                 },
-                v => eval_type_error(EvalTyErr::ThunkNonName(v), st, env, e)
+                v => eval_type_error(EvalTyErr::ThunkNonName(v), env, e)
             }
         }
         Exp::Ref(v1, v2) => {
@@ -147,26 +138,26 @@ pub fn eval(st:State, mut env:Env, e:Exp) -> ExpTerm {
                     let r = cell(n, v2);
                     ExpTerm::Ret(RtVal::Ref(r))
                 },
-                v => eval_type_error(EvalTyErr::RefNonName(v), st, env, e)
+                v => eval_type_error(EvalTyErr::RefNonName(v), env, e)
             }
         }
         Exp::Let(x,e1,e2) => {
-            match eval(st.clone(), env.clone(), (*e1).clone()) {
+            match eval(env.clone(), (*e1).clone()) {
                 ExpTerm::Ret(v) => {
                     env.push((x, v));
-                    eval(st, env, (*e2).clone())
+                    eval(env, (*e2).clone())
                 },
-                term => eval_type_error(EvalTyErr::LetNonRet(term), st, env, e)
+                term => eval_type_error(EvalTyErr::LetNonRet(term), env, e)
             }
         }
         Exp::App(e1, v) => {
-            match eval(st.clone(), env.clone(), (*e1).clone()) {
+            match eval(env.clone(), (*e1).clone()) {
                 ExpTerm::Lam(mut env, x, e2) => {
                     let v = close_val(&env, &v);
                     env.push((x, v));
-                    eval(st, env, (*e2).clone())
+                    eval(env, (*e2).clone())
                 },
-                term => eval_type_error(EvalTyErr::AppNonLam(term), st, env, e)
+                term => eval_type_error(EvalTyErr::AppNonLam(term), env, e)
             }
         }
         Exp::Split(v, x, y, e1) => {
@@ -174,42 +165,35 @@ pub fn eval(st:State, mut env:Env, e:Exp) -> ExpTerm {
                 RtVal::Pair(v1, v2) => {
                     env.push((x, (*v1).clone()));
                     env.push((y, (*v2).clone()));
-                    eval(st, env, (*e1).clone())
+                    eval(env, (*e1).clone())
                 },
-                v => eval_type_error(EvalTyErr::SplitNonPair(v), st, env, e)
+                v => eval_type_error(EvalTyErr::SplitNonPair(v), env, e)
             }
         }
-        // Exp::If(v,e0,e1) => {
-        //     match close_val(&env, &v) {
-        //         Val::Bool(false) => eval(st, env, (*e0).clone()),
-        //         Val::Bool(true) => eval(st, env, (*e1).clone()),
-        //         v => eval_type_error(EvalTyErr::IfNonBool(v), st, env, e)
-        //     }
-        // }
         Exp::Case(v, x, ex, y, ey) => {
             match close_val(&env, &v) {
                 RtVal::Inj1(v) => {
                     env.push((x, (*v).clone()));
-                    eval(st, env, (*ex).clone())
+                    eval(env, (*ex).clone())
                 },
                 RtVal::Inj2(v) => {
                     env.push((y, (*v).clone()));
-                    eval(st, env, (*ey).clone())
+                    eval(env, (*ey).clone())
                 },
-                v => eval_type_error(EvalTyErr::SplitNonPair(v), st, env, e)
+                v => eval_type_error(EvalTyErr::SplitNonPair(v), env, e)
             }
         }
         Exp::Get(v) => {
             match close_val(&env, &v) {
                 RtVal::Ref(a) => { ExpTerm::Ret(get!(a)) },
-                v => eval_type_error(EvalTyErr::GetNonRef(v), st, env, e)
+                v => eval_type_error(EvalTyErr::GetNonRef(v), env, e)
             }
         }
         Exp::Force(v) => {
             match close_val(&env, &v) {
                 RtVal::Thunk(a)         => { force(&a) },
-                RtVal::FixThunk(env, e) => { eval(st, env, e) },
-                v => eval_type_error(EvalTyErr::ForceNonThunk(v), st, env, e)                    
+                RtVal::FixThunk(env, e) => { eval(env, e) },
+                v => eval_type_error(EvalTyErr::ForceNonThunk(v), env, e)                    
             }
         }
         Exp::Scope(_v, _e) => {
@@ -220,7 +204,7 @@ pub fn eval(st:State, mut env:Env, e:Exp) -> ExpTerm {
         }
         Exp::DebugLabel(_,e) => {
             // XXX/TODO -- Insert label/text/message into Adapton's trace structure
-            return eval(st, env, (*e).clone())
+            return eval(env, (*e).clone())
         }
         Exp::Unimp => unimplemented!(),
     }
