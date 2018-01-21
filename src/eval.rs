@@ -145,7 +145,7 @@ pub fn eval(st:State, env:Env, e:Exp) -> (State, ExpTerm) {
         Exp::Anno(e1,_ct) => { eval(st, env, (*e1).clone()) }
         Exp::Label(_nm,e1) => { eval(st, env, (*e1).clone()) }
         Exp::TrHint(_h,e1) => { eval(st, env, (*e1).clone()) }
-        Exp::Archivist(e) => { unimplemented!("eval archivist") }
+        Exp::Archivist(_e) => { unimplemented!("eval archivist") }
         Exp::Fix(f,e1) => {
             let (st, ptr) = allocate_pointer(st, StoreObj::Thunk(env.clone(), (*e1).clone()));
             let mut env = env;

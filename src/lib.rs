@@ -1,3 +1,5 @@
+#[macro_use] extern crate adapton;
+
 // Source language (IODyn)
 // ------------------------
 #[macro_use] pub mod ast;

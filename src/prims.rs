@@ -17,22 +17,22 @@ pub mod seq {
         fn empty(&self) -> Box<SeqObj> {
             unimplemented!()           
         }
-        fn append(&self, other:Val) -> Box<SeqObj> {
+        fn append(&self, _other:Val) -> Box<SeqObj> {
             unimplemented!()
         }
-        fn map(&self, env:&Env, exp:&Exp) -> Box<SeqObj> {
+        fn map(&self, _env:&Env, _exp:&Exp) -> Box<SeqObj> {
             unimplemented!()
         }
         fn reverse(&mut self) {
             unimplemented!()
         }
-        fn filter(&self, env:&Env, exp:&Exp) -> Box<SeqObj> {
+        fn filter(&self, _env:&Env, _exp:&Exp) -> Box<SeqObj> {
             unimplemented!()
         }
-        fn into_stack(&self, rev:bool) -> Box<StackObj> {
+        fn into_stack(&self, _rev:bool) -> Box<StackObj> {
             unimplemented!()
         }
-        fn into_queue(&self, rev:bool) -> Box<QueueObj> {
+        fn into_queue(&self, _rev:bool) -> Box<QueueObj> {
             unimplemented!()
         }
         fn into_hashmap(&self) -> Box<HashmapObj> {

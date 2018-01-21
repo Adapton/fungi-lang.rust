@@ -3,72 +3,87 @@
 //! Gives the incremental semantics of programs, using an external
 //! library (Adapton in Rust) to create and maintain the DCG.
 
-use std::cell::RefCell;
-use ast::{Name,Pointer,Var};
-use tgt_ast::{Exp,Val};
-//use ast::cons::{val_pair, val_option};
-use std::collections::hash_map::HashMap;
+use adapton::macros::*;
+use adapton::engine;
+use adapton::engine::{thunk,cell,force,ArtIdChoice};
+
+use ast::{Var};
+use tgt_ast::{Exp,Val,Name,NameTm};
 use std::rc::Rc;
 
-pub type Env   = HashMap<String,Val>;
-//pub type Store = HashMap<Pointer,StoreObj>;
+/// TODO-Sometime: Prune the environments (using free variables as filters)
+pub type Env = Vec<(String,RtVal)>;
 
-#[derive(Clone,Debug,Eq,PartialEq)]
+/// Run-time values: Closed (no variables); and, may contain run-time
+/// structures (e.g., `Art`s from Adapton library).
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum RtVal {
+    Nat(usize),
+    Str(String),
+    Unit,
+    Pair(RtValRec, RtValRec),
+    Inj1(RtValRec),
+    Inj2(RtValRec),
+    NameFn(NameTm),
+
+    // Special-case thunk values: For implementing fix with environment-passing style
+    FixThunk(Env, Exp),
+    
+    // Run-time objects from Adapton library (names, refs, thunks):
+    Name(engine::Name),
+    Ref(engine::Art<RtVal>),
+    Thunk(engine::Art<ExpTerm>),
+}
+pub type RtValRec = Rc<RtVal>;
+
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum ExpTerm {
     Lam(Env, Var, Rc<Exp>),
-    Ret(Val),
+    Ret(RtVal),
 }
 
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub struct State {
-//    store:Store,
-    next_pointer:Name
+    next_name:usize
 }
 
-// #[derive(Clone,Debug,Eq,PartialEq)]
-// pub enum StoreObj {
-//     Cell(Val),
-//     Thunk(Env,Exp)
-// }
-
-//fn first_name() -> Name { Name::Leaf }
-fn next_name(nm:Name) -> Name { Name::Bin(Rc::new(Name::Leaf),Rc::new(nm)) }
-
-// fn allocate_pointer(st:State, so:StoreObj) -> (State, Pointer) {
-//     let mut st = st;
-//     let ptr = st.next_pointer.clone();
-//     st.next_pointer = next_name(ptr.clone());
-//     drop(st.store.insert(Pointer(ptr.clone()), so));
-//     (st, Pointer(ptr))
-// }
+fn name_of_name(_n:&Name) -> engine::Name {
+    panic!("")
+}
 
 // panics if the environment fails to close the given value's variables
 /// Substitution on all values
-fn close_val(env:&Env, v:&Val) -> Val {
+fn close_val(env:&Env, v:&Val) -> RtVal {
     use tgt_ast::Val::*;
     match *v {
         // variable case:
-        Var(ref x)   => env.get(x).unwrap().clone(),
-
-        // other cases: base cases, and structural recursion:
-        Name(ref n)    => Name(n.clone()), // XXX/TODO --- Descend into name terms and continue substitution..?.
-        NameFn(ref nf) => NameFn(nf.clone()), // XXX/TODO --- Descend into name terms and continue substitution...?
+        Var(ref _x)   => //env.get(x).unwrap().clone(),
+            panic!("TODO"),
         
-        Unit         => Unit,
-        Nat(ref n)   => Nat(n.clone()),
-        Str(ref s)   => Str(s.clone()),
-        Ref(ref p)   => Ref(p.clone()),
-        Thunk(ref p) => Thunk(p.clone()),
+        // other cases: base cases, and structural recursion:
+        Name(ref n)    => RtVal::Name(name_of_name(n)),
+        NameFn(ref nf) => RtVal::NameFn(nf.clone()), // XXX/TODO --- Descend into name terms and continue substitution...?
+        
+        Unit         => RtVal::Unit,
+        Nat(ref n)   => RtVal::Nat(n.clone()),
+        Str(ref s)   => RtVal::Str(s.clone()),
+
+        // These shouldn't happen; they are really run-time values!
+        Ref(ref _p)   => unreachable!(),
+        Thunk(ref _p) => unreachable!(),
 
         // inductive cases
-        Inj1(ref v1) => Inj1(close_val_rec(env, v1)),
-        Inj2(ref v1) => Inj2(close_val_rec(env, v1)),
-        Anno(ref v1, ref t)  => Anno(close_val_rec(env, v1), t.clone()),
-        Pair(ref v1, ref v2) => Pair(close_val_rec(env, v1), close_val_rec(env, v2)),
+        Inj1(ref v1) => RtVal::Inj1(close_val_rec(env, v1)),
+        Inj2(ref v1) => RtVal::Inj2(close_val_rec(env, v1)),
+        Pair(ref v1, ref v2) =>
+            RtVal::Pair(close_val_rec(env, v1),
+                        close_val_rec(env, v2)),
+        // Forget annotation
+        Anno(ref v,_) => close_val(env, v),
     }
 }
 
-fn close_val_rec(env:&Env, v:&Rc<Val>) -> Rc<Val> {
+fn close_val_rec(env:&Env, v:&Rc<Val>) -> Rc<RtVal> {
     Rc::new(close_val(env, &**v))
 }
 
@@ -85,100 +100,84 @@ pub enum EvalTyErr {
     // app case
     AppNonLam(ExpTerm),
     // split case
-    SplitNonPair(Val),
+    SplitNonPair(RtVal),
     // if case
-    IfNonBool(Val),
+    IfNonBool(RtVal),
     // case case
-    CaseNonInj(Val),
-    // force cases
-    ForceNonThunk(Val),
-    ForceDangling(Pointer),
-    ForceCell(Pointer),
-    // get cases
-    GetNonRef(Val),
-    GetDangling(Pointer),
-    GetThunk(Pointer),
+    CaseNonInj(RtVal),
+    // thunk case
+    ThunkNonName(RtVal),
+    ForceNonThunk(RtVal),
+    // ref case
+    RefNonName(RtVal),
+    GetNonRef(RtVal),
 }
 
 fn eval_type_error<A>(err:EvalTyErr, st:State, env:Env, e:Exp) -> A {
     panic!("eval_type_error: {:?}:\n\tstate:{:?}\n\tenv:{:?}\n\te:{:?}\n", err, st, env, e)
 }
 
-//fn st_get(st:&State, p:&Pointer) -> Option<StoreObj> {
-//    st.store.get(p).map(|x|x.clone())
-//}
+pub fn eval_st(env:Env, e:Exp, st:State) -> ExpTerm {
+    eval(st, env, e)
+}
 
-// pub fn eval_prim(st:State, env:&Env, p:PrimApp) -> (State, ExpTerm) {
-//     match p {
-//         PrimApp::StackEmpty => {
-//             let v_empty = Val::Stack(Stack{
-//                  stack:Rc::new(RefCell::new(Vec::new()))
-//              });
-//             (st, ExpTerm::Ret(v_empty))
-//         },
-//         PrimApp::StackPush(Val::Stack(so), v_elm) => {
-//             so.stack.borrow_mut().push(close_val(env, &v_elm));
-//             (st, ExpTerm::Ret(Val::Stack(so)))
-//         },
-//         PrimApp::StackPop(Val::Stack(so)) => {
-//             let v_op : Val = val_option(so.stack.borrow_mut().pop());
-//             (st, ExpTerm::Ret(val_pair(Val::Stack(so), v_op )))
-//         },
-//         _ => unimplemented!()
-//     }
-// }
-
-pub fn eval(st:State, env:Env, e:Exp) -> (State, ExpTerm) {
+pub fn eval(st:State, env:Env, e:Exp) -> ExpTerm {
     match e.clone() {       
-        Exp::Lam(x, e)    => { (st, ExpTerm::Lam(env, x, e)) }
-        Exp::Ret(v)       => { (st, ExpTerm::Ret(close_val(&env, &v))) }
+        Exp::Lam(x, e)    => { ExpTerm::Lam(env, x, e) }
+        Exp::Ret(v)       => { ExpTerm::Ret(close_val(&env, &v)) }
         Exp::Anno(e1,_ct) => { eval(st, env, (*e1).clone()) }
-//        Exp::Label(_nm,e1) => { eval(st, env, (*e1).clone()) }
-//        Exp::TrHint(_h,e1) => { eval(st, env, (*e1).clone()) }
-//        Exp::Archivist(e) => { unimplemented!("eval archivist") }
         Exp::Fix(f,e1) => {
-            //let (st, ptr) = allocate_pointer(st, StoreObj::Thunk(env.clone(), (*e1).clone()));
-            let (st, ptr) = panic!("");
+            let env_saved = env.clone();
             let mut env = env;
-            env.insert(f, Val::Thunk(ptr));
+            env.push((f, RtVal::FixThunk(env_saved, (*e1).clone())));
             eval(st, env, (*e1).clone())
         }
-        Exp::Thunk(e1) => {
-            //let (st, ptr) = allocate_pointer(st, StoreObj::Thunk(env.clone(), (*e1).clone()));
-            let (st, ptr) = panic!("");
-            (st, ExpTerm::Ret(Val::Thunk(ptr)))
+        Exp::Thunk(v, e1) => {
+            match close_val(&env, &v) {
+                RtVal::Name(n) => {
+                    let t = thunk!([Some(n)]? eval_st ; env:env, e:(*e1).clone() ;; st:st);
+                    ExpTerm::Ret(RtVal::Thunk(t))
+                },
+                v => eval_type_error(EvalTyErr::ThunkNonName(v), st, env, e)
+            }
         }
-        Exp::Ref(v) => {
-            //let (st, ptr) = allocate_pointer(st, StoreObj::Cell(close_val(&env, &v)));
-            let (st, ptr) = panic!("");
-            (st, ExpTerm::Ret(Val::Ref(ptr)))
+        Exp::Ref(v1, v2) => {
+            match close_val(&env, &v1) {
+                RtVal::Name(n) => {
+                    let v2 = close_val(&env, &v2);
+                    let r = cell(n, v2);
+                    ExpTerm::Ret(RtVal::Ref(r))
+                },
+                v => eval_type_error(EvalTyErr::RefNonName(v), st, env, e)
+            }
         }
         Exp::Let(x,e1,e2) => {
-            match eval(st, env.clone(), (*e1).clone()) {
-                (st, ExpTerm::Ret(v)) => {
+            match eval(st.clone(), env.clone(), (*e1).clone()) {
+                ExpTerm::Ret(v) => {
                     let mut env = env;
-                    env.insert(x, v);
+                    env.push((x, v));
                     eval(st, env, (*e2).clone())
                 },
-                (st, term) => eval_type_error(EvalTyErr::LetNonRet(term), st, env, e)
+                term => eval_type_error(EvalTyErr::LetNonRet(term), st, env, e)
             }
         }
         Exp::App(e1, v) => {
-            match eval(st, env.clone(), (*e1).clone()) {
-                (st, ExpTerm::Lam(env, x, e2)) => {
+            match eval(st.clone(), env.clone(), (*e1).clone()) {
+                ExpTerm::Lam(env, x, e2) => {
                     let mut env = env;
-                    env.insert(x, v);
+                    let v = close_val(&env, &v);
+                    env.push((x, v));
                     eval(st, env, (*e2).clone())
                 },
-                (st, term) => eval_type_error(EvalTyErr::AppNonLam(term), st, env, e)
+                term => eval_type_error(EvalTyErr::AppNonLam(term), st, env, e)
             }
         }
         Exp::Split(v, x, y, e1) => {
             match close_val(&env, &v) {
-                Val::Pair(v1, v2) => {
+                RtVal::Pair(v1, v2) => {
                     let mut env = env;
-                    env.insert(x, (*v1).clone());
-                    env.insert(y, (*v2).clone());
+                    env.push((x, (*v1).clone()));
+                    env.push((y, (*v2).clone()));
                     eval(st, env, (*e1).clone())
                 },
                 v => eval_type_error(EvalTyErr::SplitNonPair(v), st, env, e)
@@ -193,37 +192,33 @@ pub fn eval(st:State, env:Env, e:Exp) -> (State, ExpTerm) {
         // }
         Exp::Case(v, x, ex, y, ey) => {
             match close_val(&env, &v) {
-                Val::Inj1(v) => {
+                RtVal::Inj1(v) => {
                     let mut env = env;
-                    env.insert(x, (*v).clone());
+                    env.push((x, (*v).clone()));
                     eval(st, env, (*ex).clone())
                 },
-                Val::Inj2(v) => {
+                RtVal::Inj2(v) => {
                     let mut env = env;
-                    env.insert(y, (*v).clone());
+                    env.push((y, (*v).clone()));
                     eval(st, env, (*ey).clone())
                 },
                 v => eval_type_error(EvalTyErr::SplitNonPair(v), st, env, e)
             }
         }
-//        Exp::PrimApp(p) => { panic!("eval_prim(st, &env, p)") }
         Exp::Get(v) => {
             match close_val(&env, &v) {
-                Val::Ref(ptr) => {
-                    panic!("")
-                },
+                RtVal::Ref(a) => { ExpTerm::Ret(get!(a)) },
                 v => eval_type_error(EvalTyErr::GetNonRef(v), st, env, e)
             }
         }
         Exp::Force(v) => {
             match close_val(&env, &v) {
-                Val::Thunk(ptr) => {
-                    panic!("")
-                },
+                RtVal::FixThunk(env, e) => { eval(st, env.clone(), e.clone()) },
+                RtVal::Thunk(a) => { get!(a) },
                 v => eval_type_error(EvalTyErr::ForceNonThunk(v), st, env, e)                    
             }
         }
-        Exp::Scope(v, e) => {
+        Exp::Scope(_v, _e) => {
             panic!("")
         }
         Exp::NameApp(_, _) => {

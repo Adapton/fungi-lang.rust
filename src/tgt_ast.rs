@@ -205,7 +205,7 @@ pub type ExpRec = Rc<Exp>;
 pub enum Exp {
     Anno(ExpRec,CType),
     Force(Val),
-    Thunk(ExpRec),
+    Thunk(Val,ExpRec),
     Fix(Var,ExpRec),
     Ret(Val),
     Let(Var,ExpRec,ExpRec),
@@ -213,7 +213,7 @@ pub enum Exp {
     App(ExpRec, Val),
     Split(Val, Var, Var, ExpRec),
     Case(Val, Var, ExpRec, Var, ExpRec),
-    Ref(Val),
+    Ref(Val,Val),
     Get(Val),
     Scope(NameTm,ExpRec),
     NameApp(Val,Val),
