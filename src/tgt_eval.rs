@@ -14,8 +14,11 @@ use std::rc::Rc;
 /// TODO-Sometime: Prune the environments (using free variables as filters)
 pub type Env = Vec<(String,RtVal)>;
 
-/// Run-time values: Closed (no variables); and, may contain run-time
-/// structures (e.g., `Art`s from Adapton library).
+/// Run-time values.  Same as ast_tgt::Val, except that (1) there are
+/// no variables ("closed") and (2) unlike values written by user in
+/// their program, run-time values may contain run-time structures,
+/// such as _actual_ thunks and references, a la `Art`s from Adapton
+/// library.
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum RtVal {
     Nat(usize),
@@ -29,25 +32,36 @@ pub enum RtVal {
     // Special-case thunk values: For implementing fix with environment-passing style
     FixThunk(Env, Exp),
     
-    // Run-time objects from Adapton library (names, refs, thunks):
+    // Name, Ref, Thunk: Run-time objects from Adapton library (names, refs, thunks):
+
+    // Names from Adapton engine
     Name(engine::Name),
+    // Refs from Adapton engine; they each contain a run-time value
     Ref(engine::Art<RtVal>),
+    // Thunks from Adapton engine; they each _evaluate to_ a terminal expression
     Thunk(engine::Art<ExpTerm>),
 }
 pub type RtValRec = Rc<RtVal>;
 
+/// Terminal expressions (a la CBPV), but in environment-passing
+/// style, where lambdas are associatd with closing environments.
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum ExpTerm {
     Lam(Env, Var, Rc<Exp>),
     Ret(RtVal),
 }
 
+/// Name conversion. Convert Tgt-AST name into a run-time (adapton
+/// library) name.
 fn name_of_name(_n:&Name) -> engine::Name {
     panic!("")
 }
 
-// panics if the environment fails to close the given value's variables
-/// Substitution on all values
+/// Given a closing environment and an Tgt-AST value (with zero or
+/// more variables) producing a closed, run-time value.
+///
+/// panics if the environment fails to close the given value's
+/// variables.
 fn close_val(env:&Env, v:&Val) -> RtVal {
     use tgt_ast::Val::*;
     match *v {
@@ -112,6 +126,20 @@ fn eval_type_error<A>(err:EvalTyErr, env:Env, e:Exp) -> A {
     panic!("eval_type_error: {:?}:\n\tenv:{:?}\n\te:{:?}\n", err, env, e)
 }
 
+/// Big-step evaluation: Under the given closing environment (with
+/// run-time values), evaluate the given Tgt-AST expression, producing
+/// a terminal expression (a la CBPV) with run-time values.
+///
+/// Adapton primitives: The primitives `thunk`, `ref`, `force` and
+/// `get` each use the Adapton run-time library in a simple way that
+/// directly corresponds with the given expression form.
+///
+/// CPBV consequences: Due to CBPV style, most cases are simple (0 or
+/// 1 recursive calls).  The only two cases that have multiple
+/// recursive calls are `let` and `app`, which necessarily each have
+/// two recursive calls to `eval`. In CBV style, many more cases would
+/// require multiple recursive calls to eval.
+///
 pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
     match e.clone() {       
         Exp::Lam(x, e)    => { ExpTerm::Lam(env, x, e) }
