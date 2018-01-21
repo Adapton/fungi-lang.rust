@@ -121,14 +121,13 @@ pub fn eval_st(env:Env, e:Exp, st:State) -> ExpTerm {
     eval(st, env, e)
 }
 
-pub fn eval(st:State, env:Env, e:Exp) -> ExpTerm {
+pub fn eval(st:State, mut env:Env, e:Exp) -> ExpTerm {
     match e.clone() {       
         Exp::Lam(x, e)    => { ExpTerm::Lam(env, x, e) }
         Exp::Ret(v)       => { ExpTerm::Ret(close_val(&env, &v)) }
         Exp::Anno(e1,_ct) => { eval(st, env, (*e1).clone()) }
         Exp::Fix(f,e1) => {
             let env_saved = env.clone();
-            let mut env = env;
             env.push((f, RtVal::FixThunk(env_saved, (*e1).clone())));
             eval(st, env, (*e1).clone())
         }
@@ -154,7 +153,6 @@ pub fn eval(st:State, env:Env, e:Exp) -> ExpTerm {
         Exp::Let(x,e1,e2) => {
             match eval(st.clone(), env.clone(), (*e1).clone()) {
                 ExpTerm::Ret(v) => {
-                    let mut env = env;
                     env.push((x, v));
                     eval(st, env, (*e2).clone())
                 },
@@ -163,8 +161,7 @@ pub fn eval(st:State, env:Env, e:Exp) -> ExpTerm {
         }
         Exp::App(e1, v) => {
             match eval(st.clone(), env.clone(), (*e1).clone()) {
-                ExpTerm::Lam(env, x, e2) => {
-                    let mut env = env;
+                ExpTerm::Lam(mut env, x, e2) => {
                     let v = close_val(&env, &v);
                     env.push((x, v));
                     eval(st, env, (*e2).clone())
@@ -175,7 +172,6 @@ pub fn eval(st:State, env:Env, e:Exp) -> ExpTerm {
         Exp::Split(v, x, y, e1) => {
             match close_val(&env, &v) {
                 RtVal::Pair(v1, v2) => {
-                    let mut env = env;
                     env.push((x, (*v1).clone()));
                     env.push((y, (*v2).clone()));
                     eval(st, env, (*e1).clone())
@@ -193,12 +189,10 @@ pub fn eval(st:State, env:Env, e:Exp) -> ExpTerm {
         Exp::Case(v, x, ex, y, ey) => {
             match close_val(&env, &v) {
                 RtVal::Inj1(v) => {
-                    let mut env = env;
                     env.push((x, (*v).clone()));
                     eval(st, env, (*ex).clone())
                 },
                 RtVal::Inj2(v) => {
-                    let mut env = env;
                     env.push((y, (*v).clone()));
                     eval(st, env, (*ey).clone())
                 },
@@ -213,8 +207,8 @@ pub fn eval(st:State, env:Env, e:Exp) -> ExpTerm {
         }
         Exp::Force(v) => {
             match close_val(&env, &v) {
-                RtVal::FixThunk(env, e) => { eval(st, env.clone(), e.clone()) },
-                RtVal::Thunk(a) => { get!(a) },
+                RtVal::Thunk(a)         => { force(&a) },
+                RtVal::FixThunk(env, e) => { eval(st, env, e) },
                 v => eval_type_error(EvalTyErr::ForceNonThunk(v), st, env, e)                    
             }
         }
