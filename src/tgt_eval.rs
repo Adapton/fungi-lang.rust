@@ -1,7 +1,36 @@
-//! Big-step reference evaluation semantics, for IODyn Target AST.
+//! Big-step evaluation semantics for IODyn Target AST, via Adapton in
+//! Rust.
 //!
 //! Gives the incremental semantics of programs, using an external
 //! library (Adapton in Rust) to create and maintain the DCG.
+//!
+//! ## Design discussion
+//!
+//! The Rust types and functions below demonstrate how closely the
+//! IODyn Target AST corresponds to the primitive notions of Adapton,
+//! namely refs, thunks and their operations get and force,
+//! respectively.
+//!
+//! In particular, the semantics of `ref` and `thunk` are _entirely_
+//! encapsiluated by the Adapton run-time library, leaving the
+//! dynamics semantics for other expression forms to `eval` to define.
+//!
+//! In some sense, the language built around the `ref` and `thunk`
+//! primitives is somewhat arbitrary; given this choice, we choose
+//! CBPV STLC with products and sums, as usual.  Other choices are
+//! guided by our choice of "CBPV + environment-passing-style", as
+//! discussed further in this module's comments.
+//!
+//! ## Val vs RtVal
+//!
+//! We distinguish between programmer-written values (Val) and closed,
+//! run-time values (RtVal).  Environments map variables to (closed)
+//! run-time values.
+//!
+//! ## Exp vs TermExp
+//!
+//! We distinguish between (open) expressions and (fully evaluated)
+//! terminal expressions, which are closed.
 
 use adapton::macros::*;
 use adapton::engine;
@@ -126,9 +155,11 @@ fn eval_type_error<A>(err:EvalTyErr, env:Env, e:Exp) -> A {
     panic!("eval_type_error: {:?}:\n\tenv:{:?}\n\te:{:?}\n", err, env, e)
 }
 
-/// Big-step evaluation: Under the given closing environment (with
-/// run-time values), evaluate the given Tgt-AST expression, producing
-/// a terminal expression (a la CBPV) with run-time values.
+/// Big-step evaluation
+///
+/// Under the given closing environment, evaluate the given Tgt-AST
+/// expression, producing a terminal expression (a la CBPV), typically
+/// with run-time values.
 ///
 /// Adapton primitives: The primitives `thunk`, `ref`, `force` and
 /// `get` each use the Adapton run-time library in a simple way that
@@ -147,7 +178,7 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
         Exp::Anno(e1,_ct) => { eval(env, (*e1).clone()) }
         Exp::Fix(f,e1) => {
             let env_saved = env.clone();
-            env.push((f, RtVal::FixThunk(env_saved, (*e1).clone())));
+            env.push((f, RtVal::FixThunk(env_saved, (*e).clone())));
             eval(env, (*e1).clone())
         }
         Exp::Thunk(v, e1) => {
