@@ -8,7 +8,7 @@
 //!
 //! The Rust types and functions below demonstrate how closely the
 //! IODyn Target AST corresponds to the primitive notions of Adapton,
-//! namely refs, thunks and their operations get and force,
+//! namely refs and thunks, and their operations, get and force,
 //! respectively.
 //!
 //! In particular, the semantics of `ref` and `thunk` are _entirely_
@@ -80,10 +80,81 @@ pub enum ExpTerm {
     Ret(RtVal),
 }
 
+/// Name Term Values.  The value forms (name and lambda) for the Name
+/// Term sub-language (STLC + names).
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum NameTmVal {
+    Name(Name),
+    Lam(Var,NameTm),
+}
+
+pub fn nametm_of_val(_v:NameTmVal) -> NameTm {
+    panic!("TODO")
+}
+
+pub fn nametm_subst_rec(nmtm:Rc<NameTm>, x:&Var, v:&NameTm) -> Rc<NameTm> {
+    Rc::new(nametm_subst((*nmtm).clone(), x, v))
+}
+pub fn nametm_subst(nmtm:NameTm, x:&Var, v:&NameTm) -> NameTm {
+    match nmtm {
+        NameTm::Name(n) => NameTm::Name(n),
+        NameTm::Bin(nt1, nt2) => {
+            NameTm::Bin(nametm_subst_rec(nt1, x, v),
+                        nametm_subst_rec(nt2, x, v))
+        }
+        NameTm::App(nt1, nt2) => {
+            NameTm::App(nametm_subst_rec(nt1, x, v),
+                        nametm_subst_rec(nt2, x, v))
+        }
+        NameTm::Var(y) => {
+            if *x == y { v.clone() }
+            else { NameTm::Var(y) }
+        }
+        NameTm::Lam(y,nt) => {
+            if *x == y { NameTm::Lam(y, nt) }
+            else { NameTm::Lam(y, nametm_subst_rec(nt, x, v)) }
+        }
+    }
+}
+
+pub fn nametm_eval_rec(nmtm:Rc<NameTm>) -> NameTmVal {
+    nametm_eval((*nmtm).clone())
+}
+pub fn nametm_eval(nmtm:NameTm) -> NameTmVal {
+    match nmtm {
+        NameTm::Var(x) => { panic!("dynamic type error (open term, with free var {})", x) }
+        NameTm::Name(n) => NameTmVal::Name(n),
+        NameTm::Lam(x, nt) => NameTmVal::Lam(x, (*nt).clone()),
+        NameTm::Bin(nt1, nt2) => {
+            let nt1 = nametm_eval_rec(nt1);
+            let nt2 = nametm_eval_rec(nt2);
+            match (nt1, nt2) {
+                (NameTmVal::Name(n1),
+                 NameTmVal::Name(n2)) => {
+                    NameTmVal::Name(Name::Bin(Rc::new(n1), Rc::new(n2)))
+                },
+                _ => { panic!("dynamic type error (bin name term)") }
+            }
+        }
+        NameTm::App(nt1, nt2) => {
+            let nt1 = nametm_eval_rec(nt1);
+            let nt2 = nametm_eval_rec(nt2);
+            match nt1 {
+                NameTmVal::Lam(x, nt3) => {
+                    let ntv = nametm_of_val(nt2);
+                    let nt4 = nametm_subst(nt3, &x, &ntv);
+                    nametm_eval(nt4)
+                },
+                _ => { panic!("dynamic type error (bin name term)") }
+            }
+        }
+    }
+}
+
 /// Name conversion. Convert Tgt-AST name into a run-time (adapton
 /// library) name.
-fn name_of_name(_n:&Name) -> engine::Name {
-    panic!("")
+pub fn name_of_name(_n:&Name) -> engine::Name {
+    panic!("TODO")
 }
 
 /// Given a closing environment and an Tgt-AST value (with zero or
@@ -91,7 +162,7 @@ fn name_of_name(_n:&Name) -> engine::Name {
 ///
 /// panics if the environment fails to close the given value's
 /// variables.
-fn close_val(env:&Env, v:&Val) -> RtVal {
+pub fn close_val(env:&Env, v:&Val) -> RtVal {
     use tgt_ast::Val::*;
     match *v {
         // variable case:
@@ -121,7 +192,7 @@ fn close_val(env:&Env, v:&Val) -> RtVal {
     }
 }
 
-fn close_val_rec(env:&Env, v:&Rc<Val>) -> Rc<RtVal> {
+pub fn close_val_rec(env:&Env, v:&Rc<Val>) -> Rc<RtVal> {
     Rc::new(close_val(env, &**v))
 }
 
@@ -178,7 +249,7 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
         Exp::Anno(e1,_ct) => { eval(env, (*e1).clone()) }
         Exp::Fix(f,e1) => {
             let env_saved = env.clone();
-            env.push((f, RtVal::FixThunk(env_saved, (*e).clone())));
+            env.push((f, RtVal::FixThunk(env_saved, e)));
             eval(env, (*e1).clone())
         }
         Exp::Thunk(v, e1) => {
@@ -256,10 +327,10 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
             }
         }
         Exp::Scope(_v, _e) => {
-            panic!("")
+            panic!("TODO")
         }
         Exp::NameApp(_, _) => {
-            panic!("")
+            panic!("TODO")
         }
         Exp::DebugLabel(_,e) => {
             // XXX/TODO -- Insert label/text/message into Adapton's trace structure
