@@ -17,23 +17,25 @@ fn examples() {
 
   let max : Exp = tgt_exp![
     //? type Seq[X] = { lam seq.(+ Vec + (x Nm x Nat x Ref[X] seq x Ref[X] seq)) }
-    //? let nums = {{ unimplemented }:Seq[X]}
-    let vec_max = {{ unimplemented }:Vec -> F Nat}
-    let max = {thunk [sym max] {
+    //? let nums:(Seq[X]) = { unimplemented }
+    let vec_max:(Vec -> F Nat) = { unimplemented }
+    let max:(
+      All X:NmSet.
+      Seq[X] -> F Nat
+      |> (lam x:Nm.[x.1] % [x.2])[X]
+    ) = {
       fix max. lam seq.
       match seq {
         vec => { vec_max vec },
         bin => {
           let (n,_,l,r) = { ret bin }
-          let (_,ml) = { memo[n.1](!max !l) }
-          let (_,mr) = { memo[n.2](!max !r) }
+          let (_,ml) = { memo[n.1](max !l) }
+          let (_,mr) = { memo[n.2](max !r) }
           if (ml > mr) then {ret ml} else {ret mr}
         }
       }
-    }:All X:NmSet.
-    Seq[X] -> F Nat
-    |> (lam x:Nm.[x.1] % [x.2])[X] }
-    //? {force max} nums
+    }
+    {force max} nums
   ];
 }
 
