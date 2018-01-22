@@ -128,59 +128,6 @@ pub enum CEffect {
     ForallIdx(Var,Sort,Prop,CEffectRec)
 }
 
-pub type TCtxtRec = Rc<TCtxt>;
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
-pub enum TCtxt {
-    Empty,
-    Var(TCtxtRec,Var,Type),
-    IVar(TCtxtRec,Var,Sort),
-    TVar(TCtxtRec,Var,Kind),
-    TCons(TCtxtRec,TypeCons,Kind),
-    Ref(TCtxtRec,Pointer,Type),
-    Thunk(TCtxtRec,Pointer,CType),
-    Equiv(TCtxtRec,IdxTm,IdxTm,Sort),
-    Apart(TCtxtRec,IdxTm,IdxTm,Sort),
-    PropTrue(TCtxtRec,Prop),
-}
-impl TCtxt {
-    /// bind a var and type
-    pub fn var(&self,v:Var,t:Type) -> TCtxt {
-        TCtxt::Var(Rc::new(self.clone()),v,t)
-    }
-    /// bind a index var and sort
-    pub fn ivar(&self,v:Var,s:Sort) -> TCtxt {
-        TCtxt::IVar(Rc::new(self.clone()),v,s)
-    }
-    /// bind a type var and kind
-    pub fn tvar(&self,v:Var,k:Kind) -> TCtxt {
-        TCtxt::TVar(Rc::new(self.clone()),v,k)
-    }
-    /// bind a type constructor and kind
-    pub fn tcons(&self,d:TypeCons,k:Kind) -> TCtxt {
-        TCtxt::TCons(Rc::new(self.clone()),d,k)
-    }
-    /// bind a pointer and value type
-    pub fn refr(&self,p:Pointer,t:Type) -> TCtxt {
-        TCtxt::Ref(Rc::new(self.clone()),p,t)
-    }
-    /// bind a pointer and computation type
-    pub fn thk(&self,p:Pointer,ct:CType) -> TCtxt {
-        TCtxt::Thunk(Rc::new(self.clone()),p,ct)
-    }
-    /// bind an index equivalence
-    pub fn equiv(&self,i1:IdxTm,i2:IdxTm,s:Sort) -> TCtxt {
-        TCtxt::Equiv(Rc::new(self.clone()),i1,i2,s)
-    }
-    /// bind an index apartness
-    pub fn apart(&self,i1:IdxTm,i2:IdxTm,s:Sort) -> TCtxt {
-        TCtxt::Apart(Rc::new(self.clone()),i1,i2,s)
-    }
-    /// bind a true proposition
-    pub fn prop(&self,p:Prop) -> TCtxt {
-        TCtxt::PropTrue(Rc::new(self.clone()),p)
-    }
-}
-
 pub type ValRec = Rc<Val>;
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 /// Value terms
