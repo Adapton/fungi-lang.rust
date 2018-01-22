@@ -6,24 +6,84 @@ use std::rc::Rc;
 pub struct Pointer(pub Name);
 pub type Var = String;
 
-pub type NameRec = Rc<Name>;
+/// Name Literals
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Name {
     Leaf,
-//    Sym(String),
-//    Fileline(String,usize,Option<usize>),
+    Sym(String),
+    Num(usize),
     Bin(NameRec, NameRec)
 }
+pub type NameRec = Rc<Name>;
 
-pub type NameTmRec = Rc<NameTm>;
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+/// Constructor for Name Literals
+///
+/// ```text
+/// n ::=
+///     []            (leaf)
+///     sym s         (symbol)
+///     [n][n]...     (extended bin)
+///     1             (Number)
+/// ```
+macro_rules! tgt_name {
+    // [] (leaf)
+    { } => { Name::Leaf };
+    // sym s] (symbol)
+    { sym $($s:tt)+ } => { Name::Sym(stringify![$($s)+].to_string())};
+    // [n][n]... (extended bin)
+    { [$(name:tt)*] $($names:tt)+ } => {
+        Name::Bin(Rc::new(tgt_name![[$(name)*]]),Rc::new(tgt_name![$($names)+]))
+    };
+    // 1 (Number)
+    { $s:expr } => { Name::Num($s) };
+}
+
+
 /// Name Terms
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum NameTm {
+    Var(Var),
     Name(Name),
     Bin(NameTmRec, NameTmRec),
-    Var(Var),
     Lam(Var,NameTmRec),
     App(NameTmRec, NameTmRec),
+}
+pub type NameTmRec = Rc<NameTm>;
+
+/// Constructor for Name Terms
+///
+/// ```text
+/// M,N ::=
+///     a               (Variable)
+///     n               (literal Name)
+///     [n],[n],...     (extended bin)
+///     #a.M            (abstraction)
+///     {M} N ...       (curried application)
+/// ```
+macro_rules! tgt_nametm {
+    //     [n],[n],...     (extended bin)
+    { [[$(name:tt)*], $($names:tt)+] } => { NameTm::Bin(
+        Rc::new(tgt_nametm![[$(name)*]]),
+        Rc::new(tgt_nametm![$($names)+])
+    )};
+    //     #a.M            (abstraction)
+    { # $var:ident . $($body:tt)+ } => { NameTm::Lam(
+        stringify![$var].to_string(),
+        Rc::new(tgt_nametm![$($body)+]),
+    )};
+    //     {M} N ...       (curried application)
+    { {$($nmfn:tt)+} $($pars:tt)+ } => {
+        curry_nameapp![tgt_nametm![$($nmfn:tt)+] ; $($pars)+]
+    };
+    //     a               (Variable)
+    { $var:ident } => { NameTm::Var(stringify![$var].to_string()) };
+    //     n               (literal Name)
+    { $($nm:tt)+ } => { NameTm::Name(tgt_name![$($nm)+]) };
+}
+
+macro_rules! curry_nameapp {
+    { $fun:expr ; $par:tt } => { NameTm::App(Rc::new($fun),tgt_nametm!($par)) };
+    { $fun:expr ; $par:tt $($pars:tt)+ } => { curry_app![NameTm::App(Rc::new($fun), make_val!($par)) ; $($pars)+] };
 }
 
 pub type IdxTmRec = Box<IdxTm>;

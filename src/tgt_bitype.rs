@@ -2,6 +2,7 @@ use tgt_ast::*;
 use std::fmt;
 use std::rc::Rc;
 
+// TODO: Switch to outer linked-list or vector to simplify code
 pub type TCtxtRec = Rc<TCtxt>;
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum TCtxt {

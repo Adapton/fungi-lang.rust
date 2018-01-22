@@ -16,15 +16,16 @@ fn examples() {
   let ctx : TCtxt = TCtxt::Empty;
 
   let max : Exp = tgt_exp![
-    //? type Seq[X] = { lam seq.(+ Vec + (x Nm x Nat x Ref[X] seq x Ref[X] seq)) }
-    //? let nums:(Seq[X]) = { unimplemented }
+    type Vec = {}
+    type Seq[X] = { (+ Vec + (x Nm x Nat x Ref[X] Seq[X] x Ref[X] Seq[X])) }
+    let nums:(Seq[X]) = { unimplemented }
     let vec_max:(Vec -> F Nat) = { unimplemented }
     let max:(
       All X:NmSet.
       Seq[X] -> F Nat
-      |> (lam x:Nm.[x.1] % [x.2])[X]
+      |> (#x:Nm.[x.1] % [x.2])[X]
     ) = {
-      fix max. lam seq.
+      fix max.#seq.
       match seq {
         vec => { vec_max vec },
         bin => {
