@@ -16,23 +16,31 @@ pub enum Name {
 }
 pub type NameRec = Rc<Name>;
 
-/// Constructor for Name Literals
+/// Parser for Name Literals
 ///
 /// ```text
 /// n ::=
-///     []            (leaf)
-///     sym s         (symbol)
-///     [n][n]...     (extended bin)
-///     1             (Number)
+///     fromast ast_expr    (inject ast nodes)
+///     []                  (leaf)
+///     @s                  (symbol)
+///     [n][n]...           (extended bin)
+///     1                   (Number)
 /// ```
+#[macro_export]
 macro_rules! tgt_name {
+    // fromast ast_expr    (inject ast nodes)
+    { fromast $ast:expr } => { $ast };
     // [] (leaf)
-    { } => { Name::Leaf };
-    // sym s] (symbol)
-    { sym $($s:tt)+ } => { Name::Sym(stringify![$($s)+].to_string())};
+    { [] } => { Name::Leaf };
+    // @s (symbol)
+    { @$($s:tt)+ } => { Name::Sym(stringify![$($s)+].to_string())};
+    // [][n]... (extended bin with leaf)
+    { [] $([$names:tt])+ } => {
+        Name::Bin(Rc::new(Name::Leaf),Rc::new(tgt_name![$($names)+]))
+    };
     // [n][n]... (extended bin)
-    { [$(name:tt)*] $($names:tt)+ } => {
-        Name::Bin(Rc::new(tgt_name![[$(name)*]]),Rc::new(tgt_name![$($names)+]))
+    { [$(name:tt)+] $([$names:tt])+ } => {
+        Name::Bin(Rc::new(tgt_name![$($name)*]),Rc::new(tgt_name![$($names)+]))
     };
     // 1 (Number)
     { $s:expr } => { Name::Num($s) };
@@ -50,47 +58,56 @@ pub enum NameTm {
 }
 pub type NameTmRec = Rc<NameTm>;
 
-/// Constructor for Name Terms
+/// Parser for Name Terms
 ///
 /// ```text
 /// M,N ::=
-///     a               (Variable)
-///     n               (literal Name)
-///     [n],[n],...     (extended bin)
-///     #a.M            (abstraction)
-///     {M} N ...       (curried application)
+///     fromast ast_expr    (inject ast nodes)
+///     [N]                 (parens)
+///     n, n, ...           (extended bin)
+///     #a.M                (abstraction)
+///     M N ...             (curried application)
+///     a                   (Variable)
+///     n                   (literal Name)
 /// ```
+#[macro_export]
 macro_rules! tgt_nametm {
-    //     [n],[n],...     (extended bin)
-    { [[$(name:tt)*], $($names:tt)+] } => { NameTm::Bin(
-        Rc::new(tgt_nametm![[$(name)*]]),
-        Rc::new(tgt_nametm![$($names)+])
+    //     fromast ast_expr    (inject ast nodes)
+    { fromast $ast:expr } => { $ast };
+    //     [N]                 (parens)
+    { [$($nmtm:tt)+] } => { tgt_nametm![$($nmtm:tt)+] };
+    //     n, n,...            (extended bin)
+    { $nmtm:tt, $($nmtms:tt)+ } => { NameTm::Bin(
+        Rc::new(tgt_nametm![[$nmtm]]),
+        Rc::new(tgt_nametm![$($nmtms)+])
     )};
-    //     #a.M            (abstraction)
+    //     #a.M                (abstraction)
     { # $var:ident . $($body:tt)+ } => { NameTm::Lam(
         stringify![$var].to_string(),
         Rc::new(tgt_nametm![$($body)+]),
     )};
-    //     {M} N ...       (curried application)
-    { {$($nmfn:tt)+} $($pars:tt)+ } => {
-        curry_nameapp![tgt_nametm![$($nmfn:tt)+] ; $($pars)+]
+    //     M N               (single application)
+    { $nmfn:tt $par:tt } => { NameTm::App(
+        Rc::new(tgt_nametm![$($nmfn)+]),
+        Rc::new(tgt_nametm![$par]),
+    )};
+    //     M N ...           (curried application)
+    { $nmfn:tt $par:tt $($pars:tt)+ } => {
+        tgt_nametm![[fromast NameTm::App(
+            Rc::new(tgt_nametm![$nmfn]),
+            Rc::new(tgt_nametm![$par]),
+        )] $($pars)+]
     };
-    //     a               (Variable)
+    //     a                   (Variable)
     { $var:ident } => { NameTm::Var(stringify![$var].to_string()) };
-    //     n               (literal Name)
+    //     n                   (literal Name)
     { $($nm:tt)+ } => { NameTm::Name(tgt_name![$($nm)+]) };
 }
 
-macro_rules! curry_nameapp {
-    { $fun:expr ; $par:tt } => { NameTm::App(Rc::new($fun),tgt_nametm!($par)) };
-    { $fun:expr ; $par:tt $($pars:tt)+ } => { curry_app![NameTm::App(Rc::new($fun), make_val!($par)) ; $($pars)+] };
-}
-
-pub type IdxTmRec = Box<IdxTm>;
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 /// Index terms
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum IdxTm {
-    Var,
+    Var(Var),
     Sing(NameTm),
     Empty,
     Disj(IdxTmRec, IdxTmRec),
@@ -104,6 +121,131 @@ pub enum IdxTm {
     Map(NameTmRec, IdxTmRec),
     FlatMap(IdxTmRec, IdxTmRec),
     Star(IdxTmRec, IdxTmRec),
+}
+pub type IdxTmRec = Rc<IdxTm>;
+
+/// Parser for Index Terms
+///
+/// ```text
+/// i,j,X,Y ::=
+///     fromast ast (inject ast nodes)
+///     (i)         (parens)
+///     {N}         (singleton name set)
+///     0           (empty set)
+///     X % Y       (separating union)
+///     X U Y       (union)
+///     ()          (unit)
+///     (i,j)       (pairing)
+///     prj1 i      (projection)
+///     prj2 i      (projection)
+///     #a.i        (abstraction)
+///     {i} j ...   (curried application)
+///     [M] j ...   (curried mapping)
+///     (i) j ...   (curried flatmapping)
+///     (i)* j      (iterated flatmapping)
+///     a           (variable)
+/// ```
+#[macro_export]
+macro_rules! tgt_index {
+    //     fromast ast (inject ast nodes)
+    { fromast $ast:expr } => { $ast };
+    //     (i)         (parens)
+    { ($($i:tt)+) } => { tgt_index![$($i)+] };
+    //     {N}         (singleton name set)
+    { {$($nmtm:tt)+} } => { IdxTm::Sing(tgt_nametm![$($nmtm)+])};
+    //     0           (empty set)
+    { 0 } => { IdxTm::Empty };
+    //     X % Y       (separating union)
+    { $x:tt % $y:tt } => { IdxTm::Disj(
+        Rc::new(tgt_index![$x]),
+        Rc::new(tgt_index![$y]),
+    )};
+    //     X % Y ...   (separating union extended)
+    { $x:tt % $y:tt $($more:tt)+ } => {
+        tgt_index![(fromast IdxTm::Disj(
+            Rc::new(tgt_index![$x]),
+            Rc::new(tgt_index![$y]),
+        )) $($more)+]
+    };
+    //     X U Y       (union)
+    { $x:tt U $y:tt } => { IdxTm::Union(
+        Rc::new(tgt_index![$x]),
+        Rc::new(tgt_index![$y]),
+    )};
+    //     X U Y ...   (union extended)
+    { $x:tt U $y:tt $($more:tt)+ } => {
+        tgt_index![(fromast IdxTm::Union(
+            Rc::new(tgt_index![$x]),
+            Rc::new(tgt_index![$y]),
+        )) $($more)+]
+    };
+    //     ()          (unit)
+    { () } => { IdxTm::Unit };
+    //     (i,j)       (pairing)
+    { ($i:tt,$j:tt) } => { IdxTm::Pair(
+        Rc::new(tgt_index![$i]),
+        Rc::new(tgt_index![$j]),
+    )};
+    //     prj1 i      (projection)
+    { prj1 $i:tt } => {
+        IdxTm::Proj1(Rc::new(tgt_index![$i]))
+    };
+    //     prj2 i      (projection)
+    { prj2 $i:tt } => {
+        IdxTm::Proj2(Rc::new(tgt_index![$i]))
+    };
+    //     #a.i        (abstraction)
+    { # $a:ident . $($body:tt)+ } => { IdxTm::Lam(
+        stringify![$a].to_string(),
+        Rc::new(tgt_index![$($body)+]),
+    )};
+    //     {i} j       (single application)
+    { {$($i:tt)+} $par:tt } => { IdxTm::App(
+        Rc::new(tgt_index![$($i)+]),
+        Rc::new(tgt_index![$par]),
+    )};
+    //     {i} j ...   (curried application)
+    { {$($i:tt)+} $par:tt $($pars:tt)+ } => {
+        tgt_index![{fromast IdxTm::App(
+            Rc::new(tgt_index![$($i)+]),
+            Rc::new(tgt_index![$par]),
+        )} $($pars)+]
+    };
+    //     [M] j       (single mapping)
+    { {$($m:tt)+} $par:tt } => { IdxTm::Map(
+        Rc::new(tgt_nametm![$($i)+]),
+        Rc::new(tgt_index![$par]),
+    )};
+    //     [M] j ...   (curried mapping)
+    { {$($m:tt)+} $par:tt $($pars:tt)+ } => {
+        tgt_index![{fromast IdxTm::Map(
+            Rc::new(tgt_nametm![$($m)+]),
+            Rc::new(tgt_index![$par]),
+        )} $($pars)+]
+    };
+    //     (i)* j      (iterated flatmapping)
+    { ($($i:tt)+)* $($j:tt)+ } => { IdxTm::Star(
+        Rc::new(tgt_index![$($i)+]),
+        Rc::new(tgt_index![$($j)+]),
+    )};
+    //     (i) j ...   (curried flatmapping)
+    { ($($i:tt)+) $($pars:tt)+ } => { IdxTm::FlatMap(
+        curry_idxfmap![tgt_index![$($i)+] ; $($pars)+]
+    )};
+    //     (i) j       (single flatmapping)
+    { {$($i:tt)+} $par:tt } => { IdxTm::FlatMap(
+        Rc::new(tgt_index![$($i)+]),
+        Rc::new(tgt_index![$par]),
+    )};
+    //     (i) j ...   (curried flatmapping)
+    { {$($i:tt)+} $par:tt $($pars:tt)+ } => {
+        tgt_index![{fromast IdxTm::FlatMap(
+            Rc::new(tgt_index![$($i)+]),
+            Rc::new(tgt_index![$par]),
+        )} $($pars)+]
+    };
+    //     a           (variable)
+    { $var:ident } => { IdxTm::Var(stringify![$var].to_string()) };
 }
 
 pub type SortRec = Rc<Sort>;
