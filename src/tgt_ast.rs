@@ -218,10 +218,10 @@ macro_rules! tgt_index {
     )};
     //     [M] j ...   (curried mapping)
     { {$($m:tt)+} $par:tt $($pars:tt)+ } => {
-        tgt_index![{fromast IdxTm::Map(
+        tgt_index![[fromast IdxTm::Map(
             Rc::new(tgt_nametm![$($m)+]),
             Rc::new(tgt_index![$par]),
-        )} $($pars)+]
+        )] $($pars)+]
     };
     //     (i)* j      (iterated flatmapping)
     { ($($i:tt)+)* $($j:tt)+ } => { IdxTm::Star(
@@ -233,16 +233,16 @@ macro_rules! tgt_index {
         curry_idxfmap![tgt_index![$($i)+] ; $($pars)+]
     )};
     //     (i) j       (single flatmapping)
-    { {$($i:tt)+} $par:tt } => { IdxTm::FlatMap(
+    { ($($i:tt)+) $par:tt } => { IdxTm::FlatMap(
         Rc::new(tgt_index![$($i)+]),
         Rc::new(tgt_index![$par]),
     )};
     //     (i) j ...   (curried flatmapping)
-    { {$($i:tt)+} $par:tt $($pars:tt)+ } => {
-        tgt_index![{fromast IdxTm::FlatMap(
+    { ($($i:tt)+) $par:tt $($pars:tt)+ } => {
+        tgt_index![(fromast IdxTm::FlatMap(
             Rc::new(tgt_index![$($i)+]),
             Rc::new(tgt_index![$par]),
-        )} $($pars)+]
+        )) $($pars)+]
     };
     //     a           (variable)
     { $var:ident } => { IdxTm::Var(stringify![$var].to_string()) };
