@@ -248,9 +248,8 @@ macro_rules! tgt_index {
     { $var:ident } => { IdxTm::Var(stringify![$var].to_string()) };
 }
 
-pub type SortRec = Rc<Sort>;
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 /// Sorts (classify name and index terms)
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Sort {
     Nm,
     NmSet,
@@ -258,6 +257,66 @@ pub enum Sort {
     IdxArrow(SortRec,SortRec),
     Unit,
     Prod(SortRec,SortRec),
+}
+pub type SortRec = Rc<Sort>;
+
+/// Parser for Sorts
+///
+/// ```text
+/// g ::=
+///     Nm                  name
+///     NmSet               name set
+///     1                   unit index
+///     (g1 x g2 x ...)     extended product index
+///     [g1 -> g2 -> ...]   extended name term functions
+///     {g1 -> g2 -> ...}   extended index functions
+#[macro_export]
+macro_rules! tgt_sort {
+    //     Nm                  name
+    { Nm } => { Sort::Nm };
+    //     NmSet               name set
+    { NmSet } => { Sort::NmSet };
+    //     1                   unit index
+    { 1 } => { Sort::Unit };
+    //     (g1 x g2 x ...)     extended product index
+    { ($($sorts:tt)+) } => { split_cross![parse_prod_index <= $($sorts)+] };
+    //     [g1 -> g2 -> ...]   extended name term functions
+    { [$($sorts:tt)+] } => { split_cross![parse_nmtm_fun <= $($sorts)+] };
+    //     {g1 -> g2 -> ...}   extended index functions
+    { {$($sorts:tt)+} } => { split_cross![parse_index_fun <= $($sorts)+] };
+}
+/// helper for tgt_sort!, not intended for external use
+#[macro_export]
+macro_rules! parse_prod_index {
+    // g (may be singleton product, leave for type-checker)
+    { ($($sort:tt)+) } => { tgt_sort![$($sort)+] };
+    // g x ...
+    { ($($sort:tt)+) $($more:tt)+ } => { Sort::Prod(
+        Rc::new(tgt_sort![$($sort)+]),
+        Rc::new(parse_prod_index![$($more)+]),
+    )};
+}
+/// helper for tgt_sort!, not intended for external use
+#[macro_export]
+macro_rules! parse_nmtm_fun {
+    // g (may be no arrow, leave for type-checker)
+    { ($($sort:tt)+) } => { tgt_sort![$($sort)+] };
+    // g x ...
+    { ($($sort:tt)+) $($more:tt)+ } => { Sort::NmArrow(
+        Rc::new(tgt_sort![$($sort)+]),
+        Rc::new(parse_nmtm_fun![$($more)+]),
+    )};
+}
+/// helper for tgt_sort!, not intended for external use
+#[macro_export]
+macro_rules! parse_index_fun {
+    // g (may be no arrow, leave for type-checker)
+    { ($($sort:tt)+) } => { tgt_sort![$($sort)+] };
+    // g x ...
+    { ($($sort:tt)+) $($more:tt)+ } => { Sort::IdxArrow(
+        Rc::new(tgt_sort![$($sort)+]),
+        Rc::new(parse_index_fun![$($more)+]),
+    )};
 }
 
 pub type KindRec = Rc<Kind>;
@@ -521,3 +580,117 @@ pub mod typing {
 }
 
 **************/
+
+
+////////////////////////
+// Macro parsing helpers
+////////////////////////
+
+#[macro_export]
+/// run a macro on a list of lists after splitting the input
+macro_rules! split_cross {
+    // no defaults
+    {$fun:ident <= $($item:tt)*} => {
+        split_cross![$fun () () () <= $($item)*]
+    };
+    // give initial params to the function
+    {$fun:ident ($($first:tt)*) <= $($item:tt)*} => {
+        split_cross![$fun ($($first)*) () () <= $($item)*]
+    };
+    // give inital params and initial inner items in every group
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) <= $($item:tt)*} => {
+        split_cross![$fun ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
+    };
+    // on non-final seperator, stash the accumulator and restart it
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= x $($item:tt)+} => {
+        split_cross![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*]
+    };
+    // ignore final seperator, run the function
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= x } => {
+        $fun![$($first)* ($($current)*)]
+    };
+    // on next item, add it to the accumulator
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= $next:tt $($item:tt)*} => {
+        split_cross![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*]
+    };
+    // at end of items, run the function
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= } => {
+        $fun![$($first)* ($($current)*)]
+    };
+    // if there were no items and no default, run with only initial params, if any
+    {$fun:ident ($($first:tt)*) () () <= } => {
+        $fun![$($first)*]
+    };
+}
+#[macro_export]
+/// run a macro on a list of lists after splitting the input
+macro_rules! split_plus {
+    // no defaults
+    {$fun:ident <= $($item:tt)*} => {
+        split_plus![$fun () () () <= $($item)*]
+    };
+    // give initial params to the function
+    {$fun:ident ($($first:tt)*) <= $($item:tt)*} => {
+        split_plus![$fun ($($first)*) () () <= $($item)*]
+    };
+    // give inital params and initial inner items in every group
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) <= $($item:tt)*} => {
+        split_plus![$fun ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
+    };
+    // on non-final seperator, stash the accumulator and restart it
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= + $($item:tt)+} => {
+        split_plus![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*]
+    };
+    // ignore final seperator, run the function
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= + } => {
+        $fun![$($first)* ($($current)*)]
+    };
+    // on next item, add it to the accumulator
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= $next:tt $($item:tt)*} => {
+        split_plus![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*]
+    };
+    // at end of items, run the function
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= } => {
+        $fun![$($first)* ($($current)*)]
+    };
+    // if there were no items and no default, run with only initial params, if any
+    {$fun:ident ($($first:tt)*) () () <= } => {
+        $fun![$($first)*]
+    };
+}
+#[macro_export]
+/// run a macro on a list of lists after splitting the input
+macro_rules! split_arrow {
+    // no defaults
+    {$fun:ident <= $($item:tt)*} => {
+        split_arrow![$fun () () () <= $($item)*]
+    };
+    // give initial params to the function
+    {$fun:ident ($($first:tt)*) <= $($item:tt)*} => {
+        split_arrow![$fun ($($first)*) () () <= $($item)*]
+    };
+    // give inital params and initial inner items in every group
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) <= $($item:tt)*} => {
+        split_arrow![$fun ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
+    };
+    // on non-final seperator, stash the accumulator and restart it
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= -> $($item:tt)+} => {
+        split_arrow![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*]
+    };
+    // // ignore final seperator, run the function
+    // {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= -> } => {
+    //     $fun![$($first)* ($($current)*)]
+    // };
+    // on next item, add it to the accumulator
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= $next:tt $($item:tt)*} => {
+        split_arrow![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*]
+    };
+    // at end of items, run the function
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= } => {
+        $fun![$($first)* ($($current)*)]
+    };
+    // if there were no items and no default, run with only initial params, if any
+    {$fun:ident ($($first:tt)*) () () <= } => {
+        $fun![$($first)*]
+    };
+}
