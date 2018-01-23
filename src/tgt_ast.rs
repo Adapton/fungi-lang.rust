@@ -264,68 +264,95 @@ pub type SortRec = Rc<Sort>;
 ///
 /// ```text
 /// g ::=
-///     Nm                  name
-///     NmSet               name set
-///     1                   unit index
-///     (g1 x g2 x ...)     extended product index
-///     [g1 -> g2 -> ...]   extended name term functions
-///     {g1 -> g2 -> ...}   extended index functions
+///     fromast ast         (inject ast nodes)
+///     Nm                  (name)
+///     NmSet               (name set)
+///     1                   (unit index)
+///     (g1 x g2 x ...)     (extended product index)
+///     [g1 -> g2 -> ...]   (extended name term functions)
+///     {g1 -> g2 -> ...}   (extended index functions)
+///     (g)                 (parens)
+/// ```
 #[macro_export]
 macro_rules! tgt_sort {
+    //     fromast ast (inject ast nodes)
+    { fromast $ast:expr } => { $ast };
     //     Nm                  name
     { Nm } => { Sort::Nm };
     //     NmSet               name set
     { NmSet } => { Sort::NmSet };
     //     1                   unit index
     { 1 } => { Sort::Unit };
+    //     (g1 x g2)           single product index
+    { ($g1:tt x $g2:tt) } => { Sort::Prod(
+        Rc::new(tgt_sort![$g1]),
+        Rc::new(tgt_sort![$g2]),
+    )};
     //     (g1 x g2 x ...)     extended product index
-    { ($($sorts:tt)+) } => { split_cross![parse_prod_index <= $($sorts)+] };
-    //     [g1 -> g2 -> ...]   extended name term functions
-    { [$($sorts:tt)+] } => { split_cross![parse_nmtm_fun <= $($sorts)+] };
-    //     {g1 -> g2 -> ...}   extended index functions
-    { {$($sorts:tt)+} } => { split_cross![parse_index_fun <= $($sorts)+] };
-}
-/// helper for tgt_sort!, not intended for external use
-#[macro_export]
-macro_rules! parse_prod_index {
-    // g (may be singleton product, leave for type-checker)
-    { ($($sort:tt)+) } => { tgt_sort![$($sort)+] };
-    // g x ...
-    { ($($sort:tt)+) $($more:tt)+ } => { Sort::Prod(
-        Rc::new(tgt_sort![$($sort)+]),
-        Rc::new(parse_prod_index![$($more)+]),
+    { ($g1:tt x g2:tt x $($more:tt)+) } => { Sort::Prod(
+        Rc::new(tgt_sort![$g1]),
+        Rc::new(tgt_sort![($g2 x $($more)+)]),
     )};
-}
-/// helper for tgt_sort!, not intended for external use
-#[macro_export]
-macro_rules! parse_nmtm_fun {
-    // g (may be no arrow, leave for type-checker)
-    { ($($sort:tt)+) } => { tgt_sort![$($sort)+] };
-    // g x ...
-    { ($($sort:tt)+) $($more:tt)+ } => { Sort::NmArrow(
-        Rc::new(tgt_sort![$($sort)+]),
-        Rc::new(parse_nmtm_fun![$($more)+]),
+    //     (g1 -> g2)          single name term functions
+    { ($g1:tt -> $g2:tt) } => { Sort::NmArrow(
+        Rc::new(tgt_sort![$g1]),
+        Rc::new(tgt_sort![$g2]),
     )};
-}
-/// helper for tgt_sort!, not intended for external use
-#[macro_export]
-macro_rules! parse_index_fun {
-    // g (may be no arrow, leave for type-checker)
-    { ($($sort:tt)+) } => { tgt_sort![$($sort)+] };
-    // g x ...
-    { ($($sort:tt)+) $($more:tt)+ } => { Sort::IdxArrow(
-        Rc::new(tgt_sort![$($sort)+]),
-        Rc::new(parse_index_fun![$($more)+]),
+    //     [g1 -> g2 -> ...]     extended name term functions
+    { ($g1:tt x g2:tt x $($more:tt)+) } => { Sort::NmArrow(
+        Rc::new(tgt_sort![$g1]),
+        Rc::new(tgt_sort![[$g2 x $($more)+]]),
     )};
+    //     {g1 -> g2}            single index functions
+    { ($g1:tt -> $g2:tt) } => { Sort::IdxArrow(
+        Rc::new(tgt_sort![$g1]),
+        Rc::new(tgt_sort![$g2]),
+    )};
+    //     {g1 -> g2 -> ...}     extended index functions
+    { ($g1:tt x g2:tt x $($more:tt)+) } => { Sort::IdxArrow(
+        Rc::new(tgt_sort![$g1]),
+        Rc::new(tgt_sort![{$g2 x $($more)+}]),
+    )};
+    //     (g)                 (parens)
+    { ($($sort:tt)+) } => { tgt_sort![$($sort:tt)+] }
 }
 
-pub type KindRec = Rc<Kind>;
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 /// Kinds (classify types)
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Kind {
     Type,
     TypeParam(KindRec),
     IdxParam(Sort, KindRec)
+}
+pub type KindRec = Rc<Kind>;
+
+/// Parser for Kinds
+///
+/// ```text
+/// K ::=
+///     fromast ast (inject ast nodes)
+///     (K)         (parens)
+///     type        (kind of value types)
+///     type => K   (type argument)
+///     g => K      (index argument)
+/// ```
+#[macro_export]
+macro_rules! tgt_kind {
+    //     fromast ast (inject ast nodes)
+    { fromast $ast:expr } => { $ast };
+    //     (K)         (parens)
+    { ($($kind:tt)+) } => { tgt_kind![$($kind)+] };
+    //     type        (kind of value types)
+    { type } => { Kind::Type };
+    //     type => K   (type argument)
+    { type => $($kinds:tt)+ } => { Kind::TypeParam(
+        Rc::new(tgt_kind![$($kinds)+])
+    )};
+    //     g => K      (index argument)
+    { $g:tt => $($kinds:tt)+ } => { Kind::IdxParam(
+        tgt_sort![$g],
+        Rc::new(tgt_kind![$($kinds)+]),
+    )};
 }
 
 pub type PropRec = Rc<Prop>;
