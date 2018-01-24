@@ -508,6 +508,7 @@ pub type TypeRec = Rc<Type>;
 ///     (Nm->Nm)[M]     (name function type)
 ///     #a.A            (recursive type)
 ///     a               (type var)
+/// ```
 #[macro_export]
 macro_rules! tgt_vtype {
     //     fromast ast     (inject ast nodes)
@@ -584,21 +585,87 @@ macro_rules! parse_prod {
         Rc::new(parse_prod![$($more)+]),
     )};
 }
-    
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+
 /// Computation types
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum CType {
     Lift(Type),
     Arrow(Type,CEffectRec)
 }
 
-pub type CEffectRec = Rc<CEffect>;
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+/// Parser for computation types
+///
+/// ```text
+/// C,D ::=
+///     fromast ast     (inject ast nodes)
+///     F A             (lifted types)
+///     A -> E          (functions with effects)
+/// ```
+#[macro_export]
+macro_rules! tgt_ctype {
+    //     fromast ast     (inject ast nodes)
+    { fromast $ast:expr } => { $ast };
+    //     F A             (lifted types)
+    { F $($a:tt)+ } => { CType::Lift(tgt_vtype![$($a)+]) };
+    //     A -> E   (extended functions with effects)
+    { $($arrow:tt)+ } => { split_arrow![parse_arrow <= $($arrow)+] };
+}
+/// this macro is a helper for tgt_ctype, not for external use
+#[macro_export]
+macro_rules! parse_arrow {
+    // A -> E
+    { ($($a:tt)+)($($e:tt)+) } => { CType::Arrow(
+        Rc::new(tgt_vtype![$($a)+]),
+        Rc::new(tgt_ceffect![$($e)+]),
+    )};
+}
+
 /// Computation effects
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum CEffect {
     Cons(CType,Effect),
     ForallType(Var,Kind,CEffectRec),
     ForallIdx(Var,Sort,Prop,CEffectRec)
+}
+pub type CEffectRec = Rc<CEffect>;
+
+/// Parser for Computations with effects
+///
+/// ```text
+/// E ::=
+///     fromast ast (inject ast nodes)
+///     #a:K.E      (type polymorphism)
+///     #a:g|P.E    (index polymorphism)
+///     C |> ε      (computation with effect)
+/// ```
+#[macro_export]
+macro_rules! tgt_ceffect {
+    //     fromast ast (inject ast nodes)
+    { fromast $ast:expr } => { $ast };
+    //     #a:K.E      (type polymorphism)
+    { #$a:ident:$k:tt.$($e:tt)+ } => { CEffect::ForallType(
+        stringify![$a].to_string(),
+        tgt_kind![$k],
+        Rc::new(tgt_ceffect![$($e)+]),
+    )};
+    //     #a:g|P.E    (index polymorphism)
+    { #$a:ident:$g:tt|$p:tt.$($e:tt)+ } => { CEffect::ForallIdx(
+        stringify![$a].to_string(),
+        tgt_sort![$g],
+        tgt_prop![$p],
+        Rc::new(tgt_ceffect![$($e)+]),
+    )};
+    //     C |> ε      (computation with effect)
+    { $($tri:tt)+ } => { split_tri![parse_tri <= $($tri)+] };
+}
+/// this macro is a helper for tgt_ceffect, not for external use
+#[macro_export]
+macro_rules! parse_tri {
+    // C |> ε
+    { ($($c:tt)+)($($e:tt)+) } => { CEffect::Cons(
+        tgt_ctype![$($c)+],
+        tgt_effect![$($e)+],
+    )};
 }
 
 pub type ValRec = Rc<Val>;
@@ -925,6 +992,42 @@ macro_rules! split_semi {
     };
     // ignore final seperator, run the function
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= ; } => {
+        $fun![$($first)* ($($current)*)]
+    };
+    // on next item, add it to the accumulator
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= $next:tt $($item:tt)*} => {
+        split_arrow![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*]
+    };
+    // at end of items, run the function
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= } => {
+        $fun![$($first)* ($($current)*)]
+    };
+    // if there were no items and no default, run with only initial params, if any
+    {$fun:ident ($($first:tt)*) () () <= } => {
+        $fun![$($first)*]
+    };
+}
+#[macro_export]
+/// run a macro on a list of lists after splitting the input
+macro_rules! split_tri {
+    // no defaults
+    {$fun:ident <= $($item:tt)*} => {
+        split_arrow![$fun () () () <= $($item)*]
+    };
+    // give initial params to the function
+    {$fun:ident ($($first:tt)*) <= $($item:tt)*} => {
+        split_arrow![$fun ($($first)*) () () <= $($item)*]
+    };
+    // give inital params and initial inner items in every group
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) <= $($item:tt)*} => {
+        split_arrow![$fun ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
+    };
+    // on non-final seperator, stash the accumulator and restart it
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= |> $($item:tt)+} => {
+        split_arrow![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*]
+    };
+    // ignore final seperator, run the function
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= |> } => {
         $fun![$($first)* ($($current)*)]
     };
     // on next item, add it to the accumulator
