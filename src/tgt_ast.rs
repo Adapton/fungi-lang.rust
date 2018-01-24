@@ -408,20 +408,65 @@ macro_rules! tgt_prop {
     )};
 }
 
-pub type EffectRec = Rc<Effect>;
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 /// Effects
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Effect {
     WR(IdxTm, IdxTm),
     Then(EffectRec, EffectRec),
 }
+pub type EffectRec = Rc<Effect>;
 
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+/// Parser for Effects
+///
+/// ```text
+/// ε ::=
+///     fromast ast        (inject ast nodes)
+///     (ε)                (parens)
+///     {X;Y}              (<Write; Read> effects)
+///     ε1 then ε2 ...     (extended effect sequencing)
+/// ```
+#[macro_export]
+macro_rules! tgt_effect {
+    //     fromast ast        (inject ast nodes)
+    { fromast $ast:expr } => { $ast };
+    //     (ε)                (parens)
+    { ($($e:tt)+) } => { tgt_effect![$(e)+] };
+    //     {X;Y}              (<Write; Read> effects)
+    { {$($wr:tt)+} } => { split_semi![parse_eff <= $($wr)+]};
+    //     ε1 then ε2         (sinlge effect sequencing)
+    { $e1:tt then $e2:tt } => { Effect::Then(
+        Rc::new(tgt_effect![$e1]),
+        Rc::new(tgt_effect![$e2]),
+    )};
+    //     ε1 then ε2 ...     (extended effect sequencing)
+    { $e1:tt then $e2:tt $($more:tt)+ } => {
+        tgt_effect![(fromast Effect::Then(
+            Rc::new(tgt_effect![$e1]),
+            Rc::new(tgt_effect![$e2]),
+        )) $($more)+]
+    };
+}
+/// this macro is a helper for tgt_effect, not for external use
+#[macro_export]
+macro_rules! parse_eff {
+    { ($($w:tt)+)($($r:tt)+) } => { Effect::WR(
+        tgt_index![$($w)+],
+        tgt_index![$($r)+],
+    )};
+}
+
 /// Type constructors
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum TypeCons {
     D,
     Seq,
     Nat
+}
+/// Parser for TypeConstructors
+macro_rules! tgt_tcons {
+    { D } => { TypeCons::D };
+    { Seq } => { TypeCons::Seq };
+    { Nat } => { TypeCons::Nat };
 }
 
 pub type TypeRec = Rc<Type>;
@@ -749,6 +794,42 @@ macro_rules! split_arrow {
     // {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= -> } => {
     //     $fun![$($first)* ($($current)*)]
     // };
+    // on next item, add it to the accumulator
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= $next:tt $($item:tt)*} => {
+        split_arrow![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*]
+    };
+    // at end of items, run the function
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= } => {
+        $fun![$($first)* ($($current)*)]
+    };
+    // if there were no items and no default, run with only initial params, if any
+    {$fun:ident ($($first:tt)*) () () <= } => {
+        $fun![$($first)*]
+    };
+}
+#[macro_export]
+/// run a macro on a list of lists after splitting the input
+macro_rules! split_semi {
+    // no defaults
+    {$fun:ident <= $($item:tt)*} => {
+        split_arrow![$fun () () () <= $($item)*]
+    };
+    // give initial params to the function
+    {$fun:ident ($($first:tt)*) <= $($item:tt)*} => {
+        split_arrow![$fun ($($first)*) () () <= $($item)*]
+    };
+    // give inital params and initial inner items in every group
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) <= $($item:tt)*} => {
+        split_arrow![$fun ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
+    };
+    // on non-final seperator, stash the accumulator and restart it
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= ; $($item:tt)+} => {
+        split_arrow![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*]
+    };
+    // ignore final seperator, run the function
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= ; } => {
+        $fun![$($first)* ($($current)*)]
+    };
     // on next item, add it to the accumulator
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= $next:tt $($item:tt)*} => {
         split_arrow![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*]
