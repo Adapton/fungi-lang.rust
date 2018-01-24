@@ -460,20 +460,21 @@ macro_rules! parse_eff {
 pub enum TypeCons {
     D,
     Seq,
-    Nat
+    Nat,
+    //User(String),
 }
 /// Parser for TypeConstructors
+#[macro_export]
 macro_rules! tgt_tcons {
     { D } => { TypeCons::D };
     { Seq } => { TypeCons::Seq };
     { Nat } => { TypeCons::Nat };
+    //{ $s:ident } => { TypeCons::User(stringify![$s].to_string()) };
 }
 
-pub type TypeRec = Rc<Type>;
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 /// Value types
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Type {
-    TVar(Var),
     Var(Var),
     Cons(TypeCons),
     Sum(TypeRec, TypeRec),
@@ -487,7 +488,103 @@ pub enum Type {
     NmFn(NameTm),
     Rec(Var, TypeRec)
 }
+pub type TypeRec = Rc<Type>;
 
+/// Parser for value types
+/// 
+/// ```text
+/// A,B ::=
+///     fromast ast     (inject ast nodes)
+///     (A)             (parens)
+///     D,Seq,Nat       (type constructors)
+///     Unit            (unit)
+///     + A + B ...     (extended sums)
+///     x A x B ...     (extended product)
+///     Ref[i] A        (named ref cell)
+///     Thk[i] E        (named thunk with effects)
+///     A[i]            (application of type to index)
+///     A B             (applicatio of type constructor to type)
+///     Nm[i]           (name type)
+///     (Nm->Nm)[M]     (name function type)
+///     #a.A            (recursive type)
+///     a               (type var)
+#[macro_export]
+macro_rules! tgt_vtype {
+    //     fromast ast     (inject ast nodes)
+    { fromast $ast:expr } => { $ast };
+    //     (A)             (parens)
+    { ($($type:tt)+) } => { tgt_vtype![$($type:tt)+] };
+    //     D,Seq,Nat       (type constructors)
+    { D } => { Type::Cons(TypeCons::D) };
+    { Seq } => { Type::Cons(TypeCons::Seq) };
+    { Nat } => { Type::Cons(TypeCons::Nat) };
+    //     Unit            (unit)
+    { Unit } => { Type::Unit };
+    //     + A + B ...     (extended sums)
+    { + $($sum:tt)+ } => { split_plus![parse_sum <= $($sum)+] };
+    //     x A x B ...     (extended product)
+    { x $($prod:tt)+ } => { split_cross![parse_prod <= $($prod)+] };
+    //     Ref[i] A        (named ref cell)
+    { Ref[$($i:tt)+] $($t:tt)+ } => { Type::Ref(
+        tgt_index![$($i)+],
+        Rc::new(tgt_vtype![$($t)+]),
+    )};
+    //     Thk[i] E        (named thunk with effects)
+    { Thk[$($i:tt)+] $($e:tt)+ } => { Type::Ref(
+        tgt_index![$($i)+],
+        Rc::new(tgt_ceffect![$($e)+]),
+    )};
+    //     A[i]            (application of type to index)
+    { $a:tt [$($i:tt)+] } => { Type::IdxApp(
+        tgt_vtype![$a],
+        Rc::new(tgt_index![$i]),
+    )};
+    //     A B             (application of type constructor to type)
+    { $a:tt $b:tt } => { Type::TypeApp(
+        tgt_tcons![$a],
+        Rc::new(tgt_vtype![$b]),
+    )};
+    //     Nm[i]           (name type)
+    { Nm[$($i:tt)+] } => { Type::Nm(tgt_index![$($i)+]) };
+    //     (Nm->Nm)[M]     (name function type)
+    { (Nm->Nm)[$($m:tt)+] } => { Type::NmFn(tgt_nametm![$($m)+]) };
+    //     #a.A            (recursive type)
+    { #$a:ident.$($body:tt)+ } => { Type::Rec(
+        stringify![$a].to_string(),
+        Rc::new(tgt_vtype![$body]),
+    )};
+    //     a               (type var)
+    { $a:ident } => { Type::Var(stringify![$a].to_string()) };
+}
+/// this macro is a helper for tgt_vtype, not for external use
+#[macro_export]
+macro_rules! parse_sum {
+    // A + B
+    { ($($a:tt)+)($($b:tt)+) } => { Type::Sum(
+        Rc::new(tgt_vtype![$($a)+]),
+        Rc::new(tgt_vtype![$($b)+]),
+    )};
+    // A + ...
+    { ($($a:tt)+)$($more:tt)+ } => { Type::Sum(
+        Rc::new(tgt_vtype![$($a)+]),
+        Rc::new(parse_sum![$($more)+]),
+    )};
+}
+/// this macro is a helper for tgt_vtype, not for external use
+#[macro_export]
+macro_rules! parse_prod {
+    // A x B
+    { ($($a:tt)+)($($b:tt)+) } => { Type::Prod(
+        Rc::new(tgt_vtype![$($a)+]),
+        Rc::new(tgt_vtype![$($b)+]),
+    )};
+    // A x ...
+    { ($($a:tt)+)$($more:tt)+ } => { Type::Prod(
+        Rc::new(tgt_vtype![$($a)+]),
+        Rc::new(parse_prod![$($more)+]),
+    )};
+}
+    
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 /// Computation types
 pub enum CType {
