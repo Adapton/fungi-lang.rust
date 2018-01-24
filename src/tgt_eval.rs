@@ -177,10 +177,6 @@ pub fn close_val(env:&Env, v:&Val) -> RtVal {
         Nat(ref n)   => RtVal::Nat(n.clone()),
         Str(ref s)   => RtVal::Str(s.clone()),
 
-        // These shouldn't happen; they are really run-time values!
-        Ref(ref _p)   => unreachable!(),
-        Thunk(ref _p) => unreachable!(),
-
         // inductive cases
         Inj1(ref v1) => RtVal::Inj1(close_val_rec(env, v1)),
         Inj2(ref v1) => RtVal::Inj2(close_val_rec(env, v1)),

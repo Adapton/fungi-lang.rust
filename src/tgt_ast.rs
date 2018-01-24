@@ -2,7 +2,6 @@
 
 use std::rc::Rc;
 
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub type Var = String;
 
 /// Name Literals
@@ -376,11 +375,11 @@ pub type PropRec = Rc<Prop>;
 ///     i = j : g       (index equivalence)
 /// ```
 #[macro_export]
-macro_rules! tgt_prop! {
+macro_rules! tgt_prop {
     //     fromast ast     (inject ast nodes)
     { fromast $ast:expr } => { $ast };
     //     (P)             (parens)
-    { ($($prop)+) } => { tgt_prop![$($prop)+] };
+    { ($($prop:tt)+) } => { tgt_prop![$($prop)+] };
     //     tt              (truth)
     { tt } => { Prop::Tt };
     //     P and P and ... (extended conjunction)
@@ -396,17 +395,17 @@ macro_rules! tgt_prop! {
         Rc::new(tgt_prop![$($p2)+]),
     )};
     //     i % j : g       (index apartness)
-    { $i:tt % $j:tt : $($g)+ } => { Prop::Disj(
+    { $i:tt % $j:tt : $($g:tt)+ } => { Prop::Disj(
         tgt_index![$i],
         tgt_index![$j],
         tgt_sort![$g],
-    )}
+    )};
     //     i = j : g       (index equivalence)
-    { $i:tt = $j:tt : $($g)+ } => { Prop::Equiv(
+    { $i:tt = $j:tt : $($g:tt)+ } => { Prop::Equiv(
         tgt_index![$i],
         tgt_index![$j],
         tgt_sort![$g],
-    )}
+    )};
 }
 
 pub type EffectRec = Rc<Effect>;
