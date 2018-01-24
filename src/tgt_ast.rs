@@ -3,7 +3,6 @@
 use std::rc::Rc;
 
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
-pub struct Pointer(pub Name);
 pub type Var = String;
 
 /// Name Literals
@@ -355,14 +354,59 @@ macro_rules! tgt_kind {
     )};
 }
 
-pub type PropRec = Rc<Prop>;
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 /// Propositions about name and index terms
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Prop {
     Tt,
     Equiv(IdxTm, IdxTm, Sort),
     Disj(IdxTm, IdxTm, Sort),
     Conj(PropRec, PropRec),
+}
+pub type PropRec = Rc<Prop>;
+
+/// Parser for Propositions
+///
+/// ```text
+/// P ::=
+///     fromast ast     (inject ast nodes)
+///     (P)             (parens)
+///     tt              (truth)
+///     P and P and ... (extended conjunction)
+///     i % j : g       (index apartness)
+///     i = j : g       (index equivalence)
+/// ```
+#[macro_export]
+macro_rules! tgt_prop! {
+    //     fromast ast     (inject ast nodes)
+    { fromast $ast:expr } => { $ast };
+    //     (P)             (parens)
+    { ($($prop)+) } => { tgt_prop![$($prop)+] };
+    //     tt              (truth)
+    { tt } => { Prop::Tt };
+    //     P and P and ... (extended conjunction)
+    { $p1:tt and $p2:tt and $($more:tt)+ } => {
+        tgt_prop![(fromast Prop::Conj(
+            Rc::new(tgt_prop![$p1]),
+            Rc::new(tgt_prop![$p2]),
+        )) and $($more)+ ]
+    };
+    //     P and P         (single conjunction)
+    { $p1:tt and $($p2:tt)+ } => { Prop::Conj(
+        Rc::new(tgt_prop![$p1]),
+        Rc::new(tgt_prop![$($p2)+]),
+    )};
+    //     i % j : g       (index apartness)
+    { $i:tt % $j:tt : $($g)+ } => { Prop::Disj(
+        tgt_index![$i],
+        tgt_index![$j],
+        tgt_sort![$g],
+    )}
+    //     i = j : g       (index equivalence)
+    { $i:tt = $j:tt : $($g)+ } => { Prop::Equiv(
+        tgt_index![$i],
+        tgt_index![$j],
+        tgt_sort![$g],
+    )}
 }
 
 pub type EffectRec = Rc<Effect>;
@@ -427,8 +471,6 @@ pub enum Val {
     Inj2(ValRec),
     Name(Name),
     NameFn(NameTm),
-    Ref(Pointer),
-    Thunk(Pointer),
     Anno(ValRec,Type),
     Nat(usize),
     Str(String),
