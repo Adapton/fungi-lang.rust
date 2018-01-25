@@ -11,8 +11,6 @@ pub enum TCtxt {
     IVar(TCtxtRec,Var,Sort),
     TVar(TCtxtRec,Var,Kind),
     TCons(TCtxtRec,TypeCons,Kind),
-    Ref(TCtxtRec,Pointer,Type),
-    Thunk(TCtxtRec,Pointer,CType),
     Equiv(TCtxtRec,IdxTm,IdxTm,Sort),
     Apart(TCtxtRec,IdxTm,IdxTm,Sort),
     PropTrue(TCtxtRec,Prop),
@@ -33,14 +31,6 @@ impl TCtxt {
     /// bind a type constructor and kind
     pub fn tcons(&self,d:TypeCons,k:Kind) -> TCtxt {
         TCtxt::TCons(Rc::new(self.clone()),d,k)
-    }
-    /// bind a pointer and value type
-    pub fn refr(&self,p:Pointer,t:Type) -> TCtxt {
-        TCtxt::Ref(Rc::new(self.clone()),p,t)
-    }
-    /// bind a pointer and computation type
-    pub fn thk(&self,p:Pointer,ct:CType) -> TCtxt {
-        TCtxt::Thunk(Rc::new(self.clone()),p,ct)
     }
     /// bind an index equivalence
     pub fn equiv(&self,i1:IdxTm,i2:IdxTm,s:Sort) -> TCtxt {
@@ -63,11 +53,9 @@ impl TCtxt {
             TCtxt::Var(ref c,ref v,ref t) => {
                 if x == v { Some(t.clone()) } else { c.lookup_var(x) }
             },
-            TCtxt::Ref(ref c,_,_)
-            | TCtxt::IVar(ref c,_,_)
+            TCtxt::IVar(ref c,_,_)
             | TCtxt::TVar(ref c,_,_)
             | TCtxt::TCons(ref c,_,_)
-            | TCtxt::Thunk(ref c,_,_)
             | TCtxt::Equiv(ref c,_,_,_)
             | TCtxt::Apart(ref c,_,_,_)
             | TCtxt::PropTrue(ref c,_) => { c.lookup_var(x) },
@@ -79,11 +67,9 @@ impl TCtxt {
             TCtxt::IVar(ref c,ref v,ref s) => {
                 if x == v { Some(s.clone()) } else { c.lookup_ivar(x) }
             },
-            TCtxt::Ref(ref c,_,_)
-            | TCtxt::Var(ref c,_,_)
+            TCtxt::Var(ref c,_,_)
             | TCtxt::TVar(ref c,_,_)
             | TCtxt::TCons(ref c,_,_)
-            | TCtxt::Thunk(ref c,_,_)
             | TCtxt::Equiv(ref c,_,_,_)
             | TCtxt::Apart(ref c,_,_,_)
             | TCtxt::PropTrue(ref c,_) => { c.lookup_ivar(x) },
@@ -95,11 +81,9 @@ impl TCtxt {
             TCtxt::TVar(ref c,ref v,ref k) => {
                 if x == v { Some(k.clone()) } else { c.lookup_tvar(x) }
             },
-            TCtxt::Ref(ref c,_,_)
-            | TCtxt::Var(ref c,_,_)
+            TCtxt::Var(ref c,_,_)
             | TCtxt::IVar(ref c,_,_)
             | TCtxt::TCons(ref c,_,_)
-            | TCtxt::Thunk(ref c,_,_)
             | TCtxt::Equiv(ref c,_,_,_)
             | TCtxt::Apart(ref c,_,_,_)
             | TCtxt::PropTrue(ref c,_) => { c.lookup_tvar(x) },
@@ -111,46 +95,12 @@ impl TCtxt {
             TCtxt::Var(ref c,ref v,ref k) => {
                 if x == v { Some(k.clone()) } else { c.lookup_tcons(x) }
             },
-            TCtxt::Ref(ref c,_,_)
-            | TCtxt::Var(ref c,_,_)
+            TCtxt::Var(ref c,_,_)
             | TCtxt::IVar(ref c,_,_)
             | TCtxt::TVar(ref c,_,_)
-            | TCtxt::Thunk(ref c,_,_)
             | TCtxt::Equiv(ref c,_,_,_)
             | TCtxt::Apart(ref c,_,_,_)
             | TCtxt::PropTrue(ref c,_) => { c.lookup_tcons(x) },
-        }
-    }
-    pub fn lookup_ref(&self, ptr:&Pointer) -> Option<Type> {
-        match *self {
-            TCtxt::Empty => None,
-            TCtxt::Ref(ref c,ref p,ref t) => {
-                if p == ptr { Some(t.clone()) } else { c.lookup_ref(ptr) }
-            },
-            TCtxt::Var(ref c,_,_)
-            | TCtxt::IVar(ref c,_,_)
-            | TCtxt::TVar(ref c,_,_)
-            | TCtxt::TCons(ref c,_,_)
-            | TCtxt::Thunk(ref c,_,_)
-            | TCtxt::Equiv(ref c,_,_,_)
-            | TCtxt::Apart(ref c,_,_,_)
-            | TCtxt::PropTrue(ref c,_) => { c.lookup_ref(ptr) },
-        }
-    }
-    pub fn lookup_thunk(&self, ptr:&Pointer) -> Option<CType> {
-        match *self {
-            TCtxt::Empty => None,
-            TCtxt::Thunk(ref c,ref p,ref t) => {
-                if p == ptr { Some(t.clone()) } else { c.lookup_thunk(ptr) }
-            },
-            TCtxt::Var(ref c,_,_)
-            | TCtxt::IVar(ref c,_,_)
-            | TCtxt::TVar(ref c,_,_)
-            | TCtxt::TCons(ref c,_,_)
-            | TCtxt::Ref(ref c,_,_)
-            | TCtxt::Equiv(ref c,_,_,_)
-            | TCtxt::Apart(ref c,_,_,_)
-            | TCtxt::PropTrue(ref c,_) => { c.lookup_thunk(ptr) },
         }
     }
     pub fn lookup_equiv(&self, idx1:IdxTm, idx2:IdxTm) -> Option<Sort> {
@@ -164,8 +114,6 @@ impl TCtxt {
             | TCtxt::IVar(ref c,_,_)
             | TCtxt::TVar(ref c,_,_)
             | TCtxt::TCons(ref c,_,_)
-            | TCtxt::Ref(ref c,_,_)
-            | TCtxt::Thunk(ref c,_,_)
             | TCtxt::Apart(ref c,_,_,_)
             | TCtxt::PropTrue(ref c,_) => { c.lookup_equiv(i1,i2) },
         }
@@ -180,8 +128,6 @@ impl TCtxt {
             | TCtxt::IVar(ref c,_,_)
             | TCtxt::TVar(ref c,_,_)
             | TCtxt::TCons(ref c,_,_)
-            | TCtxt::Ref(ref c,_,_)
-            | TCtxt::Thunk(ref c,_,_)
             | TCtxt::Equiv(ref c,_,_,_)
             | TCtxt::PropTrue(ref c,_) => { c.lookup_apart(i1,i2) },
         }
@@ -193,8 +139,6 @@ impl TCtxt {
                 if p == prop { true } else { c.lookup_prop(prop) }
             },
             TCtxt::Var(ref c,_,_)
-            | TCtxt::Ref(ref c,_,_)
-            | TCtxt::Thunk(ref c,_,_)
             | TCtxt::Equiv(ref c,_,_,_)
             | TCtxt::Apart(ref c,_,_,_) => { c.lookup_prop(prop) },
         }
@@ -240,8 +184,6 @@ impl Val {
             Inj1(_) => "inj1",
             Inj2(_) => "inj2",
             NameTm(_) => "name term",
-            Ref(_) => "ref",
-            Thunk(_) => "thunk",
             Anno(_,_) => "annotation",
             Nat(_) => "nat",
             Str(_) => "string",
@@ -266,57 +208,6 @@ impl Exp {
             Exp::Get(_) => "get",
             Exp::Name(_,_) => "label",
             Exp::PrimApp(ref p) => p.short(),
-        }
-    }
-}
-
-impl PrimApp {
-    fn short(&self) -> &str {
-        match *self {
-            PrimApp::NatAdd(_, _) => "NatAdd",
-            PrimApp::NatLte(_, _) => "NatLte",
-            PrimApp::BoolAnd(_, _) => "BoolAnd",
-            PrimApp::NatOfChar(_) => "NatOfChar",
-            PrimApp::CharOfNat(_) => "CharOfNat",
-            PrimApp::StrOfNat(_) => "StrOfNat",
-            PrimApp::NatOfStr(_) => "NatOfStr",
-            PrimApp::SeqEmpty => "SeqEmpty",
-            PrimApp::SeqGetFirst(_) => "SeqGetFirst",
-            PrimApp::SeqIsEmpty(_) => "SeqIsEmpty",
-            PrimApp::SeqSingleton(_) => "SeqSingleton",
-            PrimApp::SeqDup(_) => "SeqDup",
-            PrimApp::SeqAppend(_, _) => "SeqAppend",
-            PrimApp::SeqFoldSeq(_, _, _) => "SeqFoldSeq",
-            PrimApp::SeqFoldUp(_, _, _, _) => "SeqFoldUp",
-            PrimApp::SeqIntoStack(_) => "SeqIntoStack",
-            PrimApp::SeqIntoQueue(_) => "SeqIntoQueue",
-            PrimApp::SeqIntoHashmap(_) => "SeqIntoHashmap",
-            PrimApp::SeqIntoKvlog(_) => "SeqIntoKvlog",
-            PrimApp::SeqMap(_, _) => "SeqMap",
-            PrimApp::SeqFilter(_, _) => "SeqFilter",
-            PrimApp::SeqSplit(_, _) => "SeqSplit",
-            PrimApp::SeqReverse(_) => "SeqReverse",
-            PrimApp::StackEmpty => "StackEmpty",
-            PrimApp::StackIsEmpty(_) => "StackIsEmpty",
-            PrimApp::StackDup(_) => "StackDup",
-            PrimApp::StackPush(_, _) => "StackPush",
-            PrimApp::StackPop(_) => "StackPop",
-            PrimApp::StackPeek(_) => "StackPeek",
-            PrimApp::StackIntoSeq(_) => "StackIntoSeq",
-            PrimApp::QueueEmpty => "QueueEmpty",
-            PrimApp::QueueIsEmpty(_) => "QueueIsEmpty",
-            PrimApp::QueueDup(_) => "QueueDup",
-            PrimApp::QueuePush(_, _) => "QueuePush",
-            PrimApp::QueuePop(_) => "QueuePop",
-            PrimApp::QueuePeek(_) => "QueuePeek",
-            PrimApp::QueueIntoSeq(_) => "QueueIntoSeq",
-            PrimApp::KvlogDup(_) => "KvlogDup",
-            PrimApp::KvlogEmpty => "KvlogEmpty",
-            PrimApp::KvlogIsEmpty(_) => "KvlogIsEmpty",
-            PrimApp::KvlogGet(_, _) => "KvlogGet",
-            PrimApp::KvlogPut(_, _, _) => "KvlogPut",
-            PrimApp::KvlogIntoSeq(_) => "KvlogIntoSeq",
-            PrimApp::KvlogIntoHashmap(_) => "KvlogIntoHashmap",
         }
     }
 }
@@ -364,16 +255,6 @@ pub fn synth_val(scope:Option<&Name>, ctxt:&TCtxt, val:&Val) -> Option<Type> {
         &NameTm(ref n) => { unimplemented!("synth val name term") },
         &Val::Inj1(_) => { fail_synth_val(scope, TypeError::NoSynthRule, val) },
         &Val::Inj2(_) => { fail_synth_val(scope, TypeError::NoSynthRule, val) },
-        &Val::Ref(ref p) => {
-            if let Some(t) = ctxt.lookup_cell(p) {
-                unimplemented!("synth val ref")
-            } else { fail_synth_val(scope, TypeError::InvalidPtr, val) }
-        },
-        &Val::Thunk(ref p) => {
-            if let Some(t) = ctxt.lookup_thunk(p) {
-                unimplemented!("synth val thunk")
-            } else { fail_synth_val(scope, TypeError::InvalidPtr, val) }
-        },
         &Val::Anno(ref v,ref t) => {
             if check_val(scope, ctxt, v, t) {
                 Some(t.clone())
@@ -397,16 +278,6 @@ pub fn check_val(scope:Option<&Name>, ctxt:&TCtxt, val:&Val, typ:&Type) -> bool 
         },
         (&Val::Inj2(ref v), &Type::Sum(_, ref t2)) => {
             check_val(scope, ctxt, v, t2 )
-        },
-        (&Val::Ref(ref p), &Type::Ref(ref i, ref t)) => {
-            if let Some(t) = ctxt.lookup_cell(p) {
-                unimplemented!("check val ref")
-            } else { fail_check_val(scope, TypeError::InvalidPtr,val) }
-        },
-        (&Val::Thunk(ref p), &Type::Thk(ref i, ref ce)) => {
-            if let Some(t) = ctxt.lookup_thunk(p) {
-                unimplemented!("check val thunk")
-            } else { fail_check_val(scope, TypeError::InvalidPtr,val) }
         },
         (&Val::Nat(_), _) => unimplemented!("check val nat"),
         (&Val::Str(_), _) => unimplemented!("check val string"),
