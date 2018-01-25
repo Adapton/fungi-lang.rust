@@ -849,17 +849,17 @@ macro_rules! tgt_exp {
         stringify![$x].to_string(),
         Rc::new(tgt_exp![$($e)+]),
     )};
-    //     e v                             (single application)
-    { $e:tt $v:tt } => { Exp::App(
-        Rc::new(tgt_exp![$e]),
+    //     {e} v                             (single application)
+    { {$($e:tt)+} $v:tt } => { Exp::App(
+        Rc::new(tgt_exp![$($e)+]),
         tgt_val![$v],
     )};
-    //     e v1 ...                        (extened application)
-    { $e:tt $v:tt $($more:tt)+ } => {
+    //     {e} v1 ...                        (extened application)
+    { {$($e:tt)+} $v:tt $($more:tt)+ } => {
         tgt_exp![{fromast Exp::App(
-            Rc::new(tgt_exp![$e]),
+            Rc::new(tgt_exp![$($e)+]),
             tgt_val![$v],
-        )} $(more:tt)+]
+        )} $($more)+]
     };
     //     let x = e1 e2                   (let-binding)
     { let $x:ident = $e1:tt $($e2:tt)+ } => { Exp::Let(
@@ -1213,19 +1213,19 @@ macro_rules! split_arrow {
 macro_rules! split_semi {
     // no defaults
     {$fun:ident <= $($item:tt)*} => {
-        split_arrow![$fun () () () <= $($item)*]
+        split_semi![$fun () () () <= $($item)*]
     };
     // give initial params to the function
     {$fun:ident ($($first:tt)*) <= $($item:tt)*} => {
-        split_arrow![$fun ($($first)*) () () <= $($item)*]
+        split_semi![$fun ($($first)*) () () <= $($item)*]
     };
     // give inital params and initial inner items in every group
     {$fun:ident ($($first:tt)*) ($($every:tt)*) <= $($item:tt)*} => {
-        split_arrow![$fun ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
+        split_semi![$fun ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
     };
     // on non-final seperator, stash the accumulator and restart it
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= ; $($item:tt)+} => {
-        split_arrow![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*]
+        split_semi![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*]
     };
     // ignore final seperator, run the function
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= ; } => {
@@ -1233,7 +1233,7 @@ macro_rules! split_semi {
     };
     // on next item, add it to the accumulator
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= $next:tt $($item:tt)*} => {
-        split_arrow![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*]
+        split_semi![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*]
     };
     // at end of items, run the function
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= } => {
@@ -1249,19 +1249,19 @@ macro_rules! split_semi {
 macro_rules! split_tri {
     // no defaults
     {$fun:ident <= $($item:tt)*} => {
-        split_arrow![$fun () () () <= $($item)*]
+        split_tri![$fun () () () <= $($item)*]
     };
     // give initial params to the function
     {$fun:ident ($($first:tt)*) <= $($item:tt)*} => {
-        split_arrow![$fun ($($first)*) () () <= $($item)*]
+        split_tri![$fun ($($first)*) () () <= $($item)*]
     };
     // give inital params and initial inner items in every group
     {$fun:ident ($($first:tt)*) ($($every:tt)*) <= $($item:tt)*} => {
-        split_arrow![$fun ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
+        split_tri![$fun ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
     };
     // on non-final seperator, stash the accumulator and restart it
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= |> $($item:tt)+} => {
-        split_arrow![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*]
+        split_tri![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*]
     };
     // ignore final seperator, run the function
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= |> } => {
@@ -1269,7 +1269,7 @@ macro_rules! split_tri {
     };
     // on next item, add it to the accumulator
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= $next:tt $($item:tt)*} => {
-        split_arrow![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*]
+        split_tri![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*]
     };
     // at end of items, run the function
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= } => {
@@ -1285,19 +1285,19 @@ macro_rules! split_tri {
 macro_rules! split_comma {
     // no defaults
     {$fun:ident <= $($item:tt)*} => {
-        split_arrow![$fun () () () <= $($item)*]
+        split_comma![$fun () () () <= $($item)*]
     };
     // give initial params to the function
     {$fun:ident ($($first:tt)*) <= $($item:tt)*} => {
-        split_arrow![$fun ($($first)*) () () <= $($item)*]
+        split_comma![$fun ($($first)*) () () <= $($item)*]
     };
     // give inital params and initial inner items in every group
     {$fun:ident ($($first:tt)*) ($($every:tt)*) <= $($item:tt)*} => {
-        split_arrow![$fun ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
+        split_comma![$fun ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
     };
     // on non-final seperator, stash the accumulator and restart it
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= , $($item:tt)+} => {
-        split_arrow![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*]
+        split_comma![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*]
     };
     // ignore final seperator, run the function
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= , } => {
@@ -1305,7 +1305,7 @@ macro_rules! split_comma {
     };
     // on next item, add it to the accumulator
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= $next:tt $($item:tt)*} => {
-        split_arrow![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*]
+        split_comma![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*]
     };
     // at end of items, run the function
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= } => {

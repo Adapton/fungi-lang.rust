@@ -21,11 +21,11 @@ fn examples() {
     let nums:(Seq[X]) = { unimplemented }
     let vec_max:(Vec -> F Nat) = { unimplemented }
     let max:(
-      All X:NmSet.
+      #X:NmSet.
       Seq[X] -> F Nat
       |> (#x:Nm.[x.1] % [x.2])[X]
     ) = {
-        fix max. #seq.
+        fix max.#seq.
         match seq {
             vec => { vec_max vec },
             bin => {
@@ -37,6 +37,7 @@ fn examples() {
         }
     } {force max} nums
   ];
+  println!("{:?}", max);
 }
 
 /* 
