@@ -10,7 +10,8 @@ pub enum Name {
     Leaf,
     Sym(String),
     Num(usize),
-    Bin(NameRec, NameRec)
+    Bin(NameRec, NameRec),
+    NoParse(String),
 }
 pub type NameRec = Rc<Name>;
 
@@ -42,6 +43,8 @@ macro_rules! tgt_name {
     };
     // 1 (Number)
     { $s:expr } => { Name::Num($s) };
+    // failure
+    { $($any:tt)* } => { Name::NoParse(stringify![$($any)*].to_string())};
 }
 
 
@@ -53,6 +56,7 @@ pub enum NameTm {
     Bin(NameTmRec, NameTmRec),
     Lam(Var,NameTmRec),
     App(NameTmRec, NameTmRec),
+    NoParse(String),
 }
 pub type NameTmRec = Rc<NameTm>;
 
@@ -100,6 +104,8 @@ macro_rules! tgt_nametm {
     { $var:ident } => { NameTm::Var(stringify![$var].to_string()) };
     //     n                   (literal Name)
     { $($nm:tt)+ } => { NameTm::Name(tgt_name![$($nm)+]) };
+    // failure
+    { $($any:tt)* } => { NameTm::NoParse(stringify![$($any)*].to_string())};
 }
 
 /// Index terms
@@ -119,6 +125,7 @@ pub enum IdxTm {
     Map(NameTmRec, IdxTmRec),
     FlatMap(IdxTmRec, IdxTmRec),
     Star(IdxTmRec, IdxTmRec),
+    NoParse(String),
 }
 pub type IdxTmRec = Rc<IdxTm>;
 
@@ -244,6 +251,8 @@ macro_rules! tgt_index {
     };
     //     a           (variable)
     { $var:ident } => { IdxTm::Var(stringify![$var].to_string()) };
+    // failure
+    { $($any:tt)* } => { IdxTm::NoParse(stringify![$($any)*].to_string())};
 }
 
 /// Sorts (classify name and index terms)
@@ -255,6 +264,7 @@ pub enum Sort {
     IdxArrow(SortRec,SortRec),
     Unit,
     Prod(SortRec,SortRec),
+    NoParse(String),
 }
 pub type SortRec = Rc<Sort>;
 
@@ -312,7 +322,9 @@ macro_rules! tgt_sort {
         Rc::new(tgt_sort![{$g2 x $($more)+}]),
     )};
     //     (g)                 (parens)
-    { ($($sort:tt)+) } => { tgt_sort![$($sort:tt)+] }
+    { ($($sort:tt)+) } => { tgt_sort![$($sort:tt)+] };
+    // failure
+    { $($any:tt)* } => { Sort::NoParse(stringify![$($any)*].to_string())};
 }
 
 /// Kinds (classify types)
@@ -320,7 +332,8 @@ macro_rules! tgt_sort {
 pub enum Kind {
     Type,
     TypeParam(KindRec),
-    IdxParam(Sort, KindRec)
+    IdxParam(Sort, KindRec),
+    NoParse(String),
 }
 pub type KindRec = Rc<Kind>;
 
@@ -351,6 +364,8 @@ macro_rules! tgt_kind {
         tgt_sort![$g],
         Rc::new(tgt_kind![$($kinds)+]),
     )};
+    // failure
+    { $($any:tt)* } => { Kind::NoParse(stringify![$($any)*].to_string())};
 }
 
 /// Propositions about name and index terms
@@ -360,6 +375,7 @@ pub enum Prop {
     Equiv(IdxTm, IdxTm, Sort),
     Disj(IdxTm, IdxTm, Sort),
     Conj(PropRec, PropRec),
+    NoParse(String),
 }
 pub type PropRec = Rc<Prop>;
 
@@ -406,6 +422,8 @@ macro_rules! tgt_prop {
         tgt_index![$j],
         tgt_sort![$g],
     )};
+    // failure
+    { $($any:tt)* } => { Prop::NoParse(stringify![$($any)*].to_string())};
 }
 
 /// Effects
@@ -413,6 +431,7 @@ macro_rules! tgt_prop {
 pub enum Effect {
     WR(IdxTm, IdxTm),
     Then(EffectRec, EffectRec),
+    NoParse(String),
 }
 pub type EffectRec = Rc<Effect>;
 
@@ -445,6 +464,8 @@ macro_rules! tgt_effect {
             Rc::new(tgt_effect![$e2]),
         )) $($more)+]
     };
+    // failure
+    { $($any:tt)* } => { Effect::NoParse(stringify![$($any)*].to_string())};
 }
 /// this macro is a helper for tgt_effect, not for external use
 #[macro_export]
@@ -462,6 +483,7 @@ pub enum TypeCons {
     Seq,
     Nat,
     //User(String),
+    NoParse(String),
 }
 /// Parser for TypeConstructors
 #[macro_export]
@@ -470,6 +492,8 @@ macro_rules! tgt_tcons {
     { Seq } => { TypeCons::Seq };
     { Nat } => { TypeCons::Nat };
     //{ $s:ident } => { TypeCons::User(stringify![$s].to_string()) };
+    // failure
+    { $($any:tt)* } => { TypeCons::NoParse(stringify![$($any)*].to_string())};
 }
 
 /// Value types
@@ -486,7 +510,8 @@ pub enum Type {
     TypeApp(TypeCons, TypeRec),
     Nm(IdxTm),
     NmFn(NameTm),
-    Rec(Var, TypeRec)
+    Rec(Var, TypeRec),
+    NoParse(String),
 }
 pub type TypeRec = Rc<Type>;
 
@@ -556,6 +581,8 @@ macro_rules! tgt_vtype {
     )};
     //     a               (type var)
     { $a:ident } => { Type::Var(stringify![$a].to_string()) };
+    // failure
+    { $($any:tt)* } => { Type::NoParse(stringify![$($any)*].to_string())};
 }
 /// this macro is a helper for tgt_vtype, not for external use
 #[macro_export]
@@ -590,7 +617,8 @@ macro_rules! parse_tgt_prod {
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum CType {
     Lift(Type),
-    Arrow(Type,CEffectRec)
+    Arrow(Type,CEffectRec),
+    NoParse(String),
 }
 
 /// Parser for computation types
@@ -609,6 +637,8 @@ macro_rules! tgt_ctype {
     { F $($a:tt)+ } => { CType::Lift(tgt_vtype![$($a)+]) };
     //     A -> E   (extended functions with effects)
     { $($arrow:tt)+ } => { split_arrow![parse_tgt_arrow <= $($arrow)+] };
+    // failure
+    { $($any:tt)* } => { CType::NoParse(stringify![$($any)*].to_string())};
 }
 /// this macro is a helper for tgt_ctype, not for external use
 #[macro_export]
@@ -625,7 +655,8 @@ macro_rules! parse_tgt_arrow {
 pub enum CEffect {
     Cons(CType,Effect),
     ForallType(Var,Kind,CEffectRec),
-    ForallIdx(Var,Sort,Prop,CEffectRec)
+    ForallIdx(Var,Sort,Prop,CEffectRec),
+    NoParse(String),
 }
 pub type CEffectRec = Rc<CEffect>;
 
@@ -657,6 +688,8 @@ macro_rules! tgt_ceffect {
     )};
     //     C |> ε      (computation with effect)
     { $($tri:tt)+ } => { split_tri![parse_tgt_tri <= $($tri)+] };
+    // failure
+    { $($any:tt)* } => { CEffect::NoParse(stringify![$($any)*].to_string())};
 }
 /// this macro is a helper for tgt_ceffect, not for external use
 #[macro_export]
@@ -681,9 +714,7 @@ pub enum Val {
     Anno(ValRec,Type),
     Nat(usize),
     Str(String),
-
-    // Ref(Pointer),
-    // Thunk(Pointer),
+    NoParse(String),
 }
 pub type ValRec = Rc<Val>;
 
@@ -727,6 +758,8 @@ macro_rules! tgt_val {
     { $x:ident } => { Val::Var(stringify![$x].to_string()) };
     //     1234        (nat primitive)
     { $n:expr } => { Val::Nat($n) };
+    // failure
+    { $($any:tt)* } => { Val::NoParse(stringify![$($any)*].to_string())};
 }
 /// this macro is a helper for tgt_ceffect, not for external use
 #[macro_export]
@@ -761,6 +794,7 @@ pub enum Exp {
     NameApp(Val,Val),
     Unimp,
     DebugLabel(String,ExpRec),
+    NoParse(String),
 }
 pub type ExpRec = Rc<Exp>;
 
@@ -782,7 +816,7 @@ pub type ExpRec = Rc<Exp>;
 ///     force v                         (memo force)
 ///     get v                           (read from ref)
 ///     let (x1,...) = v e              (extended split)
-///     match v {x1 => e1 x2 => e2 }    (case analysis)
+///     match v {x1 => e1 ... }         (extended case analysis)
 ///     [v1] v2                         (name function application)
 ///     unimplemented                   (marker for type checker)
 ///     label (some_text) e             (debug label)
@@ -868,7 +902,7 @@ macro_rules! tgt_exp {
             "sugar_match_snd".to_string(),
             Rc::new(tgt_exp![
                 match sugar_match_snd {
-                    $x2=>$e2 $($more)+ 
+                    $x2=>$e2 $($more)+
                 }
             ]),
         )
@@ -885,6 +919,8 @@ macro_rules! tgt_exp {
         stringify![$s].to_string(),
         Rc::new(tgt_exp![$($e)+]),
     )};
+    // failure
+    { $($any:tt)* } => { Exp::NoParse(stringify![$($any)*].to_string())};
 }
 /// this macro is a helper for tgt_exp, not for external use
 #[macro_export]

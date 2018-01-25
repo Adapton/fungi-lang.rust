@@ -146,6 +146,7 @@ pub fn nametm_subst(nmtm:NameTm, x:&Var, v:&NameTm) -> NameTm {
             if *x == y { NameTm::Lam(y, nt) }
             else { NameTm::Lam(y, nametm_subst_rec(nt, x, v)) }
         }
+        NameTm::NoParse(_) => unreachable!(),
     }
 }
 
@@ -180,6 +181,7 @@ pub fn nametm_eval(nmtm:NameTm) -> NameTmVal {
                 _ => { panic!("dynamic type error (bin name term)") }
             }
         }
+        NameTm::NoParse(_) => unreachable!(),
     }
 }
 
@@ -217,6 +219,8 @@ pub fn close_val(env:&Env, v:&Val) -> RtVal {
                         close_val_rec(env, v2)),
         // Forget annotation
         Anno(ref v,_) => close_val(env, v),
+        NoParse(_) => unreachable!(),
+
     }
 }
 
@@ -395,5 +399,6 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
             return eval(env, (*e).clone())
         }
         Exp::Unimp => unimplemented!(),
+        Exp::NoParse(_) => unreachable!(),
     }
 }
