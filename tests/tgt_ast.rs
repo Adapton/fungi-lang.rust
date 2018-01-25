@@ -13,7 +13,7 @@ fn examples() {
   use iodyn_lang::tgt_ast::*;
   // use iodyn_lang::tgt_ast::cons::*;
 
-  let ctx : TCtxt = TCtxt::Empty;
+  //let ctx : TCtxt = TCtxt::Empty;
 
   let max : Exp = tgt_exp![
     type Vec = {}
@@ -25,18 +25,17 @@ fn examples() {
       Seq[X] -> F Nat
       |> (#x:Nm.[x.1] % [x.2])[X]
     ) = {
-      fix max.#seq.
-      match seq {
-        vec => { vec_max vec },
-        bin => {
-          let (n,_,l,r) = { ret bin }
-          let (_,ml) = { memo[n.1](max !l) }
-          let (_,mr) = { memo[n.2](max !r) }
-          if (ml > mr) then {ret ml} else {ret mr}
+        fix max. #seq.
+        match seq {
+            vec => { vec_max vec },
+            bin => {
+                let (n,_,l,r) = { ret bin }
+                let (_,ml) = { memo[n.1](max !l) }
+                let (_,mr) = { memo[n.2](max !r) }
+                if (ml > mr) then {ret ml} else {ret mr}
+            }
         }
-      }
-    }
-    {force max} nums
+    } {force max} nums
   ];
 }
 

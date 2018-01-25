@@ -8,18 +8,20 @@
 //!
 //! The Rust types and functions below demonstrate how closely the
 //! IODyn Target AST corresponds to the primitive notions of Adapton,
-//! namely refs and thunks, and their operations, get and force,
-//! respectively.
+//! namely `ref`s and `thunk`s, and their observation/demand
+//! operations, `get` and `force`, respectively.
 //!
 //! In particular, the semantics of `ref` and `thunk` are _entirely_
 //! encapsiluated by the Adapton run-time library, leaving the
 //! dynamics semantics for other expression forms to `eval` to define.
+//! In this sense, the language built around the `ref` and `thunk`
+//! primitives is open-ended.
 //!
-//! In some sense, the language built around the `ref` and `thunk`
-//! primitives is somewhat arbitrary; given this choice, we choose
-//! CBPV STLC with products and sums, as usual.  Other choices are
-//! guided by our choice of "CBPV + environment-passing-style", as
-//! discussed further in this module's comments.
+//! Given this language choice, as usual, we choose STLC in CBPV, with
+//! product and sum types.  Other language/semantics design choices in
+//! this module are guided by our choice of "CBPV +
+//! environment-passing-style", as discussed further in this module's
+//! comments.
 //!
 //! ## Val vs RtVal
 //!
@@ -86,6 +88,36 @@ pub enum ExpTerm {
 pub enum NameTmVal {
     Name(Name),
     Lam(Var,NameTm),
+}
+
+/// project/pattern-match the name of namespace, defined as the
+/// sub-term M in the following nameterm (lambda) form:
+///
+/// ```text
+///  #x.[M, x]
+/// ```
+///
+/// where [M, x] is the binary name formed from uknown name x and M,
+/// the name of the "namespace".
+///
+pub fn proj_namespace_name(n:NameTmVal) -> Option<NameTm> {
+    match n {
+        NameTmVal::Name(_) => None,
+        NameTmVal::Lam(x,m) => {
+            match m {
+                NameTm::Bin(m1, m2) => {
+                    match (*m2).clone() {
+                        NameTm::Var(y) => {
+                            if x == y { Some((*m1).clone()) }
+                            else { None }
+                        }
+                        _ => None,
+                    }
+                },
+                _ => None,
+            }
+        },
+    }
 }
 
 pub fn nametm_of_val(_v:NameTmVal) -> NameTm {
@@ -216,6 +248,10 @@ pub enum EvalTyErr {
     // ref case
     RefNonName(RtVal),
     GetNonRef(RtVal),
+    // scope case
+    ScopeWithoutName0,
+    ScopeWithoutName1,
+    ScopeWithoutName2,
 }
 
 fn eval_type_error<A>(err:EvalTyErr, env:Env, e:Exp) -> A {
@@ -322,8 +358,34 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
                 v => eval_type_error(EvalTyErr::ForceNonThunk(v), env, e)                    
             }
         }
-        Exp::Scope(_v, _e) => {
-            panic!("TODO")
+        Exp::Scope(v, e1) => {
+            // Names vs namespace functions: Here, v is a name
+            // function value, but the current Adapton engine
+            // implementation of namespaces, aka "write scopes",
+            // requires that each is given by a name, which is always
+            // prepended to any allocated names; the engine lacks the
+            // more general notion of a "name function" (which can
+            // express more general name constructions than just
+            // "prepend").  For now, we "translate" namespace
+            // functions into names, by projecting out their "names"
+            // from an eta-expanded prepend operation.  If we fail to
+            // find this pattern, we fail (TODO: enforce statically?).
+            match close_val(&env, &v) {
+                RtVal::NameFn(n) =>
+                    match proj_namespace_name(nametm_eval(n)) {
+                        None => eval_type_error(EvalTyErr::ScopeWithoutName1, env, e),
+                        Some(n) => {
+                            match nametm_eval(n) {
+                                NameTmVal::Name(n) => {
+                                    let ns_name : engine::Name = name_of_name(&n);
+                                    engine::ns(ns_name, ||{ eval(env, (*e1).clone()) })
+                                },                                    
+                                _ => eval_type_error(EvalTyErr::ScopeWithoutName2, env, e),
+                            }
+                        }
+                    },
+                _ => eval_type_error(EvalTyErr::ScopeWithoutName0, env, e),
+            }
         }
         Exp::NameApp(_, _) => {
             panic!("TODO")

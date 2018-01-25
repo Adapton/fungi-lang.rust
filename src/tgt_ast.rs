@@ -681,6 +681,9 @@ pub enum Val {
     Anno(ValRec,Type),
     Nat(usize),
     Str(String),
+
+    // Ref(Pointer),
+    // Thunk(Pointer),
 }
 pub type ValRec = Rc<Val>;
 
@@ -755,7 +758,7 @@ pub enum Exp {
     Case(Val, Var, ExpRec, Var, ExpRec),
     Ref(Val,Val),
     Get(Val),
-    Scope(NameTm,ExpRec),
+    Scope(Val,ExpRec),
     NameApp(Val,Val),
     Unimp,
     DebugLabel(String,ExpRec),
