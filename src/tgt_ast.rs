@@ -698,7 +698,7 @@ pub type ValRec = Rc<Val>;
 ///     inj2 v      (second sum value)
 ///     name n      (name value)
 ///     nmfn M      (name function as value)
-///     "string"    (string primitive)
+///     str(string) (string primitive)
 ///     x           (variable)
 ///     1234        (nat primitive)
 /// ```
@@ -721,8 +721,8 @@ macro_rules! tgt_val {
     { name $($n:tt)+ } => { Val::Name(tgt_name![$n]) };
     //     nmfn M      (name function as value)
     { nmfm $($m:tt)+ } => { Val::NameFn(tgt_nametm![$m]) };
-    //     "string"    (string primitive)
-    { "$($s:tt)*" } => { Val::Str(stringify![$($s)*].to_string()) };
+    //     str(string) (string primitive)
+    { str($($s:tt)*) } => { Val::Str(stringify![$($s)*].to_string()) };
     //     x           (variable)
     { $x:ident } => { Val::Var(stringify![$x].to_string()) };
     //     1234        (nat primitive)
@@ -742,9 +742,8 @@ macro_rules! parse_tgt_tuple {
     )};
 }
 
-pub type ExpRec = Rc<Exp>;
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 /// Expressions (aka, computation terms)
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Exp {
     Anno(ExpRec,CType),
     Force(Val),
@@ -762,6 +761,127 @@ pub enum Exp {
     NameApp(Val,Val),
     Unimp,
     DebugLabel(String,ExpRec),
+}
+pub type ExpRec = Rc<Exp>;
+
+/// Parser for expressions
+///
+/// ```text
+/// e::=
+///     fromast ast                     (inject ast nodes)
+///     {e} : C                         (annotation)
+///     {e}                             (parens)
+///     scope v e                       (memo scope)
+///     ret v                           (lifted value)
+///     #x.e                            (lambda)
+///     fix x.e                         (recursive lambda)
+///     e v1 ...                        (extened application)
+///     let x = {e1} e2                 (let-binding)
+///     thk v e                         (create thunk)
+///     ref v1 v2                       (create ref)
+///     force v                         (memo force)
+///     get v                           (read from ref)
+///     let (x1,x2) = v e               (split)
+///     match v {x1 =>{e1} x2 =>{e2}}   (case analysis)
+///     [v1] v2                         (name function application)
+///     unimplemented                   (marker for type checker)
+///     label ("some_text") e           (debug label)
+/// ```
+#[macro_export]
+macro_rules! tgt_exp {
+    //     fromast ast                     (inject ast nodes)
+    { fromast $ast:expr } => { $ast };
+    //     {e} : C                         (annotation)
+    { {$($e:tt)+} : $($c:tt)+ } => { Exp::Anno(
+        Rc::new(tgt_exp![$($e)+]),
+        tgt_ctype![$($c)+],
+    )};
+    //     {e}                             (parens)
+    { {$($e:tt)+} } => { tgt_exp![$($e)+] };
+    //     scope v e                       (memo scope)
+    { scope $v:tt $($e:tt)+ } => { Exp::Scope(
+        tgt_val![$v],
+        Rc::new(tgt_exp![$($e)+]),
+    )};
+    //     ret v                           (lifted value)
+    { ret $($v:tt)+ } => { Exp::Ret(tgt_val![$($v)+]) };
+    //     #x.e                            (lambda)
+    { #$x:ident.$($e:tt)+ } => { Exp::Lam(
+        stringify![$x].to_string(),
+        Rc::new(tgt_exp![$($e)+]),
+    )};
+    //     fix x.e                         (recursive lambda)
+    { fix $x:ident.$($e:tt)+ } => { Exp::Fix(
+        stringify![$x].to_string(),
+        Rc::new(tgt_exp![$($e)+]),
+    )};
+    //     e v                             (single application)
+    { $e:tt $v:tt } => { Exp::App(
+        Rc::new(tgt_exp![$e]),
+        tgt_val![$v],
+    )};
+    //     e v1 ...                        (extened application)
+    { $e:tt $v:tt $($more:tt)+ } => {
+        tgt_exp![{fromast Exp::App(
+            Rc::new(tgt_exp![$e]),
+            tgt_val![$v],
+        )} $(more:tt)+]
+    };
+    //     let x = {e1} e2                 (let-binding)
+    { let $x:ident = {$($e1:tt)+} $($e2:tt)+ } => { Exp::Let(
+        stringify![$x].to_string(),
+        Rc::new(tgt_exp![$($e1)+]),
+        Rc::new(tgt_exp![$($e2)+]),
+    )};
+    //     thk v e                         (create thunk)
+    { thk $v:tt $($e:tt)+ } => { Exp::Thunk(
+        tgt_val![$v],
+        Rc::new(tgt_exp![$($e)+]),
+    )};
+    //     ref v1 v2                       (create ref)
+    { ref $v1:tt $($v2:tt)+ } => { Exp::Ref(
+        tgt_val![$v1],
+        tgt_val![$($v2)+],
+    )};
+    //     force v                         (memo force)
+    { force $($v:tt)+ } => { Exp::Force( tgt_val![$($v)+])};
+    //     get v                           (read from ref)
+    { get $($v:tt)+ } => { Exp::Get( tgt_val![$($v)+])};
+    //     let (x1,x2) = v e               (split)
+    { let ($($vars:tt)+) = $v:tt $($e:tt)+ } => {
+        split_comma![parse_tgt_split ($v {$($e)+}) <= $($vars)+]
+    };
+    //     match v {x1 =>{e1} x2 =>{e2}}   (case analysis)
+    { match $v:tt {$x1:ident=>$e1:tt $x2:ident=>$e2:tt} } => { Exp::Case(
+        tgt_val![$v],
+        stringify![$x1].to_string(),
+        Rc::new(tgt_exp![$e1]),
+        stringify![$x2].to_string(),
+        Rc::new(tgt_exp![$e2]),
+    )};
+    //     [v1] v2                         (name function application)
+    { [$($v1:tt)+] $($v2:tt)+ } => { Exp::NameApp(
+        tgt_val![$($v1:tt)+],
+        tgt_val![$($v2:tt)+],
+    )};
+    //     unimplemented                   (marker for type checker)
+    { unimplemented } => { Exp::Unimp };
+    //     label ("some_text") e           (debug label)
+    { label ($s:expr) $($e:tt)+ } => { Exp::DebugLabel(
+        $s.to_string(),
+        Rc::new(tgt_exp![$($e)+]),
+    )};
+}
+/// this macro is a helper for tgt_exp, not for external use
+#[macro_export]
+macro_rules! parse_tgt_split {
+    // v e (x1,x2)
+    { $v:tt $e:tt ($x1:ident)($x2:ident) } => { Exp::Split(
+        tgt_val![$v],
+        stringify![$x1].to_string(),
+        stringify![$x2].to_string(),
+        Rc::new(tgt_exp![$e]),
+    )};
 }
 
 /**********
