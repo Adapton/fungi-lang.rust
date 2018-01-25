@@ -692,7 +692,7 @@ pub type ValRec = Rc<Val>;
 /// ```text
 /// v::=
 ///     fromast ast (inject ast nodes)
-///     (v):A       (annotation)
+///     v : A       (annotation)
 ///     (v1,v2,...) (unit,parens,tuples)
 ///     inj1 v      (first sum value)
 ///     inj2 v      (second sum value)
@@ -706,8 +706,8 @@ pub type ValRec = Rc<Val>;
 macro_rules! tgt_val {
     //     fromast ast (inject ast nodes)
     { fromast $ast:expr } => { $ast };
-    //     (v):A       (annotation)
-    { ($($v:tt)+):$($a:tt)+} => { Val::Anno(
+    //     v : A       (annotation)
+    { $v:tt : $($a:tt)+} => { Val::Anno(
         Rc::new(tgt_val![$($v)+]),
         tgt_vtype![$($a)+],
     )};
@@ -769,31 +769,31 @@ pub type ExpRec = Rc<Exp>;
 /// ```text
 /// e::=
 ///     fromast ast                     (inject ast nodes)
-///     {e} : C                         (annotation)
+///     e : C                           (annotation)
 ///     {e}                             (parens)
 ///     scope v e                       (memo scope)
 ///     ret v                           (lifted value)
 ///     #x.e                            (lambda)
 ///     fix x.e                         (recursive lambda)
 ///     e v1 ...                        (extened application)
-///     let x = {e1} e2                 (let-binding)
+///     let x = e1 e2                   (let-binding)
 ///     thk v e                         (create thunk)
 ///     ref v1 v2                       (create ref)
 ///     force v                         (memo force)
 ///     get v                           (read from ref)
-///     let (x1,x2) = v e               (split)
-///     match v {x1 =>{e1} x2 =>{e2}}   (case analysis)
+///     let (x1,...) = v e              (extended split)
+///     match v {x1 => e1 x2 => e2 }    (case analysis)
 ///     [v1] v2                         (name function application)
 ///     unimplemented                   (marker for type checker)
-///     label ("some_text") e           (debug label)
+///     label (some_text) e             (debug label)
 /// ```
 #[macro_export]
 macro_rules! tgt_exp {
     //     fromast ast                     (inject ast nodes)
     { fromast $ast:expr } => { $ast };
-    //     {e} : C                         (annotation)
-    { {$($e:tt)+} : $($c:tt)+ } => { Exp::Anno(
-        Rc::new(tgt_exp![$($e)+]),
+    //     e : C                           (annotation)
+    { $e:tt : $($c:tt)+ } => { Exp::Anno(
+        Rc::new(tgt_exp![$e]),
         tgt_ctype![$($c)+],
     )};
     //     {e}                             (parens)
@@ -827,10 +827,10 @@ macro_rules! tgt_exp {
             tgt_val![$v],
         )} $(more:tt)+]
     };
-    //     let x = {e1} e2                 (let-binding)
-    { let $x:ident = {$($e1:tt)+} $($e2:tt)+ } => { Exp::Let(
+    //     let x = e1 e2                   (let-binding)
+    { let $x:ident = $e1:tt $($e2:tt)+ } => { Exp::Let(
         stringify![$x].to_string(),
-        Rc::new(tgt_exp![$($e1)+]),
+        Rc::new(tgt_exp![$e1]),
         Rc::new(tgt_exp![$($e2)+]),
     )};
     //     thk v e                         (create thunk)
@@ -847,11 +847,11 @@ macro_rules! tgt_exp {
     { force $($v:tt)+ } => { Exp::Force( tgt_val![$($v)+])};
     //     get v                           (read from ref)
     { get $($v:tt)+ } => { Exp::Get( tgt_val![$($v)+])};
-    //     let (x1,x2) = v e               (split)
+    //     let (x1,...) = v e              (extended split)
     { let ($($vars:tt)+) = $v:tt $($e:tt)+ } => {
         split_comma![parse_tgt_split ($v {$($e)+}) <= $($vars)+]
     };
-    //     match v {x1 =>{e1} x2 =>{e2}}   (case analysis)
+    //     match v {x1 => e1 x2 => e2 }    (pair case analysis)
     { match $v:tt {$x1:ident=>$e1:tt $x2:ident=>$e2:tt} } => { Exp::Case(
         tgt_val![$v],
         stringify![$x1].to_string(),
@@ -859,6 +859,20 @@ macro_rules! tgt_exp {
         stringify![$x2].to_string(),
         Rc::new(tgt_exp![$e2]),
     )};
+    //     match v {x1 => e1 ... }         (extended case analysis)
+    { match $v:tt {$x1:ident=>$e1:tt $x2:ident=>$e2:tt $($more:tt)+} } => {
+        Exp::Case(
+            tgt_val![$v],
+            stringify![$x1].to_string(),
+            Rc::new(tgt_exp![$e1]),
+            "sugar_match_snd".to_string(),
+            Rc::new(tgt_exp![
+                match sugar_match_snd {
+                    $x2=>$e2 $($more)+ 
+                }
+            ]),
+        )
+    };
     //     [v1] v2                         (name function application)
     { [$($v1:tt)+] $($v2:tt)+ } => { Exp::NameApp(
         tgt_val![$($v1:tt)+],
@@ -866,9 +880,9 @@ macro_rules! tgt_exp {
     )};
     //     unimplemented                   (marker for type checker)
     { unimplemented } => { Exp::Unimp };
-    //     label ("some_text") e           (debug label)
-    { label ($s:expr) $($e:tt)+ } => { Exp::DebugLabel(
-        $s.to_string(),
+    //     label (some_text) e             (debug label)
+    { label ($s:tt) $($e:tt)+ } => { Exp::DebugLabel(
+        stringify![$s].to_string(),
         Rc::new(tgt_exp![$($e)+]),
     )};
 }
@@ -882,6 +896,15 @@ macro_rules! parse_tgt_split {
         stringify![$x2].to_string(),
         Rc::new(tgt_exp![$e]),
     )};
+    // v e (x1,x2,...)
+    { $v:tt $e:tt ($x1:ident)($x2:ident) $($more:tt)+ } => {
+        Exp::Split(
+            tgt_val![$v],
+            stringify![$x1].to_string(),
+            "sugar_split_snd".to_string(),
+            Rc::new(parse_tgt_split![sugar_split_snd $e ($x2) $($more)+]),
+        )
+    };
 }
 
 /**********
