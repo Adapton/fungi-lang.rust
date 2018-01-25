@@ -432,7 +432,7 @@ macro_rules! tgt_effect {
     //     (ε)                (parens)
     { ($($e:tt)+) } => { tgt_effect![$(e)+] };
     //     {X;Y}              (<Write; Read> effects)
-    { {$($wr:tt)+} } => { split_semi![parse_eff <= $($wr)+]};
+    { {$($wr:tt)+} } => { split_semi![parse_tgt_eff <= $($wr)+]};
     //     ε1 then ε2         (sinlge effect sequencing)
     { $e1:tt then $e2:tt } => { Effect::Then(
         Rc::new(tgt_effect![$e1]),
@@ -448,7 +448,7 @@ macro_rules! tgt_effect {
 }
 /// this macro is a helper for tgt_effect, not for external use
 #[macro_export]
-macro_rules! parse_eff {
+macro_rules! parse_tgt_eff {
     { ($($w:tt)+)($($r:tt)+) } => { Effect::WR(
         tgt_index![$($w)+],
         tgt_index![$($r)+],
@@ -522,9 +522,9 @@ macro_rules! tgt_vtype {
     //     Unit            (unit)
     { Unit } => { Type::Unit };
     //     + A + B ...     (extended sums)
-    { + $($sum:tt)+ } => { split_plus![parse_sum <= $($sum)+] };
+    { + $($sum:tt)+ } => { split_plus![parse_tgt_sum <= $($sum)+] };
     //     x A x B ...     (extended product)
-    { x $($prod:tt)+ } => { split_cross![parse_prod <= $($prod)+] };
+    { x $($prod:tt)+ } => { split_cross![parse_tgt_prod <= $($prod)+] };
     //     Ref[i] A        (named ref cell)
     { Ref[$($i:tt)+] $($t:tt)+ } => { Type::Ref(
         tgt_index![$($i)+],
@@ -559,7 +559,7 @@ macro_rules! tgt_vtype {
 }
 /// this macro is a helper for tgt_vtype, not for external use
 #[macro_export]
-macro_rules! parse_sum {
+macro_rules! parse_tgt_sum {
     // A + B
     { ($($a:tt)+)($($b:tt)+) } => { Type::Sum(
         Rc::new(tgt_vtype![$($a)+]),
@@ -568,12 +568,12 @@ macro_rules! parse_sum {
     // A + ...
     { ($($a:tt)+)$($more:tt)+ } => { Type::Sum(
         Rc::new(tgt_vtype![$($a)+]),
-        Rc::new(parse_sum![$($more)+]),
+        Rc::new(parse_tgt_sum![$($more)+]),
     )};
 }
 /// this macro is a helper for tgt_vtype, not for external use
 #[macro_export]
-macro_rules! parse_prod {
+macro_rules! parse_tgt_prod {
     // A x B
     { ($($a:tt)+)($($b:tt)+) } => { Type::Prod(
         Rc::new(tgt_vtype![$($a)+]),
@@ -582,7 +582,7 @@ macro_rules! parse_prod {
     // A x ...
     { ($($a:tt)+)$($more:tt)+ } => { Type::Prod(
         Rc::new(tgt_vtype![$($a)+]),
-        Rc::new(parse_prod![$($more)+]),
+        Rc::new(parse_tgt_prod![$($more)+]),
     )};
 }
 
@@ -608,11 +608,11 @@ macro_rules! tgt_ctype {
     //     F A             (lifted types)
     { F $($a:tt)+ } => { CType::Lift(tgt_vtype![$($a)+]) };
     //     A -> E   (extended functions with effects)
-    { $($arrow:tt)+ } => { split_arrow![parse_arrow <= $($arrow)+] };
+    { $($arrow:tt)+ } => { split_arrow![parse_tgt_arrow <= $($arrow)+] };
 }
 /// this macro is a helper for tgt_ctype, not for external use
 #[macro_export]
-macro_rules! parse_arrow {
+macro_rules! parse_tgt_arrow {
     // A -> E
     { ($($a:tt)+)($($e:tt)+) } => { CType::Arrow(
         Rc::new(tgt_vtype![$($a)+]),
@@ -656,11 +656,11 @@ macro_rules! tgt_ceffect {
         Rc::new(tgt_ceffect![$($e)+]),
     )};
     //     C |> ε      (computation with effect)
-    { $($tri:tt)+ } => { split_tri![parse_tri <= $($tri)+] };
+    { $($tri:tt)+ } => { split_tri![parse_tgt_tri <= $($tri)+] };
 }
 /// this macro is a helper for tgt_ceffect, not for external use
 #[macro_export]
-macro_rules! parse_tri {
+macro_rules! parse_tgt_tri {
     // C |> ε
     { ($($c:tt)+)($($e:tt)+) } => { CEffect::Cons(
         tgt_ctype![$($c)+],
@@ -668,9 +668,8 @@ macro_rules! parse_tri {
     )};
 }
 
-pub type ValRec = Rc<Val>;
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 /// Value terms
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Val {
     Var(Var),
     Unit,
@@ -682,6 +681,62 @@ pub enum Val {
     Anno(ValRec,Type),
     Nat(usize),
     Str(String),
+}
+pub type ValRec = Rc<Val>;
+
+/// Parser for values
+///
+/// ```text
+/// v::=
+///     fromast ast (inject ast nodes)
+///     (v):A       (annotation)
+///     (v1,v2,...) (unit,parens,tuples)
+///     inj1 v      (first sum value)
+///     inj2 v      (second sum value)
+///     name n      (name value)
+///     nmfn M      (name function as value)
+///     "string"    (string primitive)
+///     x           (variable)
+///     1234        (nat primitive)
+/// ```
+#[macro_export]
+macro_rules! tgt_val {
+    //     fromast ast (inject ast nodes)
+    { fromast $ast:expr } => { $ast };
+    //     (v):A       (annotation)
+    { ($($v:tt)+):$($a:tt)+} => { Val::Anno(
+        Rc::new(tgt_val![$($v)+]),
+        tgt_vtype![$($a)+],
+    )};
+    //     (v1,v2,...) (unit,parens,tuples)
+    { ($($tup:tt)*) } => { split_comma![parse_tgt_tuple <= $($tup)*] };
+    //     inj1 v      (first sum value)
+    { inj1 $($v:tt)+ } => { Val::Inj1(Rc::new(tgt_val![$v])) };
+    //     inj2 v      (second sum value)
+    { inj2 $($v:tt)+ } => { Val::Inj2(Rc::new(tgt_val![$v])) };
+    //     name n      (name value)
+    { name $($n:tt)+ } => { Val::Name(tgt_name![$n]) };
+    //     nmfn M      (name function as value)
+    { nmfm $($m:tt)+ } => { Val::NameFn(tgt_nametm![$m]) };
+    //     "string"    (string primitive)
+    { "$($s:tt)*" } => { Val::Str(stringify![$($s)*].to_string()) };
+    //     x           (variable)
+    { $x:ident } => { Val::Var(stringify![$x].to_string()) };
+    //     1234        (nat primitive)
+    { $n:expr } => { Val::Nat($n) };
+}
+/// this macro is a helper for tgt_ceffect, not for external use
+#[macro_export]
+macro_rules! parse_tgt_tuple {
+    // unit
+    { } => { Val::Unit };
+    // parens, final tuple val
+    { ($($v:tt)+) } => { tgt_val![$($v)+] };
+    // tuple
+    { ($($v:tt)+) $($more:tt)+ } => { Val::Pair(
+        Rc::new(tgt_val![$($v)+]),
+        Rc::new(parse_tuple![$($more)+]),
+    )};
 }
 
 pub type ExpRec = Rc<Exp>;
@@ -1028,6 +1083,42 @@ macro_rules! split_tri {
     };
     // ignore final seperator, run the function
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= |> } => {
+        $fun![$($first)* ($($current)*)]
+    };
+    // on next item, add it to the accumulator
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= $next:tt $($item:tt)*} => {
+        split_arrow![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*]
+    };
+    // at end of items, run the function
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= } => {
+        $fun![$($first)* ($($current)*)]
+    };
+    // if there were no items and no default, run with only initial params, if any
+    {$fun:ident ($($first:tt)*) () () <= } => {
+        $fun![$($first)*]
+    };
+}
+#[macro_export]
+/// run a macro on a list of lists after splitting the input
+macro_rules! split_comma {
+    // no defaults
+    {$fun:ident <= $($item:tt)*} => {
+        split_arrow![$fun () () () <= $($item)*]
+    };
+    // give initial params to the function
+    {$fun:ident ($($first:tt)*) <= $($item:tt)*} => {
+        split_arrow![$fun ($($first)*) () () <= $($item)*]
+    };
+    // give inital params and initial inner items in every group
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) <= $($item:tt)*} => {
+        split_arrow![$fun ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
+    };
+    // on non-final seperator, stash the accumulator and restart it
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= , $($item:tt)+} => {
+        split_arrow![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*]
+    };
+    // ignore final seperator, run the function
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= , } => {
         $fun![$($first)* ($($current)*)]
     };
     // on next item, add it to the accumulator
