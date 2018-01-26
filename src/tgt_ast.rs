@@ -528,10 +528,10 @@ pub type TypeRec = Rc<Type>;
 ///     Ref[i] A        (named ref cell)
 ///     Thk[i] E        (named thunk with effects)
 ///     A[i]            (application of type to index)
-///     A B             (applicatio of type constructor to type)
 ///     Nm[i]           (name type)
 ///     (Nm->Nm)[M]     (name function type)
 ///     #a.A            (recursive type)
+///     A B             (applicatio of type constructor to type)
 ///     a               (type var)
 /// ```
 #[macro_export]
@@ -539,7 +539,7 @@ macro_rules! tgt_vtype {
     //     fromast ast     (inject ast nodes)
     { fromast $ast:expr } => { $ast };
     //     (A)             (parens)
-    { ($($type:tt)+) } => { tgt_vtype![$($type:tt)+] };
+    { ($($type:tt)+) } => { tgt_vtype![$($type)+] };
     //     D,Seq,Nat       (type constructors)
     { D } => { Type::Cons(TypeCons::D) };
     { Seq } => { Type::Cons(TypeCons::Seq) };
@@ -556,19 +556,14 @@ macro_rules! tgt_vtype {
         Rc::new(tgt_vtype![$($t)+]),
     )};
     //     Thk[i] E        (named thunk with effects)
-    { Thk[$($i:tt)+] $($e:tt)+ } => { Type::Ref(
+    { Thk[$($i:tt)+] $($e:tt)+ } => { Type::Thk(
         tgt_index![$($i)+],
         Rc::new(tgt_ceffect![$($e)+]),
     )};
     //     A[i]            (application of type to index)
     { $a:tt [$($i:tt)+] } => { Type::IdxApp(
-        tgt_vtype![$a],
-        Rc::new(tgt_index![$i]),
-    )};
-    //     A B             (application of type constructor to type)
-    { $a:tt $b:tt } => { Type::TypeApp(
-        tgt_tcons![$a],
-        Rc::new(tgt_vtype![$b]),
+        Rc::new(tgt_vtype![$a]),
+        tgt_index![$($i)+],
     )};
     //     Nm[i]           (name type)
     { Nm[$($i:tt)+] } => { Type::Nm(tgt_index![$($i)+]) };
@@ -578,6 +573,11 @@ macro_rules! tgt_vtype {
     { #$a:ident.$($body:tt)+ } => { Type::Rec(
         stringify![$a].to_string(),
         Rc::new(tgt_vtype![$body]),
+    )};
+    //     A B             (application of type constructor to type)
+    { $a:tt $b:tt } => { Type::TypeApp(
+        tgt_tcons![$a],
+        Rc::new(tgt_vtype![$b]),
     )};
     //     a               (type var)
     { $a:ident } => { Type::Var(stringify![$a].to_string()) };
@@ -645,7 +645,7 @@ macro_rules! tgt_ctype {
 macro_rules! parse_tgt_arrow {
     // A -> E
     { ($($a:tt)+)($($e:tt)+) } => { CType::Arrow(
-        Rc::new(tgt_vtype![$($a)+]),
+        tgt_vtype![$($a)+],
         Rc::new(tgt_ceffect![$($e)+]),
     )};
 }
@@ -699,6 +699,10 @@ macro_rules! parse_tgt_tri {
         tgt_ctype![$($c)+],
         tgt_effect![$($e)+],
     )};
+    // failure
+    { $($any:tt)* } => {
+        CEffect::NoParse(stringify![$($any)*].to_string())
+    };
 }
 
 /// Value terms
@@ -739,7 +743,7 @@ macro_rules! tgt_val {
     { fromast $ast:expr } => { $ast };
     //     v : A       (annotation)
     { $v:tt : $($a:tt)+} => { Val::Anno(
-        Rc::new(tgt_val![$($v)+]),
+        Rc::new(tgt_val![$v]),
         tgt_vtype![$($a)+],
     )};
     //     (v1,v2,...) (unit,parens,tuples)
@@ -809,12 +813,14 @@ pub type ExpRec = Rc<Exp>;
 ///     ret v                           (lifted value)
 ///     #x.e                            (lambda)
 ///     fix x.e                         (recursive lambda)
-///     e v1 ...                        (extened application)
-///     let x = e1 e2                   (let-binding)
+///     {e} v1 ...                      (extened application)
+///     let x = {e1} e2                 (let-binding)
+///     let x : A = {e1} e2             (annotated let-binding)
 ///     thk v e                         (create thunk)
 ///     ref v1 v2                       (create ref)
 ///     force v                         (memo force)
 ///     get v                           (read from ref)
+///     let (x1,...) = {e1} e2          (let-split sugar)
 ///     let (x1,...) = v e              (extended split)
 ///     match v {x1 => e1 ... }         (extended case analysis)
 ///     [v1] v2                         (name function application)
@@ -861,10 +867,19 @@ macro_rules! tgt_exp {
             tgt_val![$v],
         )} $($more)+]
     };
-    //     let x = e1 e2                   (let-binding)
+    //     let x = {e1} e2                 (let-binding)
     { let $x:ident = $e1:tt $($e2:tt)+ } => { Exp::Let(
         stringify![$x].to_string(),
         Rc::new(tgt_exp![$e1]),
+        Rc::new(tgt_exp![$($e2)+]),
+    )};
+    //     let x : A = {e1} e2             (annotated let-binding)
+    { let $x:ident : $a:tt = $e1:tt $($e2:tt)+ } => { Exp::Let(
+        stringify![$x].to_string(),
+        Rc::new(Exp::Anno(
+            Rc::new(tgt_exp![$e1]),
+            tgt_ctype![F $a]
+        )),
         Rc::new(tgt_exp![$($e2)+]),
     )};
     //     thk v e                         (create thunk)
@@ -881,6 +896,14 @@ macro_rules! tgt_exp {
     { force $($v:tt)+ } => { Exp::Force( tgt_val![$($v)+])};
     //     get v                           (read from ref)
     { get $($v:tt)+ } => { Exp::Get( tgt_val![$($v)+])};
+    //     let (x1,...) = {e1} e2          (let-split sugar)
+    { let ($($vars:tt)+) = {$($e1:tt)+} $($e2:tt)+ } => {
+        tgt_exp![
+            let let_split_sugar = {$($e1)+}
+            let ($($vars)+) = let_split_sugar
+            $($e2)+
+        ]
+    };
     //     let (x1,...) = v e              (extended split)
     { let ($($vars:tt)+) = $v:tt $($e:tt)+ } => {
         split_comma![parse_tgt_split ($v {$($e)+}) <= $($vars)+]

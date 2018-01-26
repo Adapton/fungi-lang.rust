@@ -16,10 +16,10 @@ fn examples() {
   //let ctx : TCtxt = TCtxt::Empty;
 
   let max : Exp = tgt_exp![
-    type Vec = {}
-    type Seq[X] = { (+ Vec + (x Nm x Nat x Ref[X] Seq[X] x Ref[X] Seq[X])) }
+    // type Vec = {}
+    // type Seq[X] = { (+ Vec + (x Nm x Nat x Ref[X] Seq[X] x Ref[X] Seq[X])) }
     let nums:(Seq[X]) = { unimplemented }
-    let vec_max:(Vec -> F Nat) = { unimplemented }
+    // let vec_max:(Thk[0] Vec -> F Nat |> {0;0}) = { unimplemented }
     let max:(
       #X:NmSet.
       Seq[X] -> F Nat
@@ -27,15 +27,16 @@ fn examples() {
     ) = {
         fix max.#seq.
         match seq {
-            vec => { vec_max vec },
+            vec => { {force vec_max} vec }
             bin => {
-                let (n,_,l,r) = { ret bin }
-                let (_,ml) = { memo[n.1](max !l) }
-                let (_,mr) = { memo[n.2](max !r) }
+                let (n,_x,l,r) = bin
+                let (_x,ml) = { memo[n.1](max !l) }
+                let (_x,mr) = { memo[n.2](max !r) }
                 if (ml > mr) then {ret ml} else {ret mr}
             }
         }
-    } {force max} nums
+    }
+    {force max} nums
   ];
   println!("{:?}", max);
 }
