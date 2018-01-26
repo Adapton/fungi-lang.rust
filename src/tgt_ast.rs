@@ -56,6 +56,7 @@ pub enum NameTm {
     Bin(NameTmRec, NameTmRec),
     Lam(Var,NameTmRec),
     App(NameTmRec, NameTmRec),
+    PrimConcat(NameTmRec, NameTmRec),
     NoParse(String),
 }
 pub type NameTmRec = Rc<NameTm>;
@@ -69,6 +70,8 @@ pub type NameTmRec = Rc<NameTm>;
 ///     n, n, ...           (extended bin)
 ///     #a.M                (abstraction)
 ///     M N ...             (curried application)
+///     .                   (primitive name concat: Nm -> Nm -> Nm)
+///     N . M               (sugar - infix .)
 ///     a                   (Variable)
 ///     n                   (literal Name)
 /// ```
@@ -100,6 +103,18 @@ macro_rules! tgt_nametm {
             Rc::new(tgt_nametm![$par]),
         )] $($pars)+]
     };
+    //     .                   (primitive name concat: Nm -> Nm -> Nm)
+    { . } => { tgt_nametm![
+        #name_concat1.#name_concat2.fromast NameTm::PrimConcat(
+            Rc::new(Var(String::from("name_concat1"))),
+            Rc::new(Var(String::from("name_concat2"))),
+        )
+    ]};
+    //     N . M               (sugar - infix .)
+    { $n:tt . $m:tt } => { NameTm::PrimConcat(
+        Rc::new(tgt_nametm![$n]),
+        Rc::new(tgt_nametm![$m]),
+    )};
     //     a                   (Variable)
     { $var:ident } => { NameTm::Var(stringify![$var].to_string()) };
     //     n                   (literal Name)

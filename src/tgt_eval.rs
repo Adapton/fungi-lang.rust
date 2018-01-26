@@ -38,8 +38,7 @@ use adapton::macros::*;
 use adapton::engine;
 use adapton::engine::{thunk,cell,force,ArtIdChoice};
 
-use ast::{Var};
-use tgt_ast::{Exp,Val,Name,NameTm};
+use tgt_ast::{Exp,Var,Val,Name,NameTm};
 use std::rc::Rc;
 
 /// TODO-Sometime: Prune the environments (using free variables as filters)
@@ -146,6 +145,10 @@ pub fn nametm_subst(nmtm:NameTm, x:&Var, v:&NameTm) -> NameTm {
             if *x == y { NameTm::Lam(y, nt) }
             else { NameTm::Lam(y, nametm_subst_rec(nt, x, v)) }
         }
+        NameTm::PrimConcat(nt1,nt2) => {
+            NameTm::PrimConcat(nametm_subst_rec(nt1, x, v),
+                               nametm_subst_rec(nt2, x, v))
+        }
         NameTm::NoParse(_) => unreachable!(),
     }
 }
@@ -177,6 +180,17 @@ pub fn nametm_eval(nmtm:NameTm) -> NameTmVal {
                     let ntv = nametm_of_val(nt2);
                     let nt4 = nametm_subst(nt3, &x, &ntv);
                     nametm_eval(nt4)
+                },
+                _ => { panic!("dynamic type error (bin name term)") }
+            }
+        }
+        NameTm::PrimConcat(nt1,nt2) => {
+            let nt1 = nametm_eval_rec(nt1);
+            let nt2 = nametm_eval_rec(nt2);
+            match (nt1, nt2) {
+                (NameTmVal::Name(n1),
+                 NameTmVal::Name(n2)) => {
+                    NameTmVal::Name(Name::Bin(Rc::new(n1), Rc::new(n2)))
                 },
                 _ => { panic!("dynamic type error (bin name term)") }
             }
