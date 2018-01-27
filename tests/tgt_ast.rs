@@ -24,9 +24,9 @@ fn examples() {
         // Proposal for let-binding recursive functions:
         // ----------------------------------------------
         //
-        // `let rec x : E = e1`
+        // `let rec x : A = e1`
         //   expands into -->>>
-        //     `let x : E = ret (thunkanon (fix x. e1))`
+        //     `let x : A = ret (thunkanon (fix x. e1))`
         //
         let rec max:(
             Thk[0] #X:NmSet.
