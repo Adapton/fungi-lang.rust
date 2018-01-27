@@ -56,7 +56,6 @@ pub enum NameTm {
     Bin(NameTmRec, NameTmRec),
     Lam(Var,NameTmRec),
     App(NameTmRec, NameTmRec),
-    PrimConcat(NameTmRec, NameTmRec),
     NoParse(String),
 }
 pub type NameTmRec = Rc<NameTm>;
@@ -67,11 +66,9 @@ pub type NameTmRec = Rc<NameTm>;
 /// M,N ::=
 ///     fromast ast_expr    (inject ast nodes)
 ///     [N]                 (parens)
-///     n, n, ...           (extended bin)
+///     n. n. ...           (extended bin)
 ///     #a.M                (abstraction)
 ///     M N ...             (curried application)
-///     .                   (primitive name concat: Nm -> Nm -> Nm)
-///     N . M               (sugar - infix .)
 ///     a                   (Variable)
 ///     n                   (literal Name)
 /// ```
@@ -80,9 +77,9 @@ macro_rules! tgt_nametm {
     //     fromast ast_expr    (inject ast nodes)
     { fromast $ast:expr } => { $ast };
     //     [N]                 (parens)
-    { [$($nmtm:tt)+] } => { tgt_nametm![$($nmtm:tt)+] };
-    //     n, n,...            (extended bin)
-    { $nmtm:tt, $($nmtms:tt)+ } => { NameTm::Bin(
+    { [$($nmtm:tt)+] } => { tgt_nametm![$($nmtm)+] };
+    //     n.n. ...            (extended bin)
+    { $nmtm:tt. $($nmtms:tt)+ } => { NameTm::Bin(
         Rc::new(tgt_nametm![[$nmtm]]),
         Rc::new(tgt_nametm![$($nmtms)+])
     )};
@@ -93,7 +90,7 @@ macro_rules! tgt_nametm {
     )};
     //     M N               (single application)
     { $nmfn:tt $par:tt } => { NameTm::App(
-        Rc::new(tgt_nametm![$($nmfn)+]),
+        Rc::new(tgt_nametm![$nmfn]),
         Rc::new(tgt_nametm![$par]),
     )};
     //     M N ...           (curried application)
@@ -103,18 +100,6 @@ macro_rules! tgt_nametm {
             Rc::new(tgt_nametm![$par]),
         )] $($pars)+]
     };
-    //     .                   (primitive name concat: Nm -> Nm -> Nm)
-    { . } => { tgt_nametm![
-        #name_concat1.#name_concat2.fromast NameTm::PrimConcat(
-            Rc::new(Var(String::from("name_concat1"))),
-            Rc::new(Var(String::from("name_concat2"))),
-        )
-    ]};
-    //     N . M               (sugar - infix .)
-    { $n:tt . $m:tt } => { NameTm::PrimConcat(
-        Rc::new(tgt_nametm![$n]),
-        Rc::new(tgt_nametm![$m]),
-    )};
     //     a                   (Variable)
     { $var:ident } => { NameTm::Var(stringify![$var].to_string()) };
     //     n                   (literal Name)
@@ -232,12 +217,12 @@ macro_rules! tgt_index {
         )} $($pars)+]
     };
     //     [M] j       (single mapping)
-    { {$($m:tt)+} $par:tt } => { IdxTm::Map(
-        Rc::new(tgt_nametm![$($i)+]),
+    { [$($m:tt)+] $par:tt } => { IdxTm::Map(
+        Rc::new(tgt_nametm![$($m)+]),
         Rc::new(tgt_index![$par]),
     )};
     //     [M] j ...   (curried mapping)
-    { {$($m:tt)+} $par:tt $($pars:tt)+ } => {
+    { [$($m:tt)+] $par:tt $($pars:tt)+ } => {
         tgt_index![[fromast IdxTm::Map(
             Rc::new(tgt_nametm![$($m)+]),
             Rc::new(tgt_index![$par]),
@@ -247,10 +232,6 @@ macro_rules! tgt_index {
     { ($($i:tt)+)* $($j:tt)+ } => { IdxTm::Star(
         Rc::new(tgt_index![$($i)+]),
         Rc::new(tgt_index![$($j)+]),
-    )};
-    //     (i) j ...   (curried flatmapping)
-    { ($($i:tt)+) $($pars:tt)+ } => { IdxTm::FlatMap(
-        curry_idxfmap![tgt_index![$($i)+] ; $($pars)+]
     )};
     //     (i) j       (single flatmapping)
     { ($($i:tt)+) $par:tt } => { IdxTm::FlatMap(
@@ -489,6 +470,8 @@ macro_rules! parse_tgt_eff {
         tgt_index![$($w)+],
         tgt_index![$($r)+],
     )};
+    // failure
+    { $($any:tt)* } => { Effect::NoParse(stringify![(; $($any)*)].to_string())};
 }
 
 /// Type constructors
@@ -612,6 +595,8 @@ macro_rules! parse_tgt_sum {
         Rc::new(tgt_vtype![$($a)+]),
         Rc::new(parse_tgt_sum![$($more)+]),
     )};
+    // failure
+    { $($any:tt)* } => { Type::NoParse(stringify![(+ $($any)*)].to_string())};
 }
 /// this macro is a helper for tgt_vtype, not for external use
 #[macro_export]
@@ -626,6 +611,8 @@ macro_rules! parse_tgt_prod {
         Rc::new(tgt_vtype![$($a)+]),
         Rc::new(parse_tgt_prod![$($more)+]),
     )};
+    // failure
+    { $($any:tt)* } => { Type::NoParse(stringify![(x $($any)*)].to_string())};
 }
 
 /// Computation types
@@ -641,6 +628,7 @@ pub enum CType {
 /// ```text
 /// C,D ::=
 ///     fromast ast     (inject ast nodes)
+///     (C)             (parens)
 ///     F A             (lifted types)
 ///     A -> E          (functions with effects)
 /// ```
@@ -648,6 +636,8 @@ pub enum CType {
 macro_rules! tgt_ctype {
     //     fromast ast     (inject ast nodes)
     { fromast $ast:expr } => { $ast };
+    //     (C)             (parens)
+    { ($($c:tt)+) } => { tgt_ctype![$($c)+] };
     //     F A             (lifted types)
     { F $($a:tt)+ } => { CType::Lift(tgt_vtype![$($a)+]) };
     //     A -> E   (extended functions with effects)
@@ -663,6 +653,8 @@ macro_rules! parse_tgt_arrow {
         tgt_vtype![$($a)+],
         Rc::new(tgt_ceffect![$($e)+]),
     )};
+    // failure
+    { $($any:tt)* } => { CType::NoParse(stringify![(-> $($any)*)].to_string())};
 }
 
 /// Computation effects
@@ -680,6 +672,7 @@ pub type CEffectRec = Rc<CEffect>;
 /// ```text
 /// E ::=
 ///     fromast ast (inject ast nodes)
+///     (E)         (parens)
 ///     #a:K.E      (type polymorphism)
 ///     #a:g|P.E    (index polymorphism)
 ///     C |> ε      (computation with effect)
@@ -688,6 +681,8 @@ pub type CEffectRec = Rc<CEffect>;
 macro_rules! tgt_ceffect {
     //     fromast ast (inject ast nodes)
     { fromast $ast:expr } => { $ast };
+    //     (E)         (parens)
+    { ($($e:tt)+) } => { tgt_ceffect![$($e)+] };
     //     #a:K.E      (type polymorphism)
     { #$a:ident:$k:tt.$($e:tt)+ } => { CEffect::ForallType(
         stringify![$a].to_string(),
@@ -716,7 +711,7 @@ macro_rules! parse_tgt_tri {
     )};
     // failure
     { $($any:tt)* } => {
-        CEffect::NoParse(stringify![$($any)*].to_string())
+        CEffect::NoParse(stringify![(|> $($any)*)].to_string())
     };
 }
 
@@ -792,6 +787,8 @@ macro_rules! parse_tgt_tuple {
         Rc::new(tgt_val![$($v)+]),
         Rc::new(parse_tuple![$($more)+]),
     )};
+    // failure
+    { $($any:tt)* } => { Val::NoParse(stringify![(, $($any)*)].to_string())};
 }
 
 /// Expressions (aka, computation terms)
@@ -979,6 +976,8 @@ macro_rules! parse_tgt_split {
             Rc::new(parse_tgt_split![sugar_split_snd $e ($x2) $($more)+]),
         )
     };
+    // failure
+    { $($any:tt)* } => { Exp::NoParse(stringify![(, $($any)*)].to_string())};
 }
 
 /**********
