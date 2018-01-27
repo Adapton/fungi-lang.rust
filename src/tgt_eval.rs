@@ -65,9 +65,14 @@ pub enum RtVal {
     // Name, Ref, Thunk: Run-time objects from Adapton library (names, refs, thunks):
 
     // Names from Adapton engine
-    Name(engine::Name),
+    //Name(engine::Name),
+
+    // AST Names; we convert to engine names when we use the engine API
+    Name(Name),
+
     // Refs from Adapton engine; they each contain a run-time value
     Ref(engine::Art<RtVal>),
+    
     // Thunks from Adapton engine; they each _evaluate to_ a terminal expression
     Thunk(engine::Art<ExpTerm>),
 }
@@ -186,7 +191,7 @@ pub fn nametm_eval(nmtm:NameTm) -> NameTmVal {
 
 /// Name conversion. Convert Tgt-AST name into a run-time (adapton
 /// library) name.
-pub fn name_of_name(_n:&Name) -> engine::Name {
+pub fn engine_name_of_ast_name(_n:&Name) -> engine::Name {
     panic!("TODO")
 }
 
@@ -203,7 +208,7 @@ pub fn close_val(env:&Env, v:&Val) -> RtVal {
             panic!("TODO"),
         
         // other cases: base cases, and structural recursion:
-        Name(ref n)    => RtVal::Name(name_of_name(n)),
+        Name(ref n)    => RtVal::Name(n.clone()),
         NameFn(ref nf) => RtVal::NameFn(nf.clone()), // XXX/TODO --- Descend into name terms and continue substitution...?
         
         Unit         => RtVal::Unit,
@@ -289,8 +294,10 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
         }
         Exp::Thunk(v, e1) => {
             match close_val(&env, &v) {
-                RtVal::Name(n) => {
-                    let t = thunk!([Some(n)]? eval ; env:env, e:(*e1).clone() );
+                RtVal::Name(n) => { // create engine thunk named n
+                    // suspending evaluation of expression e1:
+                    let n = Some(engine_name_of_ast_name(&n));
+                    let t = thunk!([n]? eval ; env:env, e:(*e1).clone() );
                     ExpTerm::Ret(RtVal::Thunk(t))
                 },
                 v => eval_type_error(EvalTyErr::ThunkNonName(v), env, e)
@@ -298,7 +305,8 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
         }
         Exp::Ref(v1, v2) => {
             match close_val(&env, &v1) {
-                RtVal::Name(n) => {
+                RtVal::Name(n) => { // create engine ref named n, holding v2
+                    let n = engine_name_of_ast_name(&n);
                     let v2 = close_val(&env, &v2);
                     let r = cell(n, v2);
                     ExpTerm::Ret(RtVal::Ref(r))
@@ -380,7 +388,7 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
                         Some(n) => {
                             match nametm_eval(n) {
                                 NameTmVal::Name(n) => {
-                                    let ns_name : engine::Name = name_of_name(&n);
+                                    let ns_name = engine_name_of_ast_name(&n);
                                     engine::ns(ns_name, ||{ eval(env, (*e1).clone()) })
                                 },                                    
                                 _ => eval_type_error(EvalTyErr::ScopeWithoutName2, env, e),
