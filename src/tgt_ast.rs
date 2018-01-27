@@ -146,7 +146,9 @@ pub type IdxTmRec = Rc<IdxTm>;
 ///     #a.i        (abstraction)
 ///     {i} j ...   (curried application)
 ///     [M] j ...   (curried mapping)
+///           ^^^--------------------------Not possible: The sort for M, Nm->Nm, excludes "curried mapping".
 ///     (i) j ...   (curried flatmapping)
+///           ^^^--------------------------Not possible: The sort for i, Nm->NmSet, excludes "curried flatmapping".
 ///     (i)* j      (iterated flatmapping)
 ///     a           (variable)
 /// ```

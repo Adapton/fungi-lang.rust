@@ -18,15 +18,15 @@ fn examples() {
         // type Vec = {}
         // type Seq[X] = { (+ Vec + (x Nm x Nat x Ref[X] Seq[X] x Ref[X] Seq[X])) }
         let nums:(Seq[X]) = { unimplemented }
-        let vec_max:(Thk[0] Vec -> (F Nat |> {0;0}) |> {0;0})
-            = { unimplemented }
+        let vec_max:(Thk[0] Vec -> (F Nat |> {0;0}) |> {0;0}) = {
+            unimplemented
+        }
         let max:(Thk[0]
                  #X:NmSet.
                  Seq[X] -> (F Nat |>
                             {(#x.{x.1} % {x.2}) X;0}
-                 ) |> {0;0}
-        ) = {
-            fix max.#seq.
+                 ) |> {0;0} ) = {
+            fix max. #seq.
                 match seq {
                     vec => { {force vec_max} vec }
                     bin => {
