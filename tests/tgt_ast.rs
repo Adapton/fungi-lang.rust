@@ -7,39 +7,39 @@ extern crate iodyn_lang;
 
 #[test]
 fn examples() {
+    use std::rc::Rc;
+    use iodyn_lang::bitype;
+    use iodyn_lang::tgt_ast::*;
+    // use iodyn_lang::tgt_ast::cons::*;
+    
+    //let ctx : TCtxt = TCtxt::Empty;
 
-  use std::rc::Rc;
-  use iodyn_lang::bitype;
-  use iodyn_lang::tgt_ast::*;
-  // use iodyn_lang::tgt_ast::cons::*;
-
-  //let ctx : TCtxt = TCtxt::Empty;
-
-  let max : Exp = tgt_exp![
-    // type Vec = {}
-    // type Seq[X] = { (+ Vec + (x Nm x Nat x Ref[X] Seq[X] x Ref[X] Seq[X])) }
-    let nums:(Seq[X]) = { unimplemented }
-    let vec_max:(Thk[0] Vec -> (F Nat |> {0;0}) |> {0;0}) = { unimplemented }
-    let max:(Thk[0]
-      #X:NmSet.
-      Seq[X] -> (F Nat |>
-        {(#x.{x.1} % {x.2}) X;0}
-      ) |> {0;0}
-    ) = {
-        fix max.#seq.
-        match seq {
-            vec => { {force vec_max} vec }
-            bin => {
-                let (n,_x,l,r) = bin
-                let (_x,ml) = { memo[n.1](max !l) }
-                let (_x,mr) = { memo[n.2](max !r) }
-                if (ml > mr) then {ret ml} else {ret mr}
-            }
+    let max : Exp = tgt_exp![
+        // type Vec = {}
+        // type Seq[X] = { (+ Vec + (x Nm x Nat x Ref[X] Seq[X] x Ref[X] Seq[X])) }
+        let nums:(Seq[X]) = { unimplemented }
+        let vec_max:(Thk[0] Vec -> (F Nat |> {0;0}) |> {0;0})
+            = { unimplemented }
+        let max:(Thk[0]
+                 #X:NmSet.
+                 Seq[X] -> (F Nat |>
+                            {(#x.{x.1} % {x.2}) X;0}
+                 ) |> {0;0}
+        ) = {
+            fix max.#seq.
+                match seq {
+                    vec => { {force vec_max} vec }
+                    bin => {
+                        let (n,_x,l,r) = {bin}
+                        let (_x,ml) = { memo[n.1](max !l) }
+                        let (_x,mr) = { memo[n.2](max !r) }
+                        if (ml > mr) {ret ml} else {ret mr} // ?: use Rust syntax for if -- no "then" ?
+                    }
+                }
         }
-    }
-    {force max} nums
-  ];
-  println!("{:?}", max);
+        {force max} nums
+    ];
+    println!("{:?}", max);
 }
 
 /* 
