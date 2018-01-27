@@ -36,7 +36,7 @@
 
 use adapton::macros::*;
 use adapton::engine;
-use adapton::engine::{thunk,cell,force,ArtIdChoice};
+use adapton::engine::{thunk,ArtIdChoice};
 
 use tgt_ast::{Exp,Var,Val,Name,NameTm};
 use std::rc::Rc;
@@ -62,11 +62,6 @@ pub enum RtVal {
     // Special-case thunk values: For implementing fix with environment-passing style
     FixThunk(Env, Exp),
     
-    // Name, Ref, Thunk: Run-time objects from Adapton library (names, refs, thunks):
-
-    // Names from Adapton engine
-    //Name(engine::Name),
-
     // AST Names; we convert to engine names when we use the engine API
     Name(Name),
 
@@ -230,7 +225,10 @@ pub fn close_val(env:&Env, v:&Val) -> RtVal {
         }
         // other cases: base cases, and structural recursion:
         Name(ref n)    => RtVal::Name(n.clone()),
-        NameFn(ref nf) => RtVal::NameFn(nf.clone()), // XXX/TODO --- Descend into name terms and continue substitution...?
+
+        // XXX/TODO --- Descend into name terms and continue substitution...?
+        // OR -- Do we have an invariant that these terms are closed?
+        NameFn(ref nf) => RtVal::NameFn(nf.clone()), 
         
         Unit         => RtVal::Unit,
         Nat(ref n)   => RtVal::Nat(n.clone()),
@@ -249,6 +247,7 @@ pub fn close_val(env:&Env, v:&Val) -> RtVal {
     }
 }
 
+/// See `close_val`
 pub fn close_val_rec(env:&Env, v:&Rc<Val>) -> Rc<RtVal> {
     Rc::new(close_val(env, &**v))
 }
@@ -332,7 +331,7 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
                 RtVal::Name(n) => { // create engine ref named n, holding v2
                     let n = engine_name_of_ast_name(n);
                     let v2 = close_val(&env, &v2);
-                    let r = cell(n, v2);
+                    let r = engine::cell(n, v2);
                     ExpTerm::Ret(RtVal::Ref(r))
                 },
                 v => eval_type_error(EvalTyErr::RefNonName(v), env, e)
@@ -382,13 +381,13 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
         }
         Exp::Get(v) => {
             match close_val(&env, &v) {
-                RtVal::Ref(a) => { ExpTerm::Ret(get!(a)) },
+                RtVal::Ref(a) => { ExpTerm::Ret(engine::force(&a)) },
                 v => eval_type_error(EvalTyErr::GetNonRef(v), env, e)
             }
         }
         Exp::Force(v) => {
             match close_val(&env, &v) {
-                RtVal::Thunk(a)         => { force(&a) },
+                RtVal::Thunk(a)         => { engine::force(&a) },
                 RtVal::FixThunk(env, e) => { eval(env, e) },
                 v => eval_type_error(EvalTyErr::ForceNonThunk(v), env, e)                    
             }
