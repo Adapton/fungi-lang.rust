@@ -217,9 +217,17 @@ pub fn close_val(env:&Env, v:&Val) -> RtVal {
     use tgt_ast::Val::*;
     match *v {
         // variable case:
-        Var(ref _x)   => //env.get(x).unwrap().clone(),
-            panic!("TODO"),
-        
+        Var(ref x) => {
+            let mut v = None;
+            // most-recently pushed binding is "in scope" (others are shadowed)
+            for &(ref y, ref vy) in env.iter().rev() {
+                if x == y {v = Some(vy.clone())} else {}
+            };
+            match v {
+                None => panic!("close_val: free variable: {}", x),
+                Some(v) => v
+            }
+        }
         // other cases: base cases, and structural recursion:
         Name(ref n)    => RtVal::Name(n.clone()),
         NameFn(ref nf) => RtVal::NameFn(nf.clone()), // XXX/TODO --- Descend into name terms and continue substitution...?
