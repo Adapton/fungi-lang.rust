@@ -902,7 +902,7 @@ macro_rules! tgt_exp {
         )),
         Rc::new(tgt_exp![$($e2)+]),
     )};
-    //     let rec x : A = {e1} e2             (annotated let-binding)
+    //     let rec x : A = {e1} e2             (annotated let-rec binding)
     { let rec $x:ident : $a:tt = $e1:tt $($e2:tt)+ } => { Exp::Let(
         stringify![$x].to_string(),
         Rc::new(Exp::Anno(
