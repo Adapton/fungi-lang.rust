@@ -907,7 +907,7 @@ macro_rules! tgt_exp {
         stringify![$x].to_string(),
         Rc::new(Exp::Anno(
             Rc::new(Exp::Ret(Val::ThunkAnon(Rc::new(Exp::Fix(stringify![$x].to_string(), Rc::new(tgt_exp![$e1])))))),
-            tgt_ctype![$a]
+            tgt_ctype![F $a]
         )),
         Rc::new(tgt_exp![$($e2)+]),
     )};
