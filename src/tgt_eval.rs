@@ -60,7 +60,7 @@ pub enum RtVal {
     NameFn(NameTm),
 
     // Special-case thunk values: For implementing fix with environment-passing style
-    FixThunk(Env, Exp),
+    ThunkAnon(Env, Exp),
     
     // AST Names; we convert to engine names when we use the engine API
     Name(Name),
@@ -234,6 +234,9 @@ pub fn close_val(env:&Env, v:&Val) -> RtVal {
         Nat(ref n)   => RtVal::Nat(n.clone()),
         Str(ref s)   => RtVal::Str(s.clone()),
 
+        // anonymous thunk case: clone and save the environment (and exp):
+        ThunkAnon(ref e) => RtVal::ThunkAnon(env.clone(), (**e).clone()),
+
         // inductive cases
         Inj1(ref v1) => RtVal::Inj1(close_val_rec(env, v1)),
         Inj2(ref v1) => RtVal::Inj2(close_val_rec(env, v1)),
@@ -312,7 +315,7 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
         Exp::Anno(e1,_ct) => { eval(env, (*e1).clone()) }
         Exp::Fix(f,e1) => {
             let env_saved = env.clone();
-            env.push((f, RtVal::FixThunk(env_saved, e)));
+            env.push((f, RtVal::ThunkAnon(env_saved, e)));
             eval(env, (*e1).clone())
         }
         Exp::Thunk(v, e1) => {
@@ -387,8 +390,8 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
         }
         Exp::Force(v) => {
             match close_val(&env, &v) {
-                RtVal::Thunk(a)         => { engine::force(&a) },
-                RtVal::FixThunk(env, e) => { eval(env, e) },
+                RtVal::Thunk(a)          => { engine::force(&a) },
+                RtVal::ThunkAnon(env, e) => { eval(env, e) },
                 v => eval_type_error(EvalTyErr::ForceNonThunk(v), env, e)                    
             }
         }

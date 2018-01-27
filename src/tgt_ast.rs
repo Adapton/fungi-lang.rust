@@ -731,6 +731,12 @@ pub enum Val {
     Nat(usize),
     Str(String),
     NoParse(String),
+    // Anonymous thunks: "ordinary" CBPV thunks. They can be written
+    // in the source program, and unlike named (store-allocated)
+    // thunks, and closed, run-time thunks, these thunks exist in the
+    // pre-evaluation AST (not the store); also, they don't yet have a
+    // run-time environment.
+    ThunkAnon(ExpRec),
 }
 pub type ValRec = Rc<Val>;
 
@@ -893,6 +899,15 @@ macro_rules! tgt_exp {
         Rc::new(Exp::Anno(
             Rc::new(tgt_exp![$e1]),
             tgt_ctype![F $a]
+        )),
+        Rc::new(tgt_exp![$($e2)+]),
+    )};
+    //     let rec x : A = {e1} e2             (annotated let-binding)
+    { let rec $x:ident : $a:tt = $e1:tt $($e2:tt)+ } => { Exp::Let(
+        stringify![$x].to_string(),
+        Rc::new(Exp::Anno(
+            Rc::new(Exp::Ret(Val::ThunkAnon(Rc::new(Exp::Fix(stringify![$x].to_string(), Rc::new(tgt_exp![$e1])))))),
+            tgt_ctype![$a]
         )),
         Rc::new(tgt_exp![$($e2)+]),
     )};
