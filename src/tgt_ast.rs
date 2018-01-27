@@ -909,7 +909,10 @@ macro_rules! tgt_exp {
     { let rec $x:ident : $a:tt = $e1:tt $($e2:tt)+ } => { Exp::Let(
         stringify![$x].to_string(),
         Rc::new(Exp::Anno(
-            Rc::new(Exp::Ret(Val::ThunkAnon(Rc::new(Exp::Fix(stringify![$x].to_string(), Rc::new(tgt_exp![$e1])))))),
+            Rc::new(Exp::Ret(Val::ThunkAnon(
+                Rc::new(Exp::Fix(stringify![$x].to_string(),
+                                 Rc::new(tgt_exp![$e1])))))
+            ),
             tgt_ctype![F $a]
         )),
         Rc::new(tgt_exp![$($e2)+]),
