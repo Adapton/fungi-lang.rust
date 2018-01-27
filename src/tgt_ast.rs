@@ -807,7 +807,7 @@ pub enum Exp {
     Ref(Val,Val),
     Get(Val),
     Scope(Val,ExpRec),
-    NameApp(Val,Val),
+    NameFnApp(Val,Val),
     Unimp,
     DebugLabel(String,ExpRec),
     NoParse(String),
@@ -943,7 +943,7 @@ macro_rules! tgt_exp {
         )
     };
     //     [v1] v2                         (name function application)
-    { [$($v1:tt)+] $($v2:tt)+ } => { Exp::NameApp(
+    { [$($v1:tt)+] $($v2:tt)+ } => { Exp::NameFnApp(
         tgt_val![$($v1:tt)+],
         tgt_val![$($v2:tt)+],
     )};

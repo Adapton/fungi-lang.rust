@@ -260,6 +260,9 @@ pub enum EvalTyErr {
     ScopeWithoutName0,
     ScopeWithoutName1,
     ScopeWithoutName2,
+    // name fn app
+    NameFnApp0,
+    NameFnApp1,
 }
 
 fn eval_type_error<A>(err:EvalTyErr, env:Env, e:Exp) -> A {
@@ -398,8 +401,21 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
                 _ => eval_type_error(EvalTyErr::ScopeWithoutName0, env, e),
             }
         }
-        Exp::NameApp(_, _) => {
-            panic!("TODO")
+        Exp::NameFnApp(v1, v2) => {
+            // (value-injected) name function application: apply
+            // (injected) name function v1 to (injected) name v2; the
+            // evaluation itself happens in the name term sublanguage,
+            // via nametm_eval.  The result is an (injected) name.
+            match (close_val(&env, &v1), close_val(&env, &v2)) {
+                ( RtVal::NameFn(nf), RtVal::Name(n) ) => {
+                    match nametm_eval(NameTm::App(Rc::new(nf),
+                                                  Rc::new(NameTm::Name(n)))) {
+                        NameTmVal::Name(n) => ExpTerm::Ret(RtVal::Name(n)),
+                        _ => eval_type_error(EvalTyErr::NameFnApp1, env, e),
+                    }
+                },
+                _ => eval_type_error(EvalTyErr::NameFnApp0, env, e),
+            }
         }
         Exp::DebugLabel(_,e) => {
             // XXX/TODO -- Insert label/text/message into Adapton's trace structure
