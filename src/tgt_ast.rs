@@ -675,8 +675,9 @@ pub type CEffectRec = Rc<CEffect>;
 /// E ::=
 ///     fromast ast (inject ast nodes)
 ///     (E)         (parens)
-///     #a:K.E      (type polymorphism)
+///     ##a:K.E     (type polymorphism)
 ///     #a:g|P.E    (index polymorphism)
+///     #a:g.E      (index polymorphism -- true prop)
 ///     C |> ε      (computation with effect)
 /// ```
 #[macro_export]
@@ -685,8 +686,8 @@ macro_rules! tgt_ceffect {
     { fromast $ast:expr } => { $ast };
     //     (E)         (parens)
     { ($($e:tt)+) } => { tgt_ceffect![$($e)+] };
-    //     #a:K.E      (type polymorphism)
-    { #$a:ident:$k:tt.$($e:tt)+ } => { CEffect::ForallType(
+    //     ##a:K.E      (type polymorphism)
+    { ##$a:ident:$k:tt.$($e:tt)+ } => { CEffect::ForallType(
         stringify![$a].to_string(),
         tgt_kind![$k],
         Rc::new(tgt_ceffect![$($e)+]),
@@ -696,6 +697,13 @@ macro_rules! tgt_ceffect {
         stringify![$a].to_string(),
         tgt_sort![$g],
         tgt_prop![$p],
+        Rc::new(tgt_ceffect![$($e)+]),
+    )};
+    //     #a:g.E    (index polymorphism, with trivial prop)
+    { #$a:ident:$g:tt.$($e:tt)+ } => { CEffect::ForallIdx(
+        stringify![$a].to_string(),
+        tgt_sort![$g],
+        tgt_prop![tt],
         Rc::new(tgt_ceffect![$($e)+]),
     )};
     //     C |> ε      (computation with effect)
