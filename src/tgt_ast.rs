@@ -736,15 +736,23 @@ pub enum Val {
     Name(Name),
     NameFn(NameTm),
     Anno(ValRec,Type),
-    Nat(usize),
-    Str(String),
-    NoParse(String),
+    
     // Anonymous thunks: "ordinary" CBPV thunks. They can be written
     // in the source program, and unlike named (store-allocated)
     // thunks, and closed, run-time thunks, these thunks exist in the
     // pre-evaluation AST (not the store); also, they don't yet have a
     // run-time environment.
     ThunkAnon(ExpRec),
+
+    /// Primitive (Rust) `bool`, injected into `Val` type
+    Bool(bool),
+    /// Primitive (Rust) `usize`, injected into `Val` type
+    Nat(usize),
+    /// Primitive (Rust) `String`, injected into `Val` type
+    Str(String),
+
+    // Parse errors
+    NoParse(String),
 }
 pub type ValRec = Rc<Val>;
 
@@ -820,6 +828,7 @@ pub enum Exp {
     App(ExpRec, Val),
     Split(Val, Var, Var, ExpRec),
     Case(Val, Var, ExpRec, Var, ExpRec),
+    IfThenElse(Val, ExpRec, ExpRec),
     Ref(Val,Val),
     Get(Val),
     Scope(Val,ExpRec),
@@ -851,6 +860,7 @@ pub type ExpRec = Rc<Exp>;
 ///     let (x1,...) = {e1} e2          (let-split sugar)
 ///     let (x1,...) = v e              (extended split)
 ///     match v {x1 => e1 ... }         (extended case analysis)
+///     if ( e ) { e1 } else { e2 }     (if-then-else; bool elim)
 ///     [v1] v2                         (name function application)
 ///     unimplemented                   (marker for type checker)
 ///     label (some_text) e             (debug label)
@@ -972,6 +982,23 @@ macro_rules! tgt_exp {
                 }
             ]),
         )
+    };
+    { match $v:tt {$x1:ident=>$e1:tt $x2:ident=>$e2:tt} } => { Exp::Case(
+        tgt_val![$v],
+        stringify![$x1].to_string(),
+        Rc::new(tgt_exp![$e1]),
+        stringify![$x2].to_string(),
+        Rc::new(tgt_exp![$e2]),
+    )};
+    //     if ( e ) { e1 } else { e2 }     (if-then-else; bool elim)
+    { if ( $($e:tt)+ ) { $($e1:tt)+ } else { $($e2:tt)+ } } => {
+        Exp::Let("sugar_if_scrutinee".to_string(),
+                 Rc::new(tgt_exp![$($e)+]),
+                 Rc::new(Exp::IfThenElse(
+                     Val::Var("sugar_if_scrutinee".to_string()),
+                     Rc::new(tgt_exp![$($e1)+]),
+                     Rc::new(tgt_exp![$($e2)+])
+                 )))
     };
     //     [v1] v2                         (name function application)
     { [$($v1:tt)+] $($v2:tt)+ } => { Exp::NameFnApp(

@@ -31,8 +31,8 @@ fn examples() {
         let rec max:(
             Thk[0] #X:NmSet.
                 Seq[X] -> (F Nat |>
-                           {(#x.{x.1} % {x.2}) X;0}
-                ) |> {0;0}
+                           {(#x.{x.1} % {x.2}) X;0})
+                |> {0;0}
         ) = {
             #seq. match seq {
                 vec => { {force vec_max} vec }

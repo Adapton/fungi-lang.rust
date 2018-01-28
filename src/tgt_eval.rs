@@ -51,13 +51,15 @@ pub type Env = Vec<(String,RtVal)>;
 /// library.
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum RtVal {
-    Nat(usize),
-    Str(String),
     Unit,
     Pair(RtValRec, RtValRec),
     Inj1(RtValRec),
     Inj2(RtValRec),
     NameFn(NameTm),
+    
+    Nat(usize),
+    Str(String),
+    Bool(bool),
 
     // Special-case thunk values: For implementing fix with environment-passing style
     ThunkAnon(Env, Exp),
@@ -231,6 +233,7 @@ pub fn close_val(env:&Env, v:&Val) -> RtVal {
         NameFn(ref nf) => RtVal::NameFn(nf.clone()), 
         
         Unit         => RtVal::Unit,
+        Bool(ref b)  => RtVal::Bool(b.clone()),
         Nat(ref n)   => RtVal::Nat(n.clone()),
         Str(ref s)   => RtVal::Str(s.clone()),
 
@@ -367,6 +370,15 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
                     eval(env, (*e1).clone())
                 },
                 v => eval_type_error(EvalTyErr::SplitNonPair(v), env, e)
+            }
+        }
+        Exp::IfThenElse(v, e1, e2) => {
+            match close_val(&env, &v) {
+                RtVal::Bool(b) => {
+                    if b { eval(env, (*e1).clone()) }
+                    else { eval(env, (*e2).clone()) }
+                }
+                v => eval_type_error(EvalTyErr::IfNonBool(v), env, e)
             }
         }
         Exp::Case(v, x, ex, y, ey) => {
