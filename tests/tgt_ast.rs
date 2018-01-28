@@ -15,9 +15,29 @@ fn examples() {
     //let ctx : TCtxt = TCtxt::Empty;
 
     let max : Exp = tgt_exp![
-        // type Vec = {}
-        // type Seq[X] = { (+ Vec + (x Nm x Nat x Ref[X] Seq[X] x Ref[X] Seq[X])) }
+        //type Vec = {}
+
+        // Seq[X,Y]:
+        // Refinement type for a nominal, level-tree data structure,
+        // ...      with (unallocated) names in X
+        // ... and (allocated) pointer names in Y
+        //
+        // type Seq[X,Y] = {
+        //     (+ Vec
+        //      + (exists X1,X2,X3    | X = X1%X2%X3.
+        //         exists Y1,Y2,Y3,Y4 | Y = Y1%Y2%Y3%Y4.
+        //         x Nm[X1] x Nat
+        //         x Ref[Y1] Seq[X2,Y2]
+        //         x Ref[Y3] Seq[X3,Y4]))
+        // }
+
+        // TODO: Replace with the type shown above:
+        //type Seq[X] = { (+ Vec + (x Nm x Nat x Ref[X] Seq[X] x Ref[X] Seq[X])) }
+
+        //let nums:(Seq[X,Y]) = { unimplemented }
+        //TODO: Replace with the type above
         let nums:(Seq[X]) = { unimplemented }
+        
         let vec_max:(Thk[0] Vec -> (F Nat |> {0;0}) |> {0;0}) = {
             unimplemented
         }
@@ -29,9 +49,9 @@ fn examples() {
         //     `let x : A = ret (thunkanon (fix x. e1))`
         //
         let rec max:(
-            Thk[0] #X:NmSet.
+            Thk[0] #X:NmSet. #Y:NmSet.
                 Seq[X] -> (F Nat |>
-                           {(#x.{x.1} % {x.2}) X;0})
+                            {(#x.{x.1} % {x.2}) X; 0})
                 |> {0;0}
         ) = {
             #seq. match seq {
