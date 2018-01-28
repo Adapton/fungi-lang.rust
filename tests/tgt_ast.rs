@@ -37,7 +37,7 @@ fn examples() {
             #seq. match seq {
                 vec => { {force vec_max} vec }
                 bin => {
-                    let (n,_x,l,r) = {bin}
+                    let (n,_x,l,r) = {ret bin}
                     let (_x,ml) = { memo[n.1](max !l) }
                     let (_x,mr) = { memo[n.2](max !r) }
                     if (ml > mr) {ret ml} else {ret mr} // ?: use Rust syntax for if -- no "then" ?
