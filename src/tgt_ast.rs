@@ -669,6 +669,7 @@ pub enum CEffect {
 }
 pub type CEffectRec = Rc<CEffect>;
 
+
 /// Parser for Computations with effects
 ///
 /// ```text
@@ -770,6 +771,7 @@ pub type ValRec = Rc<Val>;
 ///     str(string) (string primitive)
 ///     x           (variable)
 ///     1234        (nat primitive)
+///     ' 1235      (name primitive)
 /// ```
 #[macro_export]
 macro_rules! tgt_val {
@@ -794,7 +796,9 @@ macro_rules! tgt_val {
     { str($($s:tt)*) } => { Val::Str(stringify![$($s)*].to_string()) };
     //     x           (variable)
     { $x:ident } => { Val::Var(stringify![$x].to_string()) };
-    //     1234        (nat primitive)
+    //    @ 1234       (name literal, as a value)
+    { @ $n:expr } => { Val::Name(Name::Usize($n)) };
+    //
     { $n:expr } => { Val::Nat($n) };
     // failure
     { $($any:tt)* } => { Val::NoParse(stringify![$($any)*].to_string())};
@@ -817,6 +821,13 @@ macro_rules! parse_tgt_tuple {
 
 /// Expressions (aka, computation terms)
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum PrimApp {
+    NatLt(Val,Val),
+    NameBin(Val,Val),
+}
+
+/// Expressions (aka, computation terms)
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Exp {
     Anno(ExpRec,CType),
     Force(Val),
@@ -833,6 +844,7 @@ pub enum Exp {
     Get(Val),
     Scope(Val,ExpRec),
     NameFnApp(Val,Val),
+    PrimApp(PrimApp),
     Unimp,
     DebugLabel(String,ExpRec),
     NoParse(String),
@@ -862,6 +874,7 @@ pub type ExpRec = Rc<Exp>;
 ///     match v {x1 => e1 ... }         (extended case analysis)
 ///     if ( e ) { e1 } else { e2 }     (if-then-else; bool elim)
 ///     [v1] v2                         (name function application)
+///     v1 , v2                         (binary name construction)
 ///     unimplemented                   (marker for type checker)
 ///     label (some_text) e             (debug label)
 /// ```
@@ -1005,6 +1018,11 @@ macro_rules! tgt_exp {
         tgt_val![$($v1:tt)+],
         tgt_val![$($v2:tt)+],
     )};
+    //    
+    { $v1:tt , $v2:tt } => {
+        Exp::PrimApp(PrimApp::NameBin( tgt_val!($v1),
+                                       tgt_val!($v2) ))
+    };
     //     unimplemented                   (marker for type checker)
     { unimplemented } => { Exp::Unimp };
     //     label (some_text) e             (debug label)

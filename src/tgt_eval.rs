@@ -456,6 +456,9 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
             // XXX/TODO -- Insert label/text/message into Adapton's trace structure
             return eval(env, (*e).clone())
         }
+        Exp::PrimApp(_pa) => {
+            unimplemented!()
+        }        
         Exp::Unimp => unimplemented!(),
         Exp::NoParse(_) => unreachable!(),
     }
