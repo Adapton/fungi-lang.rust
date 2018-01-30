@@ -480,7 +480,7 @@ pub enum TypeCons {
     Nat,
     String,
     Seq,
-    //User(String),
+    User(String),
     NoParse(String),
 }
 /// Parser for TypeConstructors
@@ -491,7 +491,7 @@ macro_rules! tgt_tcons {
     { Nat } => { TypeCons::Nat };
     { String } => { TypeCons::String };
     { Seq } => { TypeCons::Seq };
-    //{ $s:ident } => { TypeCons::User(stringify![$s].to_string()) };
+    { $s:ident } => { TypeCons::User(stringify![$s].to_string()) };
     // failure
     { $($any:tt)* } => { TypeCons::NoParse(stringify![$($any)*].to_string())};
 }
@@ -507,10 +507,12 @@ pub enum Type {
     Ref(IdxTm, TypeRec),
     Thk(IdxTm, CEffectRec),
     IdxApp(TypeRec, IdxTm),
-    TypeApp(TypeCons, TypeRec),
+    TypeApp(TypeRec, TypeRec),
     Nm(IdxTm),
     NmFn(NameTm),
+    TypeFn(Var, TypeRec),
     Rec(Var, TypeRec),
+    Exist(Var, TypeRec, Prop, TypeRec),
     NoParse(String),
 }
 pub type TypeRec = Rc<Type>;
@@ -522,16 +524,19 @@ pub type TypeRec = Rc<Type>;
 ///     fromast ast     (inject ast nodes)
 ///     (A)             (parens)
 ///     D,Bool,Seq,...  (type constructors)
+///     user(type)      (user-defined)
 ///     Unit            (unit)
 ///     + A + B ...     (extended sums)
 ///     x A x B ...     (extended product)
 ///     Ref[i] A        (named ref cell)
 ///     Thk[i] E        (named thunk with effects)
-///     A[i]            (application of type to index)
 ///     Nm[i]           (name type)
+///     A[i]...         (extended application of type to index)
 ///     (Nm->Nm)[M]     (name function type)
-///     #a.A            (recursive type)
-///     A B             (applicatio of type constructor to type)
+///     #a.A            (type fn)
+///     rec a.A         (recursive type)
+///     exists (X,Y,...):A | P . B (extended existentials)
+///     A B ...         (extended application of type constructor to type)
 ///     a               (type var)
 /// ```
 #[macro_export]
@@ -546,6 +551,10 @@ macro_rules! tgt_vtype {
     { Nat } => { Type::Cons(TypeCons::Nat) };
     { String } => { Type::Cons(TypeCons::String) };
     { Seq } => { Type::Cons(TypeCons::Seq) };
+    //     user(type)      (user-defined)
+    { user($s:ident) } => { Type::Cons(TypeCons::User(
+        stringify![$s].to_string()
+    ))};
     //     Unit            (unit)
     { Unit } => { Type::Unit };
     //     + A + B ...     (extended sums)
@@ -562,25 +571,76 @@ macro_rules! tgt_vtype {
         tgt_index![$($i)+],
         Rc::new(tgt_ceffect![$($e)+]),
     )};
-    //     A[i]            (application of type to index)
+    //     Nm[i]           (name type)
+    { Nm[$($i:tt)+] } => { Type::Nm(tgt_index![$($i)+]) };
+    //     A[i]            (single application of type to index)
     { $a:tt [$($i:tt)+] } => { Type::IdxApp(
         Rc::new(tgt_vtype![$a]),
         tgt_index![$($i)+],
     )};
-    //     Nm[i]           (name type)
-    { Nm[$($i:tt)+] } => { Type::Nm(tgt_index![$($i)+]) };
+    //     A[i] ...        (extended application of type to index)
+    { $a:tt [$($i:tt)+] $($more:tt)+ } => {
+        tgt_vtype![(fromast Type::IdxApp(
+            Rc::new(tgt_vtype![$a]),
+            tgt_index![$($i)+],
+        )) $($more)+]
+    };
     //     (Nm->Nm)[M]     (name function type)
     { (Nm->Nm)[$($m:tt)+] } => { Type::NmFn(tgt_nametm![$($m)+]) };
-    //     #a.A            (recursive type)
+    //     #a.A            (type fn)
+    { #$a:ident.$($body:tt)+ } => { Type::TypeFn(
+        stringify![$a].to_string(),
+        Rc::new(tgt_vtype![$($body)+]),
+    )};
+    //     rec a.A            (recursive type)
     { #$a:ident.$($body:tt)+ } => { Type::Rec(
         stringify![$a].to_string(),
-        Rc::new(tgt_vtype![$body]),
+        Rc::new(tgt_vtype![$($body)+]),
     )};
-    //     A B             (application of type constructor to type)
-    { $a:tt $($b:tt)+ } => { Type::TypeApp(
-        tgt_tcons![$a],
+    //    exists X : A . B  (existential - true prop)
+    { exists $var:ident : $a:tt . $($b:tt)+ } => {
+        tgt_vtype![exists $var : $a | tt . $($b)+]
+    };
+    //    exists (X) : A . B  (existential - true prop, base multi vars)
+    { exists ($var:ident) : $a:tt . $($b:tt)+ } => {
+        tgt_vtype![exists $var : $a | tt . $($b)+]
+    };
+    //    exists X : A | P . B  (existential)
+    { exists $var:ident : $a:tt | $p:tt . $($b:tt)+ } => { Type::Exist(
+        stringify![$var].to_string(),
+        Rc::new(tgt_vtype![$a]),
+        tgt_prop![$p],
         Rc::new(tgt_vtype![$($b)+]),
     )};
+    //    exists (X) : A | P . B  (existential - base case multi vars)
+    { exists ($var:ident) : $a:tt | $p:tt . $($b:tt)+ } => {
+        tgt_vtype![exists $var : $a | $p . $($b)+]
+    };
+    //    exists (X,Y,...) : A . B  (extended existential, true prop)
+    { exists ($($vars:ident),+) : $a:tt . $($b:tt)+ } => {
+        tgt_vtype![exists ($($vars),+) : $a | tt . $($b)+]
+    };
+    //    exists (X,Y,...) : A | P . B  (extended existential)
+    { exists ($var:ident,$($vars:ident),+) : $a:tt | $p:tt . $($b:tt)+ } => {
+        Type::Exist(
+            stringify![$var].to_string(),
+            Rc::new(tgt_vtype![$a]),
+            Prop::Tt,
+            Rc::new(tgt_vtype![exists ($($vars),+):$a|$p.$($b)+])
+        )
+    };
+    //     (A) B           (single application of type constructor to type)
+    { $a:tt $b:tt } => { Type::TypeApp(
+        Rc::new(tgt_vtype![$a]),
+        Rc::new(tgt_vtype![$b]),
+    )};
+    //     (A) B ...       (extended application of type constructor to type)
+    { $a:tt $b:tt $($more:tt)+ } => {
+        tgt_vtype![(fromast Type::TypeApp(
+            Rc::new(tgt_vtype![$a]),
+            Rc::new(tgt_vtype![$b]),
+        )) $($more)+]
+    };
     //     a               (type var)
     { $a:ident } => { Type::Var(stringify![$a].to_string()) };
     // failure
@@ -618,7 +678,6 @@ macro_rules! parse_tgt_prod {
     // failure
     { $($any:tt)* } => { Type::NoParse(stringify![(x $($any)*)].to_string())};
 }
-
 /// Computation types
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum CType {
@@ -823,7 +882,7 @@ macro_rules! parse_tgt_tuple {
     // tuple
     { ($($v:tt)+) $($more:tt)+ } => { Val::Pair(
         Rc::new(tgt_val![$($v)+]),
-        Rc::new(parse_tuple![$($more)+]),
+        Rc::new(parse_tgt_tuple![$($more)+]),
     )};
     // failure
     { $($any:tt)* } => { Val::NoParse(stringify![(, $($any)*)].to_string())};
@@ -844,6 +903,7 @@ pub enum Exp {
     Thunk(Val,ExpRec),
     Fix(Var,ExpRec),
     Ret(Val),
+    DefType(Var,Type,ExpRec),
     Let(Var,ExpRec,ExpRec),
     Lam(Var, ExpRec),
     App(ExpRec, Val),
@@ -873,6 +933,7 @@ pub type ExpRec = Rc<Exp>;
 ///     #x.e                            (lambda)
 ///     fix x.e                         (recursive lambda)
 ///     {e} v1 ...                      (extened application)
+///     type t = (A) e                  (user type shorthand, recursive type)
 ///     let x = {e1} e2                 (let-binding)
 ///     let x : A = {e1} e2             (annotated let-binding)
 ///     let rec x : A = {e1} e2         (annotated let-rec binding)
@@ -930,6 +991,15 @@ macro_rules! tgt_exp {
             tgt_val![$v],
         )} $($more)+]
     };
+    //     type t = (A) e                    (user type definition)
+    { type $t:ident = $a:tt $($e:tt)+ }=>{Exp::DefType(
+        stringify![$t].to_string(),
+        Type::Rec(
+            stringify![$t].to_string(),
+            Rc::new(tgt_vtype![$a]),
+        ),
+        Rc::new(tgt_exp![$($e)+]),
+    )};
     //     let x = {e1} e2                 (let-binding)
     { let $x:ident = $e1:tt $($e2:tt)+ } => { Exp::Let(
         stringify![$x].to_string(),

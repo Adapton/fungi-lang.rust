@@ -343,6 +343,7 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
                 v => eval_type_error(EvalTyErr::RefNonName(v), env, e)
             }
         }
+        Exp::DefType(_x,_a,_e) => { unimplemented!("TODO - User types") }
         Exp::Let(x,e1,e2) => {
             match eval(env.clone(), (*e1).clone()) {
                 ExpTerm::Ret(v) => {
