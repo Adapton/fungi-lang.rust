@@ -49,9 +49,9 @@ fn examples() {
         //     `let x : A = ret (thunkanon (fix x. e1))`
         //
         let rec max:(
-            Thk[0] #X:NmSet. #Y:NmSet.
+            Thk[0] foralli X:NmSet. foralli Y:NmSet.
                 Seq[X] -> (F Nat |>
-                            {(#x.{x.1} % {x.2}) X; 0})
+                    {(#x.{x,@1} % {x,@2}) X; 0})
                 |> {0;0}
         ) = {
             #seq. match seq {
@@ -60,7 +60,7 @@ fn examples() {
                     let (n,_x,l,r) = {ret bin}
                     let (_x,ml) = { memo[n.1](max !l) }
                     let (_x,mr) = { memo[n.2](max !r) }
-                    if (ml > mr) {ret ml} else {ret mr} // ?: use Rust syntax for if -- no "then" ?
+                    if (mr < ml) {ret ml} else {ret mr}
                 }
             }
         }
