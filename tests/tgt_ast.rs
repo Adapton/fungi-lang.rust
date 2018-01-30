@@ -1,3 +1,4 @@
+#![recursion_limit="128"]
 #[macro_use]
 extern crate iodyn_lang;
 
@@ -36,7 +37,7 @@ fn examples() {
             unimplemented
         }
         let rec max:(
-            Thk[0] foralli X:NmSet. foralli Y:NmSet.
+            Thk[0] foralli (X,Y):NmSet.
                 Seq[X][Y] Nat -> (F Nat |>
                     {(#x.{x,@1} % {x,@2}) X; 0})
                 |> {0;0}

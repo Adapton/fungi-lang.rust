@@ -735,12 +735,12 @@ pub type CEffectRec = Rc<CEffect>;
 ///
 /// ```text
 /// E ::=
-///     fromast ast         (inject ast nodes)
-///     (E)                 (parens)
-///     forallt a:K.E       (type polymorphism)
-///     foralli a:g|P.E     (index polymorphism)
-///     foralli a:g.E       (index polymorphism -- true prop)
-///     C |> ε              (computation with effect)
+///     fromast ast                 (inject ast nodes)
+///     (E)                         (parens)
+///     forallt (a,...):K.E         (extended type polymorphism)
+///     foralli (a,...):g|P.E       (index polymorphism)
+///     foralli (a,...):g.E         (index polymorphism -- true prop)
+///     C |> ε                      (computation with effect)
 /// ```
 #[macro_export]
 macro_rules! tgt_ceffect {
@@ -748,12 +748,28 @@ macro_rules! tgt_ceffect {
     { fromast $ast:expr } => { $ast };
     //     (E)         (parens)
     { ($($e:tt)+) } => { tgt_ceffect![$($e)+] };
+    //     forallt (a):K.E      (type polymorphism, base case multi vars)
+    { forallt ($a:ident):$k:tt.$($e:tt)+ } => {
+        tgt_ceffect![forallt $a:$k.$($e)+]
+    };
     //     forallt a:K.E      (type polymorphism)
     { forallt $a:ident:$k:tt.$($e:tt)+ } => { CEffect::ForallType(
         stringify![$a].to_string(),
         tgt_kind![$k],
         Rc::new(tgt_ceffect![$($e)+]),
     )};
+    //     forallt (a,...):K.E      (type polymorphism, multi vars)
+    { forallt ($a:ident,$($vars:ident),+):$k:tt.$($e:tt)+ } => {
+        CEffect::ForallType(
+            stringify![$a].to_string(),
+            tgt_kind![$k],
+            Rc::new(tgt_ceffect![forallt ($($vars),+):$k.$($e)+]),
+        )
+    };
+    //     foralli (a):g|P.E    (index polymorphism, base case multi vars)
+    { foralli ($a:ident):$g:tt|$p:tt.$($e:tt)+ } => {
+        tgt_ceffect![foralli $a:$g|$p.$($e)+]
+    };
     //     foralli a:g|P.E    (index polymorphism)
     { foralli $a:ident:$g:tt|$p:tt.$($e:tt)+ } => { CEffect::ForallIdx(
         stringify![$a].to_string(),
@@ -761,13 +777,27 @@ macro_rules! tgt_ceffect {
         tgt_prop![$p],
         Rc::new(tgt_ceffect![$($e)+]),
     )};
+    //     foralli (a,...):g|P.E    (index polymorphism, multi vars)
+    { foralli ($a:ident,$($vars:ident),+):$g:tt|$p:tt.$($e:tt)+ } => {
+        CEffect::ForallIdx(
+            stringify![$a].to_string(),
+            tgt_sort![$g],
+            Prop::Tt,
+            Rc::new(tgt_ceffect![foralli ($($vars),+):$g|$p.$($e)+]),
+        )
+    };
     //     foralli a:g.E    (index polymorphism, with trivial prop)
-    { foralli $a:ident:$g:tt.$($e:tt)+ } => { CEffect::ForallIdx(
-        stringify![$a].to_string(),
-        tgt_sort![$g],
-        tgt_prop![tt],
-        Rc::new(tgt_ceffect![$($e)+]),
-    )};
+    { foralli $a:ident:$g:tt.$($e:tt)+ } => {
+        tgt_ceffect![foralli $a:$g|tt.$($e)+]
+    };
+    //     foralli (a):g.E  (index polymorphism, multi var base case, tt prop)
+    { foralli ($a:ident):$g:tt.$($e:tt)+ } => {
+        tgt_ceffect![foralli $a:$g|tt.$($e)+]
+    };
+    //     foralli (a,...):g.E    (index polymorphism, multi vars, tt prop)
+    { foralli ($a:ident,$($vars:ident),+):$g:tt.$($e:tt)+ } => {
+        tgt_ceffect![foralli ($a,$($vars),+):$g|tt.$($e)+]
+    };
     //     C |> ε      (computation with effect)
     { $($tri:tt)+ } => { split_tri![parse_tgt_tri <= $($tri)+] };
     // failure
