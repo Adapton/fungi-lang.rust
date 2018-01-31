@@ -65,13 +65,69 @@ fn examples() {
                         }
                         {force memo}
                     }
-                    if (mr < ml) {ret ml} else {ret mr}
+                    if { mr < ml } {ret ml} else {ret mr}
                 }
             }
         }
         {force max} nums
     ];
     println!("{:?}", max);
+
+
+    let filter : Exp = tgt_exp![
+        type Vec = (#T.user(Vec))
+
+        type Seq = (
+            #X.#Y.#T.
+            (+ Vec 
+             + (exists (X1,X2,X3)   :NmSet | (X1%X2%X3=X).
+                exists (Y1,Y2,Y3,Y4):NmSet | (Y1%Y2%Y3%Y4=Y).
+                x Nm[X1] x Nat
+                x Ref[Y1](Seq[X2][Y2] T) 
+                x Ref[Y3](Seq[X3][Y4] T))
+            )
+        )
+        let nums:(Seq[X][Y] Nat) = { unimplemented }        
+        let vec_filter:(
+            Thk[0] Vec Nat
+                -> (Thk[0] Nat -> Bool |> {0;0})
+                    -> (F Nat |> {0;0})
+                |> {0;0}
+            |> {0;0}
+        ) = {
+            unimplemented
+        }
+        let rec filter:(
+            Thk[0] foralli (X,Y):NmSet.
+                (Seq[X][Y] Nat)                
+                 -> (Thk[0] Nat -> Bool |> {0;0})
+                     -> (F Nat |> {(#x.{x,@1} % {x,@2}) X; 0})
+                |> {0;0}
+            |> {0;0}
+        ) = {
+            #seq. #f. match seq {
+                vec => { {force vec_filter} f vec }
+                bin => {
+                    let (n,lev,l,r) = {ret bin}
+                    let (rsl, sl) = { memo{n,(@1)}{ {force filter} f !l } }
+                    let (rsr, sr) = { memo{n,(@2)}{ {force filter} f !r } }
+                    let el = {{force is_empty} sl}
+                    let er = {{force is_empty} sr}
+                    // if left is empty, return the right
+                    if (el) { ret sr } else {
+                        // if right is empty, return the left
+                        if (er) { ret sl } else {
+                            // neither are empty; construct SeqBin node:
+                            ret roll inj2 (n,lev,rsl,rsr)
+                        }
+                    }
+                }
+            }
+        }
+        {force max} nums
+    ];
+    println!("{:?}", filter);
+
 }
 
 /* 

@@ -1000,7 +1000,8 @@ pub type ExpRec = Rc<Exp>;
 ///     let (x1,...) = {e1} e2          (let-split sugar)
 ///     let (x1,...) = v e              (extended split)
 ///     match v {x1 => e1 ... }         (extended case analysis)
-///     if ( e ) { e1 } else { e2 }     (if-then-else; bool elim)
+///     if { e } { e1 } else { e2 }     (if-then-else; bool elim)
+///     if ( v ) { e1 } else { e2 }     (if-then-else; bool elim)
 ///     [v1] v2 ...                     (curried name function application)
 ///     v1, v2, ...                     (extended binary name construction)
 ///     v1 < v2                         (less-then)
@@ -1144,7 +1145,15 @@ macro_rules! tgt_exp {
         stringify![$x2].to_string(),
         Rc::new(tgt_exp![$e2]),
     )};
-    //     if ( e ) { e1 } else { e2 }     (if-then-else; bool elim)
+    //     if ( v ) { e1 } else { e2 }     (if-then-else; bool elim)
+    { if ( $($v:tt)+ ) { $($e1:tt)+ } else { $($e2:tt)+ } } => {
+        Exp::IfThenElse(
+            tgt_val![$($v)+],
+            Rc::new(tgt_exp![$($e1)+]),
+            Rc::new(tgt_exp![$($e2)+])
+        )
+    };
+    //     if { e } { e1 } else { e2 }     (if-then-else; bool elim)
     { if ( $($e:tt)+ ) { $($e1:tt)+ } else { $($e2:tt)+ } } => {
         Exp::Let("sugar_if_scrutinee".to_string(),
                  Rc::new(tgt_exp![$($e)+]),
