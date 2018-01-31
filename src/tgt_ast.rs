@@ -878,13 +878,13 @@ macro_rules! tgt_val {
     //     (v1,v2,...) (unit,parens,tuples)
     { ($($tup:tt)*) } => { split_comma![parse_tgt_tuple <= $($tup)*] };
     //     inj1 v      (first sum value)
-    { inj1 $($v:tt)+ } => { Val::Inj1(Rc::new(tgt_val![$v])) };
+    { inj1 $($v:tt)+ } => { Val::Inj1(Rc::new(tgt_val![$($v)+])) };
     //     inj2 v      (second sum value)
-    { inj2 $($v:tt)+ } => { Val::Inj2(Rc::new(tgt_val![$v])) };
+    { inj2 $($v:tt)+ } => { Val::Inj2(Rc::new(tgt_val![$($v)+])) };
     //     name n      (name value)
-    { name $($n:tt)+ } => { Val::Name(tgt_name![$n]) };
+    { name $($n:tt)+ } => { Val::Name(tgt_name![$($n)+]) };
     //     nmfn M      (name function as value)
-    { nmfm $($m:tt)+ } => { Val::NameFn(tgt_nametm![$m]) };
+    { nmfn $($m:tt)+ } => { Val::NameFn(tgt_nametm![$($m)+]) };
     //     true        (bool primitive)
     { true } => { Val::Bool(true) };
     //     false        (bool primitive)
@@ -975,7 +975,7 @@ pub type ExpRec = Rc<Exp>;
 ///     let (x1,...) = v e              (extended split)
 ///     match v {x1 => e1 ... }         (extended case analysis)
 ///     if ( e ) { e1 } else { e2 }     (if-then-else; bool elim)
-///     [v1] v2                         (name function application)
+///     [v1] v2 ...                     (curried name function application)
 ///     v1, v2, ...                     (extended binary name construction)
 ///     v1 < v2                         (less-then)
 ///     unimplemented                   (marker for type checker)
@@ -1126,22 +1126,29 @@ macro_rules! tgt_exp {
                      Rc::new(tgt_exp![$($e2)+])
                  )))
     };
-    //     [v1] v2                         (name function application)
-    { [$($v1:tt)+] $($v2:tt)+ } => { Exp::NameFnApp(
-        tgt_val![$($v1:tt)+],
-        tgt_val![$($v2:tt)+],
+    //     [v1] v2                         (single name function application)
+    { [$($v1:tt)+] $v2:tt } => { Exp::NameFnApp(
+        tgt_val![$($v1)+],
+        tgt_val![$v2],
     )};
-    //     v1, v2, ...                     (extended binary name construction)
-    { $v1:tt, $($more:tt)+ } => {
+    //     [v1] v2 ...                     (extended name function application)
+    { [$($v1:tt)+] $v2:tt $($more:tt)+ } => {
         tgt_exp![
-            let sugar_name_pair = {fromast tgt_exp![$($more)+]}
-            ret $v1, sugar_name_pair
+            let sugar_nmfn_exp = {[$($v1)+] $v2}
+            [sugar_nmfn_exp] $($more)+
         ]
     };
     //     v1, v2                          (single binary name construction)
     { $v1:tt, $v2:tt } => {
         Exp::PrimApp(PrimApp::NameBin( tgt_val!($v1),
                                        tgt_val!($v2) ))
+    };
+    //     v1, v2, ...                     (extended binary name construction)
+    { $v1:tt, $($more:tt)+ } => {
+        tgt_exp![
+            let sugar_name_pair = {fromast tgt_exp![$($more)+]}
+            ret $v1, sugar_name_pair
+        ]
     };
     //     v1 < v2                         (less-then)
     { $v1:tt < $v2:tt } => { Exp::PrimApp(PrimApp::NatLt(

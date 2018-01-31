@@ -46,6 +46,9 @@ fn examples() {
                 vec => { {force vec_max} vec }
                 bin => {
                     let (n,_x,l,r) = {ret bin}
+                    let n1 = {n,(@1)}
+                    let nf = { ret nmfn #n.#v.n,v }
+                    let n2 = { [nf] n (@2) }
                     let (_x,ml) = { memo[n.1](max !l) }
                     let (_x,mr) = { memo[n.2](max !r) }
                     if (mr < ml) {ret ml} else {ret mr}
