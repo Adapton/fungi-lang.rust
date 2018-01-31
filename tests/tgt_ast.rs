@@ -46,11 +46,19 @@ fn examples() {
                 vec => { {force vec_max} vec }
                 bin => {
                     let (n,_x,l,r) = {ret bin}
+                    // sugar version
                     let n1 = {n,(@1)}
+                    let ml = { memo[n1](max !l) }
+                    // explicit version
                     let nf = { ret nmfn #n.#v.n,v }
                     let n2 = { [nf] n (@2) }
-                    let (_x,ml) = { memo[n.1](max !l) }
-                    let (_x,mr) = { memo[n.2](max !r) }
+                    let mr = {
+                        let rv = {get r}
+                        let memo = { thk n2
+                            {force max} rv
+                        }
+                        {force memo}
+                    }
                     if (mr < ml) {ret ml} else {ret mr}
                 }
             }
