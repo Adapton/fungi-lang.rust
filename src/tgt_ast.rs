@@ -989,6 +989,7 @@ pub type ExpRec = Rc<Exp>;
 ///     ret v                           (lifted value)
 ///     #x.e                            (lambda)
 ///     fix x.e                         (recursive lambda)
+///     {e} {!ref} ...                  (application get-sugar)
 ///     {e} v1 ...                      (extened application)
 ///     type t = (A) e                  (user type shorthand, recursive type)
 ///     let x = {e1} e2                 (let-binding)
@@ -1001,6 +1002,8 @@ pub type ExpRec = Rc<Exp>;
 ///     get v                           (read from ref)
 ///     let (x1,...) = {e1} e2          (let-split sugar)
 ///     let (x1,...) = v e              (extended split)
+///     memo{e1}{e2}                    (memoize computation, sugar - compute name)
+///     memo(v){e}                      (memoize computation by name, return ref)
 ///     match v {x1 => e1 ... }         (extended case analysis)
 ///     if { e } { e1 } else { e2 }     (if-then-else; bool elim)
 ///     if ( v ) { e1 } else { e2 }     (if-then-else; bool elim)
@@ -1038,6 +1041,27 @@ macro_rules! tgt_exp {
         stringify![$x].to_string(),
         Rc::new(tgt_exp![$($e)+]),
     )};
+    //     {e} {!ref} ...                     (application get-sugar)
+    { {$($e:tt)+} {!$ref:ident} $($more:tt)* } => {
+        // we need to create a new variable name for each
+        // forced ref in the application
+        // this will force a ref each time it appears in the
+        // argument list
+        tgt_exp![{fromast Exp::Let(
+            format!("{}{}",
+                stringify![app_get_sugar_],
+                stringify![$ref],
+            ),
+            Rc::new(Exp::Get(Val::Var(stringify![$ref].to_string()))),
+            Rc::new(Exp::App(
+                Rc::new(tgt_exp![$($e)+]),
+                Val::Var(format!("{}{}",
+                    stringify![app_get_sugar_],
+                    stringify![$ref],
+                )),
+            )),
+        )} $($more)*]
+    };
     //     {e} v                             (single application)
     { {$($e:tt)+} $v:tt } => { Exp::App(
         Rc::new(tgt_exp![$($e)+]),
@@ -1138,6 +1162,20 @@ macro_rules! tgt_exp {
                 }
             ]),
         )
+    };
+    //     memo{e1}{e2}                    (memoize computation, sugar - compute name)
+    { memo{$($e1:tt)+}{$($e2:tt)+} } => {
+        tgt_exp![
+            let memo_name_sugar = {$($e1)+}
+            memo(memo_name_sugar){$($e2)+}
+        ]
+    };
+    //     memo(v){e}                      (memoize computation by name, return ref)
+    { memo($($v:tt)+){$($e:tt)+} } => {
+        tgt_exp![
+            let memo_keyword_sugar = { thk ($($v)+) $($e)+ }
+            refthunk memo_keyword_sugar
+        ]
     };
     //     match v {x1 => e1 x2 => e2 }    (pair case analysis)
     { match $v:tt {$x1:ident=>$e1:tt $x2:ident=>$e2:tt} } => { Exp::Case(

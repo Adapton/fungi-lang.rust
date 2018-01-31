@@ -56,18 +56,18 @@ fn examples() {
                     //
                     // Left recursion:
                     // sugar version #1 (most sugared)
-                    let (unused, ml) = { memo{n,(@1)}{ {force max} !l } }
+                    let (unused, ml) = { memo{n,(@1)}{ {force max} {!l} } }
                     // sugar version #2 (name construction first; then memo construct)
                     let n1 = {n,(@1)}
-                    let (unused, ml) = { memo(n1){ {force max} !l } }
+                    let (unused, ml) = { memo(n1){ {force max} {!l} } }
                     //
                     // Right recursion:
                     // non-sugar version (all sub-expressions are explicit)
                     let nf = { ret nmfn #n.#v.n,v }
                     let n2 = { [nf] n (@2) }
                     let (unused, mr) = {
-                        let rv = {get r}
                         let memo = { thk n2
+                            let rv = {get r}
                             {force max} rv
                         }
                         {force memo}
@@ -122,8 +122,8 @@ fn examples() {
                 vec => { {force vec_filter} f vec }
                 bin => {
                     let (n,lev,l,r) = {ret bin}
-                    let (rsl, sl) = { memo{n,(@1)}{ {force filter} f !l } }
-                    let (rsr, sr) = { memo{n,(@2)}{ {force filter} f !r } }
+                    let (rsl, sl) = { memo{n,(@1)}{ {force filter} f {!l} } }
+                    let (rsr, sr) = { memo{n,(@2)}{ {force filter} f {!r} } }
                     let el = {{force is_empty} sl}
                     let er = {{force is_empty} sr}
                     // if left is empty, return the right
