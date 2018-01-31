@@ -593,7 +593,7 @@ macro_rules! tgt_vtype {
         Rc::new(tgt_vtype![$($body)+]),
     )};
     //     rec a.A            (recursive type)
-    { #$a:ident.$($body:tt)+ } => { Type::Rec(
+    { rec $a:ident.$($body:tt)+ } => { Type::Rec(
         stringify![$a].to_string(),
         Rc::new(tgt_vtype![$($body)+]),
     )};

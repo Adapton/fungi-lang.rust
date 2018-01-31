@@ -23,12 +23,19 @@ fn examples() {
         // ... and (allocated) pointer names in Y
         //
         type Seq = (
+            // Ordering here is important: The recursive type name T
+            // should refer to the type that is parameteric in X and
+            // Y; the version below has a fixed choice for X and Y for
+            // all recursive unrollings.
+            // (See my other version of type Seq, for filter, below).
             #X.#Y.#T.
             (+ Vec 
              + (exists (X1,X2,X3)   :NmSet | (X1%X2%X3=X).
                 exists (Y1,Y2,Y3,Y4):NmSet | (Y1%Y2%Y3%Y4=Y).
                 x Nm[X1] x Nat
-                x Ref[Y1](Seq[X2][Y2] T) 
+                // Seq vs T ??
+                x Ref[Y1](Seq[X2][Y2] T)
+                // Seq vs T ??
                 x Ref[Y3](Seq[X3][Y4] T))
             )
         )
@@ -77,17 +84,24 @@ fn examples() {
     let filter : Exp = tgt_exp![
         type Vec = (#T.user(Vec))
 
+        // Syntax for idiomatic recursive types
+        // (avoid double-naming, as with `let rec`)?
+        //
+        //   type rec T = (A)  ==>  type T = (rec T. A)
+        //
+        // Using RHS below (not LHS yet, but maybe?)
+        //
         type Seq = (
-            #X.#Y.#T.
+            rec Seq.#X.#Y.
             (+ Vec 
              + (exists (X1,X2,X3)   :NmSet | (X1%X2%X3=X).
                 exists (Y1,Y2,Y3,Y4):NmSet | (Y1%Y2%Y3%Y4=Y).
                 x Nm[X1] x Nat
-                x Ref[Y1](Seq[X2][Y2] T) 
-                x Ref[Y3](Seq[X3][Y4] T))
+                x Ref[Y1](Seq[X2][Y2])
+                x Ref[Y3](Seq[X3][Y4]))
             )
         )
-        let nums:(Seq[X][Y] Nat) = { unimplemented }        
+        let nums:(Seq[X][Y] Nat) = { unimplemented }
         let vec_filter:(
             Thk[0] Vec Nat
                 -> (Thk[0] Nat -> Bool |> {0;0})
@@ -99,7 +113,7 @@ fn examples() {
         }
         let rec filter:(
             Thk[0] foralli (X,Y):NmSet.
-                (Seq[X][Y] Nat)                
+                (Seq[X][Y] Nat)
                  -> (Thk[0] Nat -> Bool |> {0;0})
                      -> (F Nat |> {(#x.{x,@1} % {x,@2}) X; 0})
                 |> {0;0}
