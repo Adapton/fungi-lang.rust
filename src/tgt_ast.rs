@@ -512,7 +512,8 @@ pub enum Type {
     NmFn(NameTm),
     TypeFn(Var, TypeRec),
     Rec(Var, TypeRec),
-    Exist(Var, TypeRec, Prop, TypeRec),
+    // Exists for index-level variables; they are classified by sorts
+    Exists(Var, SortRec, Prop, TypeRec),
     NoParse(String),
 }
 pub type TypeRec = Rc<Type>;
@@ -535,7 +536,8 @@ pub type TypeRec = Rc<Type>;
 ///     (Nm->Nm)[M]     (name function type)
 ///     #a.A            (type fn)
 ///     rec a.A         (recursive type)
-///     exists (X,Y,...):A | P . B (extended existentials)
+///     exists (X,Y,...):g | P . A
+///                     (existential index variables, with common sort g)
 ///     A B ...         (extended application of type constructor to type)
 ///     a               (type var)
 /// ```
@@ -597,34 +599,34 @@ macro_rules! tgt_vtype {
         stringify![$a].to_string(),
         Rc::new(tgt_vtype![$($body)+]),
     )};
-    //    exists X : A . B  (existential - true prop)
+    //    exists X : g . B  (existential - true prop)
     { exists $var:ident : $a:tt . $($b:tt)+ } => {
         tgt_vtype![exists $var : $a | tt . $($b)+]
     };
-    //    exists (X) : A . B  (existential - true prop, base multi vars)
+    //    exists (X) : g . B  (existential - true prop, base multi vars)
     { exists ($var:ident) : $a:tt . $($b:tt)+ } => {
         tgt_vtype![exists $var : $a | tt . $($b)+]
     };
-    //    exists X : A | P . B  (existential)
-    { exists $var:ident : $a:tt | $p:tt . $($b:tt)+ } => { Type::Exist(
+    //    exists X : g | P . B  (existential)
+    { exists $var:ident : $a:tt | $p:tt . $($b:tt)+ } => { Type::Exists(
         stringify![$var].to_string(),
-        Rc::new(tgt_vtype![$a]),
+        Rc::new(tgt_sort![$a]),
         tgt_prop![$p],
         Rc::new(tgt_vtype![$($b)+]),
     )};
-    //    exists (X) : A | P . B  (existential - base case multi vars)
+    //    exists (X) : g | P . B  (existential - base case multi vars)
     { exists ($var:ident) : $a:tt | $p:tt . $($b:tt)+ } => {
         tgt_vtype![exists $var : $a | $p . $($b)+]
     };
-    //    exists (X,Y,...) : A . B  (extended existential, true prop)
+    //    exists (X,Y,...) : g . B  (extended existential, true prop)
     { exists ($($vars:ident),+) : $a:tt . $($b:tt)+ } => {
         tgt_vtype![exists ($($vars),+) : $a | tt . $($b)+]
     };
-    //    exists (X,Y,...) : A | P . B  (extended existential)
+    //    exists (X,Y,...) : g | P . B  (extended existential)
     { exists ($var:ident,$($vars:ident),+) : $a:tt | $p:tt . $($b:tt)+ } => {
-        Type::Exist(
+        Type::Exists(
             stringify![$var].to_string(),
-            Rc::new(tgt_vtype![$a]),
+            Rc::new(tgt_sort![$a]),
             Prop::Tt,
             Rc::new(tgt_vtype![exists ($($vars),+):$a|$p.$($b)+])
         )
