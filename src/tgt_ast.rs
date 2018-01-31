@@ -1156,7 +1156,7 @@ macro_rules! tgt_exp {
         )
     };
     //     if { e } { e1 } else { e2 }     (if-then-else; bool elim)
-    { if ( $($e:tt)+ ) { $($e1:tt)+ } else { $($e2:tt)+ } } => {
+    { if { $($e:tt)+ } { $($e1:tt)+ } else { $($e2:tt)+ } } => {
         Exp::Let("sugar_if_scrutinee".to_string(),
                  Rc::new(tgt_exp![$($e)+]),
                  Rc::new(Exp::IfThenElse(
