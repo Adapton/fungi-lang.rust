@@ -104,9 +104,8 @@ fn examples() {
         let nums:(Seq[X][Y] Nat) = { unimplemented }
         let vec_filter:( Thk[0]
             Vec Nat -> (
-                (Thk[0] Nat -> Bool |> {0;0}) ->
-                (F Nat |> {0;0}) 
-                |> {0;0}
+                (Thk[0] Nat -> (F Bool |> {0;0}) |> {0;0}) ->
+                (F Nat |> {0;0}) |> {0;0}
             ) |> {0;0}
         ) = {
             unimplemented
@@ -114,7 +113,7 @@ fn examples() {
         let rec filter:(
             Thk[0] foralli (X,Y):NmSet.
                 (Seq[X][Y] Nat) -> (
-                    (Thk[0] Nat -> Bool |> {0;0}) ->
+                    (Thk[0] Nat -> (F Bool |> {0;0}) |> {0;0}) ->
                     (F Nat |> {(#x.{x,@1} % {x,@2}) X; 0})
                     |> {0;0}
                 ) |> {0;0}
