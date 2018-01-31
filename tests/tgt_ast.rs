@@ -46,13 +46,19 @@ fn examples() {
                 vec => { {force vec_max} vec }
                 bin => {
                     let (n,_x,l,r) = {ret bin}
-                    // sugar version
+                    //
+                    // Left recursion:
+                    // sugar version #1 (most sugared)
+                    let (unused, ml) = { memo{n,(@1)}{ {force max} !l } }
+                    // sugar version #2 (name construction first; then memo construct)
                     let n1 = {n,(@1)}
-                    let ml = { memo[n1](max !l) }
-                    // explicit version
+                    let (unused, ml) = { memo(n1){ {force max} !l } }
+                    //
+                    // Right recursion:
+                    // non-sugar version (all sub-expressions are explicit)
                     let nf = { ret nmfn #n.#v.n,v }
                     let n2 = { [nf] n (@2) }
-                    let mr = {
+                    let (unused, mr) = {
                         let rv = {get r}
                         let memo = { thk n2
                             {force max} rv

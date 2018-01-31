@@ -923,6 +923,24 @@ macro_rules! parse_tgt_tuple {
 pub enum PrimApp {
     NatLt(Val,Val),
     NameBin(Val,Val),
+    //
+    // RefThunk: Coerce a value-producing thunk into a ref cell that
+    // holds this produced value. In the process, force the thunk.
+    //
+    // In detail: A practical variation of force, for when the forced
+    // computation produces a value, and in particular, a data
+    // structure (e.g., not an arrow); this primitive returns that
+    // produced value, along with a reference cell that holds it;
+    // behind the scenes, this reference cell is really just a pointer
+    // to the forced thunk's cached value.
+    //
+    // Note: the only sound way to coerce a thunk into a reference
+    // cell is to _force_ that thunk, and determine what value it
+    // produces --- otherwise, the ref cell is not an "eager" data
+    // value that can be inspected without forcing arbitrary effects,
+    // but rather, a suspended computation, like the thunk, with such
+    // effects.  Hence the value-computation duality of CBPV.
+    RefThunk(Val),
 }
 
 /// Expressions (aka, computation terms)
@@ -951,6 +969,13 @@ pub enum Exp {
 }
 pub type ExpRec = Rc<Exp>;
 
+/// TODO: Parsing rules (LHS expands into RHS):
+/// 
+///   memo { e1 } { e2 } ==> { let n = e1 { memo ( n ) { e } } }
+///
+///   memo ( v  ) { e  } ==> { let t = thunk v e { refthunk t } }
+///
+
 /// Parser for expressions
 ///
 /// ```text
@@ -969,7 +994,8 @@ pub type ExpRec = Rc<Exp>;
 ///     let rec x : A = {e1} e2         (annotated let-rec binding)
 ///     thk v e                         (create thunk)
 ///     ref v1 v2                       (create ref)
-///     force v                         (memo force)
+///     force v                         (force thunk)
+///     refthunk v                      (coerce a value-producing thunk to a ref)
 ///     get v                           (read from ref)
 ///     let (x1,...) = {e1} e2          (let-split sugar)
 ///     let (x1,...) = v e              (extended split)
@@ -1070,8 +1096,10 @@ macro_rules! tgt_exp {
         tgt_val![$v1],
         tgt_val![$($v2)+],
     )};
-    //     force v                         (memo force)
+    //     force v                         (force thunk)
     { force $($v:tt)+ } => { Exp::Force( tgt_val![$($v)+])};
+    //     refthunk v                      (coerce thunk)
+    { refthunk $($v:tt)+ } => { Exp::PrimApp( PrimApp::RefThunk(tgt_val![$($v)+])) };
     //     get v                           (read from ref)
     { get $($v:tt)+ } => { Exp::Get( tgt_val![$($v)+])};
     //     let (x1,...) = {e1} e2          (let-split sugar)

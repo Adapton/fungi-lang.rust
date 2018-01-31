@@ -38,7 +38,7 @@ use adapton::macros::*;
 use adapton::engine;
 use adapton::engine::{thunk,ArtIdChoice};
 
-use tgt_ast::{Exp,Var,Val,Name,NameTm};
+use tgt_ast::{Exp,PrimApp,Var,Val,Name,NameTm};
 use std::rc::Rc;
 
 /// TODO-Sometime: Prune the environments (using free variables as filters)
@@ -277,8 +277,9 @@ pub enum EvalTyErr {
     // case case
     CaseNonInj(RtVal),
     // thunk case
-    ThunkNonName(RtVal),
+    ThunkNonName(RtVal),    
     ForceNonThunk(RtVal),
+    RefThunkNonThunk(RtVal),
     // ref case
     RefNonName(RtVal),
     GetNonRef(RtVal),
@@ -407,6 +408,28 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
                 RtVal::ThunkAnon(env, e) => { eval(env, e) },
                 v => eval_type_error(EvalTyErr::ForceNonThunk(v), env, e)                    
             }
+        }        
+        Exp::PrimApp(PrimApp::RefThunk(v)) => {
+            fn val_of_retval (et:ExpTerm) -> RtVal {
+                match et {
+                    ExpTerm::Ret(v) => v,
+                    _ => unreachable!()
+                }
+            };
+            match close_val(&env, &v) {
+                RtVal::Thunk(a) => {
+                    // TODO: Implement this:
+                    let r = { panic!("engine::map(a, val_of_retval)") };
+                    let v = engine::force(&r);
+                    ExpTerm::Ret(
+                        RtVal::Pair(Rc::new(RtVal::Ref(r)),
+                                    Rc::new(v)))
+                },
+                v => eval_type_error(EvalTyErr::RefThunkNonThunk(v), env, e)
+            }
+        }
+        Exp::PrimApp(_) => {
+            unimplemented!()
         }
         Exp::Scope(v, e1) => {
             // Names vs namespace functions: Here, v is a name
@@ -457,9 +480,6 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
             // XXX/TODO -- Insert label/text/message into Adapton's trace structure
             return eval(env, (*e).clone())
         }
-        Exp::PrimApp(_pa) => {
-            unimplemented!()
-        }        
         Exp::Unimp => unimplemented!(),
         Exp::NoParse(_) => unreachable!(),
     }
