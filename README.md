@@ -4,6 +4,11 @@
 
 IODyn is a functional language, in the ML family of languages (SML, OCaml, Elm, etc.).  As with other languages in this family, IODyn consists of a typed core calculus, with functions and algebraic data types.  Further, we enrich this core calculus with a collections library over sequences, sets, finite maps and graphs (in progress).  Finally, we give well-typed, well-annotated programs in this language an implicitly-incremental semantics, via translation to Fungi, our low-level core calculus for functional programs that name their own cached dependency graphs.
 
+### (Status:)
+
+ - We have implemented the AST structure, concrete syntax (via Rust macros for now) and basic type system.
+ - We have begun the translation to Fungi, but are currently focusing on implementing Fungi before proceeding further with the translation.
+
 ## Fungi is a core calculus for functional programs that name their own cached dependency graphs
 
 Fungi serves as the target language for IODyn.  Unlike IODyn, the incremental features of Fungi are explicit.  In particular, Fungi provides language affordances for
@@ -14,6 +19,13 @@ Fungi serves as the target language for IODyn.  Unlike IODyn, the incremental fe
  Though the semantics of Fungi are effectful, wherein it allocates programmer-named values and computations, and reads these objects from memory later, **the behavior of Fungi is functional**: the key invariant of its type-and-effects system.
  
  More precisely, Fungi provides two languages: One for the **Archivist** (the functional subset), and an imperative "wrapper" language for the **Editor**, who is permitted to mutate the Archivist's input, and then indicate where the output of archivist computations should be incrementally repaired, on demand.
+
+### (Status:)
+
+ - We have implemented the AST structure, concrete syntax (via Rust macros for now); see `src/tgt_ast.rs`, and `test/tgt_ast.rs`
+ - We are beginning the basic type system, and then, the refinement types and decision procedures.
+ - For technical background and formal definitions, see the [latest draft of the technical report](https://arxiv.org/abs/1610.00097).
+ - We are presently implementing these formalisms; the deductive proof rules for index equivalence and apartness do not indicate an obvious algorithm, or obvious encoding into SMT.  Creating these decision procedures is a key research challenge.
 
 ## Fungi Examples
 
