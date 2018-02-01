@@ -145,6 +145,100 @@ impl TCtxt {
     }
 }
 
+pub enum Dir { Synth, Check }
+
+pub struct NameTmInfo { 
+    pub ctxt:TCtxt,
+    pub val:Rc<NameTmTD>,
+    pub dir:Dir,
+    pub typ:Sort,
+}
+
+pub enum NameTmTD {
+    Var(Var),
+    Name(Name),
+    Bin(NameTmInfo, NameTmInfo),
+    Lam(Var,NameTmInfo),
+    App(NameTmInfo, NameTmInfo),
+}
+
+pub struct IdxTmInfo { 
+    pub ctxt:TCtxt,
+    pub val:Rc<IdxTmTD>,
+    pub dir:Dir,
+    pub typ:Sort,
+}
+
+pub enum IdxTmTD {
+    Var(Var),
+    Sing(NameTmInfo),
+    Empty,
+    Disj(IdxTmInfo, IdxTmInfo),
+    Union(IdxTmInfo, IdxTmInfo),
+    Unit,
+    Pair(IdxTmInfo, IdxTmInfo),
+    Proj1(IdxTmInfo),
+    Proj2(IdxTmInfo),
+    Lam(Var, IdxTmInfo),
+    App(IdxTmInfo, IdxTmInfo),
+    Map(NameTmInfo, IdxTmInfo),
+    FlatMap(IdxTmInfo, IdxTmInfo),
+    Star(IdxTmInfo, IdxTmInfo),
+}
+
+pub struct ValInfo { 
+    pub ctxt:TCtxt,
+    pub val:Rc<ValTD>,
+    pub dir:Dir,
+    pub typ:Type,
+}
+
+pub enum ValTD {
+    Var(Var),
+    Unit,
+    Pair(ValInfo, ValInfo),
+    Inj1(ValInfo),
+    Inj2(ValInfo),
+    Roll(ValInfo),
+    Name(Name),
+    NameFn(NameTmInfo),
+    Anno(ValInfo,Type),
+    ThunkAnon(ExpInfo),
+    Bool(bool),
+    Nat(usize),
+    Str(String),
+}
+
+pub struct ExpInfo { 
+    pub ctxt:TCtxt,
+    pub val:Rc<ExpTD>,
+    pub dir:Dir,
+    pub typ:CEffect,
+}
+
+pub enum ExpTD {
+    Anno(ExpInfo,CType),
+    Force(ValInfo),
+    Thunk(ValInfo,ExpInfo),
+    Unroll(ValInfo,Var,ExpInfo),
+    Fix(Var,ExpInfo),
+    Ret(ValInfo),
+    DefType(Var,Type,ExpInfo),
+    Let(Var,ExpInfo,ExpInfo),
+    Lam(Var, ExpInfo),
+    App(ExpInfo, ValInfo),
+    Split(ValInfo, Var, Var, ExpInfo),
+    Case(ValInfo, Var, ExpInfo, Var, ExpInfo),
+    IfThenElse(ValInfo, ExpInfo, ExpInfo),
+    Ref(ValInfo,ValInfo),
+    Get(ValInfo),
+    Scope(ValInfo,ExpInfo),
+    NameFnApp(ValInfo,ValInfo),
+    PrimApp(PrimApp),
+    Unimp,
+    DebugLabel(String,ExpInfo),
+}
+
 enum TypeError {
     AnnoMism,
     NoSynthRule,
@@ -231,28 +325,28 @@ impl PrimApp {
     }
 }
 
-fn fail_synth_idxtm(last_label:Option<String>, err:TypeError, idxtm:&IdxTm) -> Option<Sort> {
+fn fail_synth_idxtm(last_label:Option<String>, err:TypeError, idxtm:&IdxTm) -> Option<IdxTmInfo> {
     if let Some(lbl) = last_label {print!("After {}, ", lbl)}
     println!("Failed to synthesize {} index term, error: {}", v.short(), err);
     None
 }
 
-fn fail_check_idxtm(last_label:Option<String>, err:TypeError, v:&IdxTm) -> bool {
+fn fail_check_idxtm(last_label:Option<String>, err:TypeError, v:&IdxTm) -> Option<IdxTmInfo> {
     if let Some(lbl) = last_label {print!("After {}, ", lbl)}
     println!("Failed to check {} index term, error: {}", v.short(), err);
-    false
+    None
 }
 
-fn fail_synth_nmtm(last_label:Option<String>, err:TypeError, nmtm:&NameTm) -> Option<Sort> {
+fn fail_synth_nmtm(last_label:Option<String>, err:TypeError, nmtm:&NameTm) -> Option<NameTmInfo> {
     if let Some(lbl) = last_label {print!("After {}, ", lbl)}
     println!("Failed to synthesize {} name term, error: {}", v.short(), err);
     None
 }
 
-fn fail_check_nmtm(last_label:Option<String>, err:TypeError, nmtm:&NameTm) -> bool {
+fn fail_check_nmtm(last_label:Option<String>, err:TypeError, nmtm:&NameTm) -> Option<NameTmInfo> {
     if let Some(lbl) = last_label {print!("After {}, ", lbl)}
     println!("Failed to check {} name term, error: {}", v.short(), err);
-    false
+    None
 }
 
 fn fail_synth_val(last_label:Option<String>, err:TypeError, v:&Val) -> Option<Type> {
@@ -261,22 +355,22 @@ fn fail_synth_val(last_label:Option<String>, err:TypeError, v:&Val) -> Option<Ty
     None
 }
 
-fn fail_check_val(last_label:Option<String>, err:TypeError, v:&Val) -> bool {
+fn fail_check_val(last_label:Option<String>, err:TypeError, v:&Val) -> Option<Type> {
     if let Some(lbl) = last_label {print!("After {}, ", lbl)}
     println!("Failed to check {} value, error: {}", v.short(), err);
-    false
+    None
 }
 
-fn fail_synth_exp(last_label:Option<String>, err:TypeError, e:&Exp) -> Option<CType> {
+fn fail_synth_exp(last_label:Option<String>, err:TypeError, e:&Exp) -> Option<CEffect> {
     if let Some(lbl) = last_label {print!("After {}, ", lbl)}
     println!("Failed to synthesize {} expression, error: {}", e.short(), err);
     None
 }
 
-fn fail_check_exp(last_label:Option<String>, err:TypeError, e:&Exp) -> bool {
+fn fail_check_exp(last_label:Option<String>, err:TypeError, e:&Exp) -> Option<CEffect> {
     if let Some(lbl) = last_label {print!("After {}, ", lbl)}
     println!("Failed to check {} expression, error: {}", e.short(), err);
-    false
+    None
 }
 
 pub fn synth_idxtm(last_label:Option<String>, ctc:&TCtxt, idxtm:&IdxTm) -> Option<Sort> {
