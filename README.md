@@ -1,11 +1,18 @@
 # IODyn: A functional language for implicitly-incremental programs with dynamic input and output collections [![Travis](https://api.travis-ci.org/cuplv/iodyn-lang.rust.svg?branch=master)](https://travis-ci.org/cuplv/iodyn-lang.rust)
 
+## IODyn is an ML-like language with collections
 
-## Examples
+IODyn is a functional language, in the ML family of languages (SML, OCaml, Elm, etc.).  As with other languages in this family, IODyn consists of a typed core calculus, with functions and algebraic data types.  Further, we enrich this core calculus with a collections library over sequences, sets, finite maps and graphs (in progress).  Finally, we give well-typed, well-annotated programs in this language an implicitly-incremental semantics, via translation to Fungi, our low-level core calculus for functional programs that name their own cached dependency graphs.
+
+## Fungi is a core calculus for functional programs that name their own cached dependency graphs
+
+Fungi serves as the target language for IODyn.  Unlike IODyn, the incremental features of Fungi are explicit.  In particular, its main novelty of Fungi are the notions of _first-class names_, _first class name-functions_, input/output collections whose types are indexed by _sets of names_ (e.g., to uniquely identify positions in a list), and functions whose types are indexed by what cached data and computations they read and write.  Though Fungi is effectful, its behavior is functional: the key invariant of its type-and-effects system.
+
+## Fungi Examples
 
 ### Sequences
 
-#### type
+A recursive algebraic type for sequences, as balanced level trees
 
 ```text
 type Seq = (
@@ -20,11 +27,7 @@ type Seq = (
 )
 ```
 
-#### max
-
-TODO
-
-#### filter
+### filter a sequence by an element-wise predicate
 
 ```text
 let rec filter:(
