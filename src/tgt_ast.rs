@@ -1047,10 +1047,20 @@ macro_rules! tgt_exp {
         stringify![$x].to_string(),
         Rc::new(tgt_exp![$($e)+]),
     )};
+    // Sugar:
+    //    unroll match v { ... }  ==> unroll v y. match y { ... }
+    //
+    { unroll match $v:tt $($more:tt)+ } => {
+        Exp::Unroll(tgt_val![$v],
+                    "sugar_match_unroll".to_string(),
+                    Rc::new(tgt_exp![
+                        match sugar_match_unroll $($more)+
+                    ]))
+    };
     //     unroll v x.e
     { unroll $v:tt $x:ident.$($e:tt)+ } => {
         Exp::Unroll(
-            tgt_val![$($v)+],
+            tgt_val![$v],
             stringify![$x].to_string(),
             Rc::new(tgt_exp![$($e)+]))
     };

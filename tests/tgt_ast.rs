@@ -49,7 +49,7 @@ fn examples() {
                     {(#x.{x,@1} % {x,@2}) X; 0})
                 |> {0;0}
         ) = {
-            #seq. match seq {
+            #seq. unroll seq seq. match seq {
                 vec => { {force vec_max} vec }
                 bin => {
                     let (n,_x,l,r) = {ret bin}
@@ -118,18 +118,17 @@ fn examples() {
                     |> {0;0}
                 ) |> {0;0}
         ) = {
-            #seq. #f. match seq {
+            #seq. #f. unroll match seq {
                 vec => { {force vec_filter} f vec }
                 bin => {
                     let (n,lev,l,r) = {ret bin}
                     let (rsl, sl) = { memo{n,(@1)}{ {force filter} f {!l} } }
                     let (rsr, sr) = { memo{n,(@2)}{ {force filter} f {!r} } }
-                    let el = {{force is_empty} sl}
-                    let er = {{force is_empty} sr}
                     // if left is empty, return the right
-                    if (el) { ret sr } else {
-                        // if right is empty, return the left
-                        if (er) { ret sl } else {
+                    if {{force is_empty} sl} { ret sr }
+                    else { // if right is empty, return the left
+                        if {{force is_empty} sr} { ret sl }
+                        else {
                             // neither are empty; construct SeqBin node:
                             ret roll inj2 (n,lev,rsl,rsr)
                         }
