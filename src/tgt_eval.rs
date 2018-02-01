@@ -55,6 +55,7 @@ pub enum RtVal {
     Pair(RtValRec, RtValRec),
     Inj1(RtValRec),
     Inj2(RtValRec),
+    Roll(RtValRec),
     NameFn(NameTm),
     
     Nat(usize),
@@ -243,6 +244,7 @@ pub fn close_val(env:&Env, v:&Val) -> RtVal {
         // inductive cases
         Inj1(ref v1) => RtVal::Inj1(close_val_rec(env, v1)),
         Inj2(ref v1) => RtVal::Inj2(close_val_rec(env, v1)),
+        Roll(ref v1) => RtVal::Roll(close_val_rec(env, v1)),
         Pair(ref v1, ref v2) =>
             RtVal::Pair(close_val_rec(env, v1),
                         close_val_rec(env, v2)),
@@ -276,6 +278,8 @@ pub enum EvalTyErr {
     IfNonBool(RtVal),
     // case case
     CaseNonInj(RtVal),
+    // unroll case
+    UnrollNonRoll(RtVal),
     // thunk case
     ThunkNonName(RtVal),    
     ForceNonThunk(RtVal),
@@ -321,6 +325,15 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
             let env_saved = env.clone();
             env.push((f, RtVal::ThunkAnon(env_saved, e)));
             eval(env, (*e1).clone())
+        }
+        Exp::Unroll(v, x, e1) => {
+            match close_val(&env, &v) {
+                RtVal::Roll(v) => {
+                    env.push((x,(*v).clone()));
+                    eval(env, (*e1).clone())
+                },
+                v => eval_type_error(EvalTyErr::UnrollNonRoll(v), env, e)
+            }
         }
         Exp::Thunk(v, e1) => {
             match close_val(&env, &v) {

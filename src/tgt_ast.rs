@@ -827,6 +827,7 @@ pub enum Val {
     Pair(ValRec, ValRec),
     Inj1(ValRec),
     Inj2(ValRec),
+    Roll(ValRec),
     Name(Name),
     NameFn(NameTm),
     Anno(ValRec,Type),
@@ -859,6 +860,7 @@ pub type ValRec = Rc<Val>;
 ///     (v1,v2,...) (unit,parens,tuples)
 ///     inj1 v      (first sum value)
 ///     inj2 v      (second sum value)
+///     roll v      (roll an unrolled recursively-typed value)
 ///     name n      (name value)
 ///     nmfn M      (name function as value)
 ///     true,false  (bool primitive)
@@ -883,6 +885,8 @@ macro_rules! tgt_val {
     { inj1 $($v:tt)+ } => { Val::Inj1(Rc::new(tgt_val![$($v)+])) };
     //     inj2 v      (second sum value)
     { inj2 $($v:tt)+ } => { Val::Inj2(Rc::new(tgt_val![$($v)+])) };
+    //     roll v 
+    { roll $($v:tt)+ } => { Val::Roll(Rc::new(tgt_val![$($v)+])) };
     //     name n      (name value)
     { name $($n:tt)+ } => { Val::Name(tgt_name![$($n)+]) };
     //     nmfn M      (name function as value)
@@ -951,6 +955,7 @@ pub enum Exp {
     Anno(ExpRec,CType),
     Force(Val),
     Thunk(Val,ExpRec),
+    Unroll(Val,Var,ExpRec),
     Fix(Var,ExpRec),
     Ret(Val),
     DefType(Var,Type,ExpRec),
@@ -989,6 +994,7 @@ pub type ExpRec = Rc<Exp>;
 ///     ret v                           (lifted value)
 ///     #x.e                            (lambda)
 ///     fix x.e                         (recursive lambda)
+///     unroll v x.e                    (unroll recursively-typed value v as x in e)
 ///     {e} {!ref} ...                  (application get-sugar)
 ///     {e} v1 ...                      (extened application)
 ///     type t = (A) e                  (user type shorthand, recursive type)
@@ -1041,6 +1047,13 @@ macro_rules! tgt_exp {
         stringify![$x].to_string(),
         Rc::new(tgt_exp![$($e)+]),
     )};
+    //     unroll v x.e
+    { unroll $v:tt $x:ident.$($e:tt)+ } => {
+        Exp::Unroll(
+            tgt_val![$($v)+],
+            stringify![$x].to_string(),
+            Rc::new(tgt_exp![$($e)+]))
+    };
     //     {e} {!ref} ...                     (application get-sugar)
     { {$($e:tt)+} {!$ref:ident} $($more:tt)* } => {
         // we need to create a new variable name for each
