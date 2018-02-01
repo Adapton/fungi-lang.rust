@@ -6,7 +6,14 @@ IODyn is a functional language, in the ML family of languages (SML, OCaml, Elm, 
 
 ## Fungi is a core calculus for functional programs that name their own cached dependency graphs
 
-Fungi serves as the target language for IODyn.  Unlike IODyn, the incremental features of Fungi are explicit.  In particular, its main novelty of Fungi are the notions of _first-class names_, _first class name-functions_, input/output collections whose types are indexed by _sets of names_ (e.g., to uniquely identify positions in a list), and functions whose types are indexed by what cached data and computations they read and write.  Though Fungi is effectful, its behavior is functional: the key invariant of its type-and-effects system.
+Fungi serves as the target language for IODyn.  Unlike IODyn, the incremental features of Fungi are explicit.  In particular, Fungi provides language affordances for
+ - _first-class names_, 
+ - _first class name-functions_, 
+ - input/output collections whose types are indexed by _sets of names_ (e.g., to uniquely identify positions in a list), and 
+ - functions whose types are indexed by what cached data and computations they read and write.
+ Though the semantics of Fungi are effectful, wherein it allocates programmer-named values and computations, and reads these objects from memory later, **the behavior of Fungi is functional**: the key invariant of its type-and-effects system.
+ 
+ More precisely, Fungi provides two languages: One for the **Archivist** (the functional subset), and an imperative "wrapper" language for the **Editor**, who is permitted to mutate the Archivist's input, and then indicate where the output of archivist computations should be incrementally repaired, on demand.
 
 ## Fungi Examples
 
