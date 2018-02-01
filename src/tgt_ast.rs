@@ -995,6 +995,7 @@ pub type ExpRec = Rc<Exp>;
 ///     #x.e                            (lambda)
 ///     fix x.e                         (recursive lambda)
 ///     unroll v x.e                    (unroll recursively-typed value v as x in e)
+///     unroll match v { ... }          (unroll recursively-typed value and elim sum type)
 ///     {e} {!ref} ...                  (application get-sugar)
 ///     {e} v1 ...                      (extened application)
 ///     type t = (A) e                  (user type shorthand, recursive type)
