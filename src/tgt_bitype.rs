@@ -235,38 +235,6 @@ pub enum PrimAppTD {
     NameBin(TypeInfo<ValTD>,TypeInfo<ValTD>),
     RefThunk(TypeInfo<ValTD>),
 }
-pub enum TypeError {
-    VarNotInScope(String),
-    AnnoMism,
-    NoSynthRule,
-    NoCheckRule,
-    InvalidPtr,
-    ParamMism(usize),
-    ParamNoSynth(usize),
-    AppNotArrow,
-    BadCheck,
-    DSLiteral,
-    EmptyDT,
-}
-impl fmt::Display for TypeError {
-    fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
-        let s = match *self {
-            TypeError::VarNotInScope(ref s) => format!("variable {} not in scope",s),
-            TypeError::AnnoMism => format!("annotation mismatch"),
-            TypeError::NoSynthRule => format!("no synth rule found"),
-            TypeError::NoCheckRule => format!("no check rule found"),
-            TypeError::InvalidPtr => format!("invalid pointer"),
-            TypeError::ParamMism(num) => format!("parameter {} type incorrect",num),
-            TypeError::ParamNoSynth(num) => format!("parameter {} unknown type",num),
-            TypeError::AppNotArrow => format!("application of non-arrow type"),
-            TypeError::BadCheck => format!("checked type inappropriate for value"),
-            TypeError::DSLiteral => format!("data structure literals not allowed"),
-            TypeError::EmptyDT => format!("ambiguous empty data type"),
-        };
-        write!(f,"{}",s)
-    }
-}
-
 trait AstNode {
     fn node_desc() -> &'static str { "ast node" }
     fn short(&self) -> &str { "unknown" }
@@ -376,7 +344,41 @@ impl Dir {
     }
 }
 
-fn failure<N:AstNode+HasType>(dir:Dir, last_label:Option<String>, ctxt:&TCtxt, n:N, err:TypeError) -> TypeInfo<N> {
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum TypeError {
+    VarNotInScope(String),
+    AnnoMism,
+    NoSynthRule,
+    NoCheckRule,
+    InvalidPtr,
+    ParamMism(usize),
+    ParamNoSynth(usize),
+    AppNotArrow,
+    BadCheck,
+    DSLiteral,
+    EmptyDT,
+}
+impl fmt::Display for TypeError {
+    fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
+        let s = match *self {
+            TypeError::VarNotInScope(ref s) => format!("variable {} not in scope",s),
+            TypeError::AnnoMism => format!("annotation mismatch"),
+            TypeError::NoSynthRule => format!("no synth rule found, try an annotation"),
+            TypeError::NoCheckRule => format!("no check rule found"),
+            TypeError::InvalidPtr => format!("invalid pointer"),
+            // 0 based parameter numbers
+            TypeError::ParamMism(num) => format!("parameter {} type incorrect",num),
+            TypeError::ParamNoSynth(num) => format!("parameter {} unknown type",num),
+            TypeError::AppNotArrow => format!("application of non-arrow type"),
+            TypeError::BadCheck => format!("checked type inappropriate for value"),
+            TypeError::DSLiteral => format!("data structure literals not allowed"),
+            TypeError::EmptyDT => format!("ambiguous empty data type"),
+        };
+        write!(f,"{}",s)
+    }
+}
+
+fn failure<N:AstNode+HasType>(dir:Dir, last_label:Option<&str>, ctxt:&TCtxt, n:N, err:TypeError) -> TypeInfo<N> {
     if let Some(lbl) = last_label {print!("After {}, ", lbl)}
     println!("Failed to {} {} {}, error: {}", dir.short(), n.short(), N::node_desc(), err);
     TypeInfo{
@@ -387,7 +389,7 @@ fn failure<N:AstNode+HasType>(dir:Dir, last_label:Option<String>, ctxt:&TCtxt, n
     }
 }
 
-fn success<N:AstNode+HasType>(dir:Dir, _last_label:Option<String>, ctxt:&TCtxt, n:N, typ:N::Type) -> TypeInfo<N> {
+fn success<N:AstNode+HasType>(dir:Dir, _last_label:Option<&str>, ctxt:&TCtxt, n:N, typ:N::Type) -> TypeInfo<N> {
     TypeInfo{
         ctxt: ctxt.clone(),
         node: Rc::new(n),
@@ -396,9 +398,9 @@ fn success<N:AstNode+HasType>(dir:Dir, _last_label:Option<String>, ctxt:&TCtxt, 
     }
 }
 
-pub fn synth_idxtm(last_label:Option<String>, ctxt:&TCtxt, idxtm:&IdxTm) -> TypeInfo<IdxTmTD> {
-    let fail = |td:IdxTmTD, err :TypeError| { failure(Dir::Synth, last_label.clone(), ctxt, td, err)  };
-    let succ = |td:IdxTmTD, sort:Sort     | { success(Dir::Synth, last_label.clone(), ctxt, td, sort) };
+pub fn synth_idxtm(last_label:Option<&str>, ctxt:&TCtxt, idxtm:&IdxTm) -> TypeInfo<IdxTmTD> {
+    let fail = |td:IdxTmTD, err :TypeError| { failure(Dir::Synth, last_label, ctxt, td, err)  };
+    let succ = |td:IdxTmTD, sort:Sort     | { success(Dir::Synth, last_label, ctxt, td, sort) };
     match idxtm {
         &IdxTm::Var(ref x) => {
             let td = IdxTmTD::Var(x.clone());
@@ -407,25 +409,99 @@ pub fn synth_idxtm(last_label:Option<String>, ctxt:&TCtxt, idxtm:&IdxTm) -> Type
                 Some(sort) => succ(td, sort)
             }   
         }
-        // &IdxTm::Sing(ref nt) => {},
-        // &IdxTm::Empty => {},
-        // &IdxTm::Disj(ref idx1, ref idx2) => {},
-        // &IdxTm::Union(ref idx1, ref idx2) => {},
-        // &IdxTm::Unit => {},
-        // &IdxTm::Pair(ref idx1, ref idx2) => {},
-        // &IdxTm::Proj1(ref idx) => {},
-        // &IdxTm::Proj2(ref idx) => {},
-        // &IdxTm::Lam(ref x, ref idx) => {},
-        // &IdxTm::App(ref idx1, ref idx2) => {},
-        // &IdxTm::Map(ref nt, ref idx) => {},
-        // &IdxTm::FlatMap(ref idx1, ref idx2) => {},
-        // &IdxTm::Star(ref idx1, ref idx2) => {},
+        &IdxTm::Sing(ref nt) => {
+            let nttd = synth_nmtm(last_label,ctxt,nt);
+            let err = nttd.is_err();
+            let td = IdxTmTD::Sing(nttd);
+            if err { fail(td, TypeError::ParamNoSynth(0)) }
+            else   { succ(td, Sort::NmSet) }
+        },
+        &IdxTm::Empty => {
+            succ(IdxTmTD::Empty, Sort::NmSet)
+        },
+        &IdxTm::Disj(ref idx0, ref idx1) => {
+            let td0 = synth_idxtm(last_label,ctxt,idx0);
+            let td1 = synth_idxtm(last_label,ctxt,idx1);
+            let (err0,err1) = (td0.is_err(),td1.is_err());
+            let td = IdxTmTD::Disj(td0,td1);
+            if      err0 { fail(td, TypeError::ParamNoSynth(0)) }
+            else if err1 { fail(td, TypeError::ParamNoSynth(1)) }
+            else         { succ(td, Sort::NmSet) }
+        },
+        &IdxTm::Union(ref idx0, ref idx1) => {
+            let td0 = synth_idxtm(last_label,ctxt,idx0);
+            let td1 = synth_idxtm(last_label,ctxt,idx1);
+            let (err0,err1) = (td0.is_err(),td1.is_err());
+            let td = IdxTmTD::Union(td0,td1);
+            if      err0 { fail(td, TypeError::ParamNoSynth(0)) }
+            else if err1 { fail(td, TypeError::ParamNoSynth(1)) }
+            else         { succ(td, Sort::NmSet) }
+        },
+        &IdxTm::Unit => {
+            succ(IdxTmTD::Unit, Sort::Unit)
+        },
+        &IdxTm::Pair(ref idx0, ref idx1) => {
+            let td0 = synth_idxtm(last_label,ctxt,idx0);
+            let td1 = synth_idxtm(last_label,ctxt,idx1);
+            let (err0,err1) = (td0.is_err(),td1.is_err());
+            let td = IdxTmTD::Pair(td0,td1);
+            if      err0 { fail(td, TypeError::ParamNoSynth(0)) }
+            else if err1 { fail(td, TypeError::ParamNoSynth(1)) }
+            else         { succ(td, Sort::NmSet) }
+        },
+        &IdxTm::Proj1(ref idx) => {
+            let td = IdxTmTD::Proj1(synth_idxtm(last_label,ctxt,idx));
+            fail(td,TypeError::NoSynthRule)
+        },
+        &IdxTm::Proj2(ref idx) => {
+            let td = IdxTmTD::Proj2(synth_idxtm(last_label,ctxt,idx));
+            fail(td,TypeError::NoSynthRule)
+        },
+        &IdxTm::Lam(ref x, ref idx) => {
+            let td = IdxTmTD::Lam(x.clone(), synth_idxtm(last_label,ctxt,idx));
+            fail(td,TypeError::NoSynthRule)
+        },
+        &IdxTm::App(ref idx0, ref idx1) => {
+            let td0 = synth_idxtm(last_label,ctxt,idx0);
+            let td1 = synth_idxtm(last_label,ctxt,idx1);
+            let (typ0,typ1) = (td0.typ.clone(),td1.typ.clone());
+            let td = IdxTmTD::App(td0,td1);
+            match (typ0,typ1) {
+                (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
+                (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
+                (Ok(tp0),Ok(tp1)) => {
+                    if let Sort::IdxArrow(f,t) = tp0 {
+                        if *f == tp1 { succ(td, (*t).clone()) }
+                        else         { fail(td, TypeError::ParamMism(1)) }
+                    } else { fail(td, TypeError::AppNotArrow) }
+                }
+            }
+        },
+        &IdxTm::Map(ref nt, ref idx) => {
+            let td0 = synth_nmtm(last_label,ctxt,nt);
+            let td1 = synth_idxtm(last_label,ctxt,idx);
+            let (typ0,typ1) = (td0.typ.clone(),td1.typ.clone());
+            let td = IdxTmTD::Map(td0,td1);
+            match (typ0,typ1) {
+                (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
+                (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
+                (Ok(Sort::NmArrow(n0,n1)),Ok(Sort::NmSet)) => {
+                    if (*n0 == Sort::Nm) & (*n1 == Sort::Nm) {
+                        succ(td,Sort::NmSet)
+                    } else { fail(td, TypeError::ParamMism(0))}
+                },
+                (Ok(Sort::NmArrow(_,_)),Ok(_)) => fail(td, TypeError::ParamMism(1)),
+                (Ok(_),_) => fail(td, TypeError::ParamMism(0)),
+            }
+        },
+        // &IdxTm::FlatMap(ref idx0, ref idx1) => {},
+        // &IdxTm::Star(ref idx0, ref idx1) => {},
         // &IdxTm::NoParse(ref s) => {},
         _ => unimplemented!("TODO: Finish synth index terms")
     }
 }
 
-pub fn check_idxtm(last_label:Option<String>, ctxt:&TCtxt, idxtm:&IdxTm, sort:&Sort) -> TypeInfo<IdxTmTD> {
+pub fn check_idxtm(last_label:Option<&str>, ctxt:&TCtxt, idxtm:&IdxTm, sort:&Sort) -> TypeInfo<IdxTmTD> {
     match idxtm {
         // &IdxTm::Var(ref x) => {},
         // &IdxTm::Sing(ref nt) => {},
@@ -446,7 +522,7 @@ pub fn check_idxtm(last_label:Option<String>, ctxt:&TCtxt, idxtm:&IdxTm, sort:&S
     }  
 }
 
-pub fn synth_nmtm(last_label:Option<String>, ctxt:&TCtxt, nmtm:&NameTm) -> TypeInfo<NameTmTD> {
+pub fn synth_nmtm(last_label:Option<&str>, ctxt:&TCtxt, nmtm:&NameTm) -> TypeInfo<NameTmTD> {
     match nmtm {
         // NameTm::Var(ref x) => {},
         // NameTm::Name(ref n) => {},
@@ -458,7 +534,7 @@ pub fn synth_nmtm(last_label:Option<String>, ctxt:&TCtxt, nmtm:&NameTm) -> TypeI
     }  
 }
 
-pub fn check_nmtm(last_label:Option<String>, ctxt:&TCtxt, nmtm:&NameTm, sort:&Sort) -> TypeInfo<NameTmTD> {
+pub fn check_nmtm(last_label:Option<&str>, ctxt:&TCtxt, nmtm:&NameTm, sort:&Sort) -> TypeInfo<NameTmTD> {
     match nmtm {
         // NameTm::Var(ref x) => {},
         // NameTm::Name(ref n) => {},
@@ -470,7 +546,7 @@ pub fn check_nmtm(last_label:Option<String>, ctxt:&TCtxt, nmtm:&NameTm, sort:&So
     }  
 }
 
-pub fn synth_val(last_label:Option<String>, ctxt:&TCtxt, val:&Val) -> TypeInfo<ValTD> {
+pub fn synth_val(last_label:Option<&str>, ctxt:&TCtxt, val:&Val) -> TypeInfo<ValTD> {
     match val {
         /* Note for implementers:
             one or both of `synth_val` or `check_val` should be implemented
@@ -516,7 +592,7 @@ pub fn synth_val(last_label:Option<String>, ctxt:&TCtxt, val:&Val) -> TypeInfo<V
 }
 
 
-pub fn check_val(last_label:Option<String>, ctxt:&TCtxt, val:&Val, typ:&Type) -> TypeInfo<ValTD> {
+pub fn check_val(last_label:Option<&str>, ctxt:&TCtxt, val:&Val, typ:&Type) -> TypeInfo<ValTD> {
     match (val, typ) {
   //       (&Val::Unit, &Type::Unit) => true,
   //       (&Val::Pair(ref v1, ref v2), &Type::Prod(ref t1, ref t2)) => {
@@ -555,7 +631,7 @@ pub fn check_val(last_label:Option<String>, ctxt:&TCtxt, val:&Val, typ:&Type) ->
     }
 }
 
-pub fn synth_exp(last_label:Option<String>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<ExpTD> {
+pub fn synth_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<ExpTD> {
     // TODO: synth rules for all capable expressions
     match exp {
         /* Note for implementers:
@@ -634,7 +710,7 @@ pub fn synth_exp(last_label:Option<String>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<E
     }
 }
 
-pub fn check_exp(last_label:Option<String>, ctxt:&TCtxt, exp:&Exp, ctype:&CType) -> TypeInfo<ExpTD> {
+pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ctype:&CType) -> TypeInfo<ExpTD> {
     // TODO: remove ctype from match, check it in body and maybe give type error
     match (exp, ctype) {
  //        (&Exp::Name(ref nm, ref e), ct) => {
