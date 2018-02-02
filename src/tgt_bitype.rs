@@ -168,6 +168,7 @@ pub enum NameTmTD {
     Bin(TypeInfo<NameTmTD>, TypeInfo<NameTmTD>),
     Lam(Var,TypeInfo<NameTmTD>),
     App(TypeInfo<NameTmTD>, TypeInfo<NameTmTD>),
+    NoParse(String),
 }
 impl HasType for NameTmTD { type Type = Sort; }
 
@@ -186,6 +187,7 @@ pub enum IdxTmTD {
     Map(TypeInfo<NameTmTD>, TypeInfo<IdxTmTD>),
     FlatMap(TypeInfo<IdxTmTD>, TypeInfo<IdxTmTD>),
     Star(TypeInfo<IdxTmTD>, TypeInfo<IdxTmTD>),
+    NoParse(String),
 }
 impl HasType for IdxTmTD { type Type = Sort; }
 
@@ -203,6 +205,7 @@ pub enum ValTD {
     Bool(bool),
     Nat(usize),
     Str(String),
+    NoParse(String),
 }
 impl HasType for ValTD { type Type = Type; }
 
@@ -227,6 +230,7 @@ pub enum ExpTD {
     PrimApp(PrimAppTD),
     Unimp,
     DebugLabel(String,TypeInfo<ExpTD>),
+    NoParse(String),
 }
 impl HasType for ExpTD { type Type = CEffect; }
 
@@ -249,6 +253,7 @@ impl AstNode for NameTmTD {
             NameTmTD::Bin(_, _) => "Bin",
             NameTmTD::Lam(_,_) => "Lam",
             NameTmTD::App(_, _) => "App",
+            NameTmTD::NoParse(_) => "NoParse",
         }
     }
 }
@@ -271,6 +276,7 @@ impl AstNode for IdxTmTD {
             IdxTmTD::Map(_, _) => "Map",
             IdxTmTD::FlatMap(_, _) => "FlatMap",
             IdxTmTD::Star(_, _) => "Star",
+            IdxTmTD::NoParse(_) => "NoParse",
         }
     }
 }
@@ -292,6 +298,7 @@ impl AstNode for ValTD {
             ValTD::Bool(_) => "Bool",
             ValTD::Nat(_) => "Nat",
             ValTD::Str(_) => "Str",
+            ValTD::NoParse(_) => "NoParse",
         }
     }
 }
@@ -320,6 +327,7 @@ impl AstNode for ExpTD {
             ExpTD::PrimApp(ref p) => p.short(),
             ExpTD::Unimp => "Unimp",
             ExpTD::DebugLabel(_,_) => "DebugLabel",
+            ExpTD::NoParse(_) => "NoParse",
         }
     }
 }
@@ -347,6 +355,7 @@ impl Dir {
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum TypeError {
     VarNotInScope(String),
+    NoParse(String),
     AnnoMism,
     NoSynthRule,
     NoCheckRule,
@@ -362,6 +371,7 @@ impl fmt::Display for TypeError {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
         let s = match *self {
             TypeError::VarNotInScope(ref s) => format!("variable {} not in scope",s),
+            TypeError::NoParse(ref s) => format!("term did not parse: `{}`",s),
             TypeError::AnnoMism => format!("annotation mismatch"),
             TypeError::NoSynthRule => format!("no synth rule found, try an annotation"),
             TypeError::NoCheckRule => format!("no check rule found"),
@@ -494,10 +504,43 @@ pub fn synth_idxtm(last_label:Option<&str>, ctxt:&TCtxt, idxtm:&IdxTm) -> TypeIn
                 (Ok(_),_) => fail(td, TypeError::ParamMism(0)),
             }
         },
-        // &IdxTm::FlatMap(ref idx0, ref idx1) => {},
-        // &IdxTm::Star(ref idx0, ref idx1) => {},
-        // &IdxTm::NoParse(ref s) => {},
-        _ => unimplemented!("TODO: Finish synth index terms")
+        &IdxTm::FlatMap(ref idx0, ref idx1) => {
+            let td0 = synth_idxtm(last_label,ctxt,idx0);
+            let td1 = synth_idxtm(last_label,ctxt,idx1);
+            let (typ0,typ1) = (td0.typ.clone(),td1.typ.clone());
+            let td = IdxTmTD::FlatMap(td0,td1);
+            match (typ0,typ1) {
+                (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
+                (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
+                (Ok(Sort::IdxArrow(n0,n1)),Ok(Sort::NmSet)) => {
+                    if (*n0 == Sort::Nm) & (*n1 == Sort::NmSet) {
+                        succ(td,Sort::NmSet)
+                    } else { fail(td, TypeError::ParamMism(0))}
+                },
+                (Ok(Sort::IdxArrow(_,_)),Ok(_)) => fail(td, TypeError::ParamMism(1)),
+                (Ok(_),_) => fail(td, TypeError::ParamMism(0)),
+            }
+        },
+        &IdxTm::Star(ref idx0, ref idx1) => {
+            let td0 = synth_idxtm(last_label,ctxt,idx0);
+            let td1 = synth_idxtm(last_label,ctxt,idx1);
+            let (typ0,typ1) = (td0.typ.clone(),td1.typ.clone());
+            let td = IdxTmTD::Star(td0,td1);
+            match (typ0,typ1) {
+                (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
+                (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
+                (Ok(Sort::IdxArrow(n0,n1)),Ok(Sort::NmSet)) => {
+                    if (*n0 == Sort::Nm) & (*n1 == Sort::NmSet) {
+                        succ(td,Sort::NmSet)
+                    } else { fail(td, TypeError::ParamMism(0))}
+                },
+                (Ok(Sort::IdxArrow(_,_)),Ok(_)) => fail(td, TypeError::ParamMism(1)),
+                (Ok(_),_) => fail(td, TypeError::ParamMism(0)),
+            }
+        },
+        &IdxTm::NoParse(ref s) => {
+            fail(IdxTmTD::NoParse(s.clone()),TypeError::NoParse(s.clone()))
+        },
     }
 }
 
