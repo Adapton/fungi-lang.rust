@@ -534,7 +534,8 @@ pub type TypeRec = Rc<Type>;
 ///     Nm[i]           (name type)
 ///     A[i]...         (extended application of type to index)
 ///     (Nm->Nm)[M]     (name function type)
-///     #a.A            (type fn)
+///     forallt a:K.A   (type parameter)
+///     foralli a:g.A   (index parameter)
 ///     rec a.A         (recursive type)
 ///     exists (X,Y,...):g | P . A
 ///                     (existential index variables, with common sort g)
@@ -975,13 +976,6 @@ pub enum Exp {
     NoParse(String),
 }
 pub type ExpRec = Rc<Exp>;
-
-/// TODO: Parsing rules (LHS expands into RHS):
-/// 
-///   memo { e1 } { e2 } ==> { let n = e1 { memo ( n ) { e } } }
-///
-///   memo ( v  ) { e  } ==> { let t = thunk v e { refthunk t } }
-///
 
 /// Parser for expressions
 ///

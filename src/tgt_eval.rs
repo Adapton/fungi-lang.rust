@@ -357,7 +357,10 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
                 v => eval_type_error(EvalTyErr::RefNonName(v), env, e)
             }
         }
-        Exp::DefType(_x,_a,_e) => { unimplemented!("TODO - User types") }
+        Exp::DefType(_x, _a, e) => {
+            // fungi types are erasable
+            eval(env, (*e).clone())
+        }
         Exp::Let(x,e1,e2) => {
             match eval(env.clone(), (*e1).clone()) {
                 ExpTerm::Ret(v) => {
@@ -432,7 +435,10 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
             match close_val(&env, &v) {
                 RtVal::Thunk(a) => {
                     // TODO: Implement this:
-                    let r = { panic!("engine::map(a, val_of_retval)") };
+                    let r = {
+                        // engine::map(a, val_of_retval)
+                        unimplemented!()
+                    };
                     let v = engine::force(&r);
                     ExpTerm::Ret(
                         RtVal::Pair(Rc::new(RtVal::Ref(r)),

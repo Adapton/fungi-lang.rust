@@ -226,7 +226,25 @@ pub fn synth_val(scope:Option<&Name>, ctxt:&TCtxt, val:&Val) -> Option<Type> {
     }
 }
 
-
+/*
+pub fn check_val_td(scope:Option<&Name>, ctxt:&TCtxt, val:&Val, typ:&Type) -> Option<ValTD> {
+    match (val, typ) {
+        (&Val::Pair(ref v1, ref v2), &Type::Pair(ref t1, ref t2)) => {
+            let v1td = check_val_td(scope, ctxt, v1, t1 );
+            let v2td = check_val_td(scope, ctxt, v2, t2 );
+            match (v1td, v2td) {
+                (Some(v1td), Some(v2td)) => {
+                    Some(ValTD{
+                        val:ValTD::Pair(v1td, v2td),
+                        typ:Type::Pair(v1td.typ, v2td.typ),
+                        ctx:ctxt })                         
+                }
+                _ => None
+            }
+        },
+    }
+}
+*/        
 pub fn check_val(scope:Option<&Name>, ctxt:&TCtxt, val:&Val, typ:&Type) -> bool {
     match (val, typ) {
         (&Val::Unit, &Type::Unit) => true,

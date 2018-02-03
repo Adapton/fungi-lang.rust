@@ -28,8 +28,8 @@ fn examples() {
             // Y; the version below has a fixed choice for X and Y for
             // all recursive unrollings.
             // (See my other version of type Seq, for filter, below).
-            #X.#Y.#T.
-            (+ Vec 
+            rec Seq. #X.#Y.#T.
+            (+ Vec T
              + (exists (X1,X2,X3)   :NmSet | (X1%X2%X3=X).
                 exists (Y1,Y2,Y3,Y4):NmSet | (Y1%Y2%Y3%Y4=Y).
                 x Nm[X1] x Nat
@@ -65,12 +65,12 @@ fn examples() {
                     // non-sugar version (all sub-expressions are explicit)
                     let nf = { ret nmfn #n.#v.n,v }
                     let n2 = { [nf] n (@2) }
-                    let (unused, mr) = {
-                        let memo = { thk n2
+                    let mr = {
+                        let t = { thk n2
                             let rv = {get r}
                             {force max} rv
                         }
-                        {force memo}
+                        {force t}
                     }
                     if { mr < ml } {ret ml} else {ret mr}
                 }
@@ -82,7 +82,8 @@ fn examples() {
 
 
     let filter : Exp = tgt_exp![
-        type Vec = (#T.user(Vec))
+        // always Nats
+        type Vec = (user(Vec))
 
         // Syntax for idiomatic recursive types
         // (avoid double-naming, as with `let rec`)?
