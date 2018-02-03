@@ -12,7 +12,7 @@
 //! operations, `get` and `force`, respectively.
 //!
 //! In particular, the semantics of `ref` and `thunk` are _entirely_
-//! encapsiluated by the Adapton run-time library, leaving the
+//! encapsulated by the Adapton run-time library, leaving the
 //! dynamics semantics for other expression forms to `eval` to define.
 //! In this sense, the language built around the `ref` and `thunk`
 //! primitives is open-ended.
