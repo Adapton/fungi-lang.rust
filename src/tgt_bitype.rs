@@ -496,9 +496,11 @@ pub fn synth_idxtm(last_label:Option<&str>, ctxt:&TCtxt, idxtm:&IdxTm) -> TypeIn
                 _ => fail(td, TypeError::ProjNotProd),
             }
         },
-        &IdxTm::Lam(ref x, /* ref x_sort */, ref idx) => {
-            // TODO?
-            // If we had `x_sort`, we could synthesize a sort by synthesizing a sort for the body.
+        &IdxTm::Lam(ref x,
+                    // ref x_sort,  <--- TODO?
+                    ref idx) => {
+            // TODO? If we had `x_sort`, we could synthesize a sort by
+            // synthesizing a sort for the body, under an extended ctxt, here:
             let td = IdxTmTD::Lam(x.clone(), synth_idxtm(last_label,ctxt,idx));
             fail(td,TypeError::NoSynthRule)
         },
