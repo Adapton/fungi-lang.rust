@@ -35,8 +35,8 @@
 //! terminal expressions, which are closed.
 
 use adapton::macros::*;
+use adapton::engine::{thunk,NameChoice};
 use adapton::engine;
-use adapton::engine::{thunk,ArtIdChoice};
 
 use tgt_ast::{Exp,PrimApp,Var,Val,Name,NameTm};
 use std::rc::Rc;
@@ -434,11 +434,7 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
             };
             match close_val(&env, &v) {
                 RtVal::Thunk(a) => {
-                    // TODO: Implement this:
-                    let r = {
-                        // engine::map(a, val_of_retval)
-                        unimplemented!()
-                    };
+                    let r = engine::thunk_map(a, Rc::new(val_of_retval));
                     let v = engine::force(&r);
                     ExpTerm::Ret(
                         RtVal::Pair(Rc::new(RtVal::Ref(r)),

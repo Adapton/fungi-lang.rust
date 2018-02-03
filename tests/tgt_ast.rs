@@ -85,6 +85,24 @@ fn examples() {
         // always Nats
         type Vec = (user(Vec))
 
+        let vec_filter:( Thk[0]
+            Vec Nat -> (
+                (Thk[0] Nat -> (F Bool |> {0;0}) |> {0;0}) ->
+                (F Vec Nat |> {0;0}) |> {0;0}
+            ) |> {0;0}
+        ) = {
+            unimplemented
+        }
+
+        let vec_map:( Thk[0]
+            Vec Nat -> (
+                (Thk[0] Nat -> (F Nat |> {0;0}) |> {0;0}) ->
+                (F Vec Nat |> {0;0}) |> {0;0}
+            ) |> {0;0}
+        ) = {
+            unimplemented
+        }
+
         // Syntax for idiomatic recursive types
         // (avoid double-naming, as with `let rec`)?
         //
@@ -103,14 +121,24 @@ fn examples() {
             )
         )
         let nums:(Seq[X][Y] Nat) = { unimplemented }
-        let vec_filter:( Thk[0]
-            Vec Nat -> (
-                (Thk[0] Nat -> (F Bool |> {0;0}) |> {0;0}) ->
-                (F Nat |> {0;0}) |> {0;0}
-            ) |> {0;0}
+
+        let rec max:(
+            Thk[0] foralli (X,Y):NmSet.
+                Seq[X][Y] Nat -> (F Nat |>
+                    {(#x.{x,@1} % {x,@2}) X; 0})
+                |> {0;0}
         ) = {
-            unimplemented
+            #seq. unroll seq seq. match seq {
+                vec => { {force vec_max} vec }
+                bin => {
+                    let (n,_x,l,r) = {ret bin}
+                    let (unused, ml) = { memo{n,(@1)}{ {force max} {!l} } }
+                    let (unused, mr) = { memo{n,(@2)}{ {force max} {!r} } }
+                    if { mr < ml } {ret ml} else {ret mr}
+                }
+            }
         }
+        
         let rec filter:(
             Thk[0] foralli (X,Y):NmSet.
                 (Seq[X][Y] Nat) -> (
@@ -137,8 +165,28 @@ fn examples() {
                 }
             }
         }
+
+        let rec map:(
+            Thk[0] foralli (X,Y):NmSet.
+                (Seq[X][Y] Nat) -> (
+                    (Thk[0] Nat -> (F Nat |> {0;0}) |> {0;0}) ->
+                    (F Nat |> {(#x.{x,@1} % {x,@2}) X; 0})
+                    |> {0;0}
+                ) |> {0;0}
+        ) = {
+            #seq. #f. unroll match seq {
+                vec => { {force vec_map } f vec }
+                bin => {
+                    let (n,lev,l,r) = {ret bin}
+                    let (rsl, sl) = { memo{n,(@1)}{ {force map} f {!l} } }
+                    let (rsr, sr) = { memo{n,(@2)}{ {force map} f {!r} } }
+                    ret roll inj2 (n,lev,rsl,rsr)
+                }
+            }
+        }
+
         {force max} nums
-    ];
+];
     println!("{:?}", filter);
 
 }
