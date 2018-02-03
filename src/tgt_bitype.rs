@@ -363,6 +363,7 @@ pub enum TypeError {
     ParamMism(usize),
     ParamNoSynth(usize),
     AppNotArrow,
+    ProjNotProd,
     BadCheck,
     DSLiteral,
     EmptyDT,
@@ -379,6 +380,7 @@ impl fmt::Display for TypeError {
             // 0 based parameter numbers
             TypeError::ParamMism(num) => format!("parameter {} type incorrect",num),
             TypeError::ParamNoSynth(num) => format!("parameter {} unknown type",num),
+            TypeError::ProjNotProd => format!("projection of non-product type"),
             TypeError::AppNotArrow => format!("application of non-arrow type"),
             TypeError::BadCheck => format!("checked type inappropriate for value"),
             TypeError::DSLiteral => format!("data structure literals not allowed"),
@@ -420,11 +422,14 @@ pub fn synth_idxtm(last_label:Option<&str>, ctxt:&TCtxt, idxtm:&IdxTm) -> TypeIn
             }   
         }
         &IdxTm::Sing(ref nt) => {
-            let nttd = synth_nmtm(last_label,ctxt,nt);
-            let err = nttd.is_err();
-            let td = IdxTmTD::Sing(nttd);
-            if err { fail(td, TypeError::ParamNoSynth(0)) }
-            else   { succ(td, Sort::NmSet) }
+            let td0 = synth_nmtm(last_label,ctxt,nt);
+            let ty0 = td0.typ.clone();
+            let td = IdxTmTD::Sing(td0);
+            match ty0 {
+                Err(_) => fail(td, TypeError::ParamNoSynth(0)),
+                Ok(ref t) if *t == Sort::Nm => succ(td, Sort::NmSet),
+                Ok(_) => fail(td, TypeError::ParamMism(0)),
+            }
         },
         &IdxTm::Empty => {
             succ(IdxTmTD::Empty, Sort::NmSet)
@@ -432,20 +437,28 @@ pub fn synth_idxtm(last_label:Option<&str>, ctxt:&TCtxt, idxtm:&IdxTm) -> TypeIn
         &IdxTm::Disj(ref idx0, ref idx1) => {
             let td0 = synth_idxtm(last_label,ctxt,idx0);
             let td1 = synth_idxtm(last_label,ctxt,idx1);
-            let (err0,err1) = (td0.is_err(),td1.is_err());
+            let (typ0,typ1) = (td0.typ.clone(),td1.typ.clone());
             let td = IdxTmTD::Disj(td0,td1);
-            if      err0 { fail(td, TypeError::ParamNoSynth(0)) }
-            else if err1 { fail(td, TypeError::ParamNoSynth(1)) }
-            else         { succ(td, Sort::NmSet) }
+            match (typ0,typ1) {
+                (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
+                (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
+                (Ok(Sort::NmSet),Ok(Sort::NmSet)) => succ(td, Sort::NmSet),
+                (Ok(Sort::NmSet),_) => fail(td, TypeError::ParamMism(1)),
+                (_,_) => fail(td, TypeError::ParamMism(0)),
+            }
         },
         &IdxTm::Union(ref idx0, ref idx1) => {
             let td0 = synth_idxtm(last_label,ctxt,idx0);
             let td1 = synth_idxtm(last_label,ctxt,idx1);
-            let (err0,err1) = (td0.is_err(),td1.is_err());
+            let (typ0,typ1) = (td0.typ.clone(),td1.typ.clone());
             let td = IdxTmTD::Union(td0,td1);
-            if      err0 { fail(td, TypeError::ParamNoSynth(0)) }
-            else if err1 { fail(td, TypeError::ParamNoSynth(1)) }
-            else         { succ(td, Sort::NmSet) }
+            match (typ0,typ1) {
+                (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
+                (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
+                (Ok(Sort::NmSet),Ok(Sort::NmSet)) => succ(td, Sort::NmSet),
+                (Ok(Sort::NmSet),_) => fail(td, TypeError::ParamMism(1)),
+                (_,_) => fail(td, TypeError::ParamMism(0)),
+            }
         },
         &IdxTm::Unit => {
             succ(IdxTmTD::Unit, Sort::Unit)
@@ -453,19 +466,35 @@ pub fn synth_idxtm(last_label:Option<&str>, ctxt:&TCtxt, idxtm:&IdxTm) -> TypeIn
         &IdxTm::Pair(ref idx0, ref idx1) => {
             let td0 = synth_idxtm(last_label,ctxt,idx0);
             let td1 = synth_idxtm(last_label,ctxt,idx1);
-            let (err0,err1) = (td0.is_err(),td1.is_err());
+            let (typ0,typ1) = (td0.typ.clone(),td1.typ.clone());
             let td = IdxTmTD::Pair(td0,td1);
-            if      err0 { fail(td, TypeError::ParamNoSynth(0)) }
-            else if err1 { fail(td, TypeError::ParamNoSynth(1)) }
-            else         { succ(td, Sort::NmSet) }
+            match (typ0,typ1) {
+                (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
+                (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
+                (Ok(t0),Ok(t1)) => succ(td, Sort::Prod(
+                    Rc::new(t0), Rc::new(t1),
+                ))
+            }
         },
         &IdxTm::Proj1(ref idx) => {
-            let td = IdxTmTD::Proj1(synth_idxtm(last_label,ctxt,idx));
-            fail(td,TypeError::NoSynthRule)
+            let td0 = synth_idxtm(last_label,ctxt,idx);
+            let typ0 = td0.typ.clone();
+            let td = IdxTmTD::Proj1(td0);
+            match typ0 {
+                Err(_) => fail(td, TypeError::ParamNoSynth(0)),
+                Ok(Sort::Prod(t0,_)) => succ(td, (*t0).clone()),
+                _ => fail(td, TypeError::ProjNotProd),
+            }
         },
         &IdxTm::Proj2(ref idx) => {
-            let td = IdxTmTD::Proj2(synth_idxtm(last_label,ctxt,idx));
-            fail(td,TypeError::NoSynthRule)
+            let td0 = synth_idxtm(last_label,ctxt,idx);
+            let typ0 = td0.typ.clone();
+            let td = IdxTmTD::Proj2(td0);
+            match typ0 {
+                Err(_) => fail(td, TypeError::ParamNoSynth(0)),
+                Ok(Sort::Prod(_,t1)) => succ(td, (*t1).clone()),
+                _ => fail(td, TypeError::ProjNotProd),
+            }
         },
         &IdxTm::Lam(ref x, ref idx) => {
             let td = IdxTmTD::Lam(x.clone(), synth_idxtm(last_label,ctxt,idx));
@@ -479,12 +508,9 @@ pub fn synth_idxtm(last_label:Option<&str>, ctxt:&TCtxt, idxtm:&IdxTm) -> TypeIn
             match (typ0,typ1) {
                 (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
                 (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
-                (Ok(tp0),Ok(tp1)) => {
-                    if let Sort::IdxArrow(f,t) = tp0 {
-                        if *f == tp1 { succ(td, (*t).clone()) }
-                        else         { fail(td, TypeError::ParamMism(1)) }
-                    } else { fail(td, TypeError::AppNotArrow) }
-                }
+                (Ok(Sort::IdxArrow(ref t0,ref t1)),Ok(ref t2)) if **t0 == *t2 => succ(td, (**t1).clone()),
+                (Ok(Sort::IdxArrow(_,_)),_) => fail(td, TypeError::ParamMism(1)),
+                _ => fail(td, TypeError::AppNotArrow),
             }
         },
         &IdxTm::Map(ref nt, ref idx) => {
@@ -496,12 +522,11 @@ pub fn synth_idxtm(last_label:Option<&str>, ctxt:&TCtxt, idxtm:&IdxTm) -> TypeIn
                 (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
                 (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
                 (Ok(Sort::NmArrow(n0,n1)),Ok(Sort::NmSet)) => {
-                    if (*n0 == Sort::Nm) & (*n1 == Sort::Nm) {
-                        succ(td,Sort::NmSet)
-                    } else { fail(td, TypeError::ParamMism(0))}
+                    if (*n0 == Sort::Nm) & (*n1 == Sort::Nm) { succ(td, Sort::NmSet) }
+                    else { fail(td, TypeError::ParamMism(0)) }
                 },
-                (Ok(Sort::NmArrow(_,_)),Ok(_)) => fail(td, TypeError::ParamMism(1)),
-                (Ok(_),_) => fail(td, TypeError::ParamMism(0)),
+                (Ok(Sort::NmArrow(_,_)),_) => fail(td, TypeError::ParamMism(1)),
+                _ => fail(td, TypeError::AppNotArrow),
             }
         },
         &IdxTm::FlatMap(ref idx0, ref idx1) => {
@@ -513,11 +538,10 @@ pub fn synth_idxtm(last_label:Option<&str>, ctxt:&TCtxt, idxtm:&IdxTm) -> TypeIn
                 (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
                 (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
                 (Ok(Sort::IdxArrow(n0,n1)),Ok(Sort::NmSet)) => {
-                    if (*n0 == Sort::Nm) & (*n1 == Sort::NmSet) {
-                        succ(td,Sort::NmSet)
-                    } else { fail(td, TypeError::ParamMism(0))}
+                    if (*n0 == Sort::Nm) & (*n1 == Sort::NmSet) { succ(td, Sort::NmSet) }
+                    else { fail(td, TypeError::ParamMism(0)) }
                 },
-                (Ok(Sort::IdxArrow(_,_)),Ok(_)) => fail(td, TypeError::ParamMism(1)),
+                (Ok(Sort::IdxArrow(_,_)),_) => fail(td, TypeError::ParamMism(1)),
                 (Ok(_),_) => fail(td, TypeError::ParamMism(0)),
             }
         },
@@ -530,11 +554,10 @@ pub fn synth_idxtm(last_label:Option<&str>, ctxt:&TCtxt, idxtm:&IdxTm) -> TypeIn
                 (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
                 (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
                 (Ok(Sort::IdxArrow(n0,n1)),Ok(Sort::NmSet)) => {
-                    if (*n0 == Sort::Nm) & (*n1 == Sort::NmSet) {
-                        succ(td,Sort::NmSet)
-                    } else { fail(td, TypeError::ParamMism(0))}
+                    if (*n0 == Sort::Nm) & (*n1 == Sort::NmSet) { succ(td,Sort::NmSet) }
+                    else { fail(td, TypeError::ParamMism(0)) }
                 },
-                (Ok(Sort::IdxArrow(_,_)),Ok(_)) => fail(td, TypeError::ParamMism(1)),
+                (Ok(Sort::IdxArrow(_,_)),_) => fail(td, TypeError::ParamMism(1)),
                 (Ok(_),_) => fail(td, TypeError::ParamMism(0)),
             }
         },
@@ -545,9 +568,11 @@ pub fn synth_idxtm(last_label:Option<&str>, ctxt:&TCtxt, idxtm:&IdxTm) -> TypeIn
 }
 
 pub fn check_idxtm(last_label:Option<&str>, ctxt:&TCtxt, idxtm:&IdxTm, sort:&Sort) -> TypeInfo<IdxTmTD> {
+    let fail = |td:IdxTmTD, err :TypeError| { failure(Dir::Check, last_label, ctxt, td, err)  };
+    let succ = |td:IdxTmTD, sort:Sort     | { success(Dir::Check, last_label, ctxt, td, sort) };
     match idxtm {
-        // &IdxTm::Var(ref x) => {},
-        // &IdxTm::Sing(ref nt) => {},
+        // use synth &IdxTm::Var(ref x) => {},
+        // use synth &IdxTm::Sing(ref nt) => {},
         // &IdxTm::Empty => {},
         // &IdxTm::Disj(ref idx1, ref idx2) => {},
         // &IdxTm::Union(ref idx1, ref idx2) => {},
@@ -561,7 +586,17 @@ pub fn check_idxtm(last_label:Option<&str>, ctxt:&TCtxt, idxtm:&IdxTm, sort:&Sor
         // &IdxTm::FlatMap(ref idx1, ref idx2) => {},
         // &IdxTm::Star(ref idx1, ref idx2) => {},
         // &IdxTm::NoParse(ref s) => {},
-        _ => unimplemented!("TODO: Finish check index terms")
+        tm => {
+            let mut td = synth_idxtm(last_label,ctxt,tm);
+            let ty = td.typ.clone();
+            if let Ok(ty) = ty {
+                if ty == *sort { td }
+                else {
+                    td.typ = Err(TypeError::AnnoMism);
+                    td
+                }
+            } else { td }
+        },
     }  
 }
 
