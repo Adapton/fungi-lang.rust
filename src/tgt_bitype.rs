@@ -496,7 +496,9 @@ pub fn synth_idxtm(last_label:Option<&str>, ctxt:&TCtxt, idxtm:&IdxTm) -> TypeIn
                 _ => fail(td, TypeError::ProjNotProd),
             }
         },
-        &IdxTm::Lam(ref x, ref idx) => {
+        &IdxTm::Lam(ref x, /* ref x_sort */, ref idx) => {
+            // TODO?
+            // If we had `x_sort`, we could synthesize a sort by synthesizing a sort for the body.
             let td = IdxTmTD::Lam(x.clone(), synth_idxtm(last_label,ctxt,idx));
             fail(td,TypeError::NoSynthRule)
         },
@@ -567,6 +569,10 @@ pub fn synth_idxtm(last_label:Option<&str>, ctxt:&TCtxt, idxtm:&IdxTm) -> TypeIn
     }
 }
 
+// XXX -- Maybe we don't need this function? (Same for check_nametm)
+//
+// See note about about IdxTm::Lam case, above, in synth_idxtm
+//
 pub fn check_idxtm(last_label:Option<&str>, ctxt:&TCtxt, idxtm:&IdxTm, sort:&Sort) -> TypeInfo<IdxTmTD> {
     let fail = |td:IdxTmTD, err :TypeError| { failure(Dir::Check, last_label, ctxt, td, err)  };
     let succ = |td:IdxTmTD, sort:Sort     | { success(Dir::Check, last_label, ctxt, td, sort) };
