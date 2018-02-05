@@ -50,7 +50,7 @@ pub enum NameTm {
     Var(Var),
     Name(Name),
     Bin(NameTmRec, NameTmRec),
-    Lam(Var,NameTmRec),
+    Lam(Var, Sort, NameTmRec),
     App(NameTmRec, NameTmRec),
     NoParse(String),
 }
@@ -62,7 +62,7 @@ pub type NameTmRec = Rc<NameTm>;
 /// M,N ::=
 ///     fromast ast_expr    (inject ast nodes)
 ///     [N]                 (parens)
-///     #a.M                (abstraction)
+///     #a:g.M              (abstraction)
 ///     [M] N ...           (curried application)
 ///     a                   (Variable)
 ///     M, N, ...           (extended bin)
@@ -76,9 +76,10 @@ macro_rules! tgt_nametm {
     { [$($nmtm:tt)+] } => { tgt_nametm![$($nmtm)+] };
     //     @n                  (literal name)
     { @$($nm:tt)+ } => { NameTm::Name(tgt_name![@$($nm)+]) };
-    //     #a.M                (abstraction)
-    { # $var:ident . $($body:tt)+ } => { NameTm::Lam(
+    //     #a:g.M                (abstraction)
+    { # $var:ident : $sort:tt . $($body:tt)+ } => { NameTm::Lam(
         stringify![$var].to_string(),
+        tgt_sort![$sort],
         Rc::new(tgt_nametm![$($body)+]),
     )};
     //     [M] N             (single application)
@@ -132,7 +133,7 @@ pub enum IdxTm {
     Pair(IdxTmRec, IdxTmRec),
     Proj1(IdxTmRec),
     Proj2(IdxTmRec),
-    Lam(Var, IdxTmRec),
+    Lam(Var, Sort, IdxTmRec),
     App(IdxTmRec, IdxTmRec),
     Map(NameTmRec, IdxTmRec),
     FlatMap(IdxTmRec, IdxTmRec),
@@ -155,7 +156,7 @@ pub type IdxTmRec = Rc<IdxTm>;
 ///     (i,j)       (pairing)
 ///     prj1 i      (projection)
 ///     prj2 i      (projection)
-///     #a.i        (abstraction)
+///     #a:g.i      (abstraction)
 ///     {i} j ...   (curried application)
 ///     [M] j       (mapping)
 ///     (i) j       (flatmapping)
@@ -211,9 +212,10 @@ macro_rules! tgt_index {
     { prj2 $($i:tt)+ } => {
         IdxTm::Proj2(Rc::new(tgt_index![$i]))
     };
-    //     #a.i        (abstraction)
-    { # $a:ident . $($body:tt)+ } => { IdxTm::Lam(
+    //     #a:g.i        (abstraction)
+    { # $a:ident : $sort:tt . $($body:tt)+ } => { IdxTm::Lam(
         stringify![$a].to_string(),
+        tgt_sort![$sort],
         Rc::new(tgt_index![$($body)+]),
     )};
     //     {i} j       (single application)
