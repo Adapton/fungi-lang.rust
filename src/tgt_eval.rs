@@ -492,8 +492,9 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
                 _ => eval_type_error(EvalTyErr::NameFnApp0, env, e),
             }
         }
-        Exp::DebugLabel(_,e) => {
-            // XXX/TODO -- Insert label/text/message into Adapton's trace structure
+        Exp::DebugLabel(_,_,e) => {
+            // XXX/TODO -- Insert label/text/message into Adapton's
+            // trace structure, to coordinate with a visual tool. :)
             return eval(env, (*e).clone())
         }
         Exp::Unimp => unimplemented!(),
