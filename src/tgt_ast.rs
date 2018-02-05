@@ -972,7 +972,7 @@ pub enum Exp {
     NameFnApp(Val,Val),
     PrimApp(PrimApp),
     Unimp,
-    DebugLabel(String,ExpRec),
+    DebugLabel(Option<Name>,String,ExpRec),
     NoParse(String),
 }
 pub type ExpRec = Rc<Exp>;

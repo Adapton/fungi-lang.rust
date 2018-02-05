@@ -203,7 +203,7 @@ fn fungi_seq() {
         )
 
         // Convert sequence to the isomorphic list
-        let rec list_rec: (
+        let rec list_l2r_rec: (
             Thk[0] foralli (X,X1,X2,X3, Y,Y1,Y2):NmSet | ((X1%X2%X3)=X)and((Y1%Y2%Y3)=Y).
                 (Seq[X1][Y1] Nat) -> (
                     (x Nm[X3] x Nat x Ref[Y3](List[X2][Y2])) ->
@@ -215,15 +215,17 @@ fn fungi_seq() {
                 vec => { ret roll inj2 (n,lev,vec,rest) }
                 bin => {
                     let (n,lev,l,r) = {ret bin}
-                    let (lr, _) = { memo{n,(@1)}{ {force list_rec} rest {!l} } }
-                    let (_, rl) = { memo{n,(@2)}{ {force list_rec} (n,lev,lr) {!r} } }
-                    { ret rl }
+                    let (rr, _) = { memo{n,(@2)}{ {force list_l2r_rec} rest       {!r} } }
+                    let (_, ll) = { memo{n,(@1)}{ {force list_l2r_rec} (n,lev,rr) {!l} } }
+                    { ret ll }
                 }
             }
         }        
 
-        // Convert sequence to the isomorphic list -- special leftmost recursion (no accum info)
-        let rec list_rec_left: (
+        // Convert sequence to the isomorphic list
+        // -- special rightmost recursion
+        // (no accum info)
+        let rec list_l2r_rmost: (
             Thk[0] foralli (X,Y):NmSet.
                 (Seq[X][Y] Nat) -> (F List[X][X] |> {X;Y})
                 |> {0;0}
@@ -232,21 +234,22 @@ fn fungi_seq() {
                 vec => { ret roll inj1 vec }
                 bin => {
                     let (n,lev,l,r) = {ret bin}
-                    let (lr, _) = { memo{n,(@1)}{ {force list_rec_left} {!l} } }
-                    let (_, rl) = { memo{n,(@2)}{ {force list_rec} (n,lev,lr) {!r} } }
-                    { ret rl }
+                    let (rr, _) = { memo{n,(@1)}{ {force list_l2r_rmost}          {!r} } }
+                    let (_, ll) = { memo{n,(@2)}{ {force list_l2r_rec} (n,lev,lr) {!l} } }
+                    { ret ll }
                 }
             }
         }
 
-        // Convert sequence to the isomorphic list -- general recursive cases
-        let rec list_rec: (
+        // Convert sequence to the isomorphic list, left-to-right
+        let rec list_l2r: (
             Thk[0] foralli (X,Y):NmSet.
                 (Seq[X][Y] Nat) -> (F List[X][X] |> {X;Y})
                 |> {0;0}
-        ) = { #seq. {force list_rec_left} seq }
+        ) = { #seq. {force list_l2r_rmost} seq }
 
-        // Conver a list back into a sequence, with a single pass
+
+        // Convert a list into a balanced level tree (a sequence), with a single pass
         let rec seq_of_list: (
             Thk[0] foralli (X,Y):NmSet.                
                 List[X][Y] -> (F Seq[X][Y] |> {X;Y}) |> {0;0}
