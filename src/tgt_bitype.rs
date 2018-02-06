@@ -166,7 +166,7 @@ pub enum NameTmTD {
     Var(Var),
     Name(Name),
     Bin(TypeInfo<NameTmTD>, TypeInfo<NameTmTD>),
-    Lam(Var,TypeInfo<NameTmTD>),
+    Lam(Var,Sort,TypeInfo<NameTmTD>),
     App(TypeInfo<NameTmTD>, TypeInfo<NameTmTD>),
     NoParse(String),
 }
@@ -182,7 +182,7 @@ pub enum IdxTmTD {
     Pair(TypeInfo<IdxTmTD>, TypeInfo<IdxTmTD>),
     Proj1(TypeInfo<IdxTmTD>),
     Proj2(TypeInfo<IdxTmTD>),
-    Lam(Var, TypeInfo<IdxTmTD>),
+    Lam(Var, Sort, TypeInfo<IdxTmTD>),
     App(TypeInfo<IdxTmTD>, TypeInfo<IdxTmTD>),
     Map(TypeInfo<NameTmTD>, TypeInfo<IdxTmTD>),
     FlatMap(TypeInfo<IdxTmTD>, TypeInfo<IdxTmTD>),
@@ -251,7 +251,7 @@ impl AstNode for NameTmTD {
             NameTmTD::Var(_) => "Var",
             NameTmTD::Name(_) => "Name",
             NameTmTD::Bin(_, _) => "Bin",
-            NameTmTD::Lam(_,_) => "Lam",
+            NameTmTD::Lam(_,_,_) => "Lam",
             NameTmTD::App(_, _) => "App",
             NameTmTD::NoParse(_) => "NoParse",
         }
@@ -271,7 +271,7 @@ impl AstNode for IdxTmTD {
             IdxTmTD::Pair(_, _) => "Pair",
             IdxTmTD::Proj1(_) => "Proj1",
             IdxTmTD::Proj2(_) => "Proj2",
-            IdxTmTD::Lam(_, _) => "Lam",
+            IdxTmTD::Lam(_, _, _) => "Lam",
             IdxTmTD::App(_, _) => "App",
             IdxTmTD::Map(_, _) => "Map",
             IdxTmTD::FlatMap(_, _) => "FlatMap",
@@ -496,13 +496,21 @@ pub fn synth_idxtm(last_label:Option<&str>, ctxt:&TCtxt, idxtm:&IdxTm) -> TypeIn
                 _ => fail(td, TypeError::ProjNotProd),
             }
         },
-        &IdxTm::Lam(ref x,
-                    // ref x_sort,  <--- TODO?
-                    ref idx) => {
-            // TODO? If we had `x_sort`, we could synthesize a sort by
-            // synthesizing a sort for the body, under an extended ctxt, here:
-            let td = IdxTmTD::Lam(x.clone(), synth_idxtm(last_label,ctxt,idx));
-            fail(td,TypeError::NoSynthRule)
+        &IdxTm::Lam(ref x, ref x_sort, ref idx) => {
+            let ctxt_ext = ctxt.ivar(x.clone(), x_sort.clone());
+            let td0 = synth_idxtm(last_label,&ctxt_ext,idx);
+            let typ0 = td0.typ.clone();
+            let td = IdxTmTD::Lam(x.clone(), x_sort.clone(), td0);
+            if let &Sort::NoParse(ref bad) = x_sort {
+                return fail(td, TypeError::NoParse(bad.clone()))
+            }
+            match typ0 {
+                Err(_) => fail(td, TypeError::ParamNoSynth(2)),
+                Ok(s) =>  succ(td, Sort::IdxArrow(
+                    Rc::new(x_sort.clone()),
+                    Rc::new(s),
+                )),
+            }
         },
         &IdxTm::App(ref idx0, ref idx1) => {
             let td0 = synth_idxtm(last_label,ctxt,idx0);
@@ -571,29 +579,11 @@ pub fn synth_idxtm(last_label:Option<&str>, ctxt:&TCtxt, idxtm:&IdxTm) -> TypeIn
     }
 }
 
-// XXX -- Maybe we don't need this function? (Same for check_nametm)
-//
-// See note about about IdxTm::Lam case, above, in synth_idxtm
-//
 pub fn check_idxtm(last_label:Option<&str>, ctxt:&TCtxt, idxtm:&IdxTm, sort:&Sort) -> TypeInfo<IdxTmTD> {
-    let fail = |td:IdxTmTD, err :TypeError| { failure(Dir::Check, last_label, ctxt, td, err)  };
-    let succ = |td:IdxTmTD, sort:Sort     | { success(Dir::Check, last_label, ctxt, td, sort) };
+    // let fail = |td:IdxTmTD, err :TypeError| { failure(Dir::Check, last_label, ctxt, td, err)  };
+    // let succ = |td:IdxTmTD, sort:Sort     | { success(Dir::Check, last_label, ctxt, td, sort) };
     match idxtm {
-        // use synth &IdxTm::Var(ref x) => {},
-        // use synth &IdxTm::Sing(ref nt) => {},
-        // &IdxTm::Empty => {},
-        // &IdxTm::Disj(ref idx1, ref idx2) => {},
-        // &IdxTm::Union(ref idx1, ref idx2) => {},
-        // &IdxTm::Unit => {},
-        // &IdxTm::Pair(ref idx1, ref idx2) => {},
-        // &IdxTm::Proj1(ref idx) => {},
-        // &IdxTm::Proj2(ref idx) => {},
-        // &IdxTm::Lam(ref x, ref idx) => {},
-        // &IdxTm::App(ref idx1, ref idx2) => {},
-        // &IdxTm::Map(ref nt, ref idx) => {},
-        // &IdxTm::FlatMap(ref idx1, ref idx2) => {},
-        // &IdxTm::Star(ref idx1, ref idx2) => {},
-        // &IdxTm::NoParse(ref s) => {},
+        // We're exclusively using synthesis for index terms at the moment
         tm => {
             let mut td = synth_idxtm(last_label,ctxt,tm);
             let ty = td.typ.clone();
@@ -609,26 +599,87 @@ pub fn check_idxtm(last_label:Option<&str>, ctxt:&TCtxt, idxtm:&IdxTm, sort:&Sor
 }
 
 pub fn synth_nmtm(last_label:Option<&str>, ctxt:&TCtxt, nmtm:&NameTm) -> TypeInfo<NameTmTD> {
+    let fail = |td:NameTmTD, err :TypeError| { failure(Dir::Synth, last_label, ctxt, td, err)  };
+    let succ = |td:NameTmTD, sort:Sort     | { success(Dir::Synth, last_label, ctxt, td, sort) };
     match nmtm {
-        // NameTm::Var(ref x) => {},
-        // NameTm::Name(ref n) => {},
-        // NameTm::Bin(ref nt1, ref nt2) => {},
-        // NameTm::Lam(ref x,ref nt) => {},
-        // NameTm::App(ref nt1, ref nt2) => {},
-        // NameTm::NoParse(ref s) => {},
-        _ => unimplemented!("TODO: Finish synth name terms")
+        &NameTm::Var(ref x) => {
+            let td = NameTmTD::Var(x.clone());
+            match ctxt.lookup_ivar(x) {
+                None => fail(td, TypeError::VarNotInScope(x.clone())),
+                Some(sort) => succ(td, sort)
+            }
+        },
+        &NameTm::Name(ref n) => {
+            let td = NameTmTD::Name(n.clone());
+            if let &Name::NoParse(ref bad) = n {
+                return fail(td, TypeError::NoParse(bad.clone()))
+            }
+            succ(td, Sort::Nm)
+        },
+        &NameTm::Bin(ref nt0, ref nt1) => {
+            let td0 = synth_nmtm(last_label, ctxt, nt0);
+            let td1 = synth_nmtm(last_label, ctxt, nt1);
+            let (typ0,typ1) = (td0.typ.clone(),td1.typ.clone());
+            let td = NameTmTD::Bin(td0,td1);
+            match (typ0,typ1) {
+                (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
+                (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
+                (Ok(Sort::Nm),Ok(Sort::Nm)) => succ(td, Sort::Nm),
+                (Ok(Sort::Nm),_) => fail(td, TypeError::ParamMism(1)),
+                (_,_) => fail(td, TypeError::ParamMism(0)),
+            }
+        },
+        &NameTm::Lam(ref x, ref s, ref nt) => {
+            let ctxt_ext = ctxt.ivar(x.clone(), s.clone());
+            let td0 = synth_nmtm(last_label,&ctxt_ext,nt);
+            let typ0 = td0.typ.clone();
+            let td = NameTmTD::Lam(x.clone(), s.clone(), td0);
+            if let &Sort::NoParse(ref bad) = s {
+                return fail(td, TypeError::NoParse(bad.clone()))
+            }
+            match typ0 {
+                Err(_) => fail(td, TypeError::ParamNoSynth(2)),
+                Ok(rty) =>  succ(td, Sort::NmArrow(
+                    Rc::new(s.clone()),
+                    Rc::new(rty),
+                )),
+            }
+        },
+        &NameTm::App(ref nt0, ref nt1) => {
+            let td0 = synth_nmtm(last_label,ctxt,nt0);
+            let td1 = synth_nmtm(last_label,ctxt,nt1);
+            let (typ0,typ1) = (td0.typ.clone(),td1.typ.clone());
+            let td = NameTmTD::App(td0,td1);
+            match (typ0,typ1) {
+                (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
+                (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
+                (Ok(Sort::NmArrow(ref t0,ref t1)),Ok(ref t2)) if **t0 == *t2 => succ(td, (**t1).clone()),
+                (Ok(Sort::NmArrow(_,_)),_) => fail(td, TypeError::ParamMism(1)),
+                _ => fail(td, TypeError::AppNotArrow),
+            }
+        },
+        &NameTm::NoParse(ref s) => {
+            fail(NameTmTD::NoParse(s.clone()),TypeError::NoParse(s.clone()))
+        },
     }  
 }
 
 pub fn check_nmtm(last_label:Option<&str>, ctxt:&TCtxt, nmtm:&NameTm, sort:&Sort) -> TypeInfo<NameTmTD> {
+    // let fail = |td:IdxTmTD, err :TypeError| { failure(Dir::Check, last_label, ctxt, td, err)  };
+    // let succ = |td:IdxTmTD, sort:Sort     | { success(Dir::Check, last_label, ctxt, td, sort) };
     match nmtm {
-        // NameTm::Var(ref x) => {},
-        // NameTm::Name(ref n) => {},
-        // NameTm::Bin(ref nt1, ref nt2) => {},
-        // NameTm::Lam(ref x,ref nt) => {},
-        // NameTm::App(ref nt1, ref nt2) => {},
-        // NameTm::NoParse(ref s) => {},
-        _ => unimplemented!("TODO: Finish check name terms")
+        // We're exclusively using synthesis for name terms at the moment
+        tm => {
+            let mut td = synth_nmtm(last_label,ctxt,tm);
+            let ty = td.typ.clone();
+            if let Ok(ty) = ty {
+                if ty == *sort { td }
+                else {
+                    td.typ = Err(TypeError::AnnoMism);
+                    td
+                }
+            } else { td }
+        },
     }  
 }
 

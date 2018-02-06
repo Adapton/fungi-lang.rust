@@ -123,9 +123,11 @@ pub fn proj_namespace_name(n:NameTmVal) -> Option<NameTm> {
 }
 
 pub fn nametm_of_nametmval(v:NameTmVal) -> NameTm {
+    use tgt_ast::Sort;
     match v {
         NameTmVal::Name(n)  => NameTm::Name(n),
-        NameTmVal::Lam(x,m) => NameTm::Lam(x,Rc::new(m))
+        // eval doesn't use sorts, unit is fine
+        NameTmVal::Lam(x,m) => NameTm::Lam(x,Sort::Unit,Rc::new(m))
     }
 }
 
@@ -147,9 +149,9 @@ pub fn nametm_subst(nmtm:NameTm, x:&Var, v:&NameTm) -> NameTm {
             if *x == y { v.clone() }
             else { NameTm::Var(y) }
         }
-        NameTm::Lam(y,nt) => {
-            if *x == y { NameTm::Lam(y, nt) }
-            else { NameTm::Lam(y, nametm_subst_rec(nt, x, v)) }
+        NameTm::Lam(y,s,nt) => {
+            if *x == y { NameTm::Lam(y,s,nt) }
+            else { NameTm::Lam(y, s, nametm_subst_rec(nt, x, v)) }
         }
         NameTm::NoParse(_) => unreachable!(),
     }
@@ -162,7 +164,7 @@ pub fn nametm_eval(nmtm:NameTm) -> NameTmVal {
     match nmtm {
         NameTm::Var(x) => { panic!("dynamic type error (open term, with free var {})", x) }
         NameTm::Name(n) => NameTmVal::Name(n),
-        NameTm::Lam(x, nt) => NameTmVal::Lam(x, (*nt).clone()),
+        NameTm::Lam(x, _, nt) => NameTmVal::Lam(x, (*nt).clone()),
         NameTm::Bin(nt1, nt2) => {
             let nt1 = nametm_eval_rec(nt1);
             let nt2 = nametm_eval_rec(nt2);
