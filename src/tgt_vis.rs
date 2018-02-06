@@ -1,0 +1,66 @@
+use std::rc::Rc;
+
+use tgt_ast::*;
+
+pub fn label_exp(e: Exp, ct: &mut usize) -> Exp {
+    rewrite_exp(&e, ct)
+}
+
+macro_rules! rewrite_exp {
+    ($id:ident, $ct:ident) => {
+        Rc::new(rewrite_exp(&**$id, $ct))
+    }
+}
+
+macro_rules! rewrite_val {
+    ($id:ident, $ct:ident) => {
+        Rc::new(rewrite_val(&**$id, $ct))
+    }
+}
+
+fn rewrite_exp(exp: &Exp, ct: &mut usize) -> Exp {
+    let new_exp = match *exp {
+        Exp::Anno(ref e, ref t) => Exp::Anno(rewrite_exp!(e, ct), t.clone()),
+        Exp::Force(ref v) => Exp::Force(rewrite_val(v, ct)),
+        Exp::Thunk(ref v, ref e) => Exp::Thunk(rewrite_val(v, ct), rewrite_exp!(e, ct)),
+        Exp::Unroll(ref v, ref s, ref e) => Exp::Unroll(rewrite_val(v, ct), s.clone(), rewrite_exp!(e, ct)),
+        Exp::Fix(ref s, ref e) => Exp::Fix(s.clone(), rewrite_exp!(e, ct)),
+        Exp::Ret(ref v) => Exp::Ret(rewrite_val(v, ct)),
+        Exp::DefType(ref s, ref t, ref e) => Exp::DefType(s.clone(), t.clone(), rewrite_exp!(e, ct)),
+        Exp::Let(ref s, ref e1, ref e2) => Exp::Let(s.clone(), rewrite_exp!(e1, ct), rewrite_exp!(e2, ct)),
+        Exp::Lam(ref s, ref e) => Exp::Lam(s.clone(), rewrite_exp!(e, ct)),
+        Exp::App(ref e, ref v) => Exp::App(rewrite_exp!(e, ct), rewrite_val(v, ct)),
+        Exp::Split(ref v, ref s1, ref s2, ref e) => Exp::Split(rewrite_val(v, ct), s1.clone(), s2.clone(), rewrite_exp!(e, ct)),
+        Exp::Case(ref v, ref s1, ref e1, ref s2, ref e2) => Exp::Case(rewrite_val(v, ct), s1.clone(), rewrite_exp!(e1, ct), s2.clone(), rewrite_exp!(e2, ct)),
+        Exp::IfThenElse(ref v, ref e1, ref e2) => Exp::IfThenElse(rewrite_val(v, ct), rewrite_exp!(e1, ct), rewrite_exp!(e2, ct)),
+        Exp::Ref(ref v1, ref v2) => Exp::Ref(rewrite_val(v1, ct), rewrite_val(v2, ct)),
+        Exp::Get(ref v) => Exp::Get(rewrite_val(v, ct)),
+        Exp::Scope(ref v, ref e) => Exp::Scope(rewrite_val(v, ct), rewrite_exp!(e, ct)),
+        Exp::NameFnApp(ref v1, ref v2) => Exp::NameFnApp(rewrite_val(v1, ct), rewrite_val(v2, ct)),
+        Exp::PrimApp(ref p) => Exp::PrimApp(rewrite_prim_app(p, ct)),
+        Exp::DebugLabel(ref on, ref s, ref e) => Exp::DebugLabel(on.clone(), s.clone(), rewrite_exp!(e, ct)),
+        ref e => e.clone(),
+    };
+    *ct += 1;
+    Exp::DebugLabel(Some(Name::Num(*ct)), "".to_string(), Rc::new(new_exp))
+}
+
+fn rewrite_val(val: &Val, ct: &mut usize) -> Val {
+    match *val {
+        Val::Pair(ref v1, ref v2) => Val::Pair(rewrite_val!(v1, ct), rewrite_val!(v2, ct)),
+        Val::Inj1(ref v) => Val::Inj1(rewrite_val!(v, ct)),
+        Val::Inj2(ref v) => Val::Inj2(rewrite_val!(v, ct)),
+        Val::Roll(ref v) => Val::Roll(rewrite_val!(v, ct)),
+        Val::Anno(ref v, ref t) => Val::Anno(rewrite_val!(v, ct), t.clone()),
+        Val::ThunkAnon(ref e) => Val::ThunkAnon(rewrite_exp!(e, ct)),
+        ref v => v.clone(),
+    }
+}
+
+fn rewrite_prim_app(prim: &PrimApp, ct: &mut usize) -> PrimApp {
+    match *prim {
+        PrimApp::NatLt(ref v1, ref v2) => PrimApp::NatLt(rewrite_val(v1, ct), rewrite_val(v2, ct)),
+        PrimApp::NameBin(ref v1, ref v2) => PrimApp::NameBin(rewrite_val(v1, ct), rewrite_val(v2, ct)),
+        PrimApp::RefThunk(ref v) => PrimApp::RefThunk(rewrite_val(v, ct)),
+    }
+}

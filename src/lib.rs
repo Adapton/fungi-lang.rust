@@ -12,6 +12,7 @@ pub mod eval;
 pub mod tgt_ast;
 pub mod tgt_bitype;
 pub mod tgt_eval;
+pub mod tgt_vis;
 
 // Translation
 // ------------------

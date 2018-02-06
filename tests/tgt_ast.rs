@@ -11,6 +11,7 @@ fn examples() {
     use std::rc::Rc;
     use iodyn_lang::bitype;
     use iodyn_lang::tgt_ast::*;
+    use iodyn_lang::tgt_vis::*;
     // use iodyn_lang::tgt_ast::cons::*;
     
     //let ctx : TCtxt = TCtxt::Empty;
@@ -186,8 +187,9 @@ fn examples() {
         }
 
         {force max} nums
-];
-    println!("{:?}", filter);
+    ];
+    
+    println!("{:?}", label_exp(filter, &mut 0));
 
 }
 
