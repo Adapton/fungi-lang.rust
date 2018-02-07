@@ -166,7 +166,7 @@ fn examples() {
                 }
             }
         }
-
+        
         let rec map:(
             Thk[0] foralli (X,Y):NmSet.
                 (Seq[X][Y] Nat) -> (

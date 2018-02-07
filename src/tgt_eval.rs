@@ -296,6 +296,8 @@ pub enum EvalTyErr {
     // name fn app
     NameFnApp0,
     NameFnApp1,
+    //
+    PrimAppNatLt(RtVal,RtVal),
 }
 
 fn eval_type_error<A>(err:EvalTyErr, env:Env, e:Exp) -> A {
@@ -320,10 +322,15 @@ fn eval_type_error<A>(err:EvalTyErr, env:Env, e:Exp) -> A {
 /// require multiple recursive calls to eval.
 ///
 pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
-    match e.clone() {       
-        Exp::Lam(x, e)    => { ExpTerm::Lam(env, x, e) }
-        Exp::Ret(v)       => { ExpTerm::Ret(close_val(&env, &v)) }
-        Exp::Anno(e1,_ct) => { eval(env, (*e1).clone()) }
+    match e.clone() {
+        // basecase 1: lambdas are terminal computations
+        Exp::Lam(x, e) => { ExpTerm::Lam(env, x, e) }
+        // basecase 2: returns are terminal computations
+        Exp::Ret(v)    => { ExpTerm::Ret(close_val(&env, &v)) }
+        // ignore types at run time:
+        Exp::DefType(_x, _a, e) => { eval(env, (*e).clone()) }
+        Exp::Anno(e1,_ct)       => { eval(env, (*e1).clone()) }
+        // save a copy of e as thunk f in e
         Exp::Fix(f,e1) => {
             let env_saved = env.clone();
             env.push((f, RtVal::ThunkAnon(env_saved, e)));
@@ -359,10 +366,6 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
                 },
                 v => eval_type_error(EvalTyErr::RefNonName(v), env, e)
             }
-        }
-        Exp::DefType(_x, _a, e) => {
-            // fungi types are erasable
-            eval(env, (*e).clone())
         }
         Exp::Let(x,e1,e2) => {
             match eval(env.clone(), (*e1).clone()) {
@@ -446,9 +449,6 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
                 v => eval_type_error(EvalTyErr::RefThunkNonThunk(v), env, e)
             }
         }
-        Exp::PrimApp(_) => {
-            unimplemented!()
-        }
         Exp::Scope(v, e1) => {
             // Names vs namespace functions: Here, v is a name
             // function value, but the current Adapton engine
@@ -502,5 +502,26 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
         }
         Exp::Unimp => unimplemented!(),
         Exp::NoParse(_) => unreachable!(),
+
+        //
+        // Primitives: List here for now:
+        //
+        
+        Exp::PrimApp(PrimApp::NatLt(v1,v2)) => {
+            match (close_val(&env, &v1), close_val(&env, &v2)) {
+                (RtVal::Nat(n1),RtVal::Nat(n2)) => {
+                    ExpTerm::Ret(RtVal::Bool(n1 < n2))
+                },
+                (v1, v2) => eval_type_error(EvalTyErr::PrimAppNatLt(v1,v2), env, e),
+            }
+        }
+        Exp::PrimApp(PrimApp::NameBin(v1,v2)) => {
+            match (close_val(&env, &v1), close_val(&env, &v2)) {
+                (RtVal::Name(n1),RtVal::Name(n2)) => {
+                    ExpTerm::Ret(RtVal::Name(Name::Bin(Rc::new(n1), Rc::new(n2))))
+                },
+                (v1, v2) => eval_type_error(EvalTyErr::PrimAppNatLt(v1,v2), env, e),
+            }
+        }
     }
 }
