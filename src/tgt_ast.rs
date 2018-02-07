@@ -1014,7 +1014,8 @@ pub type ExpRec = Rc<Exp>;
 ///     v1, v2, ...                     (extended binary name construction)
 ///     v1 < v2                         (less-then)
 ///     unimplemented                   (marker for type checker)
-///     label (some_text) e             (debug label)
+///     label (some_text) e             (debug string label)
+///     nm_lbl (n) e                    (debug name label)
 /// ```
 #[macro_export]
 macro_rules! tgt_exp {
@@ -1254,9 +1255,16 @@ macro_rules! tgt_exp {
     ))};
     //     unimplemented                   (marker for type checker)
     { unimplemented } => { Exp::Unimp };
-    //     label (some_text) e             (debug label)
+    //     label (some_text) e             (debug string label)
     { label ($s:tt) $($e:tt)+ } => { Exp::DebugLabel(
+        None,
         Some(stringify![$s].to_string()),
+        Rc::new(tgt_exp![$($e)+]),
+    )};
+    //     nm_lbl (n) e                    (debug name label)
+    { label $n:tt $($e:tt)+ } => { Exp::DebugLabel(
+        Some(tgt_name![$n]),
+        None,
         Rc::new(tgt_exp![$($e)+]),
     )};
     // failure
