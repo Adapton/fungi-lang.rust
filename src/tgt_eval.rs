@@ -221,7 +221,10 @@ pub fn close_val(env:&Env, v:&Val) -> RtVal {
             let mut v = None;
             // most-recently pushed binding is "in scope" (others are shadowed)
             for &(ref y, ref vy) in env.iter().rev() {
-                if x == y {v = Some(vy.clone())} else {}
+                if x == y {
+                    v = Some(vy.clone());
+                    break;
+                } else {}
             };
             match v {
                 None => panic!("close_val: free variable: {}", x),
@@ -296,8 +299,13 @@ pub enum EvalTyErr {
     // name fn app
     NameFnApp0,
     NameFnApp1,
-    //
+    // name bin
+    PrimAppNameBin(RtVal,RtVal),
+    // nat operations
     PrimAppNatLt(RtVal,RtVal),
+    PrimAppNatEq(RtVal,RtVal),
+    PrimAppNatLte(RtVal,RtVal),
+    PrimAppNatPlus(RtVal,RtVal),
 }
 
 fn eval_type_error<A>(err:EvalTyErr, env:Env, e:Exp) -> A {
@@ -328,19 +336,19 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
         // basecase 2: returns are terminal computations
         Exp::Ret(v)    => { ExpTerm::Ret(close_val(&env, &v)) }
         // ignore types at run time:
-        Exp::DefType(_x, _a, e) => { eval(env, (*e).clone()) }
-        Exp::Anno(e1,_ct)       => { eval(env, (*e1).clone()) }
+        Exp::DefType(_x, _a, e) => { return eval(env, (*e).clone()) }
+        Exp::Anno(e1,_ct)       => { return eval(env, (*e1).clone()) }
         // save a copy of e as thunk f in e
         Exp::Fix(f,e1) => {
             let env_saved = env.clone();
             env.push((f, RtVal::ThunkAnon(env_saved, e)));
-            eval(env, (*e1).clone())
+            return eval(env, (*e1).clone())
         }
         Exp::Unroll(v, x, e1) => {
             match close_val(&env, &v) {
                 RtVal::Roll(v) => {
                     env.push((x,(*v).clone()));
-                    eval(env, (*e1).clone())
+                    return eval(env, (*e1).clone())
                 },
                 v => eval_type_error(EvalTyErr::UnrollNonRoll(v), env, e)
             }
@@ -371,17 +379,17 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
             match eval(env.clone(), (*e1).clone()) {
                 ExpTerm::Ret(v) => {
                     env.push((x, v));
-                    eval(env, (*e2).clone())
+                    return eval(env, (*e2).clone())
                 },
                 term => eval_type_error(EvalTyErr::LetNonRet(term), env, e)
             }
         }
         Exp::App(e1, v) => {
+            let v = close_val(&env, &v);
             match eval(env.clone(), (*e1).clone()) {
                 ExpTerm::Lam(mut env, x, e2) => {
-                    let v = close_val(&env, &v);
                     env.push((x, v));
-                    eval(env, (*e2).clone())
+                    return eval(env, (*e2).clone())
                 },
                 term => eval_type_error(EvalTyErr::AppNonLam(term), env, e)
             }
@@ -391,7 +399,7 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
                 RtVal::Pair(v1, v2) => {
                     env.push((x, (*v1).clone()));
                     env.push((y, (*v2).clone()));
-                    eval(env, (*e1).clone())
+                    return eval(env, (*e1).clone())
                 },
                 v => eval_type_error(EvalTyErr::SplitNonPair(v), env, e)
             }
@@ -399,8 +407,8 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
         Exp::IfThenElse(v, e1, e2) => {
             match close_val(&env, &v) {
                 RtVal::Bool(b) => {
-                    if b { eval(env, (*e1).clone()) }
-                    else { eval(env, (*e2).clone()) }
+                    if b { return eval(env, (*e1).clone()) }
+                    else { return eval(env, (*e2).clone()) }
                 }
                 v => eval_type_error(EvalTyErr::IfNonBool(v), env, e)
             }
@@ -409,11 +417,11 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
             match close_val(&env, &v) {
                 RtVal::Inj1(v) => {
                     env.push((x, (*v).clone()));
-                    eval(env, (*ex).clone())
+                    return eval(env, (*ex).clone())
                 },
                 RtVal::Inj2(v) => {
                     env.push((y, (*v).clone()));
-                    eval(env, (*ey).clone())
+                    return eval(env, (*ey).clone())
                 },
                 v => eval_type_error(EvalTyErr::SplitNonPair(v), env, e)
             }
@@ -427,7 +435,7 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
         Exp::Force(v) => {
             match close_val(&env, &v) {
                 RtVal::Thunk(a)          => { engine::force(&a) },
-                RtVal::ThunkAnon(env, e) => { eval(env, e) },
+                RtVal::ThunkAnon(env, e) => { return eval(env, e) },
                 v => eval_type_error(EvalTyErr::ForceNonThunk(v), env, e)                    
             }
         }        
@@ -501,12 +509,39 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
             return eval(env, (*e).clone())
         }
         Exp::Unimp => unimplemented!(),
-        Exp::NoParse(_) => unreachable!(),
+        Exp::NoParse(s) => panic!("Evaluation reached unparsed program text: `{}`", s),
 
+        // Names: Primitive operation for 
+        
+        Exp::PrimApp(PrimApp::NameBin(v1,v2)) => {
+            match (close_val(&env, &v1), close_val(&env, &v2)) {
+                (RtVal::Name(n1),RtVal::Name(n2)) => {
+                    ExpTerm::Ret(RtVal::Name(Name::Bin(Rc::new(n1), Rc::new(n2))))
+                },
+                (v1, v2) => eval_type_error(EvalTyErr::PrimAppNameBin(v1,v2), env, e),
+            }
+        }
+        
         //
-        // Primitives: List here for now:
+        // In-built primitives for basetypes (naturals, bools, etc.)
         //
         
+        Exp::PrimApp(PrimApp::NatPlus(v1,v2)) => {
+            match (close_val(&env, &v1), close_val(&env, &v2)) {
+                (RtVal::Nat(n1),RtVal::Nat(n2)) => {
+                    ExpTerm::Ret(RtVal::Nat(n1 + n2))
+                },
+                (v1, v2) => eval_type_error(EvalTyErr::PrimAppNatPlus(v1,v2), env, e),
+            }
+        }        
+        Exp::PrimApp(PrimApp::NatEq(v1,v2)) => {
+            match (close_val(&env, &v1), close_val(&env, &v2)) {
+                (RtVal::Nat(n1),RtVal::Nat(n2)) => {
+                    ExpTerm::Ret(RtVal::Bool(n1 == n2))
+                },
+                (v1, v2) => eval_type_error(EvalTyErr::PrimAppNatEq(v1,v2), env, e),
+            }
+        }
         Exp::PrimApp(PrimApp::NatLt(v1,v2)) => {
             match (close_val(&env, &v1), close_val(&env, &v2)) {
                 (RtVal::Nat(n1),RtVal::Nat(n2)) => {
@@ -515,13 +550,15 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
                 (v1, v2) => eval_type_error(EvalTyErr::PrimAppNatLt(v1,v2), env, e),
             }
         }
-        Exp::PrimApp(PrimApp::NameBin(v1,v2)) => {
+        Exp::PrimApp(PrimApp::NatLte(v1,v2)) => {
             match (close_val(&env, &v1), close_val(&env, &v2)) {
-                (RtVal::Name(n1),RtVal::Name(n2)) => {
-                    ExpTerm::Ret(RtVal::Name(Name::Bin(Rc::new(n1), Rc::new(n2))))
+                (RtVal::Nat(n1),RtVal::Nat(n2)) => {
+                    ExpTerm::Ret(RtVal::Bool(n1 <= n2))
                 },
-                (v1, v2) => eval_type_error(EvalTyErr::PrimAppNatLt(v1,v2), env, e),
+                (v1, v2) => eval_type_error(EvalTyErr::PrimAppNatLte(v1,v2), env, e),
             }
         }
+
+        
     }
 }

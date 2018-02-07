@@ -930,7 +930,10 @@ macro_rules! parse_tgt_tuple {
 /// Expressions (aka, computation terms)
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum PrimApp {
+    NatEq(Val,Val),
     NatLt(Val,Val),
+    NatLte(Val,Val),
+    NatPlus(Val,Val),
     NameBin(Val,Val),
     //
     // RefThunk: Coerce a value-producing thunk into a ref cell that
@@ -1012,7 +1015,7 @@ pub type ExpRec = Rc<Exp>;
 ///     if ( v ) { e1 } else { e2 }     (if-then-else; bool elim)
 ///     [v1] v2 ...                     (curried name function application)
 ///     v1, v2, ...                     (extended binary name construction)
-///     v1 < v2                         (less-then)
+///     v1 < v2                         (less-than)
 ///     unimplemented                   (marker for type checker)
 ///     label (some_text) e             (debug string label)
 ///     nm_lbl (n) e                    (debug name label)
@@ -1248,8 +1251,23 @@ macro_rules! tgt_exp {
             ret $v1, sugar_name_pair
         ]
     };
-    //     v1 < v2                         (less-then)
+    //     v1 < v2                         (less-than)
     { $v1:tt < $v2:tt } => { Exp::PrimApp(PrimApp::NatLt(
+        tgt_val![$v1],
+        tgt_val![$v2],
+    ))};
+    //     v1 = v2                         
+    { $v1:tt == $v2:tt } => { Exp::PrimApp(PrimApp::NatEq(
+        tgt_val![$v1],
+        tgt_val![$v2],
+    ))};
+    //     v1 <= v2                         
+    { $v1:tt <= $v2:tt } => { Exp::PrimApp(PrimApp::NatLeq(
+        tgt_val![$v1],
+        tgt_val![$v2],
+    ))};
+    //     v1 + v2                         
+    { $v1:tt + $v2:tt } => { Exp::PrimApp(PrimApp::NatPlus(
         tgt_val![$v1],
         tgt_val![$v2],
     ))};
