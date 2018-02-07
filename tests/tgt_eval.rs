@@ -23,17 +23,17 @@ fn eval_test_equiv(e1:Exp, e2:Exp) {
     let t1 = eval_closed_exp(e1);
     let t2 = eval_closed_exp(e2);
     // let (t1, x1) = capture_traces(move ||
-    //     eval_closed_exp(tgt_vis::label_exp(e1.clone(), &mut 0))
+    //     eval_closed_exp(tgt_vis::label_exp(e1, &mut 0))
     // );
     // let (t2, x2) = capture_traces(move ||
-    //     eval_closed_exp(tgt_vis::label_exp(e2.clone(), &mut 0))
+    //     eval_closed_exp(tgt_vis::label_exp(e2, &mut 0))
     // );
     // println!("Traces: {:?}\n\n", x1);
     assert_eq!(t1, t2)
 }
 
 fn capture_traces<F>(f: F) -> (tgt_eval::ExpTerm, Vec<reflect::trace::Trace>)
-where F: Fn() -> tgt_eval::ExpTerm {
+where F: FnOnce() -> tgt_eval::ExpTerm {
     manage::init_dcg();
     
     reflect::dcg_reflect_begin();
@@ -173,7 +173,7 @@ fn trace_simple() {
     let vis_exp = tgt_vis::label_exp(exp, &mut 0);
     println!("Exp: {:?}\n\n", vis_exp);
     
-    let (term, traces) = capture_traces(move || eval_closed_exp(vis_exp.clone()));
+    let (term, traces) = capture_traces(move || eval_closed_exp(vis_exp));
     println!("Traces: {:?}\n\n", traces);
     
     assert_eq!(traces.len(), 6);
