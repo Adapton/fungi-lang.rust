@@ -21,21 +21,21 @@ fn fungi_seq() {
         // --- === Vector Module === ---
         //
         type Vec = (user(Vec))
-
-        let vec_filter:( Thk[0]
-            Vec Nat -> (
-                (Thk[0] Nat -> (F Bool |> {0;0}) |> {0;0}) ->
-                (F Vec Nat |> {0;0}) |> {0;0}
-            ) |> {0;0}
+            
+        let vec_filter:(
+            Thk[0]
+                0 (Vec Nat) ->
+                0 (Thk[0] 0 Nat -> 0 F Bool) ->
+                0 F Vec Nat
         ) = {
             unimplemented
         }
 
-        let vec_map:( Thk[0]
-            Vec Nat -> (
-                (Thk[0] Nat -> (F Nat |> {0;0}) |> {0;0}) ->
-                (F Vec Nat |> {0;0}) |> {0;0}
-            ) |> {0;0}
+        let vec_map:(
+            Thk[0]
+                0 Vec Nat ->
+                0 (Thk[0] 0 Nat -> 0 F Nat) ->
+                0 F Vec Nat
         ) = {
             unimplemented
         }
@@ -55,10 +55,11 @@ fn fungi_seq() {
         )
 
         let rec max:(
-            Thk[0] foralli (X,Y):NmSet.
-                Seq[X][Y] Nat -> (F Nat |>
-                    {(#x.{x,@1} % {x,@2}) X; 0})
-                |> {0;0}
+            Thk[0]
+                0 foralli (X,Y):NmSet.
+                0 Seq[X][Y] Nat ->
+                F Nat
+                |> {(#x.{x,@1} % {x,@2}) X; 0}
         ) = {
             #seq. unroll seq seq. match seq {
                 vec => { {force vec_max} vec }
@@ -72,8 +73,11 @@ fn fungi_seq() {
         }
         
         let rec is_empty:(
-            Thk[0] foralli (X,Y):NmSet.
-                (Seq[X][Y] Nat) -> (F Bool |> {0;0}) |> {0;0}
+            Thk[0]
+                0 foralli (X,Y):NmSet.
+                0 (Seq[X][Y] Nat) ->
+                F Bool
+                |> {0;Y}
         ) = {
             #seq. unroll match seq {
                 vec => { {force vec_is_empty} vec }
@@ -89,29 +93,23 @@ fn fungi_seq() {
         }
         
         let rec is_singleton:(
-            Thk[0] foralli (X,Y):NmSet.
-                (Seq[X][Y] Nat) -> (F Bool |> {0;0}) |> {0;0}
+            Thk[0]
+                0 foralli (X,Y):NmSet.
+                0 (Seq[X][Y] Nat) ->
+                0 F Bool
         ) = {
             #seq. unroll match seq {
                 vec => { {force vec_is_singleton} vec }
-                bin => {
-                    let (n,lev,l,r) = {ret bin}
-                    if {{force is_singleton} {!l}} {
-                        {{force is_singleton} {!r}}
-                    } else {
-                        ret false
-                    }
-                }
+                bin => { ret false }
             }
         }
 
         let rec monoid:(
             Thk[0] foralli (X,Y):NmSet.
-                (Seq[X][Y] Nat) -> (
-                    (Thk[0] Nat -> (Nat -> (F Bool |> {0;0}) |> {0;0}) |> {0;0}) ->
-                        (F Nat |> {(#x.{x,@1} % {x,@2}) X; 0})
-                        |> {0;0}
-                ) |> {0;0}
+                0 (Seq[X][Y] Nat) ->
+                0 (Thk[0] 0 Nat -> 0 Nat -> 0 F Bool) ->
+                F Nat
+                |> {(#x.{x,@1} % {x,@2}) X; 0}
         ) = {
             #seq. #binop. unroll seq seq. match seq {
                 vec => { {force vec_monoid} vec }
@@ -126,11 +124,10 @@ fn fungi_seq() {
         
         let rec map:(
             Thk[0] foralli (X,Y):NmSet.
-                (Seq[X][Y] Nat) -> (
-                    (Thk[0] Nat -> (F Nat |> {0;0}) |> {0;0}) ->
-                    (F Nat |> {(#x.{x,@1} % {x,@2}) X; 0})
-                    |> {0;0}
-                ) |> {0;0}
+                0 (Seq[X][Y] Nat) ->
+                0 (Thk[0] 0 Nat -> 0 F Nat)
+                F Nat
+                |> {(#x.{x,@1} % {x,@2}) X; Y}
         ) = {
             #seq. #f. unroll match seq {
                 vec => { {force vec_map } f vec }
@@ -145,11 +142,10 @@ fn fungi_seq() {
                
         let rec filter:(
             Thk[0] foralli (X,Y):NmSet.
-                (Seq[X][Y] Nat) -> (
-                    (Thk[0] Nat -> (F Bool |> {0;0}) |> {0;0}) ->
-                        (F Nat |> {(#x.{x,@1} % {x,@2}) X; 0})
-                        |> {0;0}
-                ) |> {0;0}
+                0 (Seq[X][Y] Nat) ->
+                0 (Thk[0] 0 Nat -> (0 F Bool)) ->
+                F Nat
+                |> {(#x.{x,@1} % {x,@2}) X; Y}
         ) = {
             #seq. #f. unroll match seq {
                 vec => { {force vec_filter} f vec }
@@ -167,11 +163,10 @@ fn fungi_seq() {
 
         let rec map_filter:(
             Thk[0] foralli (X,Y):NmSet.
-                (Seq[X][Y] Nat) -> (
-                    (Thk[0] Nat -> (F (+ Unit + Nat) |> {0;0}) |> {0;0}) ->
-                        (F Nat |> {(#x.{x,@1} % {x,@2}) X; 0})
-                        |> {0;0}
-                ) |> {0;0}
+                0 (Seq[X][Y] Nat) ->
+                0 (Thk[0] 0 Nat -> 0 F (+ Unit + Nat)) ->
+                F Nat
+                |> {(#x.{x,@1} % {x,@2}) X; Y}
         ) = {
             #seq. #f. unroll match seq {
                 vec => { {force vec_map_filter} f vec }
@@ -205,11 +200,10 @@ fn fungi_seq() {
         // Convert sequence to the isomorphic list
         let rec list_l2r_rec: (
             Thk[0] foralli (X,X1,X2,X3, Y,Y1,Y2):NmSet | ((X1%X2%X3)=X)and((Y1%Y2%Y3)=Y).
-                (Seq[X1][Y1] Nat) -> (
-                    (x Nm[X3] x Nat x Ref[Y3](List[X2][Y2])) ->
-                        (F List[X][Y] |> {X;Y})
-                        |> {0;0}
-                ) |> {0;0}
+                0 (Seq[X1][Y1] Nat) ->
+                0 (x Nm[X3] x Nat x Ref[Y3](List[X2][Y2])) ->
+                F List[X][Y]
+                |> {X;Y}
         ) = {
             #seq. #rest. unroll match seq {
                 vec => { ret roll inj2 (n,lev,vec,rest) }
@@ -227,8 +221,9 @@ fn fungi_seq() {
         // (no accum info)
         let rec list_l2r_rmost: (
             Thk[0] foralli (X,Y):NmSet.
-                (Seq[X][Y] Nat) -> (F List[X][X] |> {X;Y})
-                |> {0;0}
+                0 (Seq[X][Y] Nat) ->
+                F List[X][X]
+                |> {X;Y}
         ) = {
             #seq. #rest. unroll match seq {
                 vec => { ret roll inj1 vec }
@@ -244,15 +239,18 @@ fn fungi_seq() {
         // Convert sequence to the isomorphic list, left-to-right
         let rec list_l2r: (
             Thk[0] foralli (X,Y):NmSet.
-                (Seq[X][Y] Nat) -> (F List[X][X] |> {X;Y})
-                |> {0;0}
+                0 (Seq[X][Y] Nat) ->
+                F List[X][X]
+                |> {X;Y}
         ) = { #seq. {force list_l2r_rmost} seq }
 
 
         // Convert a list into a balanced level tree (a sequence), with a single pass
         let rec seq_of_list: (
             Thk[0] foralli (X,Y):NmSet.                
-                List[X][Y] -> (F Seq[X][Y] |> {X;Y}) |> {0;0}
+                0 List[X][Y] ->
+                F Seq[X][Y]
+                |> {X;Y}
         ) = {
             unimplemented
         }
