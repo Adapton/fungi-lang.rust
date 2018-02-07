@@ -362,11 +362,14 @@ pub enum TypeError {
     InvalidPtr,
     ParamMism(usize),
     ParamNoSynth(usize),
-    AppNotArrow,
+    ParamNoCheck(usize),
     ProjNotProd,
+    AppNotArrow,
+    ValNotArrow,
     BadCheck,
     DSLiteral,
     EmptyDT,
+    Unimplemented,
 }
 impl fmt::Display for TypeError {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
@@ -380,11 +383,14 @@ impl fmt::Display for TypeError {
             // 0 based parameter numbers
             TypeError::ParamMism(num) => format!("parameter {} type incorrect",num),
             TypeError::ParamNoSynth(num) => format!("parameter {} unknown type",num),
+            TypeError::ParamNoCheck(num) => format!("parameter {} type mismatch ",num),
             TypeError::ProjNotProd => format!("projection of non-product type"),
+            TypeError::ValNotArrow => format!("this value requires an arrow type"),
             TypeError::AppNotArrow => format!("application of non-arrow type"),
             TypeError::BadCheck => format!("checked type inappropriate for value"),
             TypeError::DSLiteral => format!("data structure literals not allowed"),
             TypeError::EmptyDT => format!("ambiguous empty data type"),
+            TypeError::Unimplemented => format!("Internal Error: type-checking unimplemented"),
         };
         write!(f,"{}",s)
     }
@@ -684,87 +690,250 @@ pub fn check_nmtm(last_label:Option<&str>, ctxt:&TCtxt, nmtm:&NameTm, sort:&Sort
 }
 
 pub fn synth_val(last_label:Option<&str>, ctxt:&TCtxt, val:&Val) -> TypeInfo<ValTD> {
+    let fail = |td:ValTD, err :TypeError| { failure(Dir::Synth, last_label, ctxt, td, err)  };
+    let succ = |td:ValTD, typ :Type     | { success(Dir::Synth, last_label, ctxt, td, typ) };
     match val {
-        /* Note for implementers:
-            one or both of `synth_val` or `check_val` should be implemented
-            for your new Val variant
-            (check_val defaults to synth_val)
-        */
-  //       &Val::Var(ref v) => { ctxt.lookup_var(v) },
-  //       &Val::Unit => { Some(Type::Unit) },
-  //       &Val::Pair(ref x, ref y) => {
-  //           if let Some(a) = synth_val(last_label, ctxt, x) {
-  //               if let Some(b) = synth_val(last_label, ctxt, y) {
-  //                   Some(Type::Prod(Rc::new(a),Rc::new(b)))
-  //               } else { fail_synth_val(last_label, TypeError::ParamNoSynth(1), val) }
-  //           } else { fail_synth_val(last_label, TypeError::ParamNoSynth(0), val) }
-  //       },
-  //       &NameTm(ref n) => { unimplemented!("synth val name term") },
-  //       &Val::Inj1(_) => { fail_synth_val(last_label, TypeError::NoSynthRule, val) },
-  //       &Val::Inj2(_) => { fail_synth_val(last_label, TypeError::NoSynthRule, val) },
-  //       &Val::Anno(ref v,ref t) => {
-  //           if check_val(last_label, ctxt, v, t) {
-  //               Some(t.clone())
-  //           } else { fail_synth_val(last_label, TypeError::AnnoMism, val) }
-  //       },
-  //       &Val::Nat(_) => { unimplemented!("synth val nat") },
-  //       &Val::Str(_) => { unimplemented!("synth val string") },
-  // --------------------------------------------------------------------      
-  //       &Val::Var(ref v) => {},
-  //       &Val::Unit => {},
-  //       &Val::Pair(ref v1, ref v2) => {},
-  //       &Val::Inj1(ref v) => {},
-  //       &Val::Inj2(ref v) => {},
-  //       &Val::Roll(ref v) => {},
-  //       &Val::Name(ref n) => {},
-  //       &Val::NameFn(ref nmtm) => {},
-  //       &Val::Anno(ref v,ref t) => {},
-  //       &Val::ThunkAnon(ref e) => {},
-  //       &Val::Bool(_) => {},
-  //       &Val::Nat(_) => {},
-  //       &Val::Str(_) => {},
-  //       &Val::NoParse(ref s) => {},
-        _ => unimplemented!("TODO: Finish synth values")
+        &Val::Var(ref x) => {
+            let td = ValTD::Var(x.clone());
+            match ctxt.lookup_var(x) {
+                None => fail(td, TypeError::VarNotInScope(x.clone())),
+                Some(ty) => succ(td, ty)
+            }
+        },
+        &Val::Unit => {
+            succ(ValTD::Unit, Type::Unit)
+        },
+        &Val::Pair(ref v0, ref v1) => {
+            let td0 = synth_val(last_label, ctxt, v0);
+            let td1 = synth_val(last_label, ctxt, v1);
+            let (typ0,typ1) = (td0.typ.clone(),td1.typ.clone());
+            let td = ValTD::Pair(td0,td1);
+            match (typ0,typ1) {
+                (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
+                (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
+                (Ok(ty0),Ok(ty1)) => succ(td, Type::Prod(
+                    Rc::new(ty0), Rc::new(ty1),
+                )),
+            }
+        },
+        &Val::Inj1(ref v) => {
+            let td0 = synth_val(last_label, ctxt, v);
+            let typ0 = td0.typ.clone();
+            let td = ValTD::Inj1(td0);
+            fail(td, TypeError::NoSynthRule)
+        },
+        &Val::Inj2(ref v) => {
+            let td0 = synth_val(last_label, ctxt, v);
+            let typ0 = td0.typ.clone();
+            let td = ValTD::Inj2(td0);
+            fail(td, TypeError::NoSynthRule)
+        },
+        &Val::Roll(ref v) => {
+            let td0 = synth_val(last_label, ctxt, v);
+            let typ0 = td0.typ.clone();
+            let td = ValTD::Inj2(td0);
+            // TODO: Rule for Roll
+            fail(td, TypeError::Unimplemented)
+        },
+        &Val::Name(ref n) => {
+            let td = ValTD::Name(n.clone());
+            match n {
+                &Name::NoParse(ref s) => fail(td, TypeError::NoParse(s.clone())),
+                // TODO: generate this idx based on other refinements
+                _ => succ(td, Type::Nm(IdxTm::Sing(NameTm::Name(n.clone())))),
+            }
+        },
+        &Val::NameFn(ref nmtm) => {
+            let td0 = synth_nmtm(last_label, ctxt, nmtm);
+            let typ0 = td0.typ.clone();
+            let td = ValTD::NameFn(td0);
+            match typ0 {
+                Err(_) => fail(td, TypeError::ParamNoSynth(0)),
+                Ok(Sort::NmArrow(n0,n1)) => {
+                    if (*n0 == Sort::Nm) & (*n1 == Sort::Nm) {
+                        succ(td, Type::NmFn(nmtm.clone()))
+                    } else { fail(td, TypeError::ParamMism(0)) }
+                },
+                _ => fail(td, TypeError::ValNotArrow),
+            }
+        },
+        &Val::Anno(ref v,ref t) => {
+            let td0 = check_val(last_label, ctxt, v, t);
+            let typ0 = td0.typ.clone();
+            let td = ValTD::Anno(td0, t.clone());
+            match typ0 {
+                Err(err) => fail(td, err.clone()),
+                Ok(typ) => succ(td, typ.clone()),
+            }
+        },
+        &Val::ThunkAnon(ref e) => {
+            let td0 = synth_exp(last_label, ctxt, e);
+            let typ0 = td0.typ.clone();
+            let td = ValTD::ThunkAnon(td0);
+            match typ0 {
+                Err(_) => fail(td, TypeError::ParamNoSynth(0)),
+                // TODO: do we need the type of CBPV thunks?
+                _ => fail(td, TypeError::Unimplemented),
+            }
+        },
+        &Val::Bool(b) => {
+            succ(ValTD::Bool(b), Type::Cons(TypeCons::Bool))
+        },
+        &Val::Nat(n) => {
+            succ(ValTD::Nat(n), Type::Cons(TypeCons::Nat))
+        },
+        &Val::Str(ref s) => {
+            succ(ValTD::Str(s.clone()), Type::Cons(TypeCons::String))
+        },
+        &Val::NoParse(ref s) => {
+            fail(ValTD::NoParse(s.clone()),TypeError::NoParse(s.clone()))
+        },
     }
 }
 
 
 pub fn check_val(last_label:Option<&str>, ctxt:&TCtxt, val:&Val, typ:&Type) -> TypeInfo<ValTD> {
-    match (val, typ) {
-  //       (&Val::Unit, &Type::Unit) => true,
-  //       (&Val::Pair(ref v1, ref v2), &Type::Prod(ref t1, ref t2)) => {
-  //           check_val(last_label, ctxt, v1, t1 )
-  //           & check_val(last_label, ctxt, v2, t2 )
-  //       },
-  //       (&Val::Inj1(ref v), &Type::Sum(ref t1, _)) => {
-  //           check_val(last_label, ctxt, v, t1 )
-  //       },
-  //       (&Val::Inj2(ref v), &Type::Sum(_, ref t2)) => {
-  //           check_val(last_label, ctxt, v, t2 )
-  //       },
-  //       (&Val::Nat(_), _) => unimplemented!("check val nat"),
-  //       (&Val::Str(_), _) => unimplemented!("check val string"),
-  //       (v, t2) => {
-  //           if let Some(ref t1) = synth_val(last_label, ctxt, v) {
-  //               t2 == t1
-  //           } else { fail_check_val(last_label, TypeError::NoCheckRule,val) }
-  //       },
-  // ---------------------------------------------------------------------------      
-  //       &Val::Var(ref v) => {},
-  //       &Val::Unit => {},
-  //       &Val::Pair(ref v1, ref v2) => {},
-  //       &Val::Inj1(ref v) => {},
-  //       &Val::Inj2(ref v) => {},
-  //       &Val::Roll(ref v) => {},
-  //       &Val::Name(ref n) => {},
-  //       &Val::NameFn(ref nmtm) => {},
-  //       &Val::Anno(ref v,ref t) => {},
-  //       &Val::ThunkAnon(ref e) => {},
-  //       &Val::Bool(_) => {},
-  //       &Val::Nat(_) => {},
-  //       &Val::Str(_) => {},
-  //       &Val::NoParse(ref s) => {},
-        _ => unimplemented!("TODO: Finish check values")
+    let fail = |td:ValTD, err :TypeError| { failure(Dir::Check, last_label, ctxt, td, err)  };
+    let succ = |td:ValTD, typ :Type     | { success(Dir::Check, last_label, ctxt, td, typ) };
+    match val {
+        &Val::Var(ref x) => {
+            let td = ValTD::Var(x.clone());
+            match ctxt.lookup_var(x) {
+                None => fail(td, TypeError::VarNotInScope(x.clone())),
+                Some(ty) => {
+                    if ty == *typ { succ(td, ty) }
+                    else { fail(td, TypeError::AnnoMism) }
+                }
+            }
+        },
+        &Val::Unit => {
+            let td = ValTD::Unit;
+            if Type::Unit == *typ { succ(td, typ.clone()) }
+            else { fail(td, TypeError::AnnoMism) }
+        },
+        &Val::Pair(ref v0, ref v1) => {
+            if let Type::Prod(ref t0, ref t1) = *typ {
+                let td0 = check_val(last_label, ctxt, v0, t0);
+                let td1 = check_val(last_label, ctxt, v1, t1);
+                let (typ0,typ1) = (td0.typ.clone(), td1.typ.clone());
+                let td = ValTD::Pair(td0,td1);
+                match (typ0,typ1) {
+                    (Err(_),_) => fail(td, TypeError::ParamNoCheck(0)),
+                    (_,Err(_)) => fail(td, TypeError::ParamNoCheck(1)),
+                    (Ok(_),Ok(_)) => succ(td, typ.clone()),
+                }
+            } else { fail(ValTD::Pair(
+                synth_val(last_label, ctxt, v0),
+                synth_val(last_label, ctxt, v1),
+            ), TypeError::AnnoMism) }
+        },
+        &Val::Inj1(ref v) => {
+            if let Type::Sum(ref t1, _) = *typ {
+                let td0 = check_val(last_label, ctxt, v, t1);
+                let typ0 = td0.typ.clone();
+                let td = ValTD::Inj1(td0);
+                match typ0 {
+                    Err(_) => fail(td, TypeError::ParamNoCheck(0)),
+                    Ok(_) => succ(td, typ.clone()),
+                }
+            } else { fail(ValTD::Inj1(
+                synth_val(last_label,ctxt, v)
+            ), TypeError::AnnoMism) }
+        },
+        &Val::Inj2(ref v) => {
+            if let Type::Sum(_, ref t2) = *typ {
+                let td0 = check_val(last_label, ctxt, v, t2);
+                let typ0 = td0.typ.clone();
+                let td = ValTD::Inj2(td0);
+                match typ0 {
+                    Err(_) => fail(td, TypeError::ParamNoCheck(0)),
+                    Ok(_) => succ(td, typ.clone()),
+                }
+            } else { fail(ValTD::Inj2(
+                synth_val(last_label,ctxt, v)
+            ), TypeError::AnnoMism) }
+        },
+        &Val::Roll(ref v) => {
+            // TODO: Rule for Roll
+            let temp_td = synth_val(last_label, ctxt, v);
+            fail(ValTD::Roll(temp_td), TypeError::Unimplemented)
+        },
+        &Val::Name(ref n) => {
+            let td = ValTD::Name(n.clone());
+            if let Type::Nm(ref idx) = *typ {
+                match n { 
+                    &Name::NoParse(ref s) => fail(td, TypeError::NoParse(s.clone())),
+                    // TODO: check that n is a member of idx
+                    _ => succ(td, typ.clone())
+                }
+            } else { fail(td, TypeError::AnnoMism) }
+        },
+        &Val::NameFn(ref nmtm) => {
+            if let Type::NmFn(ref nt) = *typ {
+                let td0 = check_nmtm(last_label, ctxt, nt, &Sort::NmArrow(
+                    Rc::new(Sort::Nm), Rc::new(Sort::Nm),
+                ));
+                let typ0 = td0.typ.clone();
+                let td = ValTD::NameFn(td0);
+                match typ0 {
+                    Err(_) => fail(td, TypeError::ParamNoCheck(0)),
+                    // TODO: check equivalence of nmtm and nt
+                    Ok(_) => succ(td, typ.clone())
+                }
+            } else { fail(ValTD::NameFn(
+                synth_nmtm(last_label, ctxt, nmtm)
+            ), TypeError::AnnoMism) }
+        },
+        &Val::Anno(ref v,ref t) => {
+            if *t == *typ {
+                let td0 = check_val(last_label, ctxt, v, t);
+                let typ0 = td0.typ.clone();
+                let td = ValTD::Anno(td0, t.clone());
+                match typ0 {
+                    Err(err) => fail(td, err.clone()),
+                    Ok(typ) => succ(td, typ.clone()),
+                }
+            } else { fail(ValTD::Anno(
+                synth_val(last_label, ctxt, v), t.clone()
+            ), TypeError::AnnoMism) }
+        },
+        &Val::ThunkAnon(ref e) => {
+            if false {
+                // TODO: we may need a type for CBPV thunks
+                unimplemented!()
+            } else { fail(ValTD::ThunkAnon(
+                synth_exp(last_label, ctxt, e)
+            ), TypeError::AnnoMism) }
+        },
+        &Val::Bool(b) => {
+            let td = ValTD::Bool(b);
+            if Type::Cons(TypeCons::Bool) == *typ { succ(td, typ.clone())} 
+            else { fail(td, TypeError::ParamMism(0)) }
+        },
+        &Val::Nat(n) => {
+            let td = ValTD::Nat(n);
+            if Type::Cons(TypeCons::Nat) == *typ { succ(td, typ.clone())} 
+            else { fail(td, TypeError::ParamMism(0)) }
+        },
+        &Val::Str(ref s) => {
+            let td = ValTD::Str(s.clone());
+            if Type::Cons(TypeCons::String) == *typ { succ(td, typ.clone())} 
+            else { fail(td, TypeError::ParamMism(0)) }
+        },
+        &Val::NoParse(ref s) => {
+            fail(ValTD::NoParse(s.clone()), TypeError::NoParse(s.clone()))
+        },
+        v => {
+            let mut td = synth_val(last_label,ctxt,v);
+            let ty = td.typ.clone();
+            if let Ok(ty) = ty {
+                if ty == *typ { td }
+                else {
+                    td.typ = Err(TypeError::AnnoMism);
+                    td
+                }
+            } else { td }
+        },
     }
 }
 
