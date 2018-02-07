@@ -498,8 +498,6 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
             let label : Option<engine::Name> =
                 label.map( engine_name_of_ast_name );
             engine::reflect_dcg::debug_effect(label, msg);
-            // XXX/TODO -- Insert label/text/message into Adapton's
-            // trace structure, to coordinate with a visual tool. :)
             return eval(env, (*e).clone())
         }
         Exp::Unimp => unimplemented!(),
