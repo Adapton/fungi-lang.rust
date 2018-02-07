@@ -55,8 +55,7 @@ fn fungi_seq() {
         )
 
         let rec max:(
-            Thk[0]
-                0 foralli (X,Y):NmSet.
+            Thk[0] foralli (X,Y):NmSet.
                 0 Seq[X][Y] Nat ->
                 F Nat
                 |> {(#x.{x,@1} % {x,@2}) X; 0}
@@ -73,8 +72,7 @@ fn fungi_seq() {
         }
         
         let rec is_empty:(
-            Thk[0]
-                0 foralli (X,Y):NmSet.
+            Thk[0] foralli (X,Y):NmSet.
                 0 (Seq[X][Y] Nat) ->
                 F Bool
                 |> {0;Y}
@@ -93,8 +91,7 @@ fn fungi_seq() {
         }
         
         let rec is_singleton:(
-            Thk[0]
-                0 foralli (X,Y):NmSet.
+            Thk[0] foralli (X,Y):NmSet.
                 0 (Seq[X][Y] Nat) ->
                 0 F Bool
         ) = {
