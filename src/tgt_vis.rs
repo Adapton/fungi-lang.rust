@@ -38,7 +38,7 @@ fn rewrite_exp(exp: &Exp, ct: &mut usize) -> Exp {
         ref e => e.clone(),
     };
     *ct += 1;
-    Exp::DebugLabel(Some(Name::Num(*ct)), "".to_string(), Rc::new(new_exp))
+    Exp::DebugLabel(Some(Name::Num(*ct)), None, Rc::new(new_exp))
 }
 
 fn rewrite_val(val: &Val, ct: &mut usize) -> Val {

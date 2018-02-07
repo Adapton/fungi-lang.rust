@@ -494,7 +494,10 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
                 _ => eval_type_error(EvalTyErr::NameFnApp0, env, e),
             }
         }
-        Exp::DebugLabel(_,_,e) => {
+        Exp::DebugLabel(label, msg, e) => {
+            let label : Option<engine::Name> =
+                label.map( engine_name_of_ast_name );
+            engine::reflect_dcg::debug_effect(label, msg);
             // XXX/TODO -- Insert label/text/message into Adapton's
             // trace structure, to coordinate with a visual tool. :)
             return eval(env, (*e).clone())

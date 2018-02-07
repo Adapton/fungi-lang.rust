@@ -974,7 +974,7 @@ pub enum Exp {
     NameFnApp(Val,Val),
     PrimApp(PrimApp),
     Unimp,
-    DebugLabel(Option<Name>,String,ExpRec),
+    DebugLabel(Option<Name>,Option<String>,ExpRec),
     NoParse(String),
 }
 pub type ExpRec = Rc<Exp>;
@@ -1256,7 +1256,7 @@ macro_rules! tgt_exp {
     { unimplemented } => { Exp::Unimp };
     //     label (some_text) e             (debug label)
     { label ($s:tt) $($e:tt)+ } => { Exp::DebugLabel(
-        stringify![$s].to_string(),
+        Some(stringify![$s].to_string()),
         Rc::new(tgt_exp![$($e)+]),
     )};
     // failure
