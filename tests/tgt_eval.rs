@@ -124,5 +124,17 @@ fn eval_fix () {
         ],
         tgt_exp![
             ret 1
-        ])
+        ]);
+
+    eval_test_equiv(
+        tgt_exp![
+            let rec f:(Thk[0] Nat -> (Nat -> (F Nat |> {0;0}) |> {0;0}) {0;0}) = {
+                #x. #end. if {x < end} {let x = {x + 1} {force f} x end} else {ret x}
+            }
+            {force f} 0 2
+        ],
+        tgt_exp![
+            ret 2
+        ])      
+
 }
