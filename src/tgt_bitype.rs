@@ -718,19 +718,17 @@ pub fn synth_val(last_label:Option<&str>, ctxt:&TCtxt, val:&Val) -> TypeInfo<Val
         },
         &Val::Inj1(ref v) => {
             let td0 = synth_val(last_label, ctxt, v);
-            let typ0 = td0.typ.clone();
             let td = ValTD::Inj1(td0);
             fail(td, TypeError::NoSynthRule)
         },
         &Val::Inj2(ref v) => {
             let td0 = synth_val(last_label, ctxt, v);
-            let typ0 = td0.typ.clone();
             let td = ValTD::Inj2(td0);
             fail(td, TypeError::NoSynthRule)
         },
         &Val::Roll(ref v) => {
             let td0 = synth_val(last_label, ctxt, v);
-            let typ0 = td0.typ.clone();
+            // let typ0 = td0.typ.clone();
             let td = ValTD::Inj2(td0);
             // TODO: Rule for Roll
             fail(td, TypeError::Unimplemented)
@@ -860,7 +858,7 @@ pub fn check_val(last_label:Option<&str>, ctxt:&TCtxt, val:&Val, typ:&Type) -> T
         },
         &Val::Name(ref n) => {
             let td = ValTD::Name(n.clone());
-            if let Type::Nm(ref idx) = *typ {
+            if let Type::Nm(ref _idx) = *typ {
                 match n { 
                     &Name::NoParse(ref s) => fail(td, TypeError::NoParse(s.clone())),
                     // TODO: check that n is a member of idx
@@ -923,17 +921,17 @@ pub fn check_val(last_label:Option<&str>, ctxt:&TCtxt, val:&Val, typ:&Type) -> T
         &Val::NoParse(ref s) => {
             fail(ValTD::NoParse(s.clone()), TypeError::NoParse(s.clone()))
         },
-        v => {
-            let mut td = synth_val(last_label,ctxt,v);
-            let ty = td.typ.clone();
-            if let Ok(ty) = ty {
-                if ty == *typ { td }
-                else {
-                    td.typ = Err(TypeError::AnnoMism);
-                    td
-                }
-            } else { td }
-        },
+        // v => {
+        //     let mut td = synth_val(last_label,ctxt,v);
+        //     let ty = td.typ.clone();
+        //     if let Ok(ty) = ty {
+        //         if ty == *typ { td }
+        //         else {
+        //             td.typ = Err(TypeError::AnnoMism);
+        //             td
+        //         }
+        //     } else { td }
+        // },
     }
 }
 
