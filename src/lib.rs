@@ -14,6 +14,8 @@ pub mod tgt_bitype;
 pub mod tgt_eval;
 pub mod tgt_vis;
 
+pub mod fungi_stdlib;
+
 // Translation
 // ------------------
 // pub mod translate;
