@@ -6,10 +6,56 @@ use std::rc::Rc;
 use iodyn_lang::bitype;
 use iodyn_lang::tgt_ast::*;
 
-// Sequence Examples from the following paper:
-//
-// [Refinment types for precisely-named cache locations](https://arxiv.org/pdf/1610.00097.pdf)
-//
+/*!
+
+# Sequences in Fungi: 
+
+## Linked lists vs Level trees
+        
+In most functional languages, linked-lists play a central role for
+organizing sequential data (the way that arrays play a central role in
+imperative languages).  
+
+In Fungi, linked-lists represent "iterators" --- lists sometimes
+organize sequences as their are processed or transformed --- but in
+Fungi, lists not the data structure for storing or editing that
+sequence data, or for aggregating it with folds or other iteration
+patterns.
+
+Instead, to organize sequences for accesses, updates or incremental
+folds, we prefer to use balanced, tree-shaped level trees.  In
+particular, before we can iterate over a list, we create a balanced
+level tree from its elements to better organize later incremental
+reuse, via change propagation.
+
+## Level trees
+
+Level trees are balanced, binary trees that represent sequences of
+elements, stored at their leaves.  A level tree permits O(log n) reads
+and writes to the sequence, where writes may overwrite, insert or
+removal elements from the sequence.
+
+When the editor updates a sequence, they often want to do so
+imperatively.  When the archivist updates a sequence, they do so
+functionally, such that the update preserves (and does not overwrite)
+existing store data.
+
+Below, we focus on the archivist's operations for sequences:
+Conversion to and from lists, and various flavors of folding (over
+level trees, not lists).
+
+During change propagation over the archivist's incremental folds, this
+balanced tree structure ensures that the (isomorphic) dependency graph
+it induces is shallow.  In particular, from any root of a fold to any
+thunk it calls (transitively), there are at most O(log n) transitive
+force edges to clean or dirty.
+
+## Related
+
+ - See also [Refinement types for precisely-named cache locations](https://arxiv.org/pdf/1610.00097.pdf)
+
+*/
+
 
 #[test]
 fn fungi_seq() {
@@ -183,6 +229,7 @@ fn fungi_seq() {
         //
         // --- === List Module === ---
         //
+        /*        
         type List = (
             rec Seq.#X.#Y.
             (+ Vec // <-- Basecase with no level, name or ref
