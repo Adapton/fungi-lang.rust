@@ -438,6 +438,7 @@ pub type EffectRec = Rc<Effect>;
 ///     fromast ast        (inject ast nodes)
 ///     (ε)                (parens)
 ///     {X;Y}              (<Write; Read> effects)
+///     0                  (sugar - {0;0})
 ///     ε1 then ε2 ...     (extended effect sequencing)
 /// ```
 #[macro_export]
@@ -445,9 +446,11 @@ macro_rules! tgt_effect {
     //     fromast ast        (inject ast nodes)
     { fromast $ast:expr } => { $ast };
     //     (ε)                (parens)
-    { ($($e:tt)+) } => { tgt_effect![$(e)+] };
+    { ($($e:tt)+) } => { tgt_effect![$($e)+] };
     //     {X;Y}              (<Write; Read> effects)
     { {$($wr:tt)+} } => { split_semi![parse_tgt_eff <= $($wr)+]};
+    //     0                  (sugar - {0;0})
+    { 0 } => { tgt_effect![ {0;0} ] };
     //     ε1 then ε2         (sinlge effect sequencing)
     { $e1:tt then $e2:tt } => { Effect::Then(
         Rc::new(tgt_effect![$e1]),
@@ -716,10 +719,10 @@ macro_rules! tgt_ctype {
 /// this macro is a helper for tgt_ctype, not for external use
 #[macro_export]
 macro_rules! parse_tgt_arrow {
-    // A -> E
-    { ($($a:tt)+)($($e:tt)+) } => { CType::Arrow(
+    // A -> E ...
+    { ($($a:tt)+)($($e:tt)+)$($more:tt)* } => { CType::Arrow(
         tgt_vtype![$($a)+],
-        Rc::new(tgt_ceffect![$($e)+]),
+        Rc::new(parse_tgt_earrow![($($e)+)$($more)*]),
     )};
     // failure
     { $($any:tt)* } => { CType::NoParse(stringify![(-> $($any)*)].to_string())};
@@ -745,7 +748,7 @@ pub type CEffectRec = Rc<CEffect>;
 ///     forallt (a,...):K.E         (extended type polymorphism)
 ///     foralli (a,...):g|P.E       (index polymorphism)
 ///     foralli (a,...):g.E         (index polymorphism -- true prop)
-///     C |> ε                      (computation with effect)
+///     ε C                         (computation with effect)
 /// ```
 #[macro_export]
 macro_rules! tgt_ceffect {
@@ -803,23 +806,27 @@ macro_rules! tgt_ceffect {
     { foralli ($a:ident,$($vars:ident),+):$g:tt.$($e:tt)+ } => {
         tgt_ceffect![foralli ($a,$($vars),+):$g|tt.$($e)+]
     };
-    //     C |> ε      (computation with effect)
-    { $($tri:tt)+ } => { split_tri![parse_tgt_tri <= $($tri)+] };
+    //     ε C -> ε C ... (computations with effects and arrows)
+    { $($arr:tt)+ } => { split_arrow![parse_tgt_earrow <= $($arr)+] };
     // failure
     { $($any:tt)* } => { CEffect::NoParse(stringify![$($any)*].to_string())};
 }
+
 /// this macro is a helper for tgt_ceffect, not for external use
 #[macro_export]
-macro_rules! parse_tgt_tri {
-    // C |> ε
-    { ($($c:tt)+)($($e:tt)+) } => { CEffect::Cons(
+macro_rules! parse_tgt_earrow {
+    // ε C
+    { ($e:tt $($c:tt)+) } => { CEffect::Cons(
         tgt_ctype![$($c)+],
-        tgt_effect![$($e)+],
+        tgt_effect![$e],
+    )};
+    // ε A -> ε C
+    { ($e:tt $($a:tt)+)($($c:tt)+) $($more:tt)* } => { CEffect::Cons(
+        parse_tgt_arrow![($($a)+)($($c)+) $($more)*],
+        tgt_effect![$e],
     )};
     // failure
-    { $($any:tt)* } => {
-        CEffect::NoParse(stringify![(|> $($any)*)].to_string())
-    };
+    { $($any:tt)* } => { CEffect::NoParse(stringify![(-> $($any)*)].to_string())};
 }
 
 /// Value terms
@@ -1456,42 +1463,6 @@ macro_rules! split_semi {
     // on next item, add it to the accumulator
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= $next:tt $($item:tt)*} => {
         split_semi![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*]
-    };
-    // at end of items, run the function
-    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= } => {
-        $fun![$($first)* ($($current)*)]
-    };
-    // if there were no items and no default, run with only initial params, if any
-    {$fun:ident ($($first:tt)*) () () <= } => {
-        $fun![$($first)*]
-    };
-}
-#[macro_export]
-/// run a macro on a list of lists after splitting the input
-macro_rules! split_tri {
-    // no defaults
-    {$fun:ident <= $($item:tt)*} => {
-        split_tri![$fun () () () <= $($item)*]
-    };
-    // give initial params to the function
-    {$fun:ident ($($first:tt)*) <= $($item:tt)*} => {
-        split_tri![$fun ($($first)*) () () <= $($item)*]
-    };
-    // give inital params and initial inner items in every group
-    {$fun:ident ($($first:tt)*) ($($every:tt)*) <= $($item:tt)*} => {
-        split_tri![$fun ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
-    };
-    // on non-final seperator, stash the accumulator and restart it
-    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= |> $($item:tt)+} => {
-        split_tri![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*]
-    };
-    // ignore final seperator, run the function
-    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= |> } => {
-        $fun![$($first)* ($($current)*)]
-    };
-    // on next item, add it to the accumulator
-    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= $next:tt $($item:tt)*} => {
-        split_tri![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*]
     };
     // at end of items, run the function
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= } => {

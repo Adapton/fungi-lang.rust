@@ -756,7 +756,6 @@ pub fn synth_val(last_label:Option<&str>, ctxt:&TCtxt, val:&Val) -> TypeInfo<Val
             let td = ValTD::Name(n.clone());
             match n {
                 &Name::NoParse(ref s) => fail(td, TypeError::NoParse(s.clone())),
-                // TODO: generate this idx based on other refinements
                 _ => succ(td, Type::Nm(IdxTm::Sing(NameTm::Name(n.clone())))),
             }
         },
@@ -789,7 +788,7 @@ pub fn synth_val(last_label:Option<&str>, ctxt:&TCtxt, val:&Val) -> TypeInfo<Val
             let td = ValTD::ThunkAnon(td0);
             match typ0 {
                 Err(_) => fail(td, TypeError::ParamNoSynth(0)),
-                // TODO: do we need the type of CBPV thunks?
+                // TODO: do we need the type of CBPV thunks? No, Thk[0]
                 _ => fail(td, TypeError::Unimplemented),
             }
         },
