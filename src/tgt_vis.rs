@@ -16,7 +16,8 @@ fn rewrite_val_rec(v: &Rc<Val>, ct: &mut usize) -> Rc<Val> {
 
 fn rewrite_exp(exp: &Exp, ct: &mut usize) -> Exp {
     let new_exp = match *exp {
-        Exp::Anno(ref e, ref t) => Exp::Anno(rewrite_exp_rec(e, ct), t.clone()),
+        Exp::AnnoC(ref e, ref t) => Exp::AnnoC(rewrite_exp_rec(e, ct), t.clone()),
+        Exp::AnnoE(ref e, ref t) => Exp::AnnoE(rewrite_exp_rec(e, ct), t.clone()),
         Exp::Force(ref v) => Exp::Force(rewrite_val(v, ct)),
         Exp::Thunk(ref v, ref e) => Exp::Thunk(rewrite_val(v, ct), rewrite_exp_rec(e, ct)),
         Exp::Unroll(ref v, ref s, ref e) => Exp::Unroll(rewrite_val(v, ct), s.clone(), rewrite_exp_rec(e, ct)),

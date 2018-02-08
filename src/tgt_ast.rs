@@ -958,7 +958,8 @@ pub enum PrimApp {
 /// Expressions (aka, computation terms)
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Exp {
-    Anno(ExpRec,CType),
+    AnnoE(ExpRec,CEffect),
+    AnnoC(ExpRec,CType),
     Force(Val),
     Thunk(Val,ExpRec),
     Unroll(Val,Var,ExpRec),
@@ -987,7 +988,8 @@ pub type ExpRec = Rc<Exp>;
 /// ```text
 /// e::=
 ///     fromast ast                     (inject ast nodes)
-///     e : C                           (annotation)
+///     e : C                           (type annotation, no effect)
+///     e :> E                          (type annotation, with effect)
 ///     {e}                             (parens)
 ///     scope v e                       (memo scope)
 ///     ret v                           (lifted value)
@@ -1024,10 +1026,15 @@ pub type ExpRec = Rc<Exp>;
 macro_rules! tgt_exp {
     //     fromast ast                     (inject ast nodes)
     { fromast $ast:expr } => { $ast };
-    //     e : C                           (annotation)
-    { $e:tt : $($c:tt)+ } => { Exp::Anno(
+    //     e : C                           (type annotation, without effects)
+    { $e:tt : $($c:tt)+ } => { Exp::AnnoC(
         Rc::new(tgt_exp![$e]),
         tgt_ctype![$($c)+],
+    )};
+    //     e :> E                          (type annotation, with effects)
+    { $e:tt : $($c:tt)+ } => { Exp::AnnoE(
+        Rc::new(tgt_exp![$e]),
+        tgt_ceffect![$($c)+],
     )};
     //     {e}                             (parens)
     { {$($e:tt)+} } => { tgt_exp![$($e)+] };
@@ -1116,7 +1123,7 @@ macro_rules! tgt_exp {
     //     let x : A = {e1} e2             (annotated let-binding)
     { let $x:ident : $a:tt = $e1:tt $($e2:tt)+ } => { Exp::Let(
         stringify![$x].to_string(),
-        Rc::new(Exp::Anno(
+        Rc::new(Exp::AnnoC(
             Rc::new(tgt_exp![$e1]),
             tgt_ctype![F $a]
         )),
@@ -1128,7 +1135,7 @@ macro_rules! tgt_exp {
     //
     { let rec $x:ident : $a:tt = $e1:tt $($e2:tt)+ } => { Exp::Let(
         stringify![$x].to_string(),
-        Rc::new(Exp::Anno(
+        Rc::new(Exp::AnnoC(
             Rc::new(Exp::Ret(Val::ThunkAnon(
                 Rc::new(Exp::Fix(stringify![$x].to_string(),
                                  Rc::new(tgt_exp![$e1])))))

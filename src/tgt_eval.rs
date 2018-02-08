@@ -336,8 +336,9 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
         // basecase 2: returns are terminal computations
         Exp::Ret(v)    => { ExpTerm::Ret(close_val(&env, &v)) }
         // ignore types at run time:
-        Exp::DefType(_x, _a, e) => { return eval(env, (*e).clone()) }
-        Exp::Anno(e1,_ct)       => { return eval(env, (*e1).clone()) }
+        Exp::DefType(_x, _a, e)  => { return eval(env, (*e).clone()) }
+        Exp::AnnoC(e1,_ct)       => { return eval(env, (*e1).clone()) }
+        Exp::AnnoE(e1,_et)       => { return eval(env, (*e1).clone()) }
         // save a copy of e as thunk f in e
         Exp::Fix(f,e1) => {
             let env_saved = env.clone();
