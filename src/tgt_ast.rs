@@ -515,7 +515,8 @@ pub enum Type {
     TypeApp(TypeRec, TypeRec),
     Nm(IdxTm),
     NmFn(NameTm),
-    TypeFn(Var, TypeRec),
+    TypeFn(Var, Kind, TypeRec),
+    IdxFn(Var, Sort, TypeRec),
     Rec(Var, TypeRec),
     // Exists for index-level variables; they are classified by sorts
     Exists(Var, SortRec, Prop, TypeRec),
@@ -539,8 +540,8 @@ pub type TypeRec = Rc<Type>;
 ///     Nm[i]           (name type)
 ///     A[i]...         (extended application of type to index)
 ///     (Nm->Nm)[M]     (name function type)
-///     forallt a:K.A   (type parameter)
-///     foralli a:g.A   (index parameter)
+///     forallt (a,b,...):K.A   (type parameter)
+///     foralli (a,b,...):g.A   (index parameter)
 ///     rec a.A         (recursive type)
 ///     exists (X,Y,...):g | P . A
 ///                     (existential index variables, with common sort g)
@@ -595,10 +596,37 @@ macro_rules! tgt_vtype {
     };
     //     (Nm->Nm)[M]     (name function type)
     { (Nm->Nm)[$($m:tt)+] } => { Type::NmFn(tgt_nametm![$($m)+]) };
-    //     #a.A            (type fn)
-    { #$a:ident.$($body:tt)+ } => { Type::TypeFn(
-        stringify![$a].to_string(),
-        Rc::new(tgt_vtype![$($body)+]),
+    //     forallt x:K.A   (type parameter)
+    { forallt $x:ident : $k:tt. $($a:tt)+ } => {Type::TypeFn(
+        stringify![$x].to_string(),
+        tgt_kind![$k],
+        Rc::new(tgt_vtype![$($a)+]),
+    )};
+    //     forallt (x):K.A   (type parameter - multivar base case)
+    { forallt ($x:ident) : $k:tt. $($a:tt)+ } => {
+        tgt_vtype![forallt $x : $k . $($a)+]
+    };
+    //     forallt (x,y,...):K.A   (type parameter - multivar)
+    { forallt ($x:ident,$($xs:ident),+):$k:tt.$($a:tt)+ } => { Type::TypeFn(
+        stringify![$x].to_string(),
+        tgt_kind![$k],
+        Rc::new(tgt_vtype![forallt ($($xs),+):$k.$($a)+])
+    )};
+    //     foralli x:g.A   (index parameter)
+    { foralli $x:ident : $g:tt. $($a:tt)+ } => {Type::IdxFn(
+        stringify![$x].to_string(),
+        tgt_sort![$g],
+        Rc::new(tgt_vtype![$($a)+]),
+    )};
+    //     foralli (x):g.A   (index parameter - multivar base case)
+    { foralli ($x:ident) : $g:tt. $($a:tt)+ } => {
+        tgt_vtype![foralli $x : $g . $($a)+]
+    };
+    //     foralli (x,y,...):g.A   (index parameter - multivar)
+    { foralli ($x:ident,$($xs:ident),+):$g:tt.$($a:tt)+ } => { Type::IdxFn(
+        stringify![$x].to_string(),
+        tgt_sort![$g],
+        Rc::new(tgt_vtype![foralli ($($xs),+):$g.$($a)+])
     )};
     //     rec a.A            (recursive type)
     { rec $a:ident.$($body:tt)+ } => { Type::Rec(
@@ -1115,10 +1143,7 @@ macro_rules! tgt_exp {
     //     type t = (A) e                    (user type definition)
     { type $t:ident = $a:tt $($e:tt)+ }=>{Exp::DefType(
         stringify![$t].to_string(),
-        Type::Rec(
-            stringify![$t].to_string(),
-            Rc::new(tgt_vtype![$a]),
-        ),
+        tgt_vtype![$a],
         Rc::new(tgt_exp![$($e)+]),
     )};
     //     let x = {e1} e2                 (let-binding)

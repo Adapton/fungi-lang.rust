@@ -18,19 +18,14 @@ fn examples() {
     //let ctx : TCtxt = TCtxt::Empty;
 
     let max : Exp = tgt_exp![
-        type Vec = (#T.user(Vec))
+        type Vec = (forallt T:type.user(Vec))
         // Seq[X,Y]:
         // Refinement type for a nominal, level-tree data structure,
         // ...      with (unallocated) names in X
         // ... and (allocated) pointer names in Y
         //
         type Seq = (
-            // Ordering here is important: The recursive type name T
-            // should refer to the type that is parameteric in X and
-            // Y; the version below has a fixed choice for X and Y for
-            // all recursive unrollings.
-            // (See my other version of type Seq, for filter, below).
-            rec Seq. #X.#Y.#T.
+            rec Seq. foralli (X,Y):NmSet. forallt T:type.
             (+ Vec T
              + (exists (X1,X2,X3)   :NmSet | (X1%X2%X3=X).
                 exists (Y1,Y2,Y3,Y4):NmSet | (Y1%Y2%Y3%Y4=Y).
@@ -111,7 +106,7 @@ fn examples() {
         // Using RHS below (not LHS yet, but maybe?)
         //
         type Seq = (
-            rec Seq.#X.#Y.
+            rec Seq. foralli (X,Y):NmSet.
             (+ Vec 
              + (exists (X1,X2,X3)   :NmSet | (X1%X2%X3=X).
                 exists (Y1,Y2,Y3,Y4):NmSet | (Y1%Y2%Y3%Y4=Y).
