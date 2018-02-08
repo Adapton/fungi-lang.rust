@@ -1,6 +1,7 @@
 #![recursion_limit="128"]
 #[macro_use]
 extern crate iodyn_lang;
+use iodyn_lang::tgt_bitype::*;
 
 // Examples from the following paper:
 // [Refinment types for precisely-named cache locations](https://arxiv.org/pdf/1610.00097.pdf)
@@ -79,6 +80,7 @@ fn examples() {
         }
         {force max} nums
     ];
+    println!("");
     println!("{:?}", max);
 
 
@@ -189,7 +191,11 @@ fn examples() {
         {force max} nums
     ];
     
+    println!("");
     println!("{:?}", label_exp(filter, &mut 0));
+
+    println!("");
+    println!("{:?}", synth_exp(None, &TCtxt::Empty, &max));
 
 }
 
