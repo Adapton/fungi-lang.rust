@@ -4,28 +4,30 @@
 
 ## Linked lists vs Level trees
         
-In most functional languages, linked-lists play a central role for
-organizing sequential data (the way that arrays play a central role in
-imperative languages).  
+In most functional languages, **linked lists** play a central role in
+organizing sequential data, the way that arrays play a central role in
+imperative languages.
 
-In Fungi, linked-lists represent "iterators" --- lists sometimes
-organize sequences as their are processed or transformed --- but in
-Fungi, lists not the data structure for storing or editing that
+In Fungi, computations have the potential to be incremental, and as a
+result, we reconsider the role of linked lists in our functional
+programs.  In Fungi, linked-lists represent "iterators" --- lists
+sometimes organize sequences as their are processed or transformed ---
+but in Fungi, lists not the data structure for storing or editing that
 sequence data, or for aggregating it with folds or other iteration
 patterns.
 
 Instead, to organize sequences for accesses, updates or incremental
-folds, we prefer to use balanced, tree-shaped level trees.  In
-particular, before we can iterate over a list, we create a balanced
-level tree from its elements to better organize later incremental
-reuse, via change propagation.
+folds, Fungi programs use balanced **level trees**.  In particular,
+before we iterate over a linked list, we create a balanced level tree
+from its elements to better organize later incremental reuse, via
+change propagation.
 
 ## Level trees
 
 Level trees are balanced, binary trees that represent sequences of
 elements, stored at their leaves.  A level tree permits O(log n) reads
 and writes to the sequence, where writes may overwrite, insert or
-removal elements from the sequence.
+remove elements from the sequence.
 
 When the editor updates a sequence, they often want to do so
 imperatively.  When the archivist updates a sequence, they do so
@@ -57,7 +59,7 @@ use std::rc::Rc;
 use bitype;
 use tgt_ast::*;
 
-fn seq_module () -> Exp { tgt_exp![
+pub fn exp () -> Exp { tgt_exp![
     //
     // --- === Vector Module === ---
     //
