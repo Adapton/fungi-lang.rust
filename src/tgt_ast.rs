@@ -438,6 +438,7 @@ pub type EffectRec = Rc<Effect>;
 ///     fromast ast        (inject ast nodes)
 ///     (ε)                (parens)
 ///     {X;Y}              (<Write; Read> effects)
+///     0                  (sugar - {0;0})
 ///     ε1 then ε2 ...     (extended effect sequencing)
 /// ```
 #[macro_export]
@@ -445,9 +446,11 @@ macro_rules! tgt_effect {
     //     fromast ast        (inject ast nodes)
     { fromast $ast:expr } => { $ast };
     //     (ε)                (parens)
-    { ($($e:tt)+) } => { tgt_effect![$(e)+] };
+    { ($($e:tt)+) } => { tgt_effect![$($e)+] };
     //     {X;Y}              (<Write; Read> effects)
     { {$($wr:tt)+} } => { split_semi![parse_tgt_eff <= $($wr)+]};
+    //     0                  (sugar - {0;0})
+    { 0 } => { tgt_effect![ {0;0} ] };
     //     ε1 then ε2         (sinlge effect sequencing)
     { $e1:tt then $e2:tt } => { Effect::Then(
         Rc::new(tgt_effect![$e1]),
@@ -512,7 +515,8 @@ pub enum Type {
     TypeApp(TypeRec, TypeRec),
     Nm(IdxTm),
     NmFn(NameTm),
-    TypeFn(Var, TypeRec),
+    TypeFn(Var, Kind, TypeRec),
+    IdxFn(Var, Sort, TypeRec),
     Rec(Var, TypeRec),
     // Exists for index-level variables; they are classified by sorts
     Exists(Var, SortRec, Prop, TypeRec),
@@ -536,8 +540,8 @@ pub type TypeRec = Rc<Type>;
 ///     Nm[i]           (name type)
 ///     A[i]...         (extended application of type to index)
 ///     (Nm->Nm)[M]     (name function type)
-///     forallt a:K.A   (type parameter)
-///     foralli a:g.A   (index parameter)
+///     forallt (a,b,...):K.A   (type parameter)
+///     foralli (a,b,...):g.A   (index parameter)
 ///     rec a.A         (recursive type)
 ///     exists (X,Y,...):g | P . A
 ///                     (existential index variables, with common sort g)
@@ -592,10 +596,37 @@ macro_rules! tgt_vtype {
     };
     //     (Nm->Nm)[M]     (name function type)
     { (Nm->Nm)[$($m:tt)+] } => { Type::NmFn(tgt_nametm![$($m)+]) };
-    //     #a.A            (type fn)
-    { #$a:ident.$($body:tt)+ } => { Type::TypeFn(
-        stringify![$a].to_string(),
-        Rc::new(tgt_vtype![$($body)+]),
+    //     forallt x:K.A   (type parameter)
+    { forallt $x:ident : $k:tt. $($a:tt)+ } => {Type::TypeFn(
+        stringify![$x].to_string(),
+        tgt_kind![$k],
+        Rc::new(tgt_vtype![$($a)+]),
+    )};
+    //     forallt (x):K.A   (type parameter - multivar base case)
+    { forallt ($x:ident) : $k:tt. $($a:tt)+ } => {
+        tgt_vtype![forallt $x : $k . $($a)+]
+    };
+    //     forallt (x,y,...):K.A   (type parameter - multivar)
+    { forallt ($x:ident,$($xs:ident),+):$k:tt.$($a:tt)+ } => { Type::TypeFn(
+        stringify![$x].to_string(),
+        tgt_kind![$k],
+        Rc::new(tgt_vtype![forallt ($($xs),+):$k.$($a)+])
+    )};
+    //     foralli x:g.A   (index parameter)
+    { foralli $x:ident : $g:tt. $($a:tt)+ } => {Type::IdxFn(
+        stringify![$x].to_string(),
+        tgt_sort![$g],
+        Rc::new(tgt_vtype![$($a)+]),
+    )};
+    //     foralli (x):g.A   (index parameter - multivar base case)
+    { foralli ($x:ident) : $g:tt. $($a:tt)+ } => {
+        tgt_vtype![foralli $x : $g . $($a)+]
+    };
+    //     foralli (x,y,...):g.A   (index parameter - multivar)
+    { foralli ($x:ident,$($xs:ident),+):$g:tt.$($a:tt)+ } => { Type::IdxFn(
+        stringify![$x].to_string(),
+        tgt_sort![$g],
+        Rc::new(tgt_vtype![foralli ($($xs),+):$g.$($a)+])
     )};
     //     rec a.A            (recursive type)
     { rec $a:ident.$($body:tt)+ } => { Type::Rec(
@@ -716,10 +747,10 @@ macro_rules! tgt_ctype {
 /// this macro is a helper for tgt_ctype, not for external use
 #[macro_export]
 macro_rules! parse_tgt_arrow {
-    // A -> E
-    { ($($a:tt)+)($($e:tt)+) } => { CType::Arrow(
+    // A -> E ...
+    { ($($a:tt)+)($($e:tt)+)$($more:tt)* } => { CType::Arrow(
         tgt_vtype![$($a)+],
-        Rc::new(tgt_ceffect![$($e)+]),
+        Rc::new(parse_tgt_earrow![($($e)+)$($more)*]),
     )};
     // failure
     { $($any:tt)* } => { CType::NoParse(stringify![(-> $($any)*)].to_string())};
@@ -745,7 +776,7 @@ pub type CEffectRec = Rc<CEffect>;
 ///     forallt (a,...):K.E         (extended type polymorphism)
 ///     foralli (a,...):g|P.E       (index polymorphism)
 ///     foralli (a,...):g.E         (index polymorphism -- true prop)
-///     C |> ε                      (computation with effect)
+///     ε C                         (computation with effect)
 /// ```
 #[macro_export]
 macro_rules! tgt_ceffect {
@@ -803,23 +834,27 @@ macro_rules! tgt_ceffect {
     { foralli ($a:ident,$($vars:ident),+):$g:tt.$($e:tt)+ } => {
         tgt_ceffect![foralli ($a,$($vars),+):$g|tt.$($e)+]
     };
-    //     C |> ε      (computation with effect)
-    { $($tri:tt)+ } => { split_tri![parse_tgt_tri <= $($tri)+] };
+    //     ε C -> ε C ... (computations with effects and arrows)
+    { $($arr:tt)+ } => { split_arrow![parse_tgt_earrow <= $($arr)+] };
     // failure
     { $($any:tt)* } => { CEffect::NoParse(stringify![$($any)*].to_string())};
 }
+
 /// this macro is a helper for tgt_ceffect, not for external use
 #[macro_export]
-macro_rules! parse_tgt_tri {
-    // C |> ε
-    { ($($c:tt)+)($($e:tt)+) } => { CEffect::Cons(
+macro_rules! parse_tgt_earrow {
+    // ε C
+    { ($e:tt $($c:tt)+) } => { CEffect::Cons(
         tgt_ctype![$($c)+],
-        tgt_effect![$($e)+],
+        tgt_effect![$e],
+    )};
+    // ε A -> ε C
+    { ($e:tt $($a:tt)+)($($c:tt)+) $($more:tt)* } => { CEffect::Cons(
+        parse_tgt_arrow![($($a)+)($($c)+) $($more)*],
+        tgt_effect![$e],
     )};
     // failure
-    { $($any:tt)* } => {
-        CEffect::NoParse(stringify![(|> $($any)*)].to_string())
-    };
+    { $($any:tt)* } => { CEffect::NoParse(stringify![(-> $($any)*)].to_string())};
 }
 
 /// Value terms
@@ -1111,10 +1146,7 @@ macro_rules! tgt_exp {
     //     type t = (A) e                    (user type definition)
     { type $t:ident = $a:tt $($e:tt)+ }=>{Exp::DefType(
         stringify![$t].to_string(),
-        Type::Rec(
-            stringify![$t].to_string(),
-            Rc::new(tgt_vtype![$a]),
-        ),
+        tgt_vtype![$a],
         Rc::new(tgt_exp![$($e)+]),
     )};
     //     let x = {e1} e2                 (let-binding)
@@ -1459,42 +1491,6 @@ macro_rules! split_semi {
     // on next item, add it to the accumulator
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= $next:tt $($item:tt)*} => {
         split_semi![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*]
-    };
-    // at end of items, run the function
-    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= } => {
-        $fun![$($first)* ($($current)*)]
-    };
-    // if there were no items and no default, run with only initial params, if any
-    {$fun:ident ($($first:tt)*) () () <= } => {
-        $fun![$($first)*]
-    };
-}
-#[macro_export]
-/// run a macro on a list of lists after splitting the input
-macro_rules! split_tri {
-    // no defaults
-    {$fun:ident <= $($item:tt)*} => {
-        split_tri![$fun () () () <= $($item)*]
-    };
-    // give initial params to the function
-    {$fun:ident ($($first:tt)*) <= $($item:tt)*} => {
-        split_tri![$fun ($($first)*) () () <= $($item)*]
-    };
-    // give inital params and initial inner items in every group
-    {$fun:ident ($($first:tt)*) ($($every:tt)*) <= $($item:tt)*} => {
-        split_tri![$fun ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
-    };
-    // on non-final seperator, stash the accumulator and restart it
-    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= |> $($item:tt)+} => {
-        split_tri![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*]
-    };
-    // ignore final seperator, run the function
-    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= |> } => {
-        $fun![$($first)* ($($current)*)]
-    };
-    // on next item, add it to the accumulator
-    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= $next:tt $($item:tt)*} => {
-        split_tri![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*]
     };
     // at end of items, run the function
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= } => {

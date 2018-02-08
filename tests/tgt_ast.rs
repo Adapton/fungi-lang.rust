@@ -1,6 +1,7 @@
 #![recursion_limit="128"]
 #[macro_use]
 extern crate iodyn_lang;
+use iodyn_lang::tgt_bitype::*;
 
 // Examples from the following paper:
 // [Refinment types for precisely-named cache locations](https://arxiv.org/pdf/1610.00097.pdf)
@@ -17,19 +18,14 @@ fn examples() {
     //let ctx : TCtxt = TCtxt::Empty;
 
     let max : Exp = tgt_exp![
-        type Vec = (#T.user(Vec))
+        type Vec = (forallt T:type.user(Vec))
         // Seq[X,Y]:
         // Refinement type for a nominal, level-tree data structure,
         // ...      with (unallocated) names in X
         // ... and (allocated) pointer names in Y
         //
         type Seq = (
-            // Ordering here is important: The recursive type name T
-            // should refer to the type that is parameteric in X and
-            // Y; the version below has a fixed choice for X and Y for
-            // all recursive unrollings.
-            // (See my other version of type Seq, for filter, below).
-            rec Seq. #X.#Y.#T.
+            rec Seq. foralli (X,Y):NmSet. forallt T:type.
             (+ Vec T
              + (exists (X1,X2,X3)   :NmSet | (X1%X2%X3=X).
                 exists (Y1,Y2,Y3,Y4):NmSet | (Y1%Y2%Y3%Y4=Y).
@@ -41,14 +37,13 @@ fn examples() {
             )
         )
         let nums:(Seq[X][Y] Nat) = { unimplemented }        
-        let vec_max:(Thk[0] Vec Nat -> (F Nat |> {0;0}) |> {0;0}) = {
+        let vec_max:(Thk[0] 0 Vec Nat -> 0 F Nat) = {
             unimplemented
         }
         let rec max:(
             Thk[0] foralli (X,Y):NmSet.
-                Seq[X][Y] Nat -> (F Nat |>
-                    {(#x.{x,@1} % {x,@2}) X; 0})
-                |> {0;0}
+                0 Seq[X][Y] Nat ->
+                {(#x:Nm.{x,@1} % {x,@2}) X; 0} F Nat
         ) = {
             #seq. unroll seq seq. match seq {
                 vec => { {force vec_max} vec }
@@ -64,7 +59,7 @@ fn examples() {
                     //
                     // Right recursion:
                     // non-sugar version (all sub-expressions are explicit)
-                    let nf = { ret nmfn #n.#v.n,v }
+                    let nf = { ret nmfn #n:Nm.#v:Nm.n,v }
                     let n2 = { [nf] n (@2) }
                     let mr = {
                         let t = { thk n2
@@ -79,6 +74,7 @@ fn examples() {
         }
         {force max} nums
     ];
+    println!("Max example AST:");
     println!("{:?}", max);
 
 
@@ -87,19 +83,17 @@ fn examples() {
         type Vec = (user(Vec))
 
         let vec_filter:( Thk[0]
-            Vec Nat -> (
-                (Thk[0] Nat -> (F Bool |> {0;0}) |> {0;0}) ->
-                (F Vec Nat |> {0;0}) |> {0;0}
-            ) |> {0;0}
+            0 Vec Nat ->
+            0 (Thk[0] 0 Nat -> 0 F Bool) ->
+            0 F Vec Nat
         ) = {
             unimplemented
         }
 
         let vec_map:( Thk[0]
-            Vec Nat -> (
-                (Thk[0] Nat -> (F Nat |> {0;0}) |> {0;0}) ->
-                (F Vec Nat |> {0;0}) |> {0;0}
-            ) |> {0;0}
+            0 Vec Nat ->
+            0 (Thk[0] 0 Nat -> 0 F Nat) ->
+            0 F Vec Nat
         ) = {
             unimplemented
         }
@@ -112,7 +106,7 @@ fn examples() {
         // Using RHS below (not LHS yet, but maybe?)
         //
         type Seq = (
-            rec Seq.#X.#Y.
+            rec Seq. foralli (X,Y):NmSet.
             (+ Vec 
              + (exists (X1,X2,X3)   :NmSet | (X1%X2%X3=X).
                 exists (Y1,Y2,Y3,Y4):NmSet | (Y1%Y2%Y3%Y4=Y).
@@ -125,9 +119,8 @@ fn examples() {
 
         let rec max:(
             Thk[0] foralli (X,Y):NmSet.
-                Seq[X][Y] Nat -> (F Nat |>
-                    {(#x.{x,@1} % {x,@2}) X; 0})
-                |> {0;0}
+                0 Seq[X][Y] Nat ->
+                {(#x:Nm.{x,@1} % {x,@2}) X; 0} F Nat
         ) = {
             #seq. unroll seq seq. match seq {
                 vec => { {force vec_max} vec }
@@ -142,11 +135,9 @@ fn examples() {
         
         let rec filter:(
             Thk[0] foralli (X,Y):NmSet.
-                (Seq[X][Y] Nat) -> (
-                    (Thk[0] Nat -> (F Bool |> {0;0}) |> {0;0}) ->
-                    (F Nat |> {(#x.{x,@1} % {x,@2}) X; 0})
-                    |> {0;0}
-                ) |> {0;0}
+                0 Seq[X][Y] Nat ->
+                0 (Thk[0] {0;0} Nat -> 0 F Bool) ->
+                {(#x:Nm.{x,@1} % {x,@2}) X; 0} F Nat
         ) = {
             #seq. #f. unroll match seq {
                 vec => { {force vec_filter} f vec }
@@ -169,11 +160,9 @@ fn examples() {
         
         let rec map:(
             Thk[0] foralli (X,Y):NmSet.
-                (Seq[X][Y] Nat) -> (
-                    (Thk[0] Nat -> (F Nat |> {0;0}) |> {0;0}) ->
-                    (F Nat |> {(#x.{x,@1} % {x,@2}) X; 0})
-                    |> {0;0}
-                ) |> {0;0}
+                0 Seq[X][Y] Nat ->
+                0 (Thk[0] 0 Nat -> 0 F Nat) ->
+                {(#x:Nm.{x,@1} % {x,@2}) X; 0} F Nat
         ) = {
             #seq. #f. unroll match seq {
                 vec => { {force vec_map } f vec }
@@ -189,7 +178,14 @@ fn examples() {
         {force max} nums
     ];
     
+    println!("Filter example AST:");
+    println!("{:?}", filter);
+
+    println!("Filter example numbered:");
     println!("{:?}", label_exp(filter, &mut 0));
+
+    println!("Filter example with type info:");
+    println!("{:?}", synth_exp(None, &TCtxt::Empty, &max));
 
 }
 

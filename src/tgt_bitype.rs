@@ -151,17 +151,19 @@ impl TCtxt {
 
 pub trait HasType { type Type; }
 
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub struct TypeInfo<TD:HasType> { 
-    pub ctxt:TCtxt,
-    pub node:Rc<TD>,
     pub dir:Dir,
+    pub ctxt:TCtxt,
     pub typ:Result<TD::Type,TypeError>,
+    pub node:Rc<TD>,
 }
 impl<A:HasType> TypeInfo<A> {
     pub fn is_err(&self) -> bool { self.typ.is_err() }
     pub fn is_ok(&self) -> bool { self.typ.is_ok() }
 }
 
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum NameTmTD {
     Var(Var),
     Name(Name),
@@ -172,6 +174,7 @@ pub enum NameTmTD {
 }
 impl HasType for NameTmTD { type Type = Sort; }
 
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum IdxTmTD {
     Var(Var),
     Sing(TypeInfo<NameTmTD>),
@@ -191,6 +194,7 @@ pub enum IdxTmTD {
 }
 impl HasType for IdxTmTD { type Type = Sort; }
 
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum ValTD {
     Var(Var),
     Unit,
@@ -209,6 +213,7 @@ pub enum ValTD {
 }
 impl HasType for ValTD { type Type = Type; }
 
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum ExpTD {
     AnnoC(TypeInfo<ExpTD>,CType),
     AnnoE(TypeInfo<ExpTD>,CEffect),
@@ -235,8 +240,12 @@ pub enum ExpTD {
 }
 impl HasType for ExpTD { type Type = CEffect; }
 
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum PrimAppTD {
+    NatEq(TypeInfo<ValTD>,TypeInfo<ValTD>),
     NatLt(TypeInfo<ValTD>,TypeInfo<ValTD>),
+    NatLte(TypeInfo<ValTD>,TypeInfo<ValTD>),
+    NatPlus(TypeInfo<ValTD>,TypeInfo<ValTD>),
     NameBin(TypeInfo<ValTD>,TypeInfo<ValTD>),
     RefThunk(TypeInfo<ValTD>),
 }
@@ -246,7 +255,7 @@ trait AstNode {
 }
 
 impl AstNode for NameTmTD {
-    fn node_desc() -> &'static str { "name term" }
+    fn node_desc() -> &'static str { "name-term" }
     fn short(&self) -> &str {
         match *self {
             NameTmTD::Var(_) => "Var",
@@ -260,7 +269,7 @@ impl AstNode for NameTmTD {
 }
 
 impl AstNode for IdxTmTD {
-    fn node_desc() -> &'static str { "index term" }
+    fn node_desc() -> &'static str { "index-term" }
     fn short(&self) -> &str {
         match *self {
             IdxTmTD::Var(_) => "Var",
@@ -337,13 +346,17 @@ impl AstNode for PrimAppTD {
     fn node_desc() -> &'static str { "primitive expression" }
     fn short(&self) -> &str {
         match *self {
+            PrimAppTD::NatEq(_,_) => "NatEq",
             PrimAppTD::NatLt(_,_) => "NatLt",
+            PrimAppTD::NatLte(_,_) => "NatLte",
+            PrimAppTD::NatPlus(_,_) => "NatPlus",
             PrimAppTD::NameBin(_,_) => "NameBin",
             PrimAppTD::RefThunk(_) => "RefThunk",
         }
     }
 }
 
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Dir { Synth, Check }
 impl Dir {
     fn short(&self) -> &str {
@@ -369,6 +382,7 @@ pub enum TypeError {
     AppNotArrow,
     ValNotArrow,
     GetNotRef,
+    ExpNotCons,
     BadCheck,
     DSLiteral,
     EmptyDT,
@@ -391,6 +405,7 @@ impl fmt::Display for TypeError {
             TypeError::ValNotArrow => format!("this value requires an arrow type"),
             TypeError::AppNotArrow => format!("application of non-arrow type"),
             TypeError::GetNotRef => format!("get from a non-ref val"),
+            TypeError::ExpNotCons => format!("annotated a expression that was not type-and-effect"),
             TypeError::BadCheck => format!("checked type inappropriate for value"),
             TypeError::DSLiteral => format!("data structure literals not allowed"),
             TypeError::EmptyDT => format!("ambiguous empty data type"),
@@ -741,7 +756,6 @@ pub fn synth_val(last_label:Option<&str>, ctxt:&TCtxt, val:&Val) -> TypeInfo<Val
             let td = ValTD::Name(n.clone());
             match n {
                 &Name::NoParse(ref s) => fail(td, TypeError::NoParse(s.clone())),
-                // TODO: generate this idx based on other refinements
                 _ => succ(td, Type::Nm(IdxTm::Sing(NameTm::Name(n.clone())))),
             }
         },
@@ -774,7 +788,7 @@ pub fn synth_val(last_label:Option<&str>, ctxt:&TCtxt, val:&Val) -> TypeInfo<Val
             let td = ValTD::ThunkAnon(td0);
             match typ0 {
                 Err(_) => fail(td, TypeError::ParamNoSynth(0)),
-                // TODO: do we need the type of CBPV thunks?
+                // TODO: do we need the type of CBPV thunks? No, Thk[0]
                 _ => fail(td, TypeError::Unimplemented),
             }
         },
@@ -943,11 +957,18 @@ pub fn synth_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<Exp
     let fail = |td:ExpTD, err :TypeError| { failure(Dir::Synth, last_label, ctxt, td, err) };
     let succ = |td:ExpTD, typ :CEffect  | { success(Dir::Synth, last_label, ctxt, td, typ) };
     match exp {
-        &Exp::AnnoC(ref e,ref ct) => {
+        &Exp::AnnoC(ref e,ref ctyp) => {
             let td0 = synth_exp(last_label, ctxt, e);
-            let td = ExpTD::AnnoC(td0, ct.clone());
-            // TODO: implement
-            fail(td, TypeError::Unimplemented)
+            let typ0 = td0.typ.clone();
+            let td = ExpTD::AnnoC(td0, ctyp.clone());
+            match typ0 {
+                Err(_) => fail(td, TypeError::ParamNoSynth(0)),
+                Ok(CEffect::Cons(ct,eff)) => {
+                    if *ctyp == ct { succ(td, CEffect::Cons(ct,eff)) }
+                    else { fail(td, TypeError::AnnoMism) }
+                },
+                _ => fail(td, TypeError::ExpNotCons)
+            }
         },
         &Exp::AnnoE(ref e,ref et) => {
             let td0 = check_exp(last_label, ctxt, e, et);
@@ -1089,12 +1110,70 @@ pub fn synth_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<Exp
             let td = ExpTD::Scope(td0,td1);
             fail(td, TypeError::NoSynthRule)
         },
-        // &Exp::NameFnApp(ref v1,ref v2) => {},
-        // &Exp::PrimApp(PrimApp) => {},
-        // &Exp::Unimp => {},
-        // &Exp::DebugLabel(ref n, ref s,ref e) => {},
-        // &Exp::NoParse(ref s) => {},
-        _ => unimplemented!("TODO: Finish synth expressions")
+        &Exp::NameFnApp(ref v0,ref v1) => {
+            let td0 = synth_val(last_label, ctxt, v0);
+            let td1 = synth_val(last_label, ctxt, v1);
+            let td = ExpTD::NameFnApp(td0,td1);
+            // TODO: implement
+            fail(td, TypeError::Unimplemented)
+        },
+        &Exp::PrimApp(PrimApp::NatEq(ref v0,ref v1)) => {
+            let td0 = synth_val(last_label, ctxt, v0);
+            let td1 = synth_val(last_label, ctxt, v1);
+            let td = ExpTD::PrimApp(PrimAppTD::NatEq(td0,td1));
+            // TODO: implement
+            fail(td, TypeError::Unimplemented)
+        },
+        &Exp::PrimApp(PrimApp::NatLt(ref v0,ref v1)) => {
+            let td0 = synth_val(last_label, ctxt, v0);
+            let td1 = synth_val(last_label, ctxt, v1);
+            let td = ExpTD::PrimApp(PrimAppTD::NatLt(td0,td1));
+            // TODO: implement
+            fail(td, TypeError::Unimplemented)
+        },
+        &Exp::PrimApp(PrimApp::NatLte(ref v0,ref v1)) => {
+            let td0 = synth_val(last_label, ctxt, v0);
+            let td1 = synth_val(last_label, ctxt, v1);
+            let td = ExpTD::PrimApp(PrimAppTD::NatLte(td0,td1));
+            // TODO: implement
+            fail(td, TypeError::Unimplemented)
+        },
+        &Exp::PrimApp(PrimApp::NatPlus(ref v0,ref v1)) => {
+            let td0 = synth_val(last_label, ctxt, v0);
+            let td1 = synth_val(last_label, ctxt, v1);
+            let td = ExpTD::PrimApp(PrimAppTD::NatPlus(td0,td1));
+            // TODO: implement
+            fail(td, TypeError::Unimplemented)
+        },
+        &Exp::PrimApp(PrimApp::NameBin(ref v0,ref v1)) => {
+            let td0 = synth_val(last_label, ctxt, v0);
+            let td1 = synth_val(last_label, ctxt, v1);
+            let td = ExpTD::PrimApp(PrimAppTD::NameBin(td0,td1));
+            // TODO: implement
+            fail(td, TypeError::Unimplemented)
+        },
+        &Exp::PrimApp(PrimApp::RefThunk(ref v)) => {
+            let td0 = synth_val(last_label, ctxt, v);
+            let td = ExpTD::PrimApp(PrimAppTD::RefThunk(td0));
+            // TODO: implement
+            fail(td, TypeError::Unimplemented)
+        },
+        &Exp::Unimp => {
+            let td = ExpTD::Unimp;
+            fail(td, TypeError::NoSynthRule)
+        },
+        &Exp::DebugLabel(ref n, ref s,ref e) => {
+            let td2 = synth_exp(last_label, ctxt, e);
+            let typ2 = td2.typ.clone();
+            let td = ExpTD::DebugLabel(n.clone(),s.clone(),td2);
+            match typ2 {
+                Err(_) => fail(td, TypeError::ParamNoSynth(0)),
+                Ok(ty) => succ(td, ty),
+            }
+        },
+        &Exp::NoParse(ref s) => {
+            fail(ExpTD::NoParse(s.clone()), TypeError::NoParse(s.clone()))
+        },
     }
 }
 
@@ -1122,6 +1201,16 @@ pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffec
         // &Exp::Unimp => {},
         // &Exp::DebugLabel(ref s,ref e) => {},
         // &Exp::NoParse(ref s) => {},
-        _ => unimplemented!("Finish check expressions")
+        e => {
+            let mut td = synth_exp(last_label,ctxt,e);
+            let ty = td.typ.clone();
+            if let Ok(ty) = ty {
+                if ty == *ceffect { td }
+                else {
+                    td.typ = Err(TypeError::AnnoMism);
+                    td
+                }
+            } else { td }
+        },
     }
 }
