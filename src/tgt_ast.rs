@@ -859,6 +859,7 @@ pub type ValRec = Rc<Val>;
 /// ```text
 /// v::=
 ///     fromast ast (inject ast nodes)
+///     thunk e     (anonymous thunk)
 ///     v : A       (annotation)
 ///     (v1,v2,...) (unit,parens,tuples)
 ///     inj1 v      (first sum value)
@@ -882,6 +883,8 @@ macro_rules! tgt_val {
         Rc::new(tgt_val![$v]),
         tgt_vtype![$($a)+],
     )};
+    //     thunk e
+    { thunk $($e:tt)+ } => { Val::ThunkAnon(Rc::new(tgt_exp![$($e)+])) };
     //     (v1,v2,...) (unit,parens,tuples)
     { ($($tup:tt)*) } => { split_comma![parse_tgt_tuple <= $($tup)*] };
     //     inj1 v      (first sum value)

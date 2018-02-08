@@ -43,6 +43,20 @@ where F: FnOnce() -> tgt_eval::ExpTerm {
 }
 
 #[test]
+fn eval_force_anon_thunk () {
+    eval_test_equiv(
+        tgt_exp![
+            let x = {ret 1}
+            let y = {ret 2}
+            let t = {ret thunk x + y}
+            {force t}
+        ],
+        tgt_exp![
+            ret 3
+        ])        
+}
+
+#[test]
 fn eval_let_pair_natlt () {
     eval_test_equiv(
         tgt_exp![

@@ -92,12 +92,12 @@ pub fn exp () -> Exp { tgt_exp![
                 x Ref[Y3](Seq[X3][Y4]))
             )
     )
-        
+       
     fn max:(
         Thk[0] foralli (X,Y):NmSet.
             0 Seq[X][Y] Nat ->
-            ~~ {(#x.{x,@1} % {x,@2}) X; 0} ~~
-            F Nat
+        { (#x.{x,@1} % {x,@2}) X; 0 }
+        F Nat
     ) = {
         #seq. unroll seq seq. match seq {
             vec => { {force vec_max} vec }
@@ -113,8 +113,8 @@ pub fn exp () -> Exp { tgt_exp![
     fn is_empty:(
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y] Nat) ->
-            ~~ 0; Y ~~
-            F Bool
+        { 0; Y }
+        F Bool
     ) = {
         #seq. unroll match seq {
             vec => { {force vec_is_empty} vec }
@@ -132,8 +132,8 @@ pub fn exp () -> Exp { tgt_exp![
     fn is_empty_shallow:(
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y] Nat) ->
-            ~~ 0; 0 ~~
-            F Bool
+        { 0; 0 }
+        F Bool
     ) = {
         #seq. unroll match seq {
             vec => { {force vec_is_empty} vec }
@@ -156,8 +156,8 @@ pub fn exp () -> Exp { tgt_exp![
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y] Nat) ->
             0 (Thk[0] 0 Nat -> 0 Nat -> 0 F Bool) ->
-            ~~ (#x.{x,@1} % {x,@2}) X; 0 ~~
-            F Nat        
+        { (#x:Nm.{x,@1} % {x,@2}) X; 0 }
+        F Nat
     ) = {
         #seq. #binop. unroll seq seq. match seq {
             vec => { {force vec_monoid} vec }
@@ -175,7 +175,7 @@ pub fn exp () -> Exp { tgt_exp![
             0 (Seq[X][Y] Nat) ->
             0 (Thk[0] 0 Nat -> 0 F Nat)
             ~~ (#x.{x,@1} % {x,@2}) X; Y ~~
-            F Nat
+            F (Seq[X][X] Nat)
     ) = {
         #seq. #f. unroll match seq {
             vec => { {force vec_map } f vec }
@@ -193,7 +193,7 @@ pub fn exp () -> Exp { tgt_exp![
             0 (Seq[X][Y] Nat) ->
             0 (Thk[0] 0 Nat -> (0 F Bool)) ->
             ~~ (#x.{x,@1} % {x,@2}) X; Y ~~
-            F Nat
+            F (Seq[X][X] Nat)
     ) = {
         #seq. #f. unroll match seq {
             vec => { {force vec_filter} f vec }
