@@ -9,6 +9,7 @@ pub mod eval;
 
 // Target language (Typed Adapton)
 // --------------------------------
+#[macro_use]
 pub mod tgt_ast;
 pub mod tgt_bitype;
 pub mod tgt_eval;

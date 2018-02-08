@@ -50,10 +50,6 @@ force edges to clean or dirty.
 
 */
 
-
-#![recursion_limit="1128"]
-#[macro_use]
-
 use std::rc::Rc;
 
 use bitype;
@@ -65,7 +61,7 @@ pub fn exp () -> Exp { tgt_exp![
     //
     type Vec = (user(Vec))
         
-    let vec_filter:(
+    fn vec_filter:(
         Thk[0]
             0 (Vec Nat) ->
             0 (Thk[0] 0 Nat -> 0 F Bool) ->
@@ -74,7 +70,7 @@ pub fn exp () -> Exp { tgt_exp![
         unimplemented
     }
     
-    let vec_map:(
+    fn vec_map:(
         Thk[0]
             0 Vec Nat ->
             0 (Thk[0] 0 Nat -> 0 F Nat) ->
@@ -97,7 +93,7 @@ pub fn exp () -> Exp { tgt_exp![
             )
     )
         
-    let rec max:(
+    fn max:(
         Thk[0] foralli (X,Y):NmSet.
             0 Seq[X][Y] Nat ->
             ~~ {(#x.{x,@1} % {x,@2}) X; 0} ~~
@@ -113,8 +109,8 @@ pub fn exp () -> Exp { tgt_exp![
             }
         }
     }
-    
-    let rec is_empty:(
+
+    fn is_empty:(
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y] Nat) ->
             ~~ 0; Y ~~
@@ -132,8 +128,20 @@ pub fn exp () -> Exp { tgt_exp![
             }
         }
     }
-    
-    let rec is_singleton:(
+
+    fn is_empty_shallow:(
+        Thk[0] foralli (X,Y):NmSet.
+            0 (Seq[X][Y] Nat) ->
+            ~~ 0; 0 ~~
+            F Bool
+    ) = {
+        #seq. unroll match seq {
+            vec => { {force vec_is_empty} vec }
+            bin => { ret false }
+        }
+    }
+
+    fn is_singleton:(
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y] Nat) ->
             0 F Bool
@@ -144,7 +152,7 @@ pub fn exp () -> Exp { tgt_exp![
         }
     }
     
-    let rec monoid:(
+    fn monoid:(
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y] Nat) ->
             0 (Thk[0] 0 Nat -> 0 Nat -> 0 F Bool) ->
@@ -162,7 +170,7 @@ pub fn exp () -> Exp { tgt_exp![
         }
     }
     
-    let rec map:(
+    fn map:(
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y] Nat) ->
             0 (Thk[0] 0 Nat -> 0 F Nat)
@@ -180,7 +188,7 @@ pub fn exp () -> Exp { tgt_exp![
         }
     }
     
-    let rec filter:(
+    fn filter:(
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y] Nat) ->
             0 (Thk[0] 0 Nat -> (0 F Bool)) ->
@@ -201,7 +209,7 @@ pub fn exp () -> Exp { tgt_exp![
         }
     }
     
-    let rec map_filter:(
+    fn map_filter:(
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y] Nat) ->
             0 (Thk[0] 0 Nat -> 0 F (+ Unit + Nat)) ->
@@ -239,7 +247,7 @@ pub fn exp () -> Exp { tgt_exp![
     )
         
     // Convert sequence to the isomorphic list
-    let rec list_l2r_rec: (
+    fn list_l2r_rec: (
         Thk[0] foralli (X,X1,X2,X3, Y,Y1,Y2):NmSet | ((X1%X2%X3)=X)and((Y1%Y2%Y3)=Y).
             0 (Seq[X1][Y1] Nat) ->
             0 (x Nm[X3] x Nat x Ref[Y3](List[X2][Y2])) ->
@@ -260,7 +268,7 @@ pub fn exp () -> Exp { tgt_exp![
     // Convert sequence to the isomorphic list
     // -- special rightmost recursion
     // (no accum info)
-    let rec list_l2r_rmost: (
+    fn list_l2r_rmost: (
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y] Nat) ->
             ~~ X; Y ~~
@@ -278,7 +286,7 @@ pub fn exp () -> Exp { tgt_exp![
     }
     
     // Convert sequence to the isomorphic list, left-to-right
-    let rec list_l2r: (
+    fn list_l2r: (
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y] Nat) ->
             ~~ X; Y ~~
@@ -287,7 +295,7 @@ pub fn exp () -> Exp { tgt_exp![
     
     
     // Convert a list into a balanced level tree (a sequence), with a single pass
-    let rec seq_of_list: (
+    fn seq_of_list: (
         Thk[0] foralli (X,Y):NmSet.                
             0 List[X][Y] ->
             ~~ X;Y ~~

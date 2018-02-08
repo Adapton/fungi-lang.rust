@@ -9,5 +9,7 @@ Based on collections in these papers:
 
 */
 
+#[macro_use]
+
 /// Sequences (linked lists, and balanced level trees)
 pub mod seq;
