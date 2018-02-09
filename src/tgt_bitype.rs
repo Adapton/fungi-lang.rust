@@ -1191,6 +1191,22 @@ pub fn synth_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<Exp
 pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffect) -> TypeInfo<ExpTD> {
     let fail = |td:ExpTD, err :TypeError| { failure(Dir::Check, last_label, ctxt, td, err) };
     let succ = |td:ExpTD, typ :CEffect  | { success(Dir::Check, last_label, ctxt, td, typ) };
+
+    // TODO:
+    // Handle ForallIdx case *before* pattern-matching the expression.
+    // Recall, there is no expression form for `ForallIdx`.
+    // Hopefully, we don't need to add one.
+    //
+    // Example: Need to strip off _both_ of the ForallIdx CEffect
+    // terms below, and add their index variables to the typing
+    // context.
+    //
+    //    ForallIdx("X", NmSet, Tt,
+    //    ForallIdx("Y", NmSet, Tt,
+    //      Cons(Arrow(TypeApp(IdxApp(IdxApp(Cons(Seq), Var("X")), Var("Y")),
+    //      Cons(Nat)), Cons(Lift(Cons(Nat)),
+    //        WR(FlatMap(Lam("x", Nm, Disj(Sing(Bin(Var("x"), Name(Num(1)))), Sing(Bin(Var("x"), Name(Num(2)))))), Var("X")), Empty))), WR(Empty, Empty))))
+    //
     match exp {
         // &Exp::AnnoC(ref e,ref ct) => {},
         // &Exp::AnnoE(ref e,ref et) => {},
