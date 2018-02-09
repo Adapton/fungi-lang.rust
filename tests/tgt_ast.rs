@@ -8,7 +8,15 @@ use iodyn_lang::tgt_bitype::*;
 
 
 #[test]
-fn examples() {
+fn examples () {
+  use std::thread;
+  let child =
+    thread::Builder::new().stack_size(64 * 1024 * 1024).spawn(move || { 
+      examples2()
+    });
+  let _ = child.unwrap().join();
+}
+fn examples2() {
     use std::rc::Rc;
     use iodyn_lang::bitype;
     use iodyn_lang::tgt_ast::*;
