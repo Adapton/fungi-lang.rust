@@ -788,8 +788,7 @@ pub fn synth_val(last_label:Option<&str>, ctxt:&TCtxt, val:&Val) -> TypeInfo<Val
             let td = ValTD::ThunkAnon(td0);
             match typ0 {
                 Err(_) => fail(td, TypeError::ParamNoSynth(0)),
-                // TODO: do we need the type of CBPV thunks? No, Thk[0]
-                _ => fail(td, TypeError::Unimplemented),
+                Ok(ty) => succ(td, Type::Thk(IdxTm::Empty, Rc::new(ty))),
             }
         },
         &Val::Bool(b) => {
@@ -914,9 +913,18 @@ pub fn check_val(last_label:Option<&str>, ctxt:&TCtxt, val:&Val, typ:&Type) -> T
             ), TypeError::AnnoMism) }
         },
         &Val::ThunkAnon(ref e) => {
-            if false {
-                // TODO: we may need a type for CBPV thunks
-                unimplemented!()
+            if let Type::Thk(ref _idx, ref ce) = *typ {
+                let td0 = check_exp(last_label, ctxt, &*e, &*ce);
+                let typ0 = td0.typ.clone();
+                let td = ValTD::ThunkAnon(td0);
+                // TODO: use this once effects are implemented
+                // if IdxTm::Empty != *idx {
+                //     return fail(td, TypeError::InvalidPtr)
+                // }
+                match typ0 {
+                    Err(_) => fail(td, TypeError::ParamNoCheck(0)),
+                    Ok(_) => succ(td, typ.clone())
+                }
             } else { fail(ValTD::ThunkAnon(
                 synth_exp(last_label, ctxt, e)
             ), TypeError::AnnoMism) }
@@ -958,7 +966,10 @@ pub fn synth_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<Exp
     let succ = |td:ExpTD, typ :CEffect  | { success(Dir::Synth, last_label, ctxt, td, typ) };
     match exp {
         &Exp::AnnoC(ref e,ref ctyp) => {
-            let td0 = synth_exp(last_label, ctxt, e);
+            // TODO: this is a hackthat only works while we're ignoring effects,
+            // we need check_exp to handle an optional effect
+            let noeffect = Effect::WR(IdxTm::Empty,IdxTm::Empty);
+            let td0 = check_exp(last_label, ctxt, e, &CEffect::Cons(ctyp.clone(),noeffect));
             let typ0 = td0.typ.clone();
             let td = ExpTD::AnnoC(td0, ctyp.clone());
             match typ0 {
@@ -1178,6 +1189,8 @@ pub fn synth_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<Exp
 }
 
 pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffect) -> TypeInfo<ExpTD> {
+    let fail = |td:ExpTD, err :TypeError| { failure(Dir::Check, last_label, ctxt, td, err) };
+    let succ = |td:ExpTD, typ :CEffect  | { success(Dir::Check, last_label, ctxt, td, typ) };
     match exp {
         // &Exp::AnnoC(ref e,ref ct) => {},
         // &Exp::AnnoE(ref e,ref et) => {},
@@ -1185,10 +1198,74 @@ pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffec
         // &Exp::Thunk(ref v,ref e) => {},
         // &Exp::Unroll(ref v,ref x,ref e) => {},
         // &Exp::Fix(ref x,ref e) => {},
-        // &Exp::Ret(ref v) => {},
+        &Exp::Ret(ref v) => {
+            if let CEffect::Cons(CType::Lift(ref ct),ref _ef) = *ceffect {
+                let td0 = check_val(last_label, ctxt, v, ct);
+                let typ0 = td0.typ.clone();
+                let td = ExpTD::Ret(td0);
+                // TODO: use this once effects are properly implemented
+                // if *ef != Effect::WR(IdxTm::Empty,IdxTm::Empty) {
+                //     return fail(td, TypeError::InvalidPtr)
+                // }
+                match typ0 {
+                    Err(_) => fail(td, TypeError::ParamNoCheck(0)),
+                    Ok(_) => succ(td, ceffect.clone())
+                }
+            } else { fail(ExpTD::Ret(
+                synth_val(last_label,ctxt,v)
+            ), TypeError::AnnoMism) }
+        },
         // &Exp::DefType(ref x,Type,ref e) => {},
-        // &Exp::Let(ref x,ExpRec,ExpRec) => {},
-        // &Exp::Lam(ref x, ref e) => {},
+        &Exp::Let(ref x,ref e1, ref e2) => {
+            if let CEffect::Cons(ref ctyp,ref _eff) = *ceffect {
+                let td1 = synth_exp(last_label, ctxt, e1);
+                let typ1 = td1.typ.clone();
+                match typ1 {
+                    Err(_) => { fail(ExpTD::Let(
+                        x.clone(), td1,
+                        synth_exp(last_label, ctxt, e2)
+                    ), TypeError::ParamNoSynth(1)) },
+                    Ok(CEffect::Cons(CType::Lift(ref ct1),ref _eff1)) => {
+                        let new_ctxt = ctxt.var(x.clone(),ct1.clone());
+                        // TODO: compute this effect
+                        let eff2 = Effect::WR(IdxTm::Empty,IdxTm::Empty);
+                        let typ2 = CEffect::Cons(ctyp.clone(), eff2);
+                        let td2 = check_exp(last_label, &new_ctxt, e2, &typ2);
+                        let typ2res = td2.typ.clone();
+                        let td = ExpTD::Let(x.clone(), td1,td2);
+                        match typ2res {
+                            Err(_) => fail(td, TypeError::ParamNoCheck(2)),
+                            Ok(_) => succ(td, ceffect.clone()),
+                        }
+                    },
+                    _ => fail(ExpTD::Let(
+                        x.clone(), td1,
+                        synth_exp(last_label,ctxt,e2)
+                    ), TypeError::ParamMism(1)),
+                }
+            } else { fail(ExpTD::Let(x.clone(),
+                synth_exp(last_label, ctxt, e1),
+                synth_exp(last_label, ctxt, e1),
+            ), TypeError::AnnoMism) }
+        },
+        &Exp::Lam(ref x, ref e) => {
+            if let CEffect::Cons(CType::Arrow(ref at,ref et),ref _ef) = *ceffect {
+                let new_ctxt = ctxt.var(x.clone(),at.clone());
+                let td1 = check_exp(last_label, &new_ctxt, e, et);
+                let typ1 = td1.typ.clone();
+                let td = ExpTD::Lam(x.clone(), td1);
+                // TODO: use this once effects are properly implemented
+                // if *ef != Effect::WR(IdxTm::Empty,IdxTm::Empty) {
+                //     return fail(td, TypeError::InvalidPtr)
+                // }
+                match typ1 {
+                    Err(_) => fail(td, TypeError::ParamNoCheck(1)),
+                    Ok(_) => succ(td, ceffect.clone()),
+                }
+            } else { fail(ExpTD::Lam(
+                x.clone(), synth_exp(last_label, ctxt, e)
+            ), TypeError::AnnoMism) }
+        },
         // &Exp::App(ref e, ref v) => {},
         // &Exp::Split(ref v, ref x1, ref x2, ref e) => {},
         // &Exp::Case(ref v, ref x1, ExpRec, ref x2, ExpRec) => {},
@@ -1198,7 +1275,9 @@ pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffec
         // &Exp::Scope(ref v,ref e) => {},
         // &Exp::NameFnApp(ref v1,ref v2) => {},
         // &Exp::PrimApp(PrimApp) => {},
-        // &Exp::Unimp => {},
+        &Exp::Unimp => {
+            succ(ExpTD::Unimp, ceffect.clone())
+        },
         // &Exp::DebugLabel(ref s,ref e) => {},
         // &Exp::NoParse(ref s) => {},
         e => {
