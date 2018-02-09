@@ -1201,11 +1201,14 @@ pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffec
     // terms below, and add their index variables to the typing
     // context.
     //
-    //    ForallIdx("X", NmSet, Tt,
+    //   ForallIdx("X", NmSet, Tt,
     //    ForallIdx("Y", NmSet, Tt,
-    //      Cons(Arrow(TypeApp(IdxApp(IdxApp(Cons(Seq), Var("X")), Var("Y")),
-    //      Cons(Nat)), Cons(Lift(Cons(Nat)),
-    //        WR(FlatMap(Lam("x", Nm, Disj(Sing(Bin(Var("x"), Name(Num(1)))), Sing(Bin(Var("x"), Name(Num(2)))))), Var("X")), Empty))), WR(Empty, Empty))))
+    //     Cons(Arrow(TypeApp(IdxApp(IdxApp(Cons(Seq), Var("X")), Var("Y")), Cons(Nat)),
+    //       Cons(Lift(Cons(Nat)), WR(FlatMap(Lam("x", Nm, Disj(Sing(Bin(Var("x"), Name(Num(1)))), Sing(Bin(Var("x"), Name(Num(2)))))), Var("X")), Empty)
+    //
+    // Currently, The seq-filter and seq-max examples fail because
+    // `lam x. e` terms do not check against `foralli X:sort|P. E`,
+    // but only against `A -> E`
     //
     match exp {
         // &Exp::AnnoC(ref e,ref ct) => {},
