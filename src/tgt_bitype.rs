@@ -973,7 +973,7 @@ pub fn synth_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<Exp
             let typ0 = td0.typ.clone();
             let td = ExpTD::AnnoC(td0, ctyp.clone());
             match typ0 {
-                Err(_) => fail(td, TypeError::ParamNoSynth(0)),
+                Err(_) => fail(td, TypeError::ParamNoCheck(0)),
                 Ok(CEffect::Cons(ct,eff)) => {
                     if *ctyp == ct { succ(td, CEffect::Cons(ct,eff)) }
                     else { fail(td, TypeError::AnnoMism) }
