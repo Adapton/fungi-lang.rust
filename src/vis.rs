@@ -1,4 +1,4 @@
-//! Visualization of ASTs, typings, evaluation, etc
+//! Visualization of ASTs, typings, evaluation, etc.
 
 use std::rc::Rc;
 

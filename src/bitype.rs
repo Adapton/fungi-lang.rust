@@ -1,4 +1,4 @@
-/*! Algorithmic (bidirectional) type system
+/*! Bidirectional type system.
 
 # Fungi: bidirectional type system
 
