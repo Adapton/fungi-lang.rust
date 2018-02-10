@@ -1,3 +1,5 @@
+//! Visualization of ASTs, typings, evaluation, etc
+
 use std::rc::Rc;
 
 use ast::*;

@@ -1,9 +1,11 @@
-//! Fungi: big-step evaluation semantics.
+//! Evaluation semantics
 //!
-//! Gives the incremental semantics of Fungi programs, using an
-//! external library (Adapton in Rust) to create and maintain the
-//! "demanded computation graph" (the DCG), that underpins change
-//! propagation.
+//! # Fungi evaluation semantics
+//!
+//! This module gives the incremental semantics of Fungi programs,
+//! using an external library ([Adapton in Rust](http://adapton.org))
+//! to create and maintain the "demanded computation graph" (the DCG),
+//! that underpins change propagation.
 //!
 //! ## Design discussion
 //!

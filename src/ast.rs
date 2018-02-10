@@ -1,4 +1,33 @@
-//! Target language AST --- aka, typed adapton AST defs
+//! Fungi abstract syntax, and concrete syntax via Rust macros
+//!
+//! **Program terms**:  
+//!  - Expressions: [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_exp.html),
+//!                 [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Exp.html).  
+//!  - Values:      [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_val.html),
+//!                 [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Val.html).  
+//!
+//! **Types and effects**:  
+//!  - Value types:          [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_vtype.html),
+//!                          [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Type.html).  
+//!  - Computation types:    [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_ctype.html),
+//!                          [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.CType.html).  
+//!  - Effect types:         [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_ceffect.html),
+//!                          [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.CEffect.html).  
+//!  - Effects:              [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_effect.html),
+//!                          [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Effect.html).  
+//!  - Kinds:                [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_kind.html),
+//!                          [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Kind.html).  
+//!
+//! **Index terms, name terms, sorts**:  
+//!  - Name terms:           [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_nametm.html),
+//!                          [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.NameTm.html).    
+//!  - Index terms:          [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_index.html),
+//!                          [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.IdxTm.html).  
+//!  - Propositions:         [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_prop.html),
+//!                          [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Prop.html).  
+//!  - Sorts:                [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_sort.html),
+//!                          [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Sort.html).  
+//!
 
 use std::rc::Rc;
 
