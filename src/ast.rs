@@ -1,1105 +1,1356 @@
-//!  IODyn Source AST definitions
+//! Target language AST --- aka, typed adapton AST defs
 
-use std::cell::RefCell;
-use std::fmt::{self,Debug};
 use std::rc::Rc;
-//use std::collections::hash_map::HashMap;
-use std::hash::Hash;
-use eval::Env;
 
 pub type Var = String;
 
-pub type NameRec = Rc<Name>;
+/// Name Literals
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Name {
     Leaf,
     Sym(String),
-    Fileline(String,usize,Option<usize>),
-    Bin(NameRec, NameRec)
+    Num(usize),
+    Bin(NameRec, NameRec),
+    NoParse(String),
 }
-impl fmt::Display for Name {
-    fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Name::Leaf => write!(f,"[]"),
-            Name::Sym(ref s) => write!(f,"[{}]",s),
-            Name::Bin(ref n1, ref n2) => write!(f,"[{}{}]",&**n1,&**n2),
-            Name::Fileline(ref file, ref line, ref c) => write!(f,"[{}:{}-{:?}]",&**file,&*line,&*c),
-        }
-    }
-}
-#[macro_export]
-/// Constructor for Name
+pub type NameRec = Rc<Name>;
+
+/// Parser for Name Literals
 ///
 /// ```text
 /// n ::=
-///     []              (leaf)
-///     [sym s]         (symbol)
-///     [#]             (file-line, of macro invocation's root)
-///     [# num]         (file-line, of macro invocation's root, with number)
-///     [n]             (name, extra braces ignored)
-///     [[n][n]...]     (extended bin)
+///     fromast ast_expr    (inject ast nodes)
+///     []                  (leaf)
+///     n,n, ...            (extended bin)
+///     @@str               (symbol)
+///     @123                (number)
 /// ```
-macro_rules! make_name {
+#[macro_export]
+macro_rules! tgt_name {
+    // fromast ast_expr    (inject ast nodes)
+    { fromast $ast:expr } => { $ast };
     // [] (leaf)
     { [] } => { Name::Leaf };
-    // [sym s] (symbol)
-    { [sym $($s:tt)+]} => { Name::Sym(stringify![$($s)+].to_string())};
-    // [#] (file-line, of macro invocation's root)
-    { [#] } => { Name::Fileline(file!().to_string(),line!() as usize,None)};
-    // [# num] (file-line, of macro invocation's root, with number)
-    { [# $num:expr] } => { Name::Fileline(file!().to_string(),line!() as usize,Some($num as usize))};
-    // [n] (extra braces ignored)
-    { [$(name:tt)+] } => { make_name![$(name)+] };
-    // [[n][n]...] (extended bin)
-    { [[$(name:tt)*] $($names:tt)+] } => {
-        Name::Bin(Rc::new(make_name![[$(name)*]]),Rc::new(make_name![$($names)+]))
+    // n,n, ... (extended bin)
+    { name:tt, $($names:tt)+ } => {
+        Name::Bin(Rc::new(tgt_name![$name]),Rc::new(tgt_name![$($names)+]))
     };
+    // @@str (symbol)
+    { @@$($s:tt)+ } => { Name::Sym(stringify![$($s)+].to_string())};
+    // @123 (number)
+    { @$n:expr } => { Name::Num($n) };
+    // failure
+    { $($any:tt)* } => { Name::NoParse(stringify![$($any)*].to_string())};
 }
 
-impl From<usize> for Name {
-    fn from(n: usize) -> Self {
-        match n {
-            0 => Name::Leaf,
-            n => Name::Bin(
-                Rc::new(Name::Leaf),
-                Rc::new(Name::from(n - 1))
-            )
-        }
-    }
+
+/// Name Terms
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum NameTm {
+    Var(Var),
+    Name(Name),
+    Bin(NameTmRec, NameTmRec),
+    Lam(Var, Sort, NameTmRec),
+    App(NameTmRec, NameTmRec),
+    NoParse(String),
+}
+pub type NameTmRec = Rc<NameTm>;
+
+/// Parser for Name Terms
+///
+/// ```text
+/// M,N ::=
+///     fromast ast_expr    (inject ast nodes)
+///     [N]                 (parens)
+///     #a:g.M              (abstraction)
+///     [M] N ...           (curried application)
+///     a                   (Variable)
+///     M, N, ...           (extended bin)
+///     n                   (literal Name)
+/// ```
+#[macro_export]
+macro_rules! tgt_nametm {
+    //     fromast ast_expr    (inject ast nodes)
+    { fromast $ast:expr } => { $ast };
+    //     [N]                 (parens)
+    { [$($nmtm:tt)+] } => { tgt_nametm![$($nmtm)+] };
+    //     @n                  (literal name)
+    { @$($nm:tt)+ } => { NameTm::Name(tgt_name![@$($nm)+]) };
+    //     #a:g.M                (abstraction)
+    { # $var:ident : $sort:tt . $($body:tt)+ } => { NameTm::Lam(
+        stringify![$var].to_string(),
+        tgt_sort![$sort],
+        Rc::new(tgt_nametm![$($body)+]),
+    )};
+    //     [M] N             (single application)
+    { [$($nmfn:tt)+] $par:tt } => { NameTm::App(
+        Rc::new(tgt_nametm![$($nmfn)+]),
+        Rc::new(tgt_nametm![$par]),
+    )};
+    //     [M] N ...         (curried application)
+    { [$($nmfn:tt)+] $par:tt $($pars:tt)+ } => {
+        tgt_nametm![[fromast NameTm::App(
+            Rc::new(tgt_nametm![$($nmfn)+]),
+            Rc::new(tgt_nametm![$par]),
+        )] $($pars)+]
+    };
+    //     a                   (Variable)
+    { $var:ident } => { NameTm::Var(stringify![$var].to_string()) };
+    //     M, N, ...           (extended bin, literal names)
+    { $($nmtms:tt)+ } => { split_comma![parse_tgt_name_bin <= $($nmtms)+]};
+    // failure
+    { $($any:tt)* } => { NameTm::NoParse(stringify![$($any)*].to_string())};
+}
+/// this macro is a helper for tgt_nametm, not for external use
+#[macro_export]
+macro_rules! parse_tgt_name_bin {
+    // M
+    { ($($n:tt)+) } => { NameTm::Name(tgt_name![$($n)+]) };
+    // M,N
+    { ($($n:tt)+)($($m:tt)+) } => { NameTm::Bin(
+        Rc::new(tgt_nametm![$($n)+]),
+        Rc::new(tgt_nametm![$($m)+]),
+    )};
+    // M,N, ...
+    { ($($n:tt)+)($($m:tt)+) $($more:tt)+ } => { NameTm::Bin(
+        Rc::new(tgt_nametm![$($n)+]),
+        Rc::new(parse_tgt_name_bin![($($m)+) $($more)+]),
+    )};
+    // failure
+    { $($any:tt)* } => { NameTm::NoParse(stringify![(, $($any)*)].to_string())};
 }
 
-pub type TypeRec = Rc<Type>;
+
+/// Index terms
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum IdxTm {
+    Var(Var),
+    Sing(NameTm),
+    Empty,
+    Disj(IdxTmRec, IdxTmRec),
+    Union(IdxTmRec, IdxTmRec),
+    Unit,
+    Pair(IdxTmRec, IdxTmRec),
+    Proj1(IdxTmRec),
+    Proj2(IdxTmRec),
+    Lam(Var, Sort, IdxTmRec),
+    App(IdxTmRec, IdxTmRec),
+    Map(NameTmRec, IdxTmRec),
+    FlatMap(IdxTmRec, IdxTmRec),
+    Star(IdxTmRec, IdxTmRec),
+    NoParse(String),
+}
+pub type IdxTmRec = Rc<IdxTm>;
+
+/// Parser for Index Terms
+///
+/// ```text
+/// i,j,X,Y ::=
+///     fromast ast (inject ast nodes)
+///     (i)         (parens)
+///     {N}         (singleton name set)
+///     0           (empty set)
+///     X % Y ...   (separating union extended - left to right)
+///     X U Y ...   (union extended - left to right)
+///     ()          (unit)
+///     (i,j)       (pairing)
+///     prj1 i      (projection)
+///     prj2 i      (projection)
+///     #a:g.i      (abstraction)
+///     {i} j ...   (curried application)
+///     [M] j       (mapping)
+///     (i) j       (flatmapping)
+///     (i)* j      (iterated flatmapping)
+///     a           (variable)
+/// ```
+#[macro_export]
+macro_rules! tgt_index {
+    //     fromast ast (inject ast nodes)
+    { fromast $ast:expr } => { $ast };
+    //     (i)         (parens)
+    { ($($i:tt)+) } => { tgt_index![$($i)+] };
+    //     {N}         (singleton name set)
+    { {$($nmtm:tt)+} } => { IdxTm::Sing(tgt_nametm![$($nmtm)+])};
+    //     0           (empty set)
+    { 0 } => { IdxTm::Empty };
+    //     X % Y       (separating union)
+    { $x:tt % $y:tt } => { IdxTm::Disj(
+        Rc::new(tgt_index![$x]),
+        Rc::new(tgt_index![$y]),
+    )};
+    //     X % Y ...   (separating union extended - left to right)
+    { $x:tt % $y:tt $($more:tt)+ } => {
+        tgt_index![(fromast IdxTm::Disj(
+            Rc::new(tgt_index![$x]),
+            Rc::new(tgt_index![$y]),
+        )) $($more)+]
+    };
+    //     X U Y       (union)
+    { $x:tt U $y:tt } => { IdxTm::Union(
+        Rc::new(tgt_index![$x]),
+        Rc::new(tgt_index![$y]),
+    )};
+    //     X U Y ...   (union extended - left to right)
+    { $x:tt U $y:tt $($more:tt)+ } => {
+        tgt_index![(fromast IdxTm::Union(
+            Rc::new(tgt_index![$x]),
+            Rc::new(tgt_index![$y]),
+        )) $($more)+]
+    };
+    //     ()          (unit)
+    { () } => { IdxTm::Unit };
+    //     (i,j)       (pairing)
+    { ($i:tt,$j:tt) } => { IdxTm::Pair(
+        Rc::new(tgt_index![$i]),
+        Rc::new(tgt_index![$j]),
+    )};
+    //     prj1 i      (projection)
+    { prj1 $($i:tt)+ } => {
+        IdxTm::Proj1(Rc::new(tgt_index![$i]))
+    };
+    //     prj2 i      (projection)
+    { prj2 $($i:tt)+ } => {
+        IdxTm::Proj2(Rc::new(tgt_index![$i]))
+    };
+    //     #a:g.i        (abstraction)
+    { # $a:ident : $sort:tt . $($body:tt)+ } => { IdxTm::Lam(
+        stringify![$a].to_string(),
+        tgt_sort![$sort],
+        Rc::new(tgt_index![$($body)+]),
+    )};
+    //     {i} j       (single application)
+    { {$($i:tt)+} $par:tt } => { IdxTm::App(
+        Rc::new(tgt_index![$($i)+]),
+        Rc::new(tgt_index![$par]),
+    )};
+    //     {i} j ...   (curried application)
+    { {$($i:tt)+} $par:tt $($pars:tt)+ } => {
+        tgt_index![{fromast IdxTm::App(
+            Rc::new(tgt_index![$($i)+]),
+            Rc::new(tgt_index![$par]),
+        )} $($pars)+]
+    };
+    //     [M] j       (mapping)
+    { [$($m:tt)+] $($par:tt)+ } => { IdxTm::Map(
+        Rc::new(tgt_nametm![$($m)+]),
+        Rc::new(tgt_index![$($par)+]),
+    )};
+    //     (i)* j      (iterated flatmapping)
+    { ($($i:tt)+)* $($j:tt)+ } => { IdxTm::Star(
+        Rc::new(tgt_index![$($i)+]),
+        Rc::new(tgt_index![$($j)+]),
+    )};
+    //     (i) j       (flatmapping)
+    { ($($i:tt)+) $($par:tt)+ } => { IdxTm::FlatMap(
+        Rc::new(tgt_index![$($i)+]),
+        Rc::new(tgt_index![$($par)+]),
+    )};
+    //     a           (variable)
+    { $var:ident } => { IdxTm::Var(stringify![$var].to_string()) };
+    // failure
+    { $($any:tt)* } => { IdxTm::NoParse(stringify![$($any)*].to_string())};
+}
+
+/// Sorts (classify name and index terms)
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum Sort {
+    Nm,
+    NmSet,
+    NmArrow(SortRec,SortRec),
+    IdxArrow(SortRec,SortRec),
+    Unit,
+    Prod(SortRec,SortRec),
+    NoParse(String),
+}
+pub type SortRec = Rc<Sort>;
+
+/// Parser for Sorts
+///
+/// ```text
+/// g ::=
+///     fromast ast         (inject ast nodes)
+///     Nm                  (name)
+///     NmSet               (name set)
+///     1                   (unit index)
+///     (g1 x g2 x ...)     (extended product index)
+///     [g1 -> g2 -> ...]   (extended name term functions)
+///     {g1 -> g2 -> ...}   (extended index functions)
+///     (g)                 (parens)
+/// ```
+#[macro_export]
+macro_rules! tgt_sort {
+    //     fromast ast (inject ast nodes)
+    { fromast $ast:expr } => { $ast };
+    //     Nm                  name
+    { Nm } => { Sort::Nm };
+    //     NmSet               name set
+    { NmSet } => { Sort::NmSet };
+    //     1                   unit index
+    { 1 } => { Sort::Unit };
+    //     (g1 x g2)           single product index
+    { ($g1:tt x $g2:tt) } => { Sort::Prod(
+        Rc::new(tgt_sort![$g1]),
+        Rc::new(tgt_sort![$g2]),
+    )};
+    //     (g1 x g2 x ...)     extended product index
+    { ($g1:tt x g2:tt x $($more:tt)+) } => { Sort::Prod(
+        Rc::new(tgt_sort![$g1]),
+        Rc::new(tgt_sort![($g2 x $($more)+)]),
+    )};
+    //     (g1 -> g2)          single name term functions
+    { ($g1:tt -> $g2:tt) } => { Sort::NmArrow(
+        Rc::new(tgt_sort![$g1]),
+        Rc::new(tgt_sort![$g2]),
+    )};
+    //     [g1 -> g2 -> ...]     extended name term functions
+    { ($g1:tt -> g2:tt -> $($more:tt)+) } => { Sort::NmArrow(
+        Rc::new(tgt_sort![$g1]),
+        Rc::new(tgt_sort![[$g2 -> $($more)+]]),
+    )};
+    //     {g1 -> g2}            single index functions
+    { ($g1:tt -> $g2:tt) } => { Sort::IdxArrow(
+        Rc::new(tgt_sort![$g1]),
+        Rc::new(tgt_sort![$g2]),
+    )};
+    //     {g1 -> g2 -> ...}     extended index functions
+    { ($g1:tt -> g2:tt -> $($more:tt)+) } => { Sort::IdxArrow(
+        Rc::new(tgt_sort![$g1]),
+        Rc::new(tgt_sort![{$g2 -> $($more)+}]),
+    )};
+    //     (g)                 (parens)
+    { ($($sort:tt)+) } => { tgt_sort![$($sort:tt)+] };
+    // failure
+    { $($any:tt)* } => { Sort::NoParse(stringify![$($any)*].to_string())};
+}
+
+/// Kinds (classify types)
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum Kind {
+    Type,
+    TypeParam(KindRec),
+    IdxParam(Sort, KindRec),
+    NoParse(String),
+}
+pub type KindRec = Rc<Kind>;
+
+/// Parser for Kinds
+///
+/// ```text
+/// K ::=
+///     fromast ast (inject ast nodes)
+///     (K)         (parens)
+///     type        (kind of value types)
+///     type => K   (type argument)
+///     g => K      (index argument)
+/// ```
+#[macro_export]
+macro_rules! tgt_kind {
+    //     fromast ast (inject ast nodes)
+    { fromast $ast:expr } => { $ast };
+    //     (K)         (parens)
+    { ($($kind:tt)+) } => { tgt_kind![$($kind)+] };
+    //     type        (kind of value types)
+    { type } => { Kind::Type };
+    //     type => K   (type argument)
+    { type => $($kinds:tt)+ } => { Kind::TypeParam(
+        Rc::new(tgt_kind![$($kinds)+])
+    )};
+    //     g => K      (index argument)
+    { $g:tt => $($kinds:tt)+ } => { Kind::IdxParam(
+        tgt_sort![$g],
+        Rc::new(tgt_kind![$($kinds)+]),
+    )};
+    // failure
+    { $($any:tt)* } => { Kind::NoParse(stringify![$($any)*].to_string())};
+}
+
+/// Propositions about name and index terms
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum Prop {
+    Tt,
+    Equiv(IdxTm, IdxTm, Sort),
+    Disj(IdxTm, IdxTm, Sort),
+    Conj(PropRec, PropRec),
+    NoParse(String),
+}
+pub type PropRec = Rc<Prop>;
+
+/// Parser for Propositions
+///
+/// ```text
+/// P ::=
+///     fromast ast     (inject ast nodes)
+///     (P)             (parens)
+///     tt              (truth)
+///     P and P and ... (extended conjunction)
+///     i % j : g       (index apartness)
+///     i = j : g       (index equivalence)
+/// ```
+#[macro_export]
+macro_rules! tgt_prop {
+    //     fromast ast     (inject ast nodes)
+    { fromast $ast:expr } => { $ast };
+    //     (P)             (parens)
+    { ($($prop:tt)+) } => { tgt_prop![$($prop)+] };
+    //     tt              (truth)
+    { tt } => { Prop::Tt };
+    //     P and P and ... (extended conjunction)
+    { $p1:tt and $p2:tt and $($more:tt)+ } => {
+        tgt_prop![(fromast Prop::Conj(
+            Rc::new(tgt_prop![$p1]),
+            Rc::new(tgt_prop![$p2]),
+        )) and $($more)+ ]
+    };
+    //     P and P         (single conjunction)
+    { $p1:tt and $($p2:tt)+ } => { Prop::Conj(
+        Rc::new(tgt_prop![$p1]),
+        Rc::new(tgt_prop![$($p2)+]),
+    )};
+    //     i % j : g       (index apartness)
+    { $i:tt % $j:tt : $($g:tt)+ } => { Prop::Disj(
+        tgt_index![$i],
+        tgt_index![$j],
+        tgt_sort![$g],
+    )};
+    //     i = j : g       (index equivalence)
+    { $i:tt = $j:tt : $($g:tt)+ } => { Prop::Equiv(
+        tgt_index![$i],
+        tgt_index![$j],
+        tgt_sort![$g],
+    )};
+    // failure
+    { $($any:tt)* } => { Prop::NoParse(stringify![$($any)*].to_string())};
+}
+
+/// Effects
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum Effect {
+    WR(IdxTm, IdxTm),
+    Then(EffectRec, EffectRec),
+    NoParse(String),
+}
+pub type EffectRec = Rc<Effect>;
+
+/// Parser for Effects
+///
+/// ```text
+/// ε ::=
+///     fromast ast        (inject ast nodes)
+///     (ε)                (parens)
+///     {X;Y}              (<Write; Read> effects)
+///     0                  (sugar - {0;0})
+///     ε1 then ε2 ...     (extended effect sequencing)
+/// ```
+#[macro_export]
+macro_rules! tgt_effect {
+    //     fromast ast        (inject ast nodes)
+    { fromast $ast:expr } => { $ast };
+    //     (ε)                (parens)
+    { ($($e:tt)+) } => { tgt_effect![$($e)+] };
+    //     {X;Y}              (<Write; Read> effects)
+    { {$($wr:tt)+} } => { split_semi![parse_tgt_eff <= $($wr)+]};
+    //     0                  (sugar - {0;0})
+    { 0 } => { tgt_effect![ {0;0} ] };
+    //     ε1 then ε2         (sinlge effect sequencing)
+    { $e1:tt then $e2:tt } => { Effect::Then(
+        Rc::new(tgt_effect![$e1]),
+        Rc::new(tgt_effect![$e2]),
+    )};
+    //     ε1 then ε2 ...     (extended effect sequencing)
+    { $e1:tt then $e2:tt $($more:tt)+ } => {
+        tgt_effect![(fromast Effect::Then(
+            Rc::new(tgt_effect![$e1]),
+            Rc::new(tgt_effect![$e2]),
+        )) $($more)+]
+    };
+    // failure
+    { $($any:tt)* } => { Effect::NoParse(stringify![$($any)*].to_string())};
+}
+/// this macro is a helper for tgt_effect, not for external use
+#[macro_export]
+macro_rules! parse_tgt_eff {
+    { ($($w:tt)+)($($r:tt)+) } => { Effect::WR(
+        tgt_index![$($w)+],
+        tgt_index![$($r)+],
+    )};
+    // failure
+    { $($any:tt)* } => { Effect::NoParse(stringify![(; $($any)*)].to_string())};
+}
+
+/// Type constructors
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum TypeCons {
+    D,
+    Bool,
+    Nat,
+    String,
+    Seq,
+    User(String),
+    NoParse(String),
+}
+/// Parser for TypeConstructors
+#[macro_export]
+macro_rules! tgt_tcons {
+    { D } => { TypeCons::D };
+    { Bool } => { TypeCons::Bool };
+    { Nat } => { TypeCons::Nat };
+    { String } => { TypeCons::String };
+    { Seq } => { TypeCons::Seq };
+    { $s:ident } => { TypeCons::User(stringify![$s].to_string()) };
+    // failure
+    { $($any:tt)* } => { TypeCons::NoParse(stringify![$($any)*].to_string())};
+}
+
+/// Value types
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Type {
-    Unit,
-    Pair(TypeRec, TypeRec),
+    Var(Var),
+    Cons(TypeCons),
     Sum(TypeRec, TypeRec),
-    Ref(TypeRec),
-    U(CTypeRec),
-    PrimApp(PrimTyApp)
+    Prod(TypeRec, TypeRec),
+    Unit,
+    Ref(IdxTm, TypeRec),
+    Thk(IdxTm, CEffectRec),
+    IdxApp(TypeRec, IdxTm),
+    TypeApp(TypeRec, TypeRec),
+    Nm(IdxTm),
+    NmFn(NameTm),
+    TypeFn(Var, Kind, TypeRec),
+    IdxFn(Var, Sort, TypeRec),
+    Rec(Var, TypeRec),
+    // Exists for index-level variables; they are classified by sorts
+    Exists(Var, SortRec, Prop, TypeRec),
+    NoParse(String),
 }
-#[macro_export]
-/// Constructor for Type
-///
+pub type TypeRec = Rc<Type>;
+
+/// Parser for value types
+/// 
 /// ```text
-/// t ::=
-///     outerctx rust_expr  (insert variables, etc.)
-///     (t1 x t2 x ...)     (extended product, unit, extra parens)
-///     [t1 + t2 + ...]     (extended coproduct, unit, extra parens)
-///     ref t
-///     U ct
-///     Prim
-///     Prim(vars)
+/// A,B ::=
+///     fromast ast     (inject ast nodes)
+///     (A)             (parens)
+///     D,Bool,Seq,...  (type constructors)
+///     user(type)      (user-defined)
+///     Unit            (unit)
+///     + A + B ...     (extended sums)
+///     x A x B ...     (extended product)
+///     Ref[i] A        (named ref cell)
+///     Thk[i] E        (named thunk with effects)
+///     Nm[i]           (name type)
+///     A[i]...         (extended application of type to index)
+///     (Nm->Nm)[M]     (name function type)
+///     forallt (a,b,...):K.A   (type parameter)
+///     foralli (a,b,...):g.A   (index parameter)
+///     rec a.A         (recursive type)
+///     exists (X,Y,...):g | P . A
+///                     (existential index variables, with common sort g)
+///     A B ...         (extended application of type constructor to type)
+///     a               (type var)
 /// ```
-macro_rules! make_type {
-    // outerctx rust_expr (insert variables, etc.)
-    { outerctx $out:expr } => { $out };
-    // (t1 x t2 x ...) (extended product, unit, extra parens)
-    { ($($types:tt)*) } => { split_cross![parse_product <= $($types)*] };
-    // [t1 + t2 + ...] (extended coproduct, unit, extra parens)
-    { [$($types:tt)*] } => { split_plus![parse_coproduct <= $($types)*] };
-    // ref t
-    { ref $($t:tt)+ } => { Type::Ref(Rc::new(make_type![$($t)+]))};
-    // U ct
-    { U $($ct:tt)+ } => { Type::U(Rc::new(make_ctype![$($ct)+]))};
-    // F t  (not a value type, parse it and let the typechecker handle it)
-    { F $($t:tt)+ } => { CType::F(Rc::new(make_type![$($t)+]))};
-    // Prim
-    { $ty:ident } => { Type::PrimApp(parse_prim_t![$ty]) };
-    // Prim(vars)
-    { $ty:ident($($vars:tt)*) } => { Type::PrimApp(split_comma![parse_prim_t ($ty) <= $($vars)*]) };
-}
 #[macro_export]
-macro_rules! parse_product {
-    // ()
-    { } => { Type::Unit };
-    // (t)
-    { ($($type:tt)+) } => { make_type![$($type)+] };
-    // (t x ...)
-    { ($($type:tt)+) $($types:tt)+ } => { Type::Pair(
-        Rc::new(make_type![$($type)+]),
-        Rc::new(parse_product![$($types)+]),
+macro_rules! tgt_vtype {
+    //     fromast ast     (inject ast nodes)
+    { fromast $ast:expr } => { $ast };
+    //     (A)             (parens)
+    { ($($type:tt)+) } => { tgt_vtype![$($type)+] };
+    //     D,Seq,Nat       (type constructors)
+    { D } => { Type::Cons(TypeCons::D) };
+    { Bool } => { Type::Cons(TypeCons::Bool) };
+    { Nat } => { Type::Cons(TypeCons::Nat) };
+    { String } => { Type::Cons(TypeCons::String) };
+    { Seq } => { Type::Cons(TypeCons::Seq) };
+    //     user(type)      (user-defined)
+    { user($s:ident) } => { Type::Cons(TypeCons::User(
+        stringify![$s].to_string()
+    ))};
+    //     Unit            (unit)
+    { Unit } => { Type::Unit };
+    //     + A + B ...     (extended sums)
+    { + $($sum:tt)+ } => { split_plus![parse_tgt_sum <= $($sum)+] };
+    //     x A x B ...     (extended product)
+    { x $($prod:tt)+ } => { split_cross![parse_tgt_prod <= $($prod)+] };
+    //     Ref[i] A        (named ref cell)
+    { Ref[$($i:tt)+] $($t:tt)+ } => { Type::Ref(
+        tgt_index![$($i)+],
+        Rc::new(tgt_vtype![$($t)+]),
     )};
-}
-#[macro_export]
-macro_rules! parse_coproduct {
-    // [] (empty type, using: unit type)
-    { } => { Type::Unit };
-    // [t]
-    { ($($type:tt)+) } => { make_type![$($type)+] };
-    // [t + ...]
-    { ($($type:tt)+) $($types:tt)+ } => { Type::Sum(
-        Rc::new(make_type![$($type)+]),
-        Rc::new(parse_coproduct![$($types)+]),
+    //     Thk[i] E        (named thunk with effects)
+    { Thk[$($i:tt)+] $($e:tt)+ } => { Type::Thk(
+        tgt_index![$($i)+],
+        Rc::new(tgt_ceffect![$($e)+]),
     )};
+    //     Nm[i]           (name type)
+    { Nm[$($i:tt)+] } => { Type::Nm(tgt_index![$($i)+]) };
+    //     A[i]            (single application of type to index)
+    { $a:tt [$($i:tt)+] } => { Type::IdxApp(
+        Rc::new(tgt_vtype![$a]),
+        tgt_index![$($i)+],
+    )};
+    //     A[i] ...        (extended application of type to index)
+    { $a:tt [$($i:tt)+] $($more:tt)+ } => {
+        tgt_vtype![(fromast Type::IdxApp(
+            Rc::new(tgt_vtype![$a]),
+            tgt_index![$($i)+],
+        )) $($more)+]
+    };
+    //     (Nm->Nm)[M]     (name function type)
+    { (Nm->Nm)[$($m:tt)+] } => { Type::NmFn(tgt_nametm![$($m)+]) };
+    //     forallt x:K.A   (type parameter)
+    { forallt $x:ident : $k:tt. $($a:tt)+ } => {Type::TypeFn(
+        stringify![$x].to_string(),
+        tgt_kind![$k],
+        Rc::new(tgt_vtype![$($a)+]),
+    )};
+    //     forallt (x):K.A   (type parameter - multivar base case)
+    { forallt ($x:ident) : $k:tt. $($a:tt)+ } => {
+        tgt_vtype![forallt $x : $k . $($a)+]
+    };
+    //     forallt (x,y,...):K.A   (type parameter - multivar)
+    { forallt ($x:ident,$($xs:ident),+):$k:tt.$($a:tt)+ } => { Type::TypeFn(
+        stringify![$x].to_string(),
+        tgt_kind![$k],
+        Rc::new(tgt_vtype![forallt ($($xs),+):$k.$($a)+])
+    )};
+    //     foralli x:g.A   (index parameter)
+    { foralli $x:ident : $g:tt. $($a:tt)+ } => {Type::IdxFn(
+        stringify![$x].to_string(),
+        tgt_sort![$g],
+        Rc::new(tgt_vtype![$($a)+]),
+    )};
+    //     foralli (x):g.A   (index parameter - multivar base case)
+    { foralli ($x:ident) : $g:tt. $($a:tt)+ } => {
+        tgt_vtype![foralli $x : $g . $($a)+]
+    };
+    //     foralli (x,y,...):g.A   (index parameter - multivar)
+    { foralli ($x:ident,$($xs:ident),+):$g:tt.$($a:tt)+ } => { Type::IdxFn(
+        stringify![$x].to_string(),
+        tgt_sort![$g],
+        Rc::new(tgt_vtype![foralli ($($xs),+):$g.$($a)+])
+    )};
+    //     rec a.A            (recursive type)
+    { rec $a:ident.$($body:tt)+ } => { Type::Rec(
+        stringify![$a].to_string(),
+        Rc::new(tgt_vtype![$($body)+]),
+    )};
+    //    exists X : g . B  (existential - true prop)
+    { exists $var:ident : $a:tt . $($b:tt)+ } => {
+        tgt_vtype![exists $var : $a | tt . $($b)+]
+    };
+    //    exists (X) : g . B  (existential - true prop, base multi vars)
+    { exists ($var:ident) : $a:tt . $($b:tt)+ } => {
+        tgt_vtype![exists $var : $a | tt . $($b)+]
+    };
+    //    exists X : g | P . B  (existential)
+    { exists $var:ident : $a:tt | $p:tt . $($b:tt)+ } => { Type::Exists(
+        stringify![$var].to_string(),
+        Rc::new(tgt_sort![$a]),
+        tgt_prop![$p],
+        Rc::new(tgt_vtype![$($b)+]),
+    )};
+    //    exists (X) : g | P . B  (existential - base case multi vars)
+    { exists ($var:ident) : $a:tt | $p:tt . $($b:tt)+ } => {
+        tgt_vtype![exists $var : $a | $p . $($b)+]
+    };
+    //    exists (X,Y,...) : g . B  (extended existential, true prop)
+    { exists ($($vars:ident),+) : $a:tt . $($b:tt)+ } => {
+        tgt_vtype![exists ($($vars),+) : $a | tt . $($b)+]
+    };
+    //    exists (X,Y,...) : g | P . B  (extended existential)
+    { exists ($var:ident,$($vars:ident),+) : $a:tt | $p:tt . $($b:tt)+ } => {
+        Type::Exists(
+            stringify![$var].to_string(),
+            Rc::new(tgt_sort![$a]),
+            Prop::Tt,
+            Rc::new(tgt_vtype![exists ($($vars),+):$a|$p.$($b)+])
+        )
+    };
+    //     (A) B           (single application of type constructor to type)
+    { $a:tt $b:tt } => { Type::TypeApp(
+        Rc::new(tgt_vtype![$a]),
+        Rc::new(tgt_vtype![$b]),
+    )};
+    //     (A) B ...       (extended application of type constructor to type)
+    { $a:tt $b:tt $($more:tt)+ } => {
+        tgt_vtype![(fromast Type::TypeApp(
+            Rc::new(tgt_vtype![$a]),
+            Rc::new(tgt_vtype![$b]),
+        )) $($more)+]
+    };
+    //     a               (type var)
+    { $a:ident } => { Type::Var(stringify![$a].to_string()) };
+    // failure
+    { $($any:tt)* } => { Type::NoParse(stringify![$($any)*].to_string())};
 }
-
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
-pub enum PrimTyApp {
-    Bool,
-    Char,
-    Nat,
-    Int,
-    String,
-    Option(TypeRec),
-    Seq(TypeRec),
-    Stack(TypeRec),
-    Queue(TypeRec),
-    Hashmap(TypeRec,TypeRec),
-    Kvlog(TypeRec,TypeRec),
-    // Temporaries:
-    /// Tok -- TEMP(matthewhammer),
-    Tok,
-    /// LexSt -- TEMP(matthewhammer),
-    LexSt
-}
+/// this macro is a helper for tgt_vtype, not for external use
 #[macro_export]
-macro_rules! parse_prim_t {
-    {} => { PrimTyApp::Bool };
-    { bool } => { PrimTyApp::Bool };
-    { char } => { PrimTyApp::Char };
-    { nat } => { PrimTyApp::Nat };
-    { int } => { PrimTyApp::Int };
-    { string } => { PrimTyApp::String };
-    { Option($($type:tt)+) } => { PrimTyApp::Option(Rc::new(
-        make_type![$($type)+]
-    )) };
-    { Seq($($type:tt)+) } => { PrimTyApp::Seq(Rc::new(
-        make_type![$($type)+]
-    )) };
-    { Stack($($type:tt)+) } => { PrimTyApp::Stack(Rc::new(
-        make_type![$($type)+]
-    )) };
-    { Queue($($type:tt)+) } => { PrimTyApp::Queue(Rc::new(
-        make_type![$($type)+]
-    )) };
-    { Hashmap($($key:tt)+)($($value:tt)+) } => { PrimTyApp::Hashmap(
-        Rc::new(make_type![$($key)+]),
-        Rc::new(make_type![$($value)+]),
-    ) };
-    { Kvlog($($key:tt)+)($($value:tt)+) } => { PrimTyApp::Kvlog(
-        Rc::new(make_type![$($key)+]),
-        Rc::new(make_type![$($value)+]),
-    ) };
-    { Tok } => { PrimTyApp::Tok };
-    { LexSt } => { PrimTyApp::LexSt };
+macro_rules! parse_tgt_sum {
+    // A + B
+    { ($($a:tt)+)($($b:tt)+) } => { Type::Sum(
+        Rc::new(tgt_vtype![$($a)+]),
+        Rc::new(tgt_vtype![$($b)+]),
+    )};
+    // A + ...
+    { ($($a:tt)+)$($more:tt)+ } => { Type::Sum(
+        Rc::new(tgt_vtype![$($a)+]),
+        Rc::new(parse_tgt_sum![$($more)+]),
+    )};
+    // failure
+    { $($any:tt)* } => { Type::NoParse(stringify![(+ $($any)*)].to_string())};
 }
-
-pub type CTypeRec = Rc<CType>;
+/// this macro is a helper for tgt_vtype, not for external use
+#[macro_export]
+macro_rules! parse_tgt_prod {
+    // A x B
+    { ($($a:tt)+)($($b:tt)+) } => { Type::Prod(
+        Rc::new(tgt_vtype![$($a)+]),
+        Rc::new(tgt_vtype![$($b)+]),
+    )};
+    // A x ...
+    { ($($a:tt)+)$($more:tt)+ } => { Type::Prod(
+        Rc::new(tgt_vtype![$($a)+]),
+        Rc::new(parse_tgt_prod![$($more)+]),
+    )};
+    // failure
+    { $($any:tt)* } => { Type::NoParse(stringify![(x $($any)*)].to_string())};
+}
+/// Computation types
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum CType {
-    Arrow(TypeRec,CTypeRec),
-    F(TypeRec)
+    Lift(Type),
+    Arrow(Type,CEffectRec),
+    NoParse(String),
 }
-#[macro_export]
-/// Constructor for CType
+
+/// Parser for computation types
 ///
 /// ```text
-/// ct ::=
-///     outerctx rust_expr          (insert variables, etc.)
-///     F t
-///     (ct)
-///     t1 -> t2 -> ... -> ct       (arrow)
+/// C,D ::=
+///     fromast ast     (inject ast nodes)
+///     (C)             (parens)
+///     F A             (lifted types)
+///     A -> E          (functions with effects)
 /// ```
-macro_rules! make_ctype {
-    // outerctx rust_expr (insert variables, etc.)
-    { outerctx $out:expr } => { $out };
-    // F t
-    { F $($vt:tt)+} => { CType::F(Rc::new(make_type![$($vt)+])) };
-    // (ct)
-    { ( $($ct:tt)+ ) } => { make_ctype![$($ct)+] };
-    // t1 -> t2 -> ... -> ct (arrow)
-    { $($arrows:tt)+ } => { split_arrow![parse_arrow <= $($arrows)+] };
-}
 #[macro_export]
-macro_rules! parse_arrow {
-    // t (no arrow, make type and leave it up to the type checker)
-    { ($($type:tt)+) } => { make_type![$($type)+] };
-    // t -> ct
-    { ($($type:tt)+) ($($ctype:tt)+) } => { CType::Arrow (
-        Rc::new(make_type![$($type)+]),
-        Rc::new(make_ctype![$($ctype)+]),
-    )};
-    // t1 -> t2 -> ...
-    { ($($type1:tt)+) ($($type2:tt)+) $(($($types:tt)+))+ } => { CType::Arrow(
-        Rc::new(make_type![$($type1)+]),
-        Rc::new(parse_arrow![($($type2)+) $(($($types)+))+]),
-    )};
+macro_rules! tgt_ctype {
+    //     fromast ast     (inject ast nodes)
+    { fromast $ast:expr } => { $ast };
+    //     (C)             (parens)
+    { ($($c:tt)+) } => { tgt_ctype![$($c)+] };
+    //     F A             (lifted types)
+    { F $($a:tt)+ } => { CType::Lift(tgt_vtype![$($a)+]) };
+    //     A -> E   (extended functions with effects)
+    { $($arrow:tt)+ } => { split_arrow![parse_tgt_arrow <= $($arrow)+] };
+    // failure
+    { $($any:tt)* } => { CType::NoParse(stringify![$($any)*].to_string())};
 }
-
-pub type TCtxtRec = Rc<TCtxt>;
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
-pub enum TCtxt {
-    Empty,
-    Var(TCtxtRec,Var,Type),
-    Cell(TCtxtRec,Pointer,Type),
-    Thunk(TCtxtRec,Pointer,CType),
-}
-impl TCtxt {
-    /// bind a var and type
-    pub fn var(&self,v:Var,t:Type) -> TCtxt {
-        TCtxt::Var(Rc::new(self.clone()),v,t)
-    }
-    /// bind a pointer and value type
-    pub fn cell(&self,p:Pointer,t:Type) -> TCtxt {
-        TCtxt::Cell(Rc::new(self.clone()),p,t)
-    }
-    /// bind a pointer and computation type
-    pub fn thk(&self,p:Pointer,ct:CType) -> TCtxt {
-        TCtxt::Thunk(Rc::new(self.clone()),p,ct)
-    }
-}
-
-
-/// Ambient name data flow
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
-pub enum LetHint {
-    ParAmb,
-    SeqAmb,
-}
-
-/// Translation hint
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
-pub enum TrHint {
-    Memo,
-    ScopeAmb,
-    ScopeHere(Name),
-}
-
-pub type ExpRec = Rc<Exp>;
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
-pub enum Exp {
-    Anno(ExpRec,CType),
-    Force(Val),
-    Thunk(ExpRec),
-    Fix(Var,ExpRec),
-    Ret(Val),
-    Let(LetHint,Var,ExpRec,ExpRec),
-    Lam(Var, ExpRec),
-    Archivist(ExpRec),
-    App(ExpRec, Val),
-    Split(Val, Var, Var, ExpRec),
-    If(Val,ExpRec,ExpRec),
-    Case(Val, Var, ExpRec, Var, ExpRec),
-    Ref(Val),
-    Get(Val),
-    Label(Name,ExpRec),
-    PrimApp(PrimApp),
-    TrHint(TrHint,ExpRec),
-}
+/// this macro is a helper for tgt_ctype, not for external use
 #[macro_export]
-/// Constructor for Exp
+macro_rules! parse_tgt_arrow {
+    // A -> E ...
+    { ($($a:tt)+)($($e:tt)+)$($more:tt)* } => { CType::Arrow(
+        tgt_vtype![$($a)+],
+        Rc::new(parse_tgt_earrow![($($e)+)$($more)*]),
+    )};
+    // failure
+    { $($any:tt)* } => { CType::NoParse(stringify![(-> $($any)*)].to_string())};
+}
+
+/// Computation effects
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum CEffect {
+    Cons(CType,Effect),
+    ForallType(Var,Kind,CEffectRec),
+    ForallIdx(Var,Sort,Prop,CEffectRec),
+    NoParse(String),
+}
+pub type CEffectRec = Rc<CEffect>;
+
+
+/// Parser for Computations with effects
 ///
 /// ```text
-/// e ::=
-///     outerctx rust_expr      (insert variables, etc.)
-///     {e} : t                 (annotation)
-///     get v
-///     force v                 (force)
-///     ref v
-///     thk e
-///     lam r.e                 (lambda)
-///     archivist e             (switch to archivist mode)
-///     fix f.e
-///     {e} v1 ...              (application)
-///     let a = {e} e
-///     let[par] a = {e} e      (Let binding with old ambient name (default))
-///     let[amb] a = {e} e      (Let binding shadowing old ambient name)
-///     split(v) x.y.e
-///     if (v) then {e0} else {e1}
-///     case(v) x.{e0} y.{e1}
-///     case(v) x.{e0} y.{e1} z.{e2} ...
-///     ret v
-///     n e                     (name-labeled, for debug messages)
-///     [m] e                   (translation hint - memoize)
-///     [s] e                   (translation hint - scope with ambient name)
-///     [s n] e                 (translation hint - scope with given name)
-///     prim(vars)
-///     {e}
+/// E ::=
+///     fromast ast                 (inject ast nodes)
+///     (E)                         (parens)
+///     forallt (a,...):K.E         (extended type polymorphism)
+///     foralli (a,...):g|P.E       (index polymorphism)
+///     foralli (a,...):g.E         (index polymorphism -- true prop)
+///     ε C                         (computation with effect)
 /// ```
-macro_rules! make_exp {
-    // outerctx rust_expr (insert variables, etc.)
-    { outerctx $out:expr } => { $out };
-    // {e} : t (annotation)
-    { { $($exp:tt)* } : $($ty:tt)+ } => {{
-        Exp::Anno(Rc::new(make_exp![$($exp)*]),make_ctype![$($ty)+])
-    }};
-    // get v
-    { get $($ref:tt)+ } => {{ Exp::Get(make_val![$($ref)+]) }};
-    // force v (force)
-    { force $($ref:tt)+ } => {{ Exp::Force(make_val![$($ref)+]) }};
-    // ref v
-    { ref $($val:tt)+ } => {{ Exp::Ref(make_val![$($val)+]) }};
-    // thk e
-    { thk $($exp:tt)+ } => {{ Exp::Thunk(Rc::new(make_exp![$($exp)+])) }};
-    // lam r.e (lambda)
-    { lam $var:ident . $($body:tt)+ } => {{
-        Exp::Lam(stringify![$var].to_string(),Rc::new(make_exp![$($body)+]))
-    }};
-    // archivist e (switch to archivist mode)
-    { archivist $($exp:tt)+ } => {{ Exp::Archivist(Rc::new(make_exp![$($exp)+])) }};
-    // fix f.e
-    { fix $var:ident . $($body:tt)+ } => {{
-        Exp::Fix(stringify![$var].to_string(),Rc::new(make_exp![$($body)+]))
-    }};
-    // {e} v1 ... (application)
-    { { $($fun:tt)+ } $($pars:tt)+ } => {{
-        curry_app![make_exp![$($fun)+] ; $($pars)+]
-    }};
-    // let a = {e} e
-    { let $var:ident = {$($rhs:tt)+} $($body:tt)+} => {{
-        Exp::Let(
-            LetHint::ParAmb,
-            stringify![$var].to_string(),
-            Rc::new(make_exp![$($rhs)+]),
-            Rc::new(make_exp![$($body)*])
-        )
-    }};
-    // let[par] a = {e} e (Let binding with old ambient name (default))
-    { let[par] $var:ident = {$($rhs:tt)+} $($body:tt)+} => {{
-        Exp::Let(
-            LetHint::ParAmb,
-            stringify![$var].to_string(),
-            Rc::new(make_exp![$($rhs)+]),
-            Rc::new(make_exp![$($body)*])
-        )
-    }};
-    // let[amb] a = {e} e (Let binding creating new ambient name)
-    { let[amb] $var:ident = {$($rhs:tt)+} $($body:tt)+} => {{
-        Exp::Let(
-            LetHint::SeqAmb,
-            stringify![$var].to_string(),
-            Rc::new(make_exp![$($rhs)+]),
-            Rc::new(make_exp![$($body)*])
-        )
-    }};
-    // TODO: let (a,b,...) = {e} e (split)
-    // split(v) x.y.e
-    { split($($v:tt)+) $x:ident . $y:ident . $($body:tt)+ } => {{
-        Exp::Split(
-            make_val![$($v)+],
-            stringify![$x].to_string(),
-            stringify![$y].to_string(),
-            Rc::new(make_exp![$($body)+]),
-        )
-    }};
-    // let (x,y) = (v) e
-    { let ( $x:ident , $y:ident ) = $v:tt $($body:tt)+ } => {{
-        Exp::Split(
-            make_val![$v],
-            stringify![$x].to_string(),
-            stringify![$y].to_string(),
-            Rc::new(make_exp![$($body)+]),
-        )
-    }};
-    // if (v) then {e0} else {e1}
-    { if ($($b:tt)*) then {$($e0:tt)+} else {$($e1:tt)+} } => {{
-        Exp::If(
-            make_val![$($b)*],
-            Rc::new(make_exp![$($e0)+]),
-            Rc::new(make_exp![$($e1)+]),
-        )
-    }};
-    // case(v) x.{e0} y.{e1}
-    { case($($v:tt)*) $var0:ident . {$($e0:tt)+} $var1:ident . {$($e1:tt)+} } => {{
-        Exp::Case(
-            make_val![$($v)*],
-            stringify![$var0].to_string(),
-            Rc::new(make_exp![$($e0)+]),
-            stringify![$var1].to_string(),
-            Rc::new(make_exp![$($e1)+]),
-        )
-    }};
-    // case(v) x.{e0} y.{e1} z.{e2} ...
-    { case($($v:tt)*) $var0:ident . {$($e0:tt)+} $var1:ident . {$($e1:tt)+} $( $var2:ident . {$($e2:tt)+} )+} => {{
-        Exp::Case(
-            make_val![$($v)*],
-            stringify![$var0].to_string(),
-            Rc::new(make_exp![$($e0)+]),
-            stringify![extend_case_with_additional_matches].to_string(),
-            Rc::new(make_exp![case(extend_case_with_additional_matches) $var1 . {$($e1)+} $( $var2 . {$($e2)+} )+]),
-        )
-    }};
-    // ret v
-    { ret $($ret:tt)+ } => {{ Exp::Ret(make_val![$($ret)+]) }};
-    // [m] e               (translation hint - memoize)
-    { [m] $($exp:tt)+ } => {{ Exp::TrHint(TrHint::Memo, Rc::new(make_exp![$($exp)+])) }};
-    // [s] e               (translation hint - scope with ambient name)
-    { [s] $($exp:tt)+ } => {{ Exp::TrHint(TrHint::ScopeAmb, Rc::new(make_exp![$($exp)+])) }};
-    // [s n] e             (translation hint - scope with given name)
-    { [s $($nm:tt)*] $($exp:tt)+ } => {{ Exp::TrHint(
-        TrHint::ScopeHere(make_name![$($nm)*]),
-        Rc::new(make_exp![$($exp)+])
-    )}};
-    // n e                 (name-labeled, for debug messages)
-    { [$($nm:tt)*] $($exp:tt)+ } => {{ Exp::Label(make_name!([$($nm)*]),Rc::new(make_exp![$($exp)+])) }};
-    // prim(vars)
-    { $fun:ident($($vars:tt)*)} => {{ Exp::PrimApp(split_comma![parse_prim_e ($fun) <= $($vars)*]) }};
-    // {e}
-    { {$($exp:tt)+} } => {{ make_exp![$($exp)+] }};
-}
 #[macro_export]
-macro_rules! curry_app {
-    { $fun:expr ; $par:tt } => { Exp::App(Rc::new($fun),make_val!($par)) };
-    { $fun:expr ; $par:tt $($pars:tt)+ } => { curry_app![Exp::App(Rc::new($fun), make_val!($par)) ; $($pars)+] };
+macro_rules! tgt_ceffect {
+    //     fromast ast (inject ast nodes)
+    { fromast $ast:expr } => { $ast };
+    //     (E)         (parens)
+    { ($($e:tt)+) } => { tgt_ceffect![$($e)+] };
+    //     forallt (a):K.E      (type polymorphism, base case multi vars)
+    { forallt ($a:ident):$k:tt.$($e:tt)+ } => {
+        tgt_ceffect![forallt $a:$k.$($e)+]
+    };
+    //     forallt a:K.E      (type polymorphism)
+    { forallt $a:ident:$k:tt.$($e:tt)+ } => { CEffect::ForallType(
+        stringify![$a].to_string(),
+        tgt_kind![$k],
+        Rc::new(tgt_ceffect![$($e)+]),
+    )};
+    //     forallt (a,...):K.E      (type polymorphism, multi vars)
+    { forallt ($a:ident,$($vars:ident),+):$k:tt.$($e:tt)+ } => {
+        CEffect::ForallType(
+            stringify![$a].to_string(),
+            tgt_kind![$k],
+            Rc::new(tgt_ceffect![forallt ($($vars),+):$k.$($e)+]),
+        )
+    };
+    //     foralli (a):g|P.E    (index polymorphism, base case multi vars)
+    { foralli ($a:ident):$g:tt|$p:tt.$($e:tt)+ } => {
+        tgt_ceffect![foralli $a:$g|$p.$($e)+]
+    };
+    //     foralli a:g|P.E    (index polymorphism)
+    { foralli $a:ident:$g:tt|$p:tt.$($e:tt)+ } => { CEffect::ForallIdx(
+        stringify![$a].to_string(),
+        tgt_sort![$g],
+        tgt_prop![$p],
+        Rc::new(tgt_ceffect![$($e)+]),
+    )};
+    //     foralli (a,...):g|P.E    (index polymorphism, multi vars)
+    { foralli ($a:ident,$($vars:ident),+):$g:tt|$p:tt.$($e:tt)+ } => {
+        CEffect::ForallIdx(
+            stringify![$a].to_string(),
+            tgt_sort![$g],
+            Prop::Tt,
+            Rc::new(tgt_ceffect![foralli ($($vars),+):$g|$p.$($e)+]),
+        )
+    };
+    //     foralli a:g.E    (index polymorphism, with trivial prop)
+    { foralli $a:ident:$g:tt.$($e:tt)+ } => {
+        tgt_ceffect![foralli $a:$g|tt.$($e)+]
+    };
+    //     foralli (a):g.E  (index polymorphism, multi var base case, tt prop)
+    { foralli ($a:ident):$g:tt.$($e:tt)+ } => {
+        tgt_ceffect![foralli $a:$g|tt.$($e)+]
+    };
+    //     foralli (a,...):g.E    (index polymorphism, multi vars, tt prop)
+    { foralli ($a:ident,$($vars:ident),+):$g:tt.$($e:tt)+ } => {
+        tgt_ceffect![foralli ($a,$($vars),+):$g|tt.$($e)+]
+    };
+    //     ε C -> ε C ... (computations with effects and arrows)
+    { $($arr:tt)+ } => { split_arrow![parse_tgt_earrow <= $($arr)+] };
+    // failure
+    { $($any:tt)* } => { CEffect::NoParse(stringify![$($any)*].to_string())};
 }
-/// Primitive operation application forms.
-///
-/// We build-in collection primitives because doing so permits us to
-/// avoid the machinery of polymorphic, higher-order functions in the
-/// type system and translation of simple examples.  Eventually, we
-/// want to handle these "primitives" as "ordinary functions" (not
-/// built-in special cases), but for now, doing so is more complex
-/// than we'd like (again, due to each of these functions generally
-/// requiring a polymorphic, higher-order type).
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
-pub enum PrimApp {
-    // Scalars (implemented with Rust primitive types)
-    // -----------------------------------------------
-    NatAdd(Val, Val),
-    NatLte(Val, Val),
-    BoolAnd(Val, Val),
-    NatOfChar(Val),
-    CharOfNat(Val),
-    StrOfNat(Val),
-    /// parses nat into string; produces an optional nat, if no parse
-    NatOfStr(Val),
 
-    // Sequences (implemented as level trees, an IODyn collection)
-    // ------------------------------------------------------------
-    SeqEmpty,
-    SeqGetFirst(Val),
-    SeqSingleton(Val),
-    SeqIsEmpty(Val),
-    SeqDup(Val),
-    SeqAppend(Val, Val),
-    SeqFoldSeq(Val, Val, ExpRec),
-    SeqFoldUp(Val, Val, ExpRec, ExpRec),
-    SeqIntoStack(Val),
-    SeqIntoQueue(Val),
-    SeqIntoHashmap(Val),
-    SeqIntoKvlog(Val),
-    SeqMap(Val, ExpRec),
-    SeqFilter(Val, ExpRec),
-    SeqSplit(Val, ExpRec),
-    SeqReverse(Val),
-
-    // Stacks
-    // ---------
-    StackEmpty,
-    StackIsEmpty(Val),
-    /// asdfasdf
-    ///
-    /// ```text
-    /// asdf
-    /// -----
-    /// asdfas
-    /// ```
-    StackDup(Val),
-    StackPush(Val, Val),
-    StackPop(Val),
-    StackPeek(Val),
-    StackIntoSeq(Val),
-
-    // Queues
-    // ---------
-    QueueEmpty,
-    QueueIsEmpty(Val),
-    QueueDup(Val),
-    QueuePush(Val, Val),
-    QueuePop(Val),
-    QueuePeek(Val),
-    QueueIntoSeq(Val),
-
-    // Kvlog
-    // --------------
-    KvlogEmpty,
-    KvlogDup(Val),
-    KvlogIsEmpty(Val),
-    KvlogGet(Val,Val),
-    KvlogPut(Val,Val,Val),
-    KvlogIntoSeq(Val),
-    KvlogIntoHashmap(Val),
-}
+/// this macro is a helper for tgt_ceffect, not for external use
 #[macro_export]
-macro_rules! parse_prim_e {
-    { NatAdd($($v1:tt)+)($($v2:tt)+) } => {
-        PrimApp::NatAdd(make_val![$($v1)+],make_val![$($v2)+])
-    };
-    { NatLte($($v1:tt)+)($($v2:tt)+) } => {
-        PrimApp::NatLte(make_val![$($v1)+],make_val![$($v2)+])
-    };
-    { BoolAnd($($v1:tt)+)($($v2:tt)+) } => {
-        PrimApp::BoolAnd(make_val![$($v1)+],make_val![$($v2)+])
-    };
-    { NatOfChar($($v:tt)+) } => {
-        PrimApp::NatOfChar(make_val![$($v)+])
-    };
-    { CharOfNat($($v:tt)+) } => {
-        PrimApp::CharOfNat(make_val![$($v)+])
-    };
-    { StrOfNat($($v:tt)+) } => {
-        PrimApp::StrOfNat(make_val![$($v)+])
-    };
-    { NatOfStr($($v:tt)+) } => {
-        PrimApp::NatOfStr(make_val![$($v)+])
-    };
-    { SeqEmpty } => { PrimApp::SeqEmpty };
-    { SeqGetFirst($($v:tt)+) } => {
-        PrimApp::SeqGetFirst(make_val![$($v)+])
-    };
-    { SeqSingleton($($v:tt)+) } => {
-        PrimApp::SeqSingleton(make_val![$($v)+])
-    };
-    { SeqDup($($v:tt)+) } => {
-        PrimApp::SeqDup(make_val![$($v)+])
-    };
-    { SeqIsEmpty($($v:tt)+) } => {
-        PrimApp::SeqIsEmpty(make_val![$($v)+])
-    };
-    { SeqAppend($($v1:tt)+)($($v2:tt)+) } => {
-        PrimApp::SeqAppend(make_val![$($v1)+],make_val![$($v2)+])
-    };
-    { SeqFoldSeq($($v1:tt)+)($($v2:tt)+)($($e1:tt)+) } => {
-        PrimApp::SeqFoldSeq(
-            make_val![$($v1)+],
-            make_val![$($v2)+],
-            Rc::new(make_exp![$($e1)+]),
-        )
-    };
-    { SeqFoldUp($($v1:tt)+)($($v2:tt)+)($($e1:tt)+)($($e2:tt)+) } => {
-        PrimApp::SeqFoldUp(
-            make_val![$($v1)+],
-            make_val![$($v2)+],
-            Rc::new(make_exp![$($e1)+]),
-            Rc::new(make_exp![$($e2)+]),
-        )
-    };
-    { SeqIntoStack($($v:tt)+) } => {
-        PrimApp::SeqIntoStack(make_val![$($v)+])
-    };
-    { SeqIntoQueue($($v:tt)+) } => {
-        PrimApp::SeqIntoQueue(make_val![$($v)+])
-    };
-    { SeqIntoHashmap($($v:tt)+) } => {
-        PrimApp::SeqIntoHashmap(make_val![$($v)+])
-    };
-    { SeqIntoKvlog($($v:tt)+) } => {
-        PrimApp::SeqIntoKvlog(make_val![$($v)+])
-    };
-    { SeqMap($($v1:tt)+)($($e1:tt)+) } => {
-        PrimApp::SeqMap(
-            make_val![$($v1)+],
-            Rc::new(make_exp![$($e1)+]),
-        )
-    };
-    { SeqFilter($($v1:tt)+)($($e1:tt)+) } => {
-        PrimApp::SeqFilter(
-            make_val![$($v1)+],
-            Rc::new(make_exp![$($e1)+]),
-        )
-    };
-    { SeqSplit($($v1:tt)+)($($e1:tt)+) } => {
-        PrimApp::SeqSplit(
-            make_val![$($v1)+],
-            Rc::new(make_exp![$($e1)+]),
-        )
-    };
-    { SeqReverse($($v:tt)+) } => {
-        PrimApp::SeqReverse(make_val![$($v)+])
-    };
-    { StackEmpty } => { PrimApp::StackEmpty };
-    { StackIsEmpty($($v:tt)+) } => {
-        PrimApp::StackIsEmpty(make_val![$($v)+])
-    };
-
-    { StackDup($($v:tt)+) } => {
-        PrimApp::StackDup(make_val![$($v)+])
-    };
-    { StackPush($($v1:tt)+)($($v2:tt)+) } => {
-        PrimApp::StackPush(make_val![$($v1)+],make_val![$($v2)+])
-    };
-    { StackPop($($v:tt)+) } => {
-        PrimApp::StackPop(make_val![$($v)+])
-    };
-    { StackPeek($($v:tt)+) } => {
-        PrimApp::StackPeek(make_val![$($v)+])
-    };
-    { StackIntoSeq($($v:tt)+) } => {
-        PrimApp::StackIntoSeq(make_val![$($v)+])
-    };
-
-    { QueueEmpty } => { PrimApp::QueueEmpty };
-    { QueueIsEmpty($($v:tt)+) } => {
-        PrimApp::QueueIsEmpty(make_val![$($v)+])
-    };
-    { QueueDup($($v:tt)+) } => {
-        PrimApp::QueueDup(make_val![$($v)+])
-    };
-    { QueuePush($($v1:tt)+)($($v2:tt)+) } => {
-        PrimApp::QueuePush(make_val![$($v1)+],make_val![$($v2)+])
-    };
-    { QueuePop($($v:tt)+) } => {
-        PrimApp::QueuePop(make_val![$($v)+])
-    };
-    { QueuePeek($($v:tt)+) } => {
-        PrimApp::QueuePeek(make_val![$($v)+])
-    };
-    { QueueIntoSeq($($v:tt)+) } => {
-        PrimApp::QueueIntoSeq(make_val![$($v)+])
-    };
-
-    { KvlogDup($($v:tt)+) } => {
-        PrimApp::KvlogDup(make_val![$($v)+])
-    };
-    { KvlogEmpty($($v:tt)+) } => {
-        PrimApp::KvlogEmpty(make_val![$($v)+])
-    };
-    { KvlogGet($($v1:tt)+)($($v2:tt)+) } => {
-        PrimApp::KvlogGet(make_val![$($v1)+],make_val![$($v2)+])
-    };
-    { KvlogPut($($v1:tt)+)($($v2:tt)+)($($v3:tt)+) } => {
-        PrimApp::KvlogPut(make_val![$($v1)+],make_val![$($v2)+],make_val![$($v3)+])
-    };
-    { KvlogIntoSeq($($v:tt)+) } => {
-        PrimApp::KvlogIntoSeq(make_val![$($v)+])
-    };
-    { KvlogIntoHashmap($($v:tt)+) } => {
-        PrimApp::KvlogIntoHashmap(make_val![$($v)+])
-    };
+macro_rules! parse_tgt_earrow {
+    // ε C
+    { ($e:tt $($c:tt)+) } => { CEffect::Cons(
+        tgt_ctype![$($c)+],
+        tgt_effect![$e],
+    )};
+    // ε A -> ε C
+    { ($e:tt $($a:tt)+)($($c:tt)+) $($more:tt)* } => { CEffect::Cons(
+        parse_tgt_arrow![($($a)+)($($c)+) $($more)*],
+        tgt_effect![$e],
+    )};
+    // failure
+    { $($any:tt)* } => { CEffect::NoParse(stringify![(-> $($any)*)].to_string())};
 }
 
-/*
-#[derive(IODynAst)]
-pub enum Option<A> { None, Some(A) }
-
-let s = ...
-let t = filter(dup(s), ...)
-let r = map(s, ...)
-
-type      : Val::get_iodyn_type() : Type
-toIOdyn   : Option<Val> -> Val
-fromIODyn : Val -> Option<Val>
-fromIODyn(toIOdyn(None)) = None
-//let t : Type = Val::get_iodyn_type() 
-*/
-
-pub type ValRec = Rc<Val>;
+/// Value terms
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Val {
-    /// free variable
     Var(Var),
-    /// Unit value
     Unit,
-    /// Value pair
-    Pair(ValRec,ValRec),
-    /// Left injection
-    Injl(ValRec),
-    /// Right injection
-    Injr(ValRec),
-    /// Allocated reference; a pointer
-    Ref(Pointer),
-    /// Allocated thunk; a pointer
-    Thunk(Pointer),
-    /// Value type annotations
+    Pair(ValRec, ValRec),
+    Inj1(ValRec),
+    Inj2(ValRec),
+    Roll(ValRec),
+    Name(Name),
+    NameFn(NameTm),
     Anno(ValRec,Type),
-    /// Primitive natural number value
-    Nat(usize),
-    /// Primitive boolean value
+    
+    // Anonymous thunks: "ordinary" CBPV thunks. They can be written
+    // in the source program, and unlike named (store-allocated)
+    // thunks, and closed, run-time thunks, these thunks exist in the
+    // pre-evaluation AST (not the store); also, they don't yet have a
+    // run-time environment.
+    ThunkAnon(ExpRec),
+
+    /// Primitive (Rust) `bool`, injected into `Val` type
     Bool(bool),
-    /// Primitive string value
+    /// Primitive (Rust) `usize`, injected into `Val` type
+    Nat(usize),
+    /// Primitive (Rust) `String`, injected into `Val` type
     Str(String),
 
-    /// Sequence of values
-    ///
-    /// Permits folds, splitting, concatenation
-    Seq(Seq),
-
-    /// Stack of values
-    ///
-    /// A sequence converts to a queue in XXX time.
-    Stack(Stack),
-
-    // /// Queue of values
-    // ///
-    // /// A sequence converts to a queue in XXX time.
-    // //Queue(Queue<ValRec>),
-
-    // /// Finite map of values, based on hashing key
-    // ///
-    // /// Hashmaps in IODyn permit lookups, extensions and folds, which
-    // /// see the most recent value for each key (if any); older values,
-    // /// if any, are forgotten.  A key-value log converts (in O(n)
-    // /// time) to a hashmap that admits only the "most recent view" of
-    // /// the key-value log to its folds.
-    // //Hashmap(Hashmap<ValRec,ValRec>),
-
-    // /// Key-value logs record key-value association history.
-    // ///
-    // /// Key-value logs in IODyn permit lookups and extension.  Each
-    // /// log permits folds in chronological and reverse-chronological
-    // /// order over its key-value entries.  Unlike a Hashmap, the fold
-    // /// may revisit a key multiple times (if it is associated with
-    // /// multiple values).  A hashmap converts (in O(n) time) to a
-    // /// key-value log.
-    // // Kvlog(Vec<(ValRec,ValRec)>),
-
-    // /// Graphs are maps from node ids to
-    // Graph(Graph)
+    // Parse errors
+    NoParse(String),
 }
+pub type ValRec = Rc<Val>;
 
-#[macro_export]
-/// Constructor for Val
+/// Parser for values
 ///
 /// ```text
-/// v ::=
-///     (v) : t         (annotation)
-///     (v1,v2,...)     (tuples, unit, extra parens)
-///     injl v
-///     injr v
-///     ref n
-///     thk n           (thunk)
-///     "string"
-///     false
-///     true
-///     a               (var)
-///     num
+/// v::=
+///     fromast ast (inject ast nodes)
+///     thunk e     (anonymous thunk)
+///     v : A       (annotation)
+///     (v1,v2,...) (unit,parens,tuples)
+///     inj1 v      (first sum value)
+///     inj2 v      (second sum value)
+///     roll v      (roll an unrolled recursively-typed value)
+///     name n      (name value)
+///     nmfn M      (name function as value)
+///     true,false  (bool primitive)
+///     @@str       (name primitive(symbol))
+///     @1235       (name primitive(number))
+///     str(string) (string primitive)
+///     x           (variable)
+///     1234        (nat primitive)
 /// ```
-macro_rules! make_val {
-    // (v) : t (annotation)
-    { ($($v:tt)+) : $($t:tt)+ } => { Val::Anno(
-        Rc::new(make_val![$($v)+]),
-        make_type![$($t)+]
+#[macro_export]
+macro_rules! tgt_val {
+    //     fromast ast (inject ast nodes)
+    { fromast $ast:expr } => { $ast };
+    //     v : A       (annotation)
+    { $v:tt : $($a:tt)+} => { Val::Anno(
+        Rc::new(tgt_val![$v]),
+        tgt_vtype![$($a)+],
     )};
-    // (v1,v2,...) (tuples, unit, extra parens)
-    { ($($vals:tt)*) } => { split_comma![parse_tuple <= $($vals)*] };
-    // TODO: better injections?
-    // injl v
-    { injl $($v:tt)+ } => { Val::Injl(Rc::new(make_val![$($v)+])) };
-    // injr v
-    { injr $($v:tt)+ } => { Val::Injr(Rc::new(make_val![$($v)+])) };
-    // ref n
-    { ref $($name:tt)+ } => { Val::Ref(Pointer(make_name![$($name)+])) };
-    // thk n (thunk)
-    { thk $($name:tt)+ } => { Val::Thunk(Pointer(make_name![$($name)+])) };
-    // "string"
-    { "$($s:tt)*" } => { Val::Str(stringify![$($s)*].to_string()) };
-    // false
-    { false } => { Val::Bool(false) };
-    // true
+    //     thunk e
+    { thunk $($e:tt)+ } => { Val::ThunkAnon(Rc::new(tgt_exp![$($e)+])) };
+    //     (v1,v2,...) (unit,parens,tuples)
+    { ($($tup:tt)*) } => { split_comma![parse_tgt_tuple <= $($tup)*] };
+    //     inj1 v      (first sum value)
+    { inj1 $($v:tt)+ } => { Val::Inj1(Rc::new(tgt_val![$($v)+])) };
+    //     inj2 v      (second sum value)
+    { inj2 $($v:tt)+ } => { Val::Inj2(Rc::new(tgt_val![$($v)+])) };
+    //     roll v 
+    { roll $($v:tt)+ } => { Val::Roll(Rc::new(tgt_val![$($v)+])) };
+    //     name n      (name value)
+    { name $($n:tt)+ } => { Val::Name(tgt_name![$($n)+]) };
+    //     nmfn M      (name function as value)
+    { nmfn $($m:tt)+ } => { Val::NameFn(tgt_nametm![$($m)+]) };
+    //     true        (bool primitive)
     { true } => { Val::Bool(true) };
-    // a (var)
-    { $a:ident } => { Val::Var(stringify![$a].to_string())};
-    // num
-    { $num:expr } => { Val::Nat($num) };
+    //     false        (bool primitive)
+    { false } => { Val::Bool(false) };
+    //     @@str       (name primitive(symbol))
+    { @@$($s:tt)+ } => { Val::Name(Name::Sym(stringify![$($s)+].to_string())) };
+    //     @1235       (name primitive(number))
+    { @$n:expr } => { Val::Name(Name::Num($n)) };
+    //     str(string) (string primitive)
+    { str($($s:tt)*) } => { Val::Str(stringify![$($s)*].to_string()) };
+    //     x           (variable)
+    { $x:ident } => { Val::Var(stringify![$x].to_string()) };
+    //     1234        (nat primitive)
+    { $n:expr } => { Val::Nat($n) };
+    // failure
+    { $($any:tt)* } => { Val::NoParse(stringify![$($any)*].to_string())};
 }
+/// this macro is a helper for tgt_ceffect, not for external use
 #[macro_export]
-macro_rules! parse_tuple {
-    // ()
+macro_rules! parse_tgt_tuple {
+    // unit
     { } => { Val::Unit };
-    // (v)
-    { ($($val:tt)+) } => { make_val![$($val)+] };
-    // (v, ...)
-    { ($($val:tt)+) $($vals:tt)+ } => { Val::Pair(
-        Rc::new(make_val![$($val)+]),
-        Rc::new(parse_tuple![$($vals)+]),
+    // parens, final tuple val
+    { ($($v:tt)+) } => { tgt_val![$($v)+] };
+    // tuple
+    { ($($v:tt)+) $($more:tt)+ } => { Val::Pair(
+        Rc::new(tgt_val![$($v)+]),
+        Rc::new(parse_tgt_tuple![$($more)+]),
     )};
+    // failure
+    { $($any:tt)* } => { Val::NoParse(stringify![(, $($any)*)].to_string())};
 }
 
-/// Representations of ASTs as typing derivations.
-///
-/// One may think of a **typing derivation** as an AST that is
-/// _annotated with typing contexts and types_.  The constructors of
-/// this typing derivation correspond 1-1 with the constructors for
-/// values and expressions, where the syntax tree structures of the
-/// program term (expression or value) and its typing derivation
-/// correspond 1-1.
-//
-pub mod typing {
-    use std::rc::Rc;
-    use super::{TCtxt,Type,CType,Var,Pointer,Name,PrimApp,Seq,Stack,LetHint};
-
-    /// Bidirectional bit: Synth or Check
-    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
-    pub enum Dir {
-        Synth,
-        Check,
-    }
-    
-    /// Value typing derivation
-    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
-    pub struct ValTD { 
-        pub ctxt:TCtxt,
-        pub val:Rc<Val>,
-        pub dir:Dir,
-        pub typ:Type,
-    }
-    
-    /// Value forms, with typing sub-derivations for sub-values
-    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
-    pub enum Val {
-        Var(Var),
-        Unit,
-        Pair(ValTD,ValTD),
-        Injl(ValTD),
-        Injr(ValTD),
-        Ref(Pointer),
-        Thunk(Pointer),
-        Anno(ValTD,Type),
-        Nat(usize),
-        Str(String),
-        Seq(Seq),
-        Stack(Stack),
-    }
-
-    /// Expression typing derivation
-    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
-    pub struct ExpTD { 
-        pub ctxt:TCtxt,
-        pub exp:Rc<Exp>,
-        pub dir:Dir,
-        pub ctyp:CType,
-    }
-
-    /// Expression forms, with typing sub-derivations for sub-expressions
-    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
-    pub enum Exp {
-        Anno(ExpTD,CType),
-        Force(Val),
-        Thunk(ExpTD),
-        Fix(Var,ExpTD),
-        Ret(Val),
-        Let(LetHint,Var,ExpTD,ExpTD),
-        Lam(Var, ExpTD),
-        App(ExpTD, Val),
-        Split(Val, Var, Var, ExpTD),
-        Case(Val, Var, ExpTD, Var, ExpTD),
-        Ref(Val),
-        Get(Val),
-        Name(Name,ExpTD),
-        PrimApp(PrimApp),
-    }
-}
-
-// ///
-// /// XXX: Move push and pop into the Stack/Queue trait only?
-// ///
-// /// Note on observable effects: The mutation in a sequence's
-// /// implementation is not observable from within the IODyn program,
-// /// however, since the IODyn language enforces an affine typing
-// /// discipline (like Rust), with explicit cloning (like Rust).
-// ///
-// /// Cost to clone/duplicate: Unlike Rust, IODyn lacks a notion of
-// /// "borrowing", and cloning is O(1) for collections that use
-// /// Adapton. By contrast, cloning with ordinary Rust collections is
-// /// typically O(n).  We use the term "duplicate" instead of "clone" to
-// /// disambiguate the IODyn primitive from the Rust primitive.
-
-/// Sequences of values, whose implementations of push and pop must
-/// use mutation.
-pub trait SeqObj : Debug {
-    fn dup(&self) -> Box<SeqObj>;
-    fn empty(&self) -> Box<SeqObj>;
-    fn append(&self, Val) -> Box<SeqObj>;
-    fn fold_seq(&self, Val, &Env, &Exp) -> Val;
-    fn fold_up(&self, Val, &Env, &Exp, &Exp) -> Val;
-    fn map(&self, &Env, &Exp) -> Box<SeqObj>;
-    fn reverse(&mut self);
-    fn filter(&self, &Env, &Exp) -> Box<SeqObj>;
-    fn into_stack(&self, rev:bool) -> Box<StackObj>;
-    fn into_queue(&self, rev:bool) -> Box<QueueObj>;
-    fn into_hashmap(&self) -> Box<HashmapObj>;
-    fn into_kvlog(&self) -> Box<KvlogObj>;
-}
-
-pub trait HashmapObj : Debug {
-    fn dup(&self) -> Box<SeqObj>;
-    fn empty(&self) -> Box<SeqObj>;
-    fn append(&self, Val) -> Box<SeqObj>;
-    fn get(&self, Val) -> Option<Val>;
-    fn fold_seq(&self, Val, &Env, &Exp) -> Val;
-    fn fold_up(&self, Val, &Env, &Exp, &Exp) -> Val;
-    fn into_seq(&self) -> Box<SeqObj>;
-    fn into_kvlog(&self) -> Box<KvlogObj>;
-}
-
-pub trait StackObj : Debug {
-    fn dup(&self) -> Box<SeqObj>;
-    fn empty(&self) -> Box<SeqObj>;
-    fn is_empty(&self) -> bool;
-    fn push(&mut self, Val);
-    fn pop(&mut self) -> Option<Val>;
-    fn peek(&self) -> Option<Val>;
-    fn into_seq(&self) -> Box<SeqObj>;
-}
-
-pub trait QueueObj : Debug {
-    fn dup(&self) -> Box<SeqObj>;
-    fn empty(&self) -> Box<SeqObj>;
-    fn is_empty(&self) -> bool;
-    fn push(&mut self, Val);
-    fn pop(&mut self) -> Option<Val>;
-    fn peek(&self) -> Option<Val>;
-    fn into_seq(&self) -> Box<SeqObj>;
-}
-
-pub trait KvlogObj : Debug {
-    fn dup(&self) -> Box<SeqObj>;
-    fn empty(&self) -> Box<SeqObj>;
-    fn is_empty(&self) -> bool;
-    fn get(&mut self, Val) -> Option<Val>;
-    fn put(&mut self, Val, Val) -> Option<Val>;
-    fn into_seq(&self) -> Box<SeqObj>;
-    fn into_hashmap(&self) -> Box<HashmapObj>;
-}
-
-/// A graph is a binary relation between node identifiers, where nodes
-/// and edges carry data.
-///
-/// A graph is a set of nodes, each with a distinct identifier (a
-/// value).  Each node has data associated with it (another value,
-/// possibly different from its identifier).  Each edge of each node
-/// is identified by the node identifier of the edge's target (again,
-/// a value).  Each edge carries data (a value).  This edge
-/// representation does not (directly) permit graphs where there may
-/// be several edges between two nodes, though we can encode such
-/// graphs by using the data associated with each edge.
-pub trait GraphObj : Debug {
-
-}
-
-#[derive(Clone,Debug)]
-pub struct Seq {
-    pub seq:Rc<RefCell<SeqObj>>
-}
-impl Eq        for Seq { }
-impl PartialEq for Seq { fn eq(&self, _other:&Self) -> bool { unimplemented!() } }
-impl Hash      for Seq { fn hash<H>(&self, _state: &mut H) { unimplemented!() } }
-
-#[derive(Clone,Debug)]
-pub struct Stack {
-    pub stack:Rc<RefCell<StackObj>>
-}
-impl Eq        for Stack { }
-impl PartialEq for Stack { fn eq(&self, _other:&Self) -> bool { unimplemented!() } }
-impl Hash      for Stack { fn hash<H>(&self, _state: &mut H) { unimplemented!() } }
-
+/// Expressions (aka, computation terms)
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
-pub struct Pointer(pub Name);
-
-pub type StoreRec = Rc<Store>;
-#[derive(Clone,Debug,Eq,PartialEq)]
-pub enum Store {
-    Empty,
-    Val(StoreRec,Name,Val),
-    Exp(StoreRec,Name,Exp),
+pub enum PrimApp {
+    NatEq(Val,Val),
+    NatLt(Val,Val),
+    NatLte(Val,Val),
+    NatPlus(Val,Val),
+    NameBin(Val,Val),
+    //
+    // RefThunk: Coerce a value-producing thunk into a ref cell that
+    // holds this produced value. In the process, force the thunk.
+    //
+    // In detail: A practical variation of force, for when the forced
+    // computation produces a value, and in particular, a data
+    // structure (e.g., not an arrow); this primitive returns that
+    // produced value, along with a reference cell that holds it;
+    // behind the scenes, this reference cell is really just a pointer
+    // to the forced thunk's cached value.
+    //
+    // Note: the only sound way to coerce a thunk into a reference
+    // cell is to _force_ that thunk, and determine what value it
+    // produces --- otherwise, the ref cell is not an "eager" data
+    // value that can be inspected without forcing arbitrary effects,
+    // but rather, a suspended computation, like the thunk, with such
+    // effects.  Hence the value-computation duality of CBPV.
+    RefThunk(Val),
 }
 
-/// Utilities for constructing ASTs, including common constructor patterns.
+/// Expressions (aka, computation terms)
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum Exp {
+    AnnoE(ExpRec,CEffect),
+    AnnoC(ExpRec,CType),
+    Force(Val),
+    Thunk(Val,ExpRec),
+    Unroll(Val,Var,ExpRec),
+    Fix(Var,ExpRec),
+    Ret(Val),
+    DefType(Var,Type,ExpRec),
+    Let(Var,ExpRec,ExpRec),
+    Lam(Var, ExpRec),
+    App(ExpRec, Val),
+    Split(Val, Var, Var, ExpRec),
+    Case(Val, Var, ExpRec, Var, ExpRec),
+    IfThenElse(Val, ExpRec, ExpRec),
+    Ref(Val,Val),
+    Get(Val),
+    Scope(Val,ExpRec),
+    NameFnApp(Val,Val),
+    PrimApp(PrimApp),
+    Unimp,
+    DebugLabel(Option<Name>,Option<String>,ExpRec),
+    NoParse(String),
+}
+pub type ExpRec = Rc<Exp>;
+
+/// Parser for expressions
 ///
-/// The objectives of the construction functions and macros are to:
-/// - avoid Rc::new(_) in client code, or thinking about when it's needed.
-/// - avoid quoting variable names in client code, or introducing strings for them.
-/// - avoid all of the parens for nested lets, lambdas, and
-///   applications (when these constructors are repeated in a nested
-///   way, we can use macros to make the concrete syntax in Rust use
-///   fewer parens)
-///
-pub mod cons {
-    use super::*;
-    pub fn val_nat(n:usize) -> Val { Val::Nat(n) }
-    pub fn val_pair(v1:Val, v2:Val) -> Val { Val::Pair(Rc::new(v1), Rc::new(v2)) }
-    pub fn val_option(v:Option<Val>) -> Val {
-        match v {
-            None     => val_none(),
-            Some(v1) => val_some(v1),
-        }
-    }
-    pub fn val_none() -> Val { Val::Injl(Rc::new(Val::Unit)) }
-    pub fn val_some(v:Val) -> Val { Val::Injr(Rc::new(v)) }
-    pub fn exp_ret(v:Val) -> Exp { Exp::Ret(v) }
-    pub fn exp_anno(e:Exp, ct:CType) -> Exp { Exp::Anno(Rc::new(e), ct) }
-    pub fn exp_force(v:Val) -> Exp { Exp::Force(v) }
-
-    pub fn exp_nat_of_char(v:Val) -> Exp {
-        Exp::PrimApp(PrimApp::NatOfChar(v))
-    }
-    pub fn exp_char_of_nat(v:Val) -> Exp {
-        Exp::PrimApp(PrimApp::CharOfNat(v))
-    }
-    pub fn exp_nat_add(v1:Val, v2:Val) -> Exp {
-        Exp::PrimApp(PrimApp::NatAdd(v1, v2))
-    }
-    pub fn exp_nat_lte(v1:Val, v2:Val) -> Exp {
-        Exp::PrimApp(PrimApp::NatLte(v1, v2))
-    }
-    pub fn exp_bool_and(v1:Val, v2:Val) -> Exp {
-        Exp::PrimApp(PrimApp::BoolAnd(v1, v2))
-    }
-    pub fn exp_nat_of_str(v:Val) -> Exp {
-        Exp::PrimApp(PrimApp::NatOfStr(v))
-    }
-    pub fn exp_str_of_nat(v:Val) -> Exp {
-        Exp::PrimApp(PrimApp::StrOfNat(v))
-    }
-    pub fn exp_seq_empty() -> Exp {
-        Exp::PrimApp(PrimApp::SeqEmpty)
-    }
-    pub fn exp_seq_fold_seq(v_seq:Val, v_acc:Val, e_body:Exp) -> Exp {
-        Exp::PrimApp(PrimApp::SeqFoldSeq(v_seq, v_acc, Rc::new(e_body)))
-    }
-    pub fn exp_seq_fold_up(v1:Val, v_nil:Val, e_elm:Exp, e_bin:Exp) -> Exp {
-        Exp::PrimApp(PrimApp::SeqFoldUp(v1, v_nil, Rc::new(e_elm), Rc::new(e_bin)))
-    }
-    pub fn exp_seq_map(v1:Val, e_elm:Exp) -> Exp {
-        Exp::PrimApp(PrimApp::SeqMap(v1, Rc::new(e_elm)))
-    }
-    pub fn exp_seq_filter(v1:Val, e_elm:Exp) -> Exp {
-        Exp::PrimApp(PrimApp::SeqFilter(v1, Rc::new(e_elm)))
-    }
-    pub fn exp_seq_reverse(v1:Val) -> Exp {
-        Exp::PrimApp(PrimApp::SeqReverse(v1))
-    }
-}
-
+/// ```text
+/// e::=
+///     fromast ast                     (inject ast nodes)
+///     e : C                           (type annotation, no effect)
+///     e :> E                          (type annotation, with effect)
+///     {e}                             (parens)
+///     scope v e                       (memo scope)
+///     ret v                           (lifted value)
+///     #x.e                            (lambda)
+///     fix x.e                         (recursive lambda)
+///     unroll v x.e                    (unroll recursively-typed value v as x in e)
+///     unroll match v { ... }          (unroll recursively-typed value and elim sum type)
+///     {e} {!ref} ...                  (application get-sugar)
+///     {e} v1 ...                      (extened application)
+///     type t = (A) e                  (user type shorthand, recursive type)
+///     let x = {e1} e2                 (let-binding)
+///     let x : A = {e1} e2             (annotated let-binding)
+///     let rec x : A = {e1} e2         (annotated let-rec binding)
+///     thk v e                         (create thunk)
+///     ref v1 v2                       (create ref)
+///     force v                         (force thunk)
+///     refthunk v                      (coerce a value-producing thunk to a ref)
+///     get v                           (read from ref)
+///     let (x1,...) = {e1} e2          (let-split sugar)
+///     let (x1,...) = v e              (extended split)
+///     memo{e1}{e2}                    (memoize computation, sugar - compute name)
+///     memo(v){e}                      (memoize computation by name, return ref)
+///     match v {x1 => e1 ... }         (extended case analysis)
+///     if { e } { e1 } else { e2 }     (if-then-else; bool elim)
+///     if ( v ) { e1 } else { e2 }     (if-then-else; bool elim)
+///     [v1] v2 ...                     (curried name function application)
+///     v1, v2, ...                     (extended binary name construction)
+///     v1 < v2                         (less-than)
+///     unimplemented                   (marker for type checker)
+///     label (some_text) e             (debug string label)
+///     nm_lbl (n) e                    (debug name label)
+/// ```
 #[macro_export]
-macro_rules! val_var {
-    ( $var:ident ) => {
-        Val::Var(stringify!($var).to_string())
-    }
+macro_rules! tgt_exp {
+    //     fromast ast                     (inject ast nodes)
+    { fromast $ast:expr } => { $ast };
+    //     e : C                           (type annotation, without effects)
+    { $e:tt : $($c:tt)+ } => { Exp::AnnoC(
+        Rc::new(tgt_exp![$e]),
+        tgt_ctype![$($c)+],
+    )};
+    //     e :> E                          (type annotation, with effects)
+    { $e:tt : $($c:tt)+ } => { Exp::AnnoE(
+        Rc::new(tgt_exp![$e]),
+        tgt_ceffect![$($c)+],
+    )};
+    //     {e}                             (parens)
+    { {$($e:tt)+} } => { tgt_exp![$($e)+] };
+    //     scope v e                       (memo scope)
+    { scope $v:tt $($e:tt)+ } => { Exp::Scope(
+        tgt_val![$v],
+        Rc::new(tgt_exp![$($e)+]),
+    )};
+    //     ret v                           (lifted value)
+    { ret $($v:tt)+ } => { Exp::Ret(tgt_val![$($v)+]) };
+    //     #x.e                            (lambda)
+    { #$x:ident.$($e:tt)+ } => { Exp::Lam(
+        stringify![$x].to_string(),
+        Rc::new(tgt_exp![$($e)+]),
+    )};
+    //     fix x.e                         (recursive lambda)
+    { fix $x:ident.$($e:tt)+ } => { Exp::Fix(
+        stringify![$x].to_string(),
+        Rc::new(tgt_exp![$($e)+]),
+    )};
+    // Sugar:
+    //    unroll match v { ... }  ==> unroll v y. match y { ... }
+    //
+    { unroll match $v:tt $($more:tt)+ } => {
+        Exp::Unroll(tgt_val![$v],
+                    "sugar_match_unroll".to_string(),
+                    Rc::new(tgt_exp![
+                        match sugar_match_unroll $($more)+
+                    ]))
+    };
+    //     unroll v x.e
+    { unroll $v:tt $x:ident.$($e:tt)+ } => {
+        Exp::Unroll(
+            tgt_val![$v],
+            stringify![$x].to_string(),
+            Rc::new(tgt_exp![$($e)+]))
+    };
+    //     {e} {!ref} ...                     (application get-sugar)
+    { {$($e:tt)+} {!$ref:ident} $($more:tt)* } => {
+        // we need to create a new variable name for each
+        // forced ref in the application
+        // this will force a ref each time it appears in the
+        // argument list
+        tgt_exp![{fromast Exp::Let(
+            format!("{}{}",
+                stringify![app_get_sugar_],
+                stringify![$ref],
+            ),
+            Rc::new(Exp::Get(Val::Var(stringify![$ref].to_string()))),
+            Rc::new(Exp::App(
+                Rc::new(tgt_exp![$($e)+]),
+                Val::Var(format!("{}{}",
+                    stringify![app_get_sugar_],
+                    stringify![$ref],
+                )),
+            )),
+        )} $($more)*]
+    };
+    //     {e} v                             (single application)
+    { {$($e:tt)+} $v:tt } => { Exp::App(
+        Rc::new(tgt_exp![$($e)+]),
+        tgt_val![$v],
+    )};
+    //     {e} v1 ...                        (extened application)
+    { {$($e:tt)+} $v:tt $($more:tt)+ } => {
+        tgt_exp![{fromast Exp::App(
+            Rc::new(tgt_exp![$($e)+]),
+            tgt_val![$v],
+        )} $($more)+]
+    };
+    //     type t = (A) e                    (user type definition)
+    { type $t:ident = $a:tt $($e:tt)+ }=>{Exp::DefType(
+        stringify![$t].to_string(),
+        tgt_vtype![$a],
+        Rc::new(tgt_exp![$($e)+]),
+    )};
+    //     let x = {e1} e2                 (let-binding)
+    { let $x:ident = $e1:tt $($e2:tt)+ } => { Exp::Let(
+        stringify![$x].to_string(),
+        Rc::new(tgt_exp![$e1]),
+        Rc::new(tgt_exp![$($e2)+]),
+    )};
+    //     let x : A = {e1} e2             (annotated let-binding)
+    { let $x:ident : $a:tt = $e1:tt $($e2:tt)+ } => { Exp::Let(
+        stringify![$x].to_string(),
+        Rc::new(Exp::AnnoC(
+            Rc::new(tgt_exp![$e1]),
+            tgt_ctype![F $a]
+        )),
+        Rc::new(tgt_exp![$($e2)+]),
+    )};
+    //     let rec x : A = {e1} e2         (annotated let-rec binding)
+    //
+    //     ===>> let x : A = {ret (thunkanon (fix x. e1))} e2
+    //
+    { let rec $x:ident : $a:tt = $e1:tt $($e2:tt)+ } => { Exp::Let(
+        stringify![$x].to_string(),
+        Rc::new(Exp::AnnoC(
+            Rc::new(Exp::Ret(Val::ThunkAnon(
+                Rc::new(Exp::Fix(stringify![$x].to_string(),
+                                 Rc::new(tgt_exp![$e1])))))
+            ),
+            tgt_ctype![F $a]
+        )),
+        Rc::new(tgt_exp![$($e2)+]),
+    )};
+    //     thk v e                         (create thunk)
+    { thk $v:tt $($e:tt)+ } => { Exp::Thunk(
+        tgt_val![$v],
+        Rc::new(tgt_exp![$($e)+]),
+    )};
+    //     ref v1 v2                       (create ref)
+    { ref $v1:tt $($v2:tt)+ } => { Exp::Ref(
+        tgt_val![$v1],
+        tgt_val![$($v2)+],
+    )};
+    //     force v                         (force thunk)
+    { force $($v:tt)+ } => { Exp::Force( tgt_val![$($v)+])};
+    //     refthunk v                      (coerce thunk)
+    { refthunk $($v:tt)+ } => { Exp::PrimApp( PrimApp::RefThunk(tgt_val![$($v)+])) };
+    //     get v                           (read from ref)
+    { get $($v:tt)+ } => { Exp::Get( tgt_val![$($v)+])};
+    //     let (x1,...) = {e1} e2          (let-split sugar)
+    { let ($($vars:tt)+) = {$($e1:tt)+} $($e2:tt)+ } => {
+        tgt_exp![
+            let let_split_sugar = {$($e1)+}
+            let ($($vars)+) = let_split_sugar
+            $($e2)+
+        ]
+    };
+    //     let (x1,...) = v e              (extended split)
+    { let ($($vars:tt)+) = $v:tt $($e:tt)+ } => {
+        split_comma![parse_tgt_split ($v {$($e)+}) <= $($vars)+]
+    };
+    //     match v {x1 => e1 x2 => e2 }    (pair case analysis)
+    { match $v:tt {$x1:ident=>$e1:tt $x2:ident=>$e2:tt} } => { Exp::Case(
+        tgt_val![$v],
+        stringify![$x1].to_string(),
+        Rc::new(tgt_exp![$e1]),
+        stringify![$x2].to_string(),
+        Rc::new(tgt_exp![$e2]),
+    )};
+    //     match v {x1 => e1 ... }         (extended case analysis)
+    { match $v:tt {$x1:ident=>$e1:tt $x2:ident=>$e2:tt $($more:tt)+} } => {
+        Exp::Case(
+            tgt_val![$v],
+            stringify![$x1].to_string(),
+            Rc::new(tgt_exp![$e1]),
+            "sugar_match_snd".to_string(),
+            Rc::new(tgt_exp![
+                match sugar_match_snd {
+                    $x2=>$e2 $($more)+
+                }
+            ]),
+        )
+    };
+    //     memo{e1}{e2}                    (memoize computation, sugar - compute name)
+    { memo{$($e1:tt)+}{$($e2:tt)+} } => {
+        tgt_exp![
+            let memo_name_sugar = {$($e1)+}
+            memo(memo_name_sugar){$($e2)+}
+        ]
+    };
+    //     memo(v){e}                      (memoize computation by name, return ref)
+    { memo($($v:tt)+){$($e:tt)+} } => {
+        tgt_exp![
+            let memo_keyword_sugar = { thk ($($v)+) $($e)+ }
+            refthunk memo_keyword_sugar
+        ]
+    };
+    //     match v {x1 => e1 x2 => e2 }    (pair case analysis)
+    { match $v:tt {$x1:ident=>$e1:tt $x2:ident=>$e2:tt} } => { Exp::Case(
+        tgt_val![$v],
+        stringify![$x1].to_string(),
+        Rc::new(tgt_exp![$e1]),
+        stringify![$x2].to_string(),
+        Rc::new(tgt_exp![$e2]),
+    )};
+    //     if ( v ) { e1 } else { e2 }     (if-then-else; bool elim)
+    { if ( $($v:tt)+ ) { $($e1:tt)+ } else { $($e2:tt)+ } } => {
+        Exp::IfThenElse(
+            tgt_val![$($v)+],
+            Rc::new(tgt_exp![$($e1)+]),
+            Rc::new(tgt_exp![$($e2)+])
+        )
+    };
+    //     if { e } { e1 } else { e2 }     (if-then-else; bool elim)
+    { if { $($e:tt)+ } { $($e1:tt)+ } else { $($e2:tt)+ } } => {
+        Exp::Let("sugar_if_scrutinee".to_string(),
+                 Rc::new(tgt_exp![$($e)+]),
+                 Rc::new(Exp::IfThenElse(
+                     Val::Var("sugar_if_scrutinee".to_string()),
+                     Rc::new(tgt_exp![$($e1)+]),
+                     Rc::new(tgt_exp![$($e2)+])
+                 )))
+    };
+    //     [v1] v2                         (single name function application)
+    { [$($v1:tt)+] $v2:tt } => { Exp::NameFnApp(
+        tgt_val![$($v1)+],
+        tgt_val![$v2],
+    )};
+    //     [v1] v2 ...                     (extended name function application)
+    { [$($v1:tt)+] $v2:tt $($more:tt)+ } => {
+        tgt_exp![
+            let sugar_nmfn_exp = {[$($v1)+] $v2}
+            [sugar_nmfn_exp] $($more)+
+        ]
+    };
+    //     v1, v2                          (single binary name construction)
+    { $v1:tt, $v2:tt } => {
+        Exp::PrimApp(PrimApp::NameBin( tgt_val!($v1),
+                                       tgt_val!($v2) ))
+    };
+    //     v1, v2, ...                     (extended binary name construction)
+    { $v1:tt, $($more:tt)+ } => {
+        tgt_exp![
+            let sugar_name_pair = {fromast tgt_exp![$($more)+]}
+            ret $v1, sugar_name_pair
+        ]
+    };
+    //     v1 < v2                         (less-than)
+    { $v1:tt < $v2:tt } => { Exp::PrimApp(PrimApp::NatLt(
+        tgt_val![$v1],
+        tgt_val![$v2],
+    ))};
+    //     v1 = v2                         
+    { $v1:tt == $v2:tt } => { Exp::PrimApp(PrimApp::NatEq(
+        tgt_val![$v1],
+        tgt_val![$v2],
+    ))};
+    //     v1 <= v2                         
+    { $v1:tt <= $v2:tt } => { Exp::PrimApp(PrimApp::NatLeq(
+        tgt_val![$v1],
+        tgt_val![$v2],
+    ))};
+    //     v1 + v2                         
+    { $v1:tt + $v2:tt } => { Exp::PrimApp(PrimApp::NatPlus(
+        tgt_val![$v1],
+        tgt_val![$v2],
+    ))};
+    //     unimplemented                   (marker for type checker)
+    { unimplemented } => { Exp::Unimp };
+    //     label (some_text) e             (debug string label)
+    { label ($s:tt) $($e:tt)+ } => { Exp::DebugLabel(
+        None,
+        Some(stringify![$s].to_string()),
+        Rc::new(tgt_exp![$($e)+]),
+    )};
+    //     nm_lbl (n) e                    (debug name label)
+    { label $n:tt $($e:tt)+ } => { Exp::DebugLabel(
+        Some(tgt_name![$n]),
+        None,
+        Rc::new(tgt_exp![$($e)+]),
+    )};
+    // failure
+    { $($any:tt)* } => { Exp::NoParse(stringify![$($any)*].to_string())};
 }
-
+/// this macro is a helper for tgt_exp, not for external use
 #[macro_export]
-macro_rules! exp_lam {
-  { $var:ident => $body:expr } => {{
-    Exp::Lam(stringify!($var).to_string(), Rc::new($body))
-  }};
-  { $var1:ident , $( $var2:ident ),+ => $body:expr } => {{
-    exp_lam!( $var1 => exp_lam!( $( $var2 ),+ => $body ) )
-  }}
-}
-
-#[macro_export]
-macro_rules! exp_app {
-  ( $exp:expr ) => {{ $exp }}
-  ;
-  ( $exp:expr , $val:expr ) => {{
-    Exp::App(Rc::new($exp), $val)
-  }}
-  ;
-  ( $exp:expr , $val1:expr , $( $val2:expr ),+ ) => {{
-    exp_app!( exp_app!($exp, $val1), $( $val2 ),+ )
-  }}
-}
-
-#[macro_export]
-macro_rules! exp_let {
-  { $var:ident = $rhs:expr ; $body:expr } => {{
-    Exp::Let(LetHint::ParAmb,stringify!($var).to_string(), Rc::new($rhs), Rc::new($body))
-  }};
-  { $var1:ident = $rhs1:expr , $( $var2:ident = $rhs2:expr ),+ ; $body:expr } => {{
-    exp_let!($var1 = $rhs1 ; exp_let!( $( $var2 = $rhs2 ),+ ; $body ))
-  }};
+macro_rules! parse_tgt_split {
+    // v e (x1,x2)
+    { $v:tt $e:tt ($x1:ident)($x2:ident) } => { Exp::Split(
+        tgt_val![$v],
+        stringify![$x1].to_string(),
+        stringify![$x2].to_string(),
+        Rc::new(tgt_exp![$e]),
+    )};
+    // v e (x1,x2,...)
+    { $v:tt $e:tt ($x1:ident)($x2:ident) $($more:tt)+ } => {
+        Exp::Split(
+            tgt_val![$v],
+            stringify![$x1].to_string(),
+            "sugar_split_snd".to_string(),
+            Rc::new(parse_tgt_split![sugar_split_snd $e ($x2) $($more)+]),
+        )
+    };
+    // failure
+    { $($any:tt)* } => { Exp::NoParse(stringify![(, $($any)*)].to_string())};
 }
 
 ////////////////////////
@@ -1107,43 +1358,7 @@ macro_rules! exp_let {
 ////////////////////////
 
 #[macro_export]
-/// run a macro on a list of lists after splitting the input at commas
-macro_rules! split_comma {
-    // no defaults
-    {$fun:ident <= $($item:tt)*} => {
-        split_comma![$fun () () () <= $($item)*]
-    };
-    // give initial params to the function
-    {$fun:ident ($($first:tt)*) <= $($item:tt)*} => {
-        split_comma![$fun ($($first)*) () () <= $($item)*]
-    };
-    // give inital params and initial inner items in every group
-    {$fun:ident ($($first:tt)*) ($($every:tt)*) <= $($item:tt)*} => {
-        split_comma![$fun ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
-    };
-    // on non-final seperator, stash the accumulator and restart it
-    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= , $($item:tt)+} => {
-        split_comma![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*]
-    };
-    // ignore final seperator, run the function
-    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= , } => {
-        $fun![$($first)* ($($current)*)]
-    };
-    // on next item, add it to the accumulator
-    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= $next:tt $($item:tt)*} => {
-        split_comma![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*]
-    };
-    // at end of items, run the function
-    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= } => {
-        $fun![$($first)* ($($current)*)]
-    };
-    // if there were no items and no default, run with only initial params, if any
-    {$fun:ident ($($first:tt)*) () () <= } => {
-        $fun![$($first)*]
-    };
-}
-#[macro_export]
-/// run a macro on a list of lists after splitting the input at x (product types)
+/// run a macro on a list of lists after splitting the input
 macro_rules! split_cross {
     // no defaults
     {$fun:ident <= $($item:tt)*} => {
@@ -1179,7 +1394,7 @@ macro_rules! split_cross {
     };
 }
 #[macro_export]
-/// run a macro on a list of lists after splitting the input at + (coproduct types)
+/// run a macro on a list of lists after splitting the input
 macro_rules! split_plus {
     // no defaults
     {$fun:ident <= $($item:tt)*} => {
@@ -1215,7 +1430,7 @@ macro_rules! split_plus {
     };
 }
 #[macro_export]
-/// run a macro on a list of lists after splitting the input at -> (arrow types)
+/// run a macro on a list of lists after splitting the input
 macro_rules! split_arrow {
     // no defaults
     {$fun:ident <= $($item:tt)*} => {
@@ -1233,13 +1448,85 @@ macro_rules! split_arrow {
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= -> $($item:tt)+} => {
         split_arrow![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*]
     };
-    // don't! ignore final seperator, run the function
+    // // ignore final seperator, run the function
     // {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= -> } => {
     //     $fun![$($first)* ($($current)*)]
     // };
     // on next item, add it to the accumulator
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= $next:tt $($item:tt)*} => {
         split_arrow![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*]
+    };
+    // at end of items, run the function
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= } => {
+        $fun![$($first)* ($($current)*)]
+    };
+    // if there were no items and no default, run with only initial params, if any
+    {$fun:ident ($($first:tt)*) () () <= } => {
+        $fun![$($first)*]
+    };
+}
+#[macro_export]
+/// run a macro on a list of lists after splitting the input
+macro_rules! split_semi {
+    // no defaults
+    {$fun:ident <= $($item:tt)*} => {
+        split_semi![$fun () () () <= $($item)*]
+    };
+    // give initial params to the function
+    {$fun:ident ($($first:tt)*) <= $($item:tt)*} => {
+        split_semi![$fun ($($first)*) () () <= $($item)*]
+    };
+    // give inital params and initial inner items in every group
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) <= $($item:tt)*} => {
+        split_semi![$fun ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
+    };
+    // on non-final seperator, stash the accumulator and restart it
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= ; $($item:tt)+} => {
+        split_semi![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*]
+    };
+    // ignore final seperator, run the function
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= ; } => {
+        $fun![$($first)* ($($current)*)]
+    };
+    // on next item, add it to the accumulator
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= $next:tt $($item:tt)*} => {
+        split_semi![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*]
+    };
+    // at end of items, run the function
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= } => {
+        $fun![$($first)* ($($current)*)]
+    };
+    // if there were no items and no default, run with only initial params, if any
+    {$fun:ident ($($first:tt)*) () () <= } => {
+        $fun![$($first)*]
+    };
+}
+#[macro_export]
+/// run a macro on a list of lists after splitting the input
+macro_rules! split_comma {
+    // no defaults
+    {$fun:ident <= $($item:tt)*} => {
+        split_comma![$fun () () () <= $($item)*]
+    };
+    // give initial params to the function
+    {$fun:ident ($($first:tt)*) <= $($item:tt)*} => {
+        split_comma![$fun ($($first)*) () () <= $($item)*]
+    };
+    // give inital params and initial inner items in every group
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) <= $($item:tt)*} => {
+        split_comma![$fun ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
+    };
+    // on non-final seperator, stash the accumulator and restart it
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= , $($item:tt)+} => {
+        split_comma![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*]
+    };
+    // ignore final seperator, run the function
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= , } => {
+        $fun![$($first)* ($($current)*)]
+    };
+    // on next item, add it to the accumulator
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= $next:tt $($item:tt)*} => {
+        split_comma![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*]
     };
     // at end of items, run the function
     {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= } => {

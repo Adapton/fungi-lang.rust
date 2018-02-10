@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use tgt_ast::*;
+use ast::*;
 
 pub fn label_exp(e: Exp, ct: &mut usize) -> Exp {
     rewrite_exp(&e, ct)

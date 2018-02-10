@@ -1,7 +1,8 @@
 #![recursion_limit="128"]
 #[macro_use]
-extern crate iodyn_lang;
-use iodyn_lang::tgt_bitype::*;
+extern crate fungi_lang;
+use fungi_lang::ast::*;
+use fungi_lang::bitype::*;
 
 // Examples from the following paper:
 // [Refinment types for precisely-named cache locations](https://arxiv.org/pdf/1610.00097.pdf)
@@ -18,10 +19,9 @@ fn examples () {
 }
 fn examples2() {
     use std::rc::Rc;
-    use iodyn_lang::bitype;
-    use iodyn_lang::tgt_ast::*;
-    use iodyn_lang::tgt_vis::*;
-    // use iodyn_lang::tgt_ast::cons::*;
+    use fungi_lang::ast::*;
+    use fungi_lang::bitype::*;
+    use fungi_lang::vis::*;
     
     //let ctx : TCtxt = TCtxt::Empty;
 

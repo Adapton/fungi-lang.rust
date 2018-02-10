@@ -1,21 +1,20 @@
 #![recursion_limit="128"]
 #[macro_use]
-extern crate iodyn_lang;
-
+extern crate fungi_lang;
 extern crate adapton;
 
 use std::rc::Rc;
-use iodyn_lang::tgt_ast::*;
-use iodyn_lang::tgt_eval;
-use iodyn_lang::tgt_vis;
+use fungi_lang::ast::*;
+use fungi_lang::eval;
+use fungi_lang::vis;
 
 use adapton::engine::manage;
 use adapton::reflect;
 
 
-fn eval_closed_exp(e:Exp) -> tgt_eval::ExpTerm {
+fn eval_closed_exp(e:Exp) -> eval::ExpTerm {
     let mut env = vec![];
-    tgt_eval::eval(env, e)
+    eval::eval(env, e)
 }
 
 fn eval_test_equiv(e1:Exp, e2:Exp) {
@@ -23,17 +22,17 @@ fn eval_test_equiv(e1:Exp, e2:Exp) {
     let t1 = eval_closed_exp(e1);
     let t2 = eval_closed_exp(e2);
     // let (t1, x1) = capture_traces(move ||
-    //     eval_closed_exp(tgt_vis::label_exp(e1, &mut 0))
+    //     eval_closed_exp(vis::label_exp(e1, &mut 0))
     // );
     // let (t2, x2) = capture_traces(move ||
-    //     eval_closed_exp(tgt_vis::label_exp(e2, &mut 0))
+    //     eval_closed_exp(vis::label_exp(e2, &mut 0))
     // );
     // println!("Traces: {:?}\n\n", x1);
     assert_eq!(t1, t2)
 }
 
-fn capture_traces<F>(f: F) -> (tgt_eval::ExpTerm, Vec<reflect::trace::Trace>)
-where F: FnOnce() -> tgt_eval::ExpTerm {
+fn capture_traces<F>(f: F) -> (eval::ExpTerm, Vec<reflect::trace::Trace>)
+where F: FnOnce() -> eval::ExpTerm {
     manage::init_dcg();
     
     reflect::dcg_reflect_begin();
@@ -184,7 +183,7 @@ fn trace_simple() {
         x < y
     ];
     
-    let vis_exp = tgt_vis::label_exp(exp, &mut 0);
+    let vis_exp = vis::label_exp(exp, &mut 0);
     println!("Exp: {:?}\n\n", vis_exp);
     
     let (term, traces) = capture_traces(move || eval_closed_exp(vis_exp));
