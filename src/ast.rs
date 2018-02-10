@@ -1,34 +1,34 @@
 //! Syntax: abstract (via Rust datatypes) and concrete (via Rust macros).
 //!
 //! **Program terms**:  
-//!  - Expressions: [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_exp.html),
-//!                 [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Exp.html).  
-//!  - Values:      [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_val.html),
-//!                 [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Val.html).  
+//!  - Expressions (`e`):         [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_exp.html),
+//!                               [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Exp.html).   
+//!  - Values (`v`):              [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_val.html),
+//!                               [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Val.html).  
 //!
 //! **Types and effects**:  
-//!  - Value types:          [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_vtype.html),
-//!                          [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Type.html).  
-//!  - Computation types:    [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_ctype.html),
-//!                          [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.CType.html).  
-//!  - Effect types:         [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_ceffect.html),
-//!                          [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.CEffect.html).  
-//!  - Effects:              [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_effect.html),
-//!                          [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Effect.html).  
-//!  - Kinds:                [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_kind.html),
-//!                          [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Kind.html).  
+//!  - Value types (`A,B`):       [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_vtype.html),
+//!                               [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Type.html).  
+//!  - Computation types (`C,D`): [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_ctype.html),
+//!                               [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.CType.html).  
+//!  - Effect types (`E`):        [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_ceffect.html),
+//!                               [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.CEffect.html).  
+//!  - Effects (`ε`):             [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_effect.html),
+//!                               [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Effect.html).  
+//!  - Kinds (`K`):               [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_kind.html),
+//!                               [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Kind.html).  
 //!
 //! **Index terms, name terms, sorts**:  
-//!  - Name literals:        [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_name.html),
-//!                          [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Name.html).    
-//!  - Name terms:           [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_nametm.html),
-//!                          [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.NameTm.html).    
-//!  - Index terms:          [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_index.html),
-//!                          [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.IdxTm.html).  
-//!  - Propositions:         [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_prop.html),
-//!                          [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Prop.html).  
-//!  - Sorts:                [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_sort.html),
-//!                          [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Sort.html).  
+//!  - Name literals (`n`):       [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_name.html),
+//!                               [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Name.html).  
+//!  - Name terms (`N,M`):        [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_nametm.html),
+//!                               [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.NameTm.html).  
+//!  - Index terms (`i,j,X,Y,Z`): [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_index.html),
+//!                               [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.IdxTm.html).  
+//!  - Propositions (`P`):        [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_prop.html),
+//!                               [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Prop.html).  
+//!  - Sorts (`g`):               [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_sort.html),
+//!                               [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Sort.html).  
 //!
 
 use std::rc::Rc;
