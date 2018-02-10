@@ -58,9 +58,10 @@ fn examples2() {
         let nums:(Seq[X][Y] Nat) = { unimplemented }
         let nat_id:(Thk[0] 0 Nat -> 0 F Nat) = {
             // bind "unsafe" version of nat_id, written in Rust above,
-            // to the `nat_id` ident and comp type in Fungi. The body
-            // of this function will not be type-checked by the Fungi
-            // type system (hence, it is generally "unsafe").
+            // to the `nat_id` variable and type in Fungi. The body of
+            // this function will not be type-checked by the Fungi
+            // type system; Fungi assumes it type checks (hence, it is
+            // generally "unsafe" to use this trapdoor into Rust).
             #n. unsafe nat_id n
         }        
         let vec_max:(Thk[0] 0 Vec Nat -> 0 F Nat) = {
