@@ -1,4 +1,4 @@
-//! Evaluation semantics
+//! Evaluation semantics.
 //!
 //! # Fungi evaluation semantics
 //!

@@ -1,4 +1,4 @@
-//! Fungi abstract syntax, and concrete syntax via Rust macros
+//! Syntax: abstract (via Rust datatypes) and concrete (via Rust macros).
 //!
 //! **Program terms**:  
 //!  - Expressions: [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_exp.html),
@@ -19,6 +19,8 @@
 //!                          [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Kind.html).  
 //!
 //! **Index terms, name terms, sorts**:  
+//!  - Name literals:        [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_name.html),
+//!                          [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Name.html).    
 //!  - Name terms:           [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_nametm.html),
 //!                          [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.NameTm.html).    
 //!  - Index terms:          [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_index.html),

@@ -17,6 +17,24 @@ fn examples2() {
     use fungi_lang::ast::*;
     use fungi_lang::bitype::*;
     use fungi_lang::vis::*;
+    use fungi_lang::eval::*;
+
+    // Nat identity function for Fungi, written in "unsafe" Rust, the
+    // host language. The body of this function will not be
+    // type-checked by the Fungi type system (hence, it is generally
+    // "unsafe").
+    fn nat_id(args:Vec<RtVal>) -> ExpTerm {
+        match args[0] {
+            RtVal::Nat(x) => ExpTerm::Ret(RtVal::Nat(x)),
+            _ => panic!("")
+        }
+    }
+
+    fn vec_max(args:Vec<RtVal>) -> ExpTerm {
+        match args[0] {
+            _ => panic!("TODO")
+        }
+    }
 
     let max : Exp = fgi_exp![
         type Vec = (forallt T:type.user(Vec))
@@ -37,9 +55,17 @@ fn examples2() {
                 x Ref[Y3](Seq[X3][Y4] T))
             )
         )
-        let nums:(Seq[X][Y] Nat) = { unimplemented }        
+        let nums:(Seq[X][Y] Nat) = { unimplemented }
+        let nat_id:(Thk[0] 0 Nat -> 0 F Nat) = {
+            // bind "unsafe" version of nat_id, written in Rust above,
+            // to the `nat_id` variable and type in Fungi. The body of
+            // this function will not be type-checked by the Fungi
+            // type system; Fungi assumes it type checks (hence, it is
+            // generally "unsafe" to use this trapdoor into Rust).
+            #n. unsafe nat_id n
+        }        
         let vec_max:(Thk[0] 0 Vec Nat -> 0 F Nat) = {
-            unimplemented
+            #vec. unsafe vec_max vec // TODO
         }
         let rec max:(
             Thk[0] foralli (X,Y):NmSet.
