@@ -1,11 +1,6 @@
 #![recursion_limit="128"]
 #[macro_use]
 extern crate fungi_lang;
-use fungi_lang::ast::*;
-use fungi_lang::bitype::*;
-
-// Examples from the following paper:
-// [Refinment types for precisely-named cache locations](https://arxiv.org/pdf/1610.00097.pdf)
 
 
 #[test]
@@ -22,10 +17,8 @@ fn examples2() {
     use fungi_lang::ast::*;
     use fungi_lang::bitype::*;
     use fungi_lang::vis::*;
-    
-    //let ctx : TCtxt = TCtxt::Empty;
 
-    let max : Exp = tgt_exp![
+    let max : Exp = fgi_exp![
         type Vec = (forallt T:type.user(Vec))
         // Seq[X,Y]:
         // Refinement type for a nominal, level-tree data structure,
@@ -86,7 +79,7 @@ fn examples2() {
     println!("{:?}", max);
 
 
-    let filter : Exp = tgt_exp![
+    let filter : Exp = fgi_exp![
         // always Nats
         type Vec = (user(Vec))
 

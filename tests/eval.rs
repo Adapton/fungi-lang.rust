@@ -43,13 +43,13 @@ where F: FnOnce() -> eval::ExpTerm {
 #[test]
 fn eval_force_anon_thunk () {
     eval_test_equiv(
-        tgt_exp![
+        fgi_exp![
             let x = {ret 1}
             let y = {ret 2}
             let t = {ret thunk x + y}
             {force t}
         ],
-        tgt_exp![
+        fgi_exp![
             ret 3
         ])        
 }
@@ -57,12 +57,12 @@ fn eval_force_anon_thunk () {
 #[test]
 fn eval_let_pair_natlt () {
     eval_test_equiv(
-        tgt_exp![
+        fgi_exp![
             let pair  = {ret (1, 2)}
             let (x,y) = {ret pair}
             x < y
         ],
-        tgt_exp![
+        fgi_exp![
             ret true
         ])
 }
@@ -70,20 +70,20 @@ fn eval_let_pair_natlt () {
 #[test]
 fn eval_lambda_app () {
     eval_test_equiv(
-        tgt_exp![
+        fgi_exp![
             {#x.#y.x < y} 1 2
         ],
-        tgt_exp![
+        fgi_exp![
             ret true
         ]);
 
     eval_test_equiv(
-        tgt_exp![
+        fgi_exp![
             let x = {{#x.#y.x + y} 1 2}
             {#z1.#z2.#z3. if {z1 < z2} {ret 123} else {ret 321}}
             x 4 666
         ],
-        tgt_exp![
+        fgi_exp![
             ret 123
         ]);
 }
@@ -91,37 +91,37 @@ fn eval_lambda_app () {
 #[test]
 fn eval_case () {
     eval_test_equiv(
-        tgt_exp![
+        fgi_exp![
             match (inj1 2) {
                 x => {x + 1}
                 y => {ret 0}
             }
         ],
-        tgt_exp![
+        fgi_exp![
             ret 3
         ]);
     
     eval_test_equiv(
-        tgt_exp![
+        fgi_exp![
             match (inj2 2) {
                 x => {x + 1}
                 y => {ret 0}
             }
         ],
-        tgt_exp![
+        fgi_exp![
             ret 0
         ]);
 
     // test nested cases; nested injections are a little awkward
     eval_test_equiv(
-        tgt_exp![
+        fgi_exp![
             match (inj2 (inj2 2)) {
                 x => {ret 0}
                 x => {ret 0}
                 y => {ret y}
             }
         ],
-        tgt_exp![
+        fgi_exp![
             ret 2
         ])
 }
@@ -129,46 +129,46 @@ fn eval_case () {
 #[test]
 fn eval_fix () {
     eval_test_equiv(
-        tgt_exp![
+        fgi_exp![
             let rec f:(Thk[0] Nat -> (Nat -> (F Nat |> {0;0}) |> {0;0}) {0;0}) = {
                 #x. if {x == 0} {ret 123} else {ret 321}
             }
             {force f} 0
         ],
-        tgt_exp![
+        fgi_exp![
             ret 123
         ]);
         
     eval_test_equiv(
-        tgt_exp![
+        fgi_exp![
             let rec f:(Thk[0] Nat -> (Nat -> (F Nat |> {0;0}) |> {0;0}) {0;0}) = {
                 #x. if {x == 0} {{force f} 1} else {ret 321}
             }
             {force f} 0
         ],
-        tgt_exp![
+        fgi_exp![
             ret 321
         ]);
 
     eval_test_equiv(
-        tgt_exp![
+        fgi_exp![
             let rec f:(Thk[0] Nat -> (Nat -> (F Nat |> {0;0}) |> {0;0}) {0;0}) = {
                 #x. if {x == 0} {let x = {x + 1} {force f} x} else {ret x}
             }
             {force f} 0
         ],
-        tgt_exp![
+        fgi_exp![
             ret 1
         ]);
 
     eval_test_equiv(
-        tgt_exp![
+        fgi_exp![
             let rec f:(Thk[0] Nat -> (Nat -> (F Nat |> {0;0}) |> {0;0}) {0;0}) = {
                 #x. #end. if {x < end} {let x = {x + 1} {force f} x end} else {ret x}
             }
             {force f} 0 2
         ],
-        tgt_exp![
+        fgi_exp![
             ret 2
         ])      
 
@@ -176,7 +176,7 @@ fn eval_fix () {
 
 #[test]
 fn trace_simple() {
-    let exp = tgt_exp![
+    let exp = fgi_exp![
         let pair  = {ret (1, 2)}
         let (x,y) = {ret pair}
         x < y

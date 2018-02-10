@@ -53,7 +53,7 @@ force edges to clean or dirty.
 use std::rc::Rc;
 use ast::*;
 
-pub fn exp () -> Exp { tgt_exp![
+pub fn exp () -> Exp { fgi_exp![
     //
     // --- === Vector Module === ---
     //
