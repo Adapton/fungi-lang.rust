@@ -11,7 +11,7 @@ incremental computations, which it divides into two roles:
 Computation performed in the archivist role computes output from input
 that the editor mutates over time.
 
-## Effects with names
+## Fungi programs name their data and subcomputations
 
 The semantics of Fungi programs are _effectful_, as they allocate
 **programmer-named** values and computations, and read these objects from
