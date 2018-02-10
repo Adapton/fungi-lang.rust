@@ -3,9 +3,9 @@ name = "fungi-lang"
 version = "0.1.0"
 authors = ["Matthew A. Hammer", "Kyle Headley", "CUPLV"]
 
-[dependencies]
-iodyn = "0.2"
-adapton = "0.3"
+# A short blurb about the package. This is not rendered in any format when
+# uploaded to crates.io (aka this is not markdown)
+description = "Fungi: A typed, functional language for programs that name their cached dependency graphs"
 
 # These URLs point to more information about the repository
 documentation = "https://docs.rs/adapton"
@@ -25,3 +25,8 @@ readme = "README.md"
 # license identifiers from http://spdx.org/licenses/. Multiple licenses can
 # be separated with a `/`
 license = "MPL-2.0"
+
+
+[dependencies]
+iodyn = "0.2"
+adapton = "0.3"
