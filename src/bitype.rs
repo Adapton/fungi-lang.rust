@@ -1,3 +1,9 @@
+/*! 
+
+# Fungi: bidirectional type system
+
+*/
+
 use ast::*;
 use std::fmt;
 use std::rc::Rc;

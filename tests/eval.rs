@@ -13,8 +13,7 @@ use adapton::reflect;
 
 
 fn eval_closed_exp(e:Exp) -> eval::ExpTerm {
-    let mut env = vec![];
-    eval::eval(env, e)
+    eval::eval(vec![], e)
 }
 
 fn eval_test_equiv(e1:Exp, e2:Exp) {
@@ -186,7 +185,7 @@ fn trace_simple() {
     let vis_exp = vis::label_exp(exp, &mut 0);
     println!("Exp: {:?}\n\n", vis_exp);
     
-    let (term, traces) = capture_traces(move || eval_closed_exp(vis_exp));
+    let (_term, traces) = capture_traces(move || eval_closed_exp(vis_exp));
     println!("Traces: {:?}\n\n", traces);
     
     assert_eq!(traces.len(), 6);

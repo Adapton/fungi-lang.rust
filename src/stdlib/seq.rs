@@ -51,8 +51,6 @@ force edges to clean or dirty.
 */
 
 use std::rc::Rc;
-
-use bitype;
 use ast::*;
 
 pub fn exp () -> Exp { tgt_exp![

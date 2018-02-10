@@ -1,8 +1,9 @@
-//! Big-step evaluation semantics for IODyn Target AST, via Adapton in
-//! Rust.
+//! Fungi: big-step evaluation semantics.
 //!
-//! Gives the incremental semantics of programs, using an external
-//! library (Adapton in Rust) to create and maintain the DCG.
+//! Gives the incremental semantics of Fungi programs, using an
+//! external library (Adapton in Rust) to create and maintain the
+//! "demanded computation graph" (the DCG), that underpins change
+//! propagation.
 //!
 //! ## Design discussion
 //!
