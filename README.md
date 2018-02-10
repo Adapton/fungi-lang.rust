@@ -11,7 +11,7 @@ Fungi serves as the target language for [IODyn](https://github.com/cuplv/iodyn-l
 
 ## (Status:)
 
- - We have implemented the AST structure, concrete syntax (via Rust macros for now); see `src/tgt_ast.rs`, and `test/tgt_ast.rs`
+ - We have implemented the AST structure, concrete syntax (via Rust macros for now); see `src/ast.rs`, and `test/ast.rs`
  - We are beginning the basic type system, and then, the refinement types and decision procedures.
  - For technical background and formal definitions, see the [latest draft of the technical report](https://arxiv.org/abs/1610.00097).
  - We are presently implementing these formalisms; the deductive proof rules for index equivalence and apartness do not indicate an obvious algorithm, or obvious encoding into SMT.  Creating these decision procedures is a key research challenge.
