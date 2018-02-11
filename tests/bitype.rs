@@ -62,10 +62,12 @@ fn examples2() {
             // this function will not be type-checked by the Fungi
             // type system; Fungi assumes it type checks (hence, it is
             // generally "unsafe" to use this trapdoor into Rust).
-            #n. unsafe nat_id n
+            //#n. unsafe nat_id n
+            unimplemented
         }        
         let vec_max:(Thk[0] 0 Vec Nat -> 0 F Nat) = {
-            #vec. unsafe vec_max vec // TODO
+            //#vec. unsafe vec_max vec // TODO
+            unimplemented
         }
         let rec max:(
             Thk[0] foralli (X,Y):NmSet.
@@ -101,8 +103,8 @@ fn examples2() {
         }
         {force max} nums
     ];
-    println!("Max example AST:");
-    println!("{:?}", max);
+    //println!("Max example AST:");
+    //println!("{:?}", max);
 
 
     let filter : Exp = fgi_exp![
@@ -205,17 +207,17 @@ fn examples2() {
         {force max} nums
     ];
     
-    println!("Filter example AST:");
-    println!("{:?}", filter);
+    //println!("Filter example AST:");
+    //println!("{:?}", filter);
 
-    println!("Filter example numbered:");
-    println!("{:?}", label_exp(filter.clone(), &mut 0));
+    //println!("Filter example numbered:");
+    //println!("{:?}", label_exp(filter.clone(), &mut 0));
+
+    //println!("Max example with type info:");
+    //println!("{:?}", synth_exp(None, &TCtxt::Empty, &max));
 
     println!("Filter example with type info:");
-    println!("{:?}", synth_exp(None, &TCtxt::Empty, &max));
-
-    println!("Filter example with type info:");
-    println!("{:?}", synth_exp(None, &TCtxt::Empty, &label_exp(filter, &mut 0)));
+    println!("{:?}", synth_exp(None, &TCtxt::Empty, &filter));
 
 }
 

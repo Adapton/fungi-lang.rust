@@ -384,8 +384,6 @@ pub enum TypeError {
     ParamMism(usize),
     ParamNoSynth(usize),
     ParamNoCheck(usize),
-    CheckFailType(Type),
-    CheckFailCEffect(CEffect),
     ProjNotProd,
     AppNotArrow,
     ValNotArrow,
@@ -395,6 +393,10 @@ pub enum TypeError {
     DSLiteral,
     EmptyDT,
     Unimplemented,
+    // More errors
+    CheckFailType(Type),
+    CheckFailCEffect(CEffect),
+    SynthFailVal(Val),
 }
 impl fmt::Display for TypeError {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
@@ -409,8 +411,6 @@ impl fmt::Display for TypeError {
             TypeError::ParamMism(num) => format!("parameter {} type incorrect",num),
             TypeError::ParamNoSynth(num) => format!("parameter {} unknown type",num),
             TypeError::ParamNoCheck(num) => format!("parameter {} type mismatch ",num),
-            TypeError::CheckFailType(ref t) => format!("check fail for type {:?}",t),
-            TypeError::CheckFailCEffect(ref ce) => format!("check fail for ceffect {:?}",ce),
             TypeError::ProjNotProd => format!("projection of non-product type"),
             TypeError::ValNotArrow => format!("this value requires an arrow type"),
             TypeError::AppNotArrow => format!("application of non-arrow type"),
@@ -420,6 +420,10 @@ impl fmt::Display for TypeError {
             TypeError::DSLiteral => format!("data structure literals not allowed"),
             TypeError::EmptyDT => format!("ambiguous empty data type"),
             TypeError::Unimplemented => format!("Internal Error: type-checking unimplemented"),
+            // 
+            TypeError::CheckFailType(ref t) => format!("check fail for type {:?}",t),
+            TypeError::CheckFailCEffect(ref ce) => format!("check fail for ceffect {:?}",ce),
+            TypeError::SynthFailVal(ref v) => format!("failed to synthesize type for value {:?}",v),
         };
         write!(f,"{}",s)
     }
@@ -1208,34 +1212,75 @@ pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffec
     let fail = |td:ExpTD, err :TypeError| { failure(Dir::Check, last_label, ctxt, td, err) };
     let succ = |td:ExpTD, typ :CEffect  | { success(Dir::Check, last_label, ctxt, td, typ) };
     match exp {
-        // &Exp::AnnoC(ref e,ref ct) => {},
-        // &Exp::AnnoE(ref e,ref et) => {},
-        // &Exp::Force(ref v) => {},
-        // &Exp::Thunk(ref v,ref e) => {},
-        // &Exp::Unroll(ref v,ref x,ref e) => {},
         &Exp::Fix(ref x,ref e) => {            
             let new_ctxt = ctxt.var(x.clone(), Type::Thk(IdxTm::Empty, Rc::new(ceffect.clone())));
             let td = check_exp(last_label, &new_ctxt, e, ceffect);
-            succ(ExpTD::Fix(x.clone(),td), ceffect.clone())
+            let td_typ = td.typ.clone();
+            match td_typ {
+                Err(_) => fail(ExpTD::Fix(x.clone(),td), TypeError::CheckFailCEffect((ceffect.clone()))),
+                Ok(_)  => succ(ExpTD::Fix(x.clone(),td), ceffect.clone())
+            }
         },
-        &Exp::Ret(ref v) => {
-            if let CEffect::Cons(CType::Lift(ref t),ref _ef) = *ceffect {
-                let td0 = check_val(last_label, ctxt, v, t);
-                let typ0 = td0.typ.clone();
-                let td = ExpTD::Ret(td0);
+        &Exp::Lam(ref x, ref e) => {
+            // Strip off "forall" quantifiers in the ceffect type, moving their assumptions into the context.
+            fn strip_foralls (ctxt:&TCtxt, ceffect:&CEffect) -> (TCtxt, CEffect) {
+                match ceffect {
+                    &CEffect::ForallType(ref _a, ref _kind, ref ceffect) => {
+                        // TODO: extend context with _x, etc.
+                        strip_foralls(ctxt, ceffect)
+                    },
+                    &CEffect::ForallIdx(ref _a, ref _sort, ref _prop, ref ceffect) => {
+                        // TODO: extend context with _x, etc.
+                        strip_foralls(ctxt, ceffect)
+                    },
+                    &CEffect::Cons(_, _) => { (ctxt.clone(), ceffect.clone()) }
+                    &CEffect::NoParse(_) => { (ctxt.clone(), ceffect.clone()) }
+                }
+            }
+            let (ctxt, ceffect) = strip_foralls(ctxt, ceffect);            
+            if let CEffect::Cons(CType::Arrow(ref at,ref et),ref _ef) = ceffect {
+                let new_ctxt = ctxt.var(x.clone(),at.clone());
+                let td1 = check_exp(last_label, &new_ctxt, e, et);
+                let typ1 = td1.typ.clone();
+                let td = ExpTD::Lam(x.clone(), td1);
                 // TODO: use this once effects are properly implemented
                 // if *ef != Effect::WR(IdxTm::Empty,IdxTm::Empty) {
                 //     return fail(td, TypeError::InvalidPtr)
                 // }
-                match typ0 {
-                    Err(_) => fail(td, TypeError::CheckFailType((t.clone()))),
-                    Ok(_) => succ(td, ceffect.clone())
+                match typ1 {
+                    Err(_) => fail(td, TypeError::CheckFailCEffect((ceffect.clone()))),
+                    Ok(_) => succ(td, ceffect.clone()),
                 }
-            } else { fail(ExpTD::Ret(
-                synth_val(last_label,ctxt,v)
+            } else { fail(ExpTD::Lam(
+                x.clone(), synth_exp(last_label, &ctxt, e)
             ), TypeError::AnnoMism) }
         },
-        // &Exp::DefType(ref x,Type,ref e) => {},
+        &Exp::Unroll(ref v,ref x,ref e) => {
+            let v_td = synth_val(last_label, ctxt, v);
+            match v_td.typ.clone() {
+                Err(_) => {
+                    let td0 = check_exp(last_label, ctxt, e, ceffect);
+                    fail(ExpTD::Unroll(v_td, x.clone(), td0),
+                         TypeError::SynthFailVal(v.clone()))
+                }
+                Ok(v_ty) => {
+                    let new_ctxt = ctxt.var(x.clone(), v_ty);
+                    let td0 = check_exp(last_label, &new_ctxt, e, ceffect);
+                    let td0_typ = td0.typ.clone();
+                    let td = ExpTD::Unroll(v_td, x.clone(), td0);
+                    match td0_typ {
+                        Err(_) => fail(td, TypeError::CheckFailCEffect((ceffect.clone()))),
+                        Ok(_)  => succ(td, ceffect.clone())
+                    }
+                }
+            }
+        },
+        
+        // TODO:
+        // &Exp::Case(ref v, ref x1, ExpRec, ref x2, ExpRec) => {},
+        // &Exp::App(ref e, ref v) => {},
+        // &Exp::Force(ref v) => {},
+        
         &Exp::Let(ref x,ref e1, ref e2) => {
             if let CEffect::Cons(ref ctyp,ref _eff) = *ceffect {
                 let td1 = synth_exp(last_label, ctxt, e1);
@@ -1268,54 +1313,49 @@ pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffec
                 synth_exp(last_label, ctxt, e1),
             ), TypeError::AnnoMism) }
         },
-        &Exp::Lam(ref x, ref e) => {
-            // Strip off "forall" quantifiers in the ceffect type, moving their assumptions into the context.
-            fn strip_foralls (ctxt:&TCtxt, ceffect:&CEffect) -> (TCtxt, CEffect) {
-                match ceffect {
-                    &CEffect::ForallType(ref _a, ref _kind, ref ceffect) => {
-                        // TODO: extend context with _x, etc.
-                        strip_foralls(ctxt, ceffect)
-                    },
-                    &CEffect::ForallIdx(ref _a, ref _sort, ref _prop, ref ceffect) => {
-                        // TODO: extend context with _x, etc.
-                        strip_foralls(ctxt, ceffect)
-                    },
-                    &CEffect::Cons(_, _) => { (ctxt.clone(), ceffect.clone()) }
-                    &CEffect::NoParse(_) => { (ctxt.clone(), ceffect.clone()) }
-                }
-            }
-            let (ctxt, ceffect) = strip_foralls(ctxt, ceffect);            
-            if let CEffect::Cons(CType::Arrow(ref at,ref et),ref _ef) = ceffect {
-                let new_ctxt = ctxt.var(x.clone(),at.clone());
-                let td1 = check_exp(last_label, &new_ctxt, e, et);
-                let typ1 = td1.typ.clone();
-                let td = ExpTD::Lam(x.clone(), td1);
+        &Exp::Ret(ref v) => {
+            if let CEffect::Cons(CType::Lift(ref t),ref _ef) = *ceffect {
+                let td0 = check_val(last_label, ctxt, v, t);
+                let typ0 = td0.typ.clone();
+                let td = ExpTD::Ret(td0);
                 // TODO: use this once effects are properly implemented
                 // if *ef != Effect::WR(IdxTm::Empty,IdxTm::Empty) {
                 //     return fail(td, TypeError::InvalidPtr)
                 // }
-                match typ1 {
-                    Err(_) => fail(td, TypeError::ParamNoCheck(1)),
-                    Ok(_) => succ(td, ceffect.clone()),
+                match typ0 {
+                    Err(_) => fail(td, TypeError::CheckFailType((t.clone()))),
+                    Ok(_) => succ(td, ceffect.clone())
                 }
-            } else { fail(ExpTD::Lam(
-                x.clone(), synth_exp(last_label, &ctxt, e)
+            } else { fail(ExpTD::Ret(
+                synth_val(last_label,ctxt,v)
             ), TypeError::AnnoMism) }
         },
-        // &Exp::App(ref e, ref v) => {},
+        
+        // TODO:
         // &Exp::Split(ref v, ref x1, ref x2, ref e) => {},
-        // &Exp::Case(ref v, ref x1, ExpRec, ref x2, ExpRec) => {},
         // &Exp::IfThenElse(ref v, ExpRec, ExpRec) => {},
-        // &Exp::Ref(ref v1,ref v2) => {},
         // &Exp::Get(ref v) => {},
+        // &Exp::PrimApp(PrimApp) => {},
+
+        // Later:
+        
+        // &Exp::DefType(ref x,Type,ref e) => {},
+        // &Exp::AnnoC(ref e,ref ct) => {},
+        // &Exp::AnnoE(ref e,ref et) => {},      
+        // &Exp::Thunk(ref v,ref e) => {},
+        // &Exp::Ref(ref v1,ref v2) => {},
         // &Exp::Scope(ref v,ref e) => {},
         // &Exp::NameFnApp(ref v1,ref v2) => {},
-        // &Exp::PrimApp(PrimApp) => {},
         &Exp::Unimp => {
             succ(ExpTD::Unimp, ceffect.clone())
         },
-        // &Exp::DebugLabel(ref s,ref e) => {},
-        // &Exp::NoParse(ref s) => {},
+        &Exp::DebugLabel(ref _s, ref _n, ref e) => {
+            // TODO: update last_label here?
+            check_exp(last_label, ctxt, e, ceffect)
+        },
+        &Exp::NoParse(ref s) => {
+            fail(ExpTD::NoParse(s.clone()), TypeError::NoParse(s.clone()))
+        },
         e => {
             let mut td = synth_exp(last_label,ctxt,e);
             let ty = td.typ.clone();
