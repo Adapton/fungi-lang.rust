@@ -8,9 +8,6 @@ use fungi_lang::ast::*;
 use fungi_lang::eval;
 use fungi_lang::vis;
 
-use adapton::engine::manage;
-use adapton::reflect;
-
 
 fn eval_closed_exp(e:Exp) -> eval::ExpTerm {
     eval::eval(vec![], e)
@@ -28,16 +25,6 @@ fn eval_test_equiv(e1:Exp, e2:Exp) {
     // );
     // println!("Traces: {:?}\n\n", x1);
     assert_eq!(t1, t2)
-}
-
-fn capture_traces<F>(f: F) -> (eval::ExpTerm, Vec<reflect::trace::Trace>)
-where F: FnOnce() -> eval::ExpTerm {
-    manage::init_dcg();
-    
-    reflect::dcg_reflect_begin();
-    let term = f();
-    let traces = reflect::dcg_reflect_end();
-    (term, traces)
 }
 
 #[test]
@@ -185,7 +172,7 @@ fn trace_simple() {
     let vis_exp = vis::label_exp(exp, &mut 0);
     println!("Exp: {:?}\n\n", vis_exp);
     
-    let (_term, traces) = capture_traces(move || eval_closed_exp(vis_exp));
+    let (_term, traces) = vis::capture_traces(move || eval_closed_exp(vis_exp));
     println!("Traces: {:?}\n\n", traces);
     
     assert_eq!(traces.len(), 6);

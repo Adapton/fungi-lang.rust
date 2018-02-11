@@ -2,7 +2,11 @@
 
 use std::rc::Rc;
 
-use ast::*;
+use ast::{Name, Exp, Val, PrimApp};
+use bitype;
+use eval;
+use adapton::reflect;
+use adapton::engine::manage;
 
 pub fn label_exp(e: Exp, ct: &mut usize) -> Exp {
     rewrite_exp(&e, ct)
@@ -65,4 +69,42 @@ fn rewrite_prim_app(prim: &PrimApp, ct: &mut usize) -> PrimApp {
         PrimApp::NameBin(ref v1, ref v2) => PrimApp::NameBin(rewrite_val(v1, ct), rewrite_val(v2, ct)),
         PrimApp::RefThunk(ref v) => PrimApp::RefThunk(rewrite_val(v, ct)),
     }
+}
+
+#[derive(Clone,Debug)]
+pub struct Bundle {
+    pub input: String,
+    pub program: bitype::TypeInfo<bitype::ExpTD>,
+    pub traces: Vec<reflect::trace::Trace>,
+}
+
+impl Bundle {
+    pub fn exp_td(&self) -> bitype::ExpTD {
+        (*self.program.node).clone()
+    }
+}
+
+#[macro_export]
+macro_rules! fgi_bundle {
+    [$($e:tt)+] => {{
+        let exp = label_exp(fgi_exp![$($e)+], &mut 0);
+        let program = synth_exp(None, &TCtxt::Empty, &exp);
+        // let (term, traces) = capture_traces(move || eval(vec![], exp));
+        Bundle {
+            input: stringify!($($e)+).to_owned(),
+            program: program,
+            // traces: traces,
+            traces: vec![],
+        }
+    }}
+}
+
+pub fn capture_traces<F>(f: F) -> (eval::ExpTerm, Vec<reflect::trace::Trace>)
+where F: FnOnce() -> eval::ExpTerm {
+    manage::init_dcg();
+    
+    reflect::dcg_reflect_begin();
+    let term = f();
+    let traces = reflect::dcg_reflect_end();
+    (term, traces)
 }
