@@ -384,6 +384,7 @@ pub enum TypeError {
     ParamMism(usize),
     ParamNoSynth(usize),
     ParamNoCheck(usize),
+    CheckFailType(Type),
     CheckFailCEffect(CEffect),
     ProjNotProd,
     AppNotArrow,
@@ -408,6 +409,7 @@ impl fmt::Display for TypeError {
             TypeError::ParamMism(num) => format!("parameter {} type incorrect",num),
             TypeError::ParamNoSynth(num) => format!("parameter {} unknown type",num),
             TypeError::ParamNoCheck(num) => format!("parameter {} type mismatch ",num),
+            TypeError::CheckFailType(ref t) => format!("check fail for type {:?}",t),
             TypeError::CheckFailCEffect(ref ce) => format!("check fail for ceffect {:?}",ce),
             TypeError::ProjNotProd => format!("projection of non-product type"),
             TypeError::ValNotArrow => format!("this value requires an arrow type"),
@@ -1203,30 +1205,6 @@ pub fn synth_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<Exp
 }
 
 pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffect) -> TypeInfo<ExpTD> {
-    // Strip off "forall" quantifiers in the ceffect type, moving their assumptions into the context.
-    match ceffect {
-        &CEffect::ForallType(ref _a, ref _kind, ref ceffect) => {
-            // TODO: extend context with _x, etc.
-            check_exp(last_label, ctxt, exp, ceffect)
-        },
-        &CEffect::ForallIdx(ref _a, ref _sort, ref _prop, ref ceffect) => {
-            // TODO: extend context with _x, etc.
-            check_exp(last_label, ctxt, exp, ceffect)
-        },
-        &CEffect::Cons(_, _) => {
-            // next, case-analyze the expression form:
-            check_exp_ctype(last_label, ctxt, exp, ceffect)
-        },
-        &CEffect::NoParse(ref s) => { failure(
-            Dir::Check,
-            last_label, ctxt,
-            ExpTD::NoParse(s.clone()),
-            TypeError::NoParse(s.clone()))
-        }
-    }
-}
-
-pub fn check_exp_ctype(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffect) -> TypeInfo<ExpTD> {
     let fail = |td:ExpTD, err :TypeError| { failure(Dir::Check, last_label, ctxt, td, err) };
     let succ = |td:ExpTD, typ :CEffect  | { success(Dir::Check, last_label, ctxt, td, typ) };
     match exp {
@@ -1235,10 +1213,14 @@ pub fn check_exp_ctype(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&
         // &Exp::Force(ref v) => {},
         // &Exp::Thunk(ref v,ref e) => {},
         // &Exp::Unroll(ref v,ref x,ref e) => {},
-        // &Exp::Fix(ref x,ref e) => {},
+        &Exp::Fix(ref x,ref e) => {            
+            let new_ctxt = ctxt.var(x.clone(), Type::Thk(IdxTm::Empty, Rc::new(ceffect.clone())));
+            let td = check_exp(last_label, &new_ctxt, e, ceffect);
+            succ(ExpTD::Fix(x.clone(),td), ceffect.clone())
+        },
         &Exp::Ret(ref v) => {
-            if let CEffect::Cons(CType::Lift(ref ct),ref _ef) = *ceffect {
-                let td0 = check_val(last_label, ctxt, v, ct);
+            if let CEffect::Cons(CType::Lift(ref t),ref _ef) = *ceffect {
+                let td0 = check_val(last_label, ctxt, v, t);
                 let typ0 = td0.typ.clone();
                 let td = ExpTD::Ret(td0);
                 // TODO: use this once effects are properly implemented
@@ -1246,7 +1228,7 @@ pub fn check_exp_ctype(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&
                 //     return fail(td, TypeError::InvalidPtr)
                 // }
                 match typ0 {
-                    Err(_) => fail(td, TypeError::CheckFailCEffect((ceffect.clone()))),
+                    Err(_) => fail(td, TypeError::CheckFailType((t.clone()))),
                     Ok(_) => succ(td, ceffect.clone())
                 }
             } else { fail(ExpTD::Ret(
@@ -1287,7 +1269,23 @@ pub fn check_exp_ctype(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&
             ), TypeError::AnnoMism) }
         },
         &Exp::Lam(ref x, ref e) => {
-            if let CEffect::Cons(CType::Arrow(ref at,ref et),ref _ef) = *ceffect {
+            // Strip off "forall" quantifiers in the ceffect type, moving their assumptions into the context.
+            fn strip_foralls (ctxt:&TCtxt, ceffect:&CEffect) -> (TCtxt, CEffect) {
+                match ceffect {
+                    &CEffect::ForallType(ref _a, ref _kind, ref ceffect) => {
+                        // TODO: extend context with _x, etc.
+                        strip_foralls(ctxt, ceffect)
+                    },
+                    &CEffect::ForallIdx(ref _a, ref _sort, ref _prop, ref ceffect) => {
+                        // TODO: extend context with _x, etc.
+                        strip_foralls(ctxt, ceffect)
+                    },
+                    &CEffect::Cons(_, _) => { (ctxt.clone(), ceffect.clone()) }
+                    &CEffect::NoParse(_) => { (ctxt.clone(), ceffect.clone()) }
+                }
+            }
+            let (ctxt, ceffect) = strip_foralls(ctxt, ceffect);            
+            if let CEffect::Cons(CType::Arrow(ref at,ref et),ref _ef) = ceffect {
                 let new_ctxt = ctxt.var(x.clone(),at.clone());
                 let td1 = check_exp(last_label, &new_ctxt, e, et);
                 let typ1 = td1.typ.clone();
@@ -1301,7 +1299,7 @@ pub fn check_exp_ctype(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&
                     Ok(_) => succ(td, ceffect.clone()),
                 }
             } else { fail(ExpTD::Lam(
-                x.clone(), synth_exp(last_label, ctxt, e)
+                x.clone(), synth_exp(last_label, &ctxt, e)
             ), TypeError::AnnoMism) }
         },
         // &Exp::App(ref e, ref v) => {},
