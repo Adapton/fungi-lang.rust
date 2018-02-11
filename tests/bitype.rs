@@ -36,7 +36,7 @@ fn examples2() {
         }
     }
 
-    let max : Exp = fgi_exp![
+    let max : Bundle = fgi_bundle![
         type Vec = (forallt T:type.user(Vec))
         // Seq[X,Y]:
         // Refinement type for a nominal, level-tree data structure,
@@ -107,7 +107,7 @@ fn examples2() {
     //println!("{:?}", max);
 
 
-    let filter : Exp = fgi_exp![
+    let filter : Bundle = fgi_bundle![
         // always Nats
         type Vec = (user(Vec))
 
@@ -213,7 +213,9 @@ fn examples2() {
     //println!("Filter example numbered:");
     //println!("{:?}", label_exp(filter.clone(), &mut 0));
     
-    let typed_exp = synth_exp(None, &TCtxt::Empty, &max);
+    let bundle = max;
+    
+    let typed_exp = bundle.exp_td();
     
     println!("Max example with type info:");
     println!("{:?}", typed_exp);
@@ -221,9 +223,9 @@ fn examples2() {
     use std::fs::File;
     use std::io::Write;
     
-    let mut data = format!("{:?}", typed_exp);
-    let mut f = File::create("target/OUTPUT.fgi").expect("Could not create output file");
-    f.write_all(data.as_bytes()).expect("Could not write output data");
+    let data = format!("{:?}", bundle);
+    let mut f = File::create("target/bundle.fgx").expect("Could not create bundle file");
+    f.write_all(data.as_bytes()).expect("Could not write bundle data");
     
     //println!("Filter example with type info:");
     //println!("{:?}", synth_exp(None, &TCtxt::Empty, &filter));
