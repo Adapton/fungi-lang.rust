@@ -209,10 +209,13 @@ fn examples2() {
     println!("{:?}", filter);
 
     println!("Filter example numbered:");
-    println!("{:?}", label_exp(filter, &mut 0));
+    println!("{:?}", label_exp(filter.clone(), &mut 0));
 
     println!("Filter example with type info:");
     println!("{:?}", synth_exp(None, &TCtxt::Empty, &max));
+
+    println!("Filter example with type info:");
+    println!("{:?}", synth_exp(None, &TCtxt::Empty, &label_exp(filter, &mut 0)));
 
 }
 

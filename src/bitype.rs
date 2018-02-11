@@ -619,6 +619,7 @@ pub fn check_idxtm(last_label:Option<&str>, ctxt:&TCtxt, idxtm:&IdxTm, sort:&Sor
             let mut td = synth_idxtm(last_label,ctxt,tm);
             let ty = td.typ.clone();
             if let Ok(ty) = ty {
+                // TODO: Type equality may be more complex than this test (e.g. alpha equivalent types should be equal)
                 if ty == *sort { td }
                 else {
                     td.typ = Err(TypeError::AnnoMism);
@@ -704,6 +705,7 @@ pub fn check_nmtm(last_label:Option<&str>, ctxt:&TCtxt, nmtm:&NameTm, sort:&Sort
             let mut td = synth_nmtm(last_label,ctxt,tm);
             let ty = td.typ.clone();
             if let Ok(ty) = ty {
+                // TODO: Type equality may be more complex than this test (e.g. alpha equivalent types should be equal)
                 if ty == *sort { td }
                 else {
                     td.typ = Err(TypeError::AnnoMism);
@@ -822,6 +824,7 @@ pub fn check_val(last_label:Option<&str>, ctxt:&TCtxt, val:&Val, typ:&Type) -> T
             match ctxt.lookup_var(x) {
                 None => fail(td, TypeError::VarNotInScope(x.clone())),
                 Some(ty) => {
+                    // TODO: Type equality may be more complex than this test (e.g. alpha equivalent types should be equal)
                     if ty == *typ { succ(td, ty) }
                     else { fail(td, TypeError::AnnoMism) }
                 }
@@ -906,6 +909,7 @@ pub fn check_val(last_label:Option<&str>, ctxt:&TCtxt, val:&Val, typ:&Type) -> T
             ), TypeError::AnnoMism) }
         },
         &Val::Anno(ref v,ref t) => {
+            // TODO: Type equality may be more complex than this test (e.g. alpha equivalent types should be equal)
             if *t == *typ {
                 let td0 = check_val(last_label, ctxt, v, t);
                 let typ0 = td0.typ.clone();
@@ -981,6 +985,7 @@ pub fn synth_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<Exp
             match typ0 {
                 Err(_) => fail(td, TypeError::ParamNoCheck(0)),
                 Ok(CEffect::Cons(ct,eff)) => {
+                    // TODO: Type equality may be more complex than this test (e.g. alpha equivalent types should be equal)
                     if *ctyp == ct { succ(td, CEffect::Cons(ct,eff)) }
                     else { fail(td, TypeError::AnnoMism) }
                 },
@@ -1309,6 +1314,7 @@ pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffec
             let mut td = synth_exp(last_label,ctxt,e);
             let ty = td.typ.clone();
             if let Ok(ty) = ty {
+                // TODO: Type equality may be more complex than this test (e.g. alpha equivalent types should be equal)
                 if ty == *ceffect { td }
                 else {
                     td.typ = Err(TypeError::AnnoMism);
