@@ -212,10 +212,19 @@ fn examples2() {
 
     //println!("Filter example numbered:");
     //println!("{:?}", label_exp(filter.clone(), &mut 0));
-
+    
+    let typed_exp = synth_exp(None, &TCtxt::Empty, &max);
+    
     println!("Max example with type info:");
-    println!("{:?}", synth_exp(None, &TCtxt::Empty, &max));
-
+    println!("{:?}", typed_exp);
+    
+    use std::fs::File;
+    use std::io::Write;
+    
+    let mut data = format!("{:?}", typed_exp);
+    let mut f = File::create("target/OUTPUT.fgi").expect("Could not create output file");
+    f.write_all(data.as_bytes()).expect("Could not write output data");
+    
     //println!("Filter example with type info:");
     //println!("{:?}", synth_exp(None, &TCtxt::Empty, &filter));
 
