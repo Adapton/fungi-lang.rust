@@ -1264,6 +1264,7 @@ pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffec
                          TypeError::SynthFailVal(v.clone()))
                 }
                 Ok(v_ty) => {
+                    // TODO: Unroll the type `v_ty` before associating with `x`:
                     let new_ctxt = ctxt.var(x.clone(), v_ty);
                     let td0 = check_exp(last_label, &new_ctxt, e, ceffect);
                     let td0_typ = td0.typ.clone();
@@ -1276,11 +1277,9 @@ pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffec
             }
         },
         
-        // TODO:
+        // TODO next:
         // &Exp::Case(ref v, ref x1, ExpRec, ref x2, ExpRec) => {},
-        // &Exp::App(ref e, ref v) => {},
-        // &Exp::Force(ref v) => {},
-        
+       
         &Exp::Let(ref x,ref e1, ref e2) => {
             if let CEffect::Cons(ref ctyp,ref _eff) = *ceffect {
                 let td1 = synth_exp(last_label, ctxt, e1);
@@ -1331,21 +1330,26 @@ pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffec
             ), TypeError::AnnoMism) }
         },
         
-        // TODO:
-        // &Exp::Split(ref v, ref x1, ref x2, ref e) => {},
-        // &Exp::IfThenElse(ref v, ExpRec, ExpRec) => {},
-        // &Exp::Get(ref v) => {},
-        // &Exp::PrimApp(PrimApp) => {},
-
-        // Later:
-        
-        // &Exp::DefType(ref x,Type,ref e) => {},
-        // &Exp::AnnoC(ref e,ref ct) => {},
-        // &Exp::AnnoE(ref e,ref et) => {},      
-        // &Exp::Thunk(ref v,ref e) => {},
-        // &Exp::Ref(ref v1,ref v2) => {},
-        // &Exp::Scope(ref v,ref e) => {},
-        // &Exp::NameFnApp(ref v1,ref v2) => {},
+        // TODO next:
+        //   &Exp::Split(ref v, ref x1, ref x2, ref e) => {},
+        //   &Exp::IfThenElse(ref v, ExpRec, ExpRec) => {},
+        //
+        // TODO later:
+        //   &Exp::Scope(ref v,ref e) => {},
+        //
+        // Implement synth rule:
+        //   &Exp::PrimApp(PrimApp) => {},
+        //   &Exp::NameFnApp(ref v1,ref v2) => {},
+        //
+        // Later and/or use synth rule:
+        //   &Exp::App(ref e, ref v) => {},
+        //   &Exp::Force(ref v) => {},
+        //   &Exp::Get(ref v) => {},
+        //   &Exp::DefType(ref x,Type,ref e) => {},
+        //   &Exp::AnnoC(ref e,ref ct) => {},
+        //   &Exp::AnnoE(ref e,ref et) => {},      
+        //   &Exp::Thunk(ref v,ref e) => {},
+        //   &Exp::Ref(ref v1,ref v2) => {},
         &Exp::Unimp => {
             succ(ExpTD::Unimp, ceffect.clone())
         },
