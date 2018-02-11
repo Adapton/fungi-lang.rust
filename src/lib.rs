@@ -1,3 +1,6 @@
+#![doc(html_logo_url = "http://adapton.org/fungi-lang-logo/Fungi-lang-logo.png",
+       html_root_url = "https://docs.rs/fungi-lang/")]
+
 #[macro_use] extern crate adapton;
 
 // // Source language (IODyn)
