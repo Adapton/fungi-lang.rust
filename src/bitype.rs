@@ -384,6 +384,7 @@ pub enum TypeError {
     ParamMism(usize),
     ParamNoSynth(usize),
     ParamNoCheck(usize),
+    CheckFailCEffect(CEffect),
     ProjNotProd,
     AppNotArrow,
     ValNotArrow,
@@ -407,6 +408,7 @@ impl fmt::Display for TypeError {
             TypeError::ParamMism(num) => format!("parameter {} type incorrect",num),
             TypeError::ParamNoSynth(num) => format!("parameter {} unknown type",num),
             TypeError::ParamNoCheck(num) => format!("parameter {} type mismatch ",num),
+            TypeError::CheckFailCEffect(ref ce) => format!("check fail for ceffect {:?}",ce),
             TypeError::ProjNotProd => format!("projection of non-product type"),
             TypeError::ValNotArrow => format!("this value requires an arrow type"),
             TypeError::AppNotArrow => format!("application of non-arrow type"),
@@ -932,7 +934,8 @@ pub fn check_val(last_label:Option<&str>, ctxt:&TCtxt, val:&Val, typ:&Type) -> T
                 //     return fail(td, TypeError::InvalidPtr)
                 // }
                 match typ0 {
-                    Err(_) => fail(td, TypeError::ParamNoCheck(0)),
+                    //Err(_) => fail(td, TypeError::ParamNoCheck(0)),
+                    Err(_) => fail(td, TypeError::CheckFailCEffect((**ce).clone())),
                     Ok(_) => succ(td, typ.clone())
                 }
             } else { fail(ValTD::ThunkAnon(
@@ -1200,27 +1203,32 @@ pub fn synth_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<Exp
 }
 
 pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffect) -> TypeInfo<ExpTD> {
+    // Strip off "forall" quantifiers in the ceffect type, moving their assumptions into the context.
+    match ceffect {
+        &CEffect::ForallType(ref _a, ref _kind, ref ceffect) => {
+            // TODO: extend context with _x, etc.
+            check_exp(last_label, ctxt, exp, ceffect)
+        },
+        &CEffect::ForallIdx(ref _a, ref _sort, ref _prop, ref ceffect) => {
+            // TODO: extend context with _x, etc.
+            check_exp(last_label, ctxt, exp, ceffect)
+        },
+        &CEffect::Cons(_, _) => {
+            // next, case-analyze the expression form:
+            check_exp_ctype(last_label, ctxt, exp, ceffect)
+        },
+        &CEffect::NoParse(ref s) => { failure(
+            Dir::Check,
+            last_label, ctxt,
+            ExpTD::NoParse(s.clone()),
+            TypeError::NoParse(s.clone()))
+        }
+    }
+}
+
+pub fn check_exp_ctype(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffect) -> TypeInfo<ExpTD> {
     let fail = |td:ExpTD, err :TypeError| { failure(Dir::Check, last_label, ctxt, td, err) };
     let succ = |td:ExpTD, typ :CEffect  | { success(Dir::Check, last_label, ctxt, td, typ) };
-
-    // TODO:
-    // Handle ForallIdx case *before* pattern-matching the expression.
-    // Recall, there is no expression form for `ForallIdx`.
-    // Hopefully, we don't need to add one.
-    //
-    // Example: Need to strip off _both_ of the ForallIdx CEffect
-    // terms below, and add their index variables to the typing
-    // context.
-    //
-    //   ForallIdx("X", NmSet, Tt,
-    //    ForallIdx("Y", NmSet, Tt,
-    //     Cons(Arrow(TypeApp(IdxApp(IdxApp(Cons(Seq), Var("X")), Var("Y")), Cons(Nat)),
-    //       Cons(Lift(Cons(Nat)), WR(FlatMap(Lam("x", Nm, Disj(Sing(Bin(Var("x"), Name(Num(1)))), Sing(Bin(Var("x"), Name(Num(2)))))), Var("X")), Empty)
-    //
-    // Currently, The seq-filter and seq-max examples fail because
-    // `lam x. e` terms do not check against `foralli X:sort|P. E`,
-    // but only against `A -> E`
-    //
     match exp {
         // &Exp::AnnoC(ref e,ref ct) => {},
         // &Exp::AnnoE(ref e,ref et) => {},
@@ -1238,7 +1246,7 @@ pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffec
                 //     return fail(td, TypeError::InvalidPtr)
                 // }
                 match typ0 {
-                    Err(_) => fail(td, TypeError::ParamNoCheck(0)),
+                    Err(_) => fail(td, TypeError::CheckFailCEffect((ceffect.clone()))),
                     Ok(_) => succ(td, ceffect.clone())
                 }
             } else { fail(ExpTD::Ret(
