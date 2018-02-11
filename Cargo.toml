@@ -1,6 +1,6 @@
 [package]
 name = "fungi-lang"
-version = "0.1.4"
+version = "0.1.5"
 authors = ["Matthew A. Hammer", "Kyle Headley", "Ryan Vandersmith", "CUPLV"]
 
 # A short blurb about the package. This is not rendered in any format when
