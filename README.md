@@ -2,14 +2,20 @@
 
 ## Fungi programs are incremental computations
 
-Fungi provides two sub-languages for expressing the interactions of
-incremental computations, which it divides into two roles:
+Fungi programs are demand-driven incremental computations, in the
+spirit of [Adapton](http://adapton.org).  In particular, Fungi
+provides two sub-languages for expressing the interactions of
+[incremental
+computations](https://en.wikipedia.org/wiki/Incremental_computing),
+which it divides into two roles:
 
-1. A _functional language_ for the **Archivist** role, and
-2. An _imperative language_ for the **Editor** role.
+1. A _**functional** language_ for the **Archivist** role, and
+2. An _**imperative** language_ for the **Editor** role.
 
-Computation performed in the archivist role computes output from input
-that the editor mutates over time.
+The archivist role computes incremental output from input on demand,
+and the editor role incrementally mutates this input over time, and
+may also change demand for output in the process (e.g., placing or
+removing focus on different outputs).
 
 ## Fungi programs name their data and subcomputations
 
@@ -20,10 +26,10 @@ names, **the behavior of Fungi archivists is functional**: the key
 invariant of its type-and-effects system.
 
 In particular, Fungi provides language affordances for
- - _first-class names_, 
- - _first class name-functions_, 
- - input/output collections whose types are indexed by _sets of names_ (e.g., to uniquely identify positions in a list), and 
- - functions whose types are indexed by what cached data and computations they read and write.
+ - [_first-class names_](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Val.html#variant.Name), 
+ - [_first class name-functions_](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Val.html#variant.NameFn), 
+ - [nominal, incremental collections](https://docs.rs/fungi-lang/0/fungi_lang/stdlib/index.html), whose types are indexed by [_sets of names_](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.IdxTm.html) (e.g., to uniquely identify positions in a list), and 
+ - [nominal, incremental functions over collections](https://docs.rs/fungi-lang/0/fungi_lang/stdlib/index.html), whose types are indexed by what cached data and computations they read and write.
 
 ## Fungi is a core calculus, and target language
 
