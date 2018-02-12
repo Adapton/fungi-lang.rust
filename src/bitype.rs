@@ -455,6 +455,70 @@ fn success<N:AstNode+HasType>(dir:Dir, _last_label:Option<&str>, ctxt:&TCtxt, n:
     }
 }
 
+
+/// Reduce type applications.
+///
+/// To do so, we may generally need to do lookups and type
+/// substitutions using the type context, to find the definitions of
+/// user-defined types and apply them to type or index arguments.
+///
+/// ### Example:
+///
+/// Suppose the user defines `NmOp := foralli X:NmSet. 1 + Nm[X]` in
+/// the context.  Then, `NmOp [{@1}]` reduces to `1 + Nm[{@1}]`, by
+/// using the body of the definition of `NmOp`, and reducing the
+/// type-index application.
+///
+/// ### Reducible forms
+///
+/// The result types are reducible:
+///
+///   1. `A [i]`   -- type-index application
+///   2. `A B`     -- type-type application
+///   3. `User(_)` -- user-defined type name (reduces to its definition)
+///
+/// ### Normal forms (irreducible forms)
+///
+/// The following forms are "normal"; they each have intro/elim forms
+/// in the core language's program syntax:
+///
+///  1. Base types, sums, products
+///  3. `Ref`, `Thk`, `Nm`, `(Nm->Nm)[_]`,
+///  4. `exists`
+///  5. `forallt`, `foralli`
+///  6. `rec`
+///  7. type variables (note: not the same as user-defined type)
+///
+pub fn reduce_type(last_label:Option<&str>, ctxt:&TCtxt, typ:&Type) -> Type {
+    /// XXX
+    /// Needed to implement case in the max example; the `Seq [X][Y] Nat` arg type needs to be "reduced" and then unrolled.
+    unimplemented!()
+}
+
+
+/// Unroll a `rec` type, exposing its recursive body's type structure.
+///
+/// ### Example 1:  
+///
+/// `unroll_type(rec a. 1 + a)`
+///  = `1 + (rec a. 1 + (rec a. 1 + a))`
+///
+/// ### Example 2:
+///
+/// `unroll_type(rec a. (+ 1 + a + (x a x a)))`  
+///  = `(+ 1`  
+///      `+ (rec a. 1 + a + (x a x a))`  
+///      `+ (x (rec a. 1 + a + (x a x a)) x (rec a. 1 + a + (x a x a)))`  
+///     `)`  
+///
+///
+pub fn unroll_type(ctxt:&TCtxt, typ:&Type) -> Option<Type> {
+    /// XXX
+    /// Needed to implement case in the max example; the `Seq [X][Y] Nat` arg type needs to be "reduced" and then unrolled.
+    unimplemented!()
+}
+
+
 pub fn synth_idxtm(last_label:Option<&str>, ctxt:&TCtxt, idxtm:&IdxTm) -> TypeInfo<IdxTmTD> {
     let fail = |td:IdxTmTD, err :TypeError| { failure(Dir::Synth, last_label, ctxt, td, err)  };
     let succ = |td:IdxTmTD, sort:Sort     | { success(Dir::Synth, last_label, ctxt, td, sort) };
@@ -1083,13 +1147,13 @@ pub fn synth_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<Exp
             }
         },
         &Exp::Ret(ref v) => {
-            // XXX
+            // XXX  -- for example
             let td0 = synth_val(last_label, ctxt, v);
             let td = ExpTD::Ret(td0);
             fail(td, TypeError::NoSynthRule)
         },
         &Exp::Let(ref x, ref e1, ref e2) => {
-            // XXX
+            // XXX  -- for example
             let td1 = synth_exp(last_label, ctxt, e1);
             let td2 = synth_exp(last_label, ctxt, e2);
             let td = ExpTD::Let(x.clone(), td1, td2);
@@ -1291,13 +1355,7 @@ pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffec
                          TypeError::SynthFailVal(v.clone()))
                 }
                 Ok(v_ty) => {
-                    // TODO: "Reduce" the type v_ty:
-                    // 1. Lookup user-defined types; substitute def bodies
-                    // 2. Reduce type applications
-                    // 3. Reduce index applications
-                    //
-                    // TODO: Unroll the type `v_ty` before associating with `x` (see steps above)
-                    //
+                    // XXX/TODO -- Call `reduce_type`, and then `unroll_type` before extending context with `v_ty`.
                     let new_ctxt = ctxt.var(x.clone(), v_ty);
                     let td0 = check_exp(last_label, &new_ctxt, e, ceffect);
                     let td0_typ = td0.typ.clone();
@@ -1313,7 +1371,6 @@ pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffec
             let v_td = synth_val(last_label, ctxt, v);
             match v_td.typ.clone() {
                 Ok(Type::Sum(ty1, ty2)) => {
-                    // TODO: Unroll the type `v_ty` before associating with `x`:
                     let new_ctxt1 = ctxt.var(x1.clone(), (*ty1).clone());
                     let new_ctxt2 = ctxt.var(x2.clone(), (*ty2).clone());
                     let td1 = check_exp(last_label, &new_ctxt1, e1, ceffect);
@@ -1390,7 +1447,7 @@ pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffec
             ), TypeError::AnnoMism) }
         },
         
-        // TODO next:
+        // XXX: TODO next:
         //   &Exp::Split(ref v, ref x1, ref x2, ref e) => {},
         //   &Exp::IfThenElse(ref v, ExpRec, ExpRec) => {},
         //
