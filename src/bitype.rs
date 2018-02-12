@@ -1012,8 +1012,10 @@ pub fn synth_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<Exp
             let typ0 = td0.typ.clone();
             let td = ExpTD::AnnoE(td0, et.clone());
             match typ0 {
-                Err(_) => fail(td, TypeError::AnnoMism),
                 Ok(ty) => succ(td, ty),
+                Err(_err) => {                    
+                    fail(td, TypeError::CheckFailCEffect((et.clone())))
+                }
             }
         },
         &Exp::Force(ref v) => {
@@ -1026,31 +1028,8 @@ pub fn synth_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<Exp
                     // TODO: Compose effects
                     succ(td, (**ce).clone())
                 }
-                Ok(_) => fail(td, TypeError::ParamMism(0)),
+                Ok(t) => fail(td, TypeError::UnexpectedType(t.clone())),
             }
-        },
-        &Exp::Thunk(ref v,ref e) => {
-            let td0 = synth_val(last_label, ctxt, v);
-            let td1 = synth_exp(last_label, ctxt, e);
-            let td = ExpTD::Thunk(td0,td1);
-            fail(td, TypeError::NoSynthRule)
-        },
-        &Exp::Unroll(ref v,ref x,ref e) => {
-            let td0 = synth_val(last_label, ctxt, v);
-            let td2 = synth_exp(last_label, ctxt, e);
-            let td = ExpTD::Unroll(td0, x.clone(), td2);
-            // TODO: rule for unroll
-            fail(td, TypeError::Unimplemented)
-        },
-        &Exp::Fix(ref x,ref e) => {
-            let td1 = synth_exp(last_label, ctxt, e);
-            let td = ExpTD::Fix(x.clone(), td1);
-            fail(td, TypeError::NoSynthRule)
-        },
-        &Exp::Ret(ref v) => {
-            let td0 = synth_val(last_label, ctxt, v);
-            let td = ExpTD::Ret(td0);
-            fail(td, TypeError::NoSynthRule)
         },
         &Exp::DefType(ref x,ref t, ref e) => {
             let td2 = synth_exp(last_label, ctxt, e);
@@ -1061,17 +1040,6 @@ pub fn synth_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<Exp
                 Err(_) => fail(td, TypeError::ParamNoSynth(2)),
                 Ok(ty) => succ(td, ty.clone()),
             }
-        },
-        &Exp::Let(ref x, ref e1, ref e2) => {
-            let td1 = synth_exp(last_label, ctxt, e1);
-            let td2 = synth_exp(last_label, ctxt, e2);
-            let td = ExpTD::Let(x.clone(), td1, td2);
-            fail(td, TypeError::NoSynthRule)
-        },
-        &Exp::Lam(ref x, ref e) => {
-            let td1 = synth_exp(last_label, ctxt, e);
-            let td = ExpTD::Lam(x.clone(), td1);
-            fail(td, TypeError::NoSynthRule)
         },
         &Exp::App(ref e, ref v) => {
             let td0 = synth_exp(last_label, ctxt, e);
@@ -1101,39 +1069,12 @@ pub fn synth_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<Exp
                 }
             }
         },
-        &Exp::Split(ref v, ref x1, ref x2, ref e) => {
-            let td0 = synth_val(last_label, ctxt, v);
-            let td3 = synth_exp(last_label, ctxt, e);
-            let td = ExpTD::Split(td0,x1.clone(),x2.clone(),td3);
-            fail(td, TypeError::NoSynthRule)
-        },
-        &Exp::Case(ref v, ref x1, ref e1, ref x2, ref e2) => {
-            let td0 = synth_val(last_label, ctxt, v);
-            let td2 = synth_exp(last_label, ctxt, e1);
-            let td4 = synth_exp(last_label, ctxt, e2);
-            let td = ExpTD::Case(td0,x1.clone(),td2,x2.clone(),td4);
-            fail(td, TypeError::NoSynthRule)
-        },
-        &Exp::IfThenElse(ref v, ref e1, ref e2) => {
-            let td0 = synth_val(last_label, ctxt, v);
-            let td1 = synth_exp(last_label, ctxt, e1);
-            let td2 = synth_exp(last_label, ctxt, e2);
-            let td = ExpTD::IfThenElse(td0,td1,td2);
-            // TODO: implement
-            fail(td, TypeError::Unimplemented)
-        },
-        &Exp::Ref(ref v1,ref v2) => {
-            let td0 = synth_val(last_label, ctxt, v1);
-            let td1 = synth_val(last_label, ctxt, v2);
-            let td = ExpTD::Ref(td0,td1);
-            fail(td, TypeError::NoSynthRule)
-        },
         &Exp::Get(ref v) => {
             let td0 = synth_val(last_label, ctxt, v);
             let typ0 = td0.typ.clone();
             let td = ExpTD::Get(td0);
             match typ0 {
-                Err(_) => fail(td, TypeError::ParamNoSynth(0)),
+                Err(_) => fail(td, TypeError::SynthFailVal(v.clone())),
                 Ok(Type::Ref(ref idx,ref ty)) => succ(td, CEffect::Cons(
                     CType::Lift((**ty).clone()),
                     Effect::WR(IdxTm::Empty, idx.clone())
@@ -1141,58 +1082,40 @@ pub fn synth_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<Exp
                 Ok(_) => fail(td, TypeError::GetNotRef)
             }
         },
-        &Exp::Scope(ref v,ref e) => {
+        &Exp::Ret(ref v) => {
+            // XXX
             let td0 = synth_val(last_label, ctxt, v);
-            let td1 = synth_exp(last_label, ctxt, e);
-            let td = ExpTD::Scope(td0,td1);
+            let td = ExpTD::Ret(td0);
             fail(td, TypeError::NoSynthRule)
         },
-        &Exp::NameFnApp(ref v0,ref v1) => {
-            let td0 = synth_val(last_label, ctxt, v0);
-            let td1 = synth_val(last_label, ctxt, v1);
-            let td = ExpTD::NameFnApp(td0,td1);
-            // TODO: implement
-            fail(td, TypeError::Unimplemented)
-        },
-        &Exp::PrimApp(PrimApp::NatEq(ref v0,ref v1)) => {
-            let td0 = synth_val(last_label, ctxt, v0);
-            let td1 = synth_val(last_label, ctxt, v1);
-            let td = ExpTD::PrimApp(PrimAppTD::NatEq(td0,td1));
-            // TODO: implement
-            fail(td, TypeError::Unimplemented)
-        },
-        &Exp::PrimApp(PrimApp::NatLt(ref v0,ref v1)) => {
-            let td0 = synth_val(last_label, ctxt, v0);
-            let td1 = synth_val(last_label, ctxt, v1);
-            let td = ExpTD::PrimApp(PrimAppTD::NatLt(td0,td1));
-            // TODO: implement
-            fail(td, TypeError::Unimplemented)
-        },
-        &Exp::PrimApp(PrimApp::NatLte(ref v0,ref v1)) => {
-            let td0 = synth_val(last_label, ctxt, v0);
-            let td1 = synth_val(last_label, ctxt, v1);
-            let td = ExpTD::PrimApp(PrimAppTD::NatLte(td0,td1));
-            // TODO: implement
-            fail(td, TypeError::Unimplemented)
-        },
-        &Exp::PrimApp(PrimApp::NatPlus(ref v0,ref v1)) => {
-            let td0 = synth_val(last_label, ctxt, v0);
-            let td1 = synth_val(last_label, ctxt, v1);
-            let td = ExpTD::PrimApp(PrimAppTD::NatPlus(td0,td1));
-            // TODO: implement
-            fail(td, TypeError::Unimplemented)
+        &Exp::Let(ref x, ref e1, ref e2) => {
+            // XXX
+            let td1 = synth_exp(last_label, ctxt, e1);
+            let td2 = synth_exp(last_label, ctxt, e2);
+            let td = ExpTD::Let(x.clone(), td1, td2);
+            fail(td, TypeError::NoSynthRule)
         },
         &Exp::PrimApp(PrimApp::NameBin(ref v0,ref v1)) => {
             let td0 = synth_val(last_label, ctxt, v0);
             let td1 = synth_val(last_label, ctxt, v1);
             let td = ExpTD::PrimApp(PrimAppTD::NameBin(td0,td1));
             // TODO: implement
+            // XXX -- for example
             fail(td, TypeError::Unimplemented)
         },
         &Exp::PrimApp(PrimApp::RefThunk(ref v)) => {
             let td0 = synth_val(last_label, ctxt, v);
             let td = ExpTD::PrimApp(PrimAppTD::RefThunk(td0));
             // TODO: implement
+            // XXX -- for example
+            fail(td, TypeError::Unimplemented)
+        },        
+        &Exp::PrimApp(PrimApp::NatLt(ref v0,ref v1)) => {
+            let td0 = synth_val(last_label, ctxt, v0);
+            let td1 = synth_val(last_label, ctxt, v1);
+            let td = ExpTD::PrimApp(PrimAppTD::NatLt(td0,td1));
+            // TODO: implement
+            // XXX -- for max example:
             fail(td, TypeError::Unimplemented)
         },
         &Exp::Unimp => {
@@ -1211,6 +1134,103 @@ pub fn synth_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<Exp
         },
         &Exp::NoParse(ref s) => {
             fail(ExpTD::NoParse(s.clone()), TypeError::NoParse(s.clone()))
+        },
+
+        //
+        // -------- low priority:
+        //
+        
+        &Exp::NameFnApp(ref v0,ref v1) => {
+            let td0 = synth_val(last_label, ctxt, v0);
+            let td1 = synth_val(last_label, ctxt, v1);
+            let td = ExpTD::NameFnApp(td0,td1);
+            // TODO: implement
+            fail(td, TypeError::Unimplemented)
+        },
+        &Exp::PrimApp(PrimApp::NatEq(ref v0,ref v1)) => {
+            let td0 = synth_val(last_label, ctxt, v0);
+            let td1 = synth_val(last_label, ctxt, v1);
+            let td = ExpTD::PrimApp(PrimAppTD::NatEq(td0,td1));
+            // TODO: implement
+            fail(td, TypeError::Unimplemented)
+        },
+        &Exp::PrimApp(PrimApp::NatLte(ref v0,ref v1)) => {
+            let td0 = synth_val(last_label, ctxt, v0);
+            let td1 = synth_val(last_label, ctxt, v1);
+            let td = ExpTD::PrimApp(PrimAppTD::NatLte(td0,td1));
+            // TODO: implement
+            fail(td, TypeError::Unimplemented)
+        },
+        &Exp::PrimApp(PrimApp::NatPlus(ref v0,ref v1)) => {
+            let td0 = synth_val(last_label, ctxt, v0);
+            let td1 = synth_val(last_label, ctxt, v1);
+            let td = ExpTD::PrimApp(PrimAppTD::NatPlus(td0,td1));
+            // TODO: implement
+            fail(td, TypeError::Unimplemented)
+        },
+
+        //
+        // -------- More cases (lowest priority)
+        //
+
+        &Exp::Scope(ref v,ref e) => {            
+            let td0 = synth_val(last_label, ctxt, v);
+            let td1 = synth_exp(last_label, ctxt, e);
+            let td = ExpTD::Scope(td0,td1);
+            fail(td, TypeError::NoSynthRule) // Ok, for now.
+        },
+        &Exp::Split(ref v, ref x1, ref x2, ref e) => {
+            let td0 = synth_val(last_label, ctxt, v);
+            let td3 = synth_exp(last_label, ctxt, e);
+            let td = ExpTD::Split(td0,x1.clone(),x2.clone(),td3);
+            fail(td, TypeError::NoSynthRule) // Ok, for now.
+        },
+        &Exp::Case(ref v, ref x1, ref e1, ref x2, ref e2) => {
+            let td0 = synth_val(last_label, ctxt, v);
+            let td2 = synth_exp(last_label, ctxt, e1);
+            let td4 = synth_exp(last_label, ctxt, e2);
+            let td = ExpTD::Case(td0,x1.clone(),td2,x2.clone(),td4);
+            fail(td, TypeError::NoSynthRule) // Ok, for now.
+        },
+        &Exp::IfThenElse(ref v, ref e1, ref e2) => {
+            let td0 = synth_val(last_label, ctxt, v);
+            let td1 = synth_exp(last_label, ctxt, e1);
+            let td2 = synth_exp(last_label, ctxt, e2);
+            let td = ExpTD::IfThenElse(td0,td1,td2);
+            // TODO: implement
+            fail(td, TypeError::Unimplemented) // Ok, for now.
+        },
+        &Exp::Ref(ref v1,ref v2) => {
+            let td0 = synth_val(last_label, ctxt, v1);
+            let td1 = synth_val(last_label, ctxt, v2);
+            let td = ExpTD::Ref(td0,td1);
+            fail(td, TypeError::NoSynthRule) // Ok, for now.
+        },
+
+        // ==  
+        // == -- No synth rules for these forms
+        // ==
+        &Exp::Thunk(ref v,ref e) => {
+            let td0 = synth_val(last_label, ctxt, v);
+            let td1 = synth_exp(last_label, ctxt, e);
+            let td = ExpTD::Thunk(td0,td1); // Ok
+            fail(td, TypeError::NoSynthRule)
+        },
+        &Exp::Fix(ref x,ref e) => {
+            let td1 = synth_exp(last_label, ctxt, e);
+            let td = ExpTD::Fix(x.clone(), td1);
+            fail(td, TypeError::NoSynthRule) // Ok
+        },
+        &Exp::Lam(ref x, ref e) => {
+            let td1 = synth_exp(last_label, ctxt, e);
+            let td = ExpTD::Lam(x.clone(), td1);
+            fail(td, TypeError::NoSynthRule) // Ok
+        },        
+        &Exp::Unroll(ref v,ref x,ref e) => {
+            let td0 = synth_val(last_label, ctxt, v);
+            let td2 = synth_exp(last_label, ctxt, e);
+            let td = ExpTD::Unroll(td0, x.clone(), td2);
+            fail(td, TypeError::Unimplemented) // Ok
         },
     }
 }
@@ -1377,9 +1397,6 @@ pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffec
         // TODO later:
         //   &Exp::Scope(ref v,ref e) => {},
         //
-        // Implement synth rule:
-        //   &Exp::PrimApp(PrimApp) => {},
-        //   &Exp::NameFnApp(ref v1,ref v2) => {},
         //
         // Later and/or use synth rule:
         //   &Exp::App(ref e, ref v) => {},
@@ -1390,6 +1407,9 @@ pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffec
         //   &Exp::AnnoE(ref e,ref et) => {},      
         //   &Exp::Thunk(ref v,ref e) => {},
         //   &Exp::Ref(ref v1,ref v2) => {},
+        //   &Exp::PrimApp(PrimApp) => {},
+        //   &Exp::NameFnApp(ref v1,ref v2) => {},
+        //
         &Exp::Unimp => {
             succ(ExpTD::Unimp, ceffect.clone())
         },
