@@ -2,9 +2,10 @@
 
 ## Fungi programs are incremental computations
 
-Fungi programs are demand-driven incremental computations, in the
-spirit of [Adapton](http://adapton.org).  In particular, Fungi
-provides two sub-languages for expressing the interactions of
+Incremental computing consists of successively re-computing related
+outputs from related inputs.
+
+Fungi provides two sub-languages for expressing the interactions of
 [incremental
 computations](https://en.wikipedia.org/wiki/Incremental_computing),
 which it divides into two roles:
@@ -33,7 +34,15 @@ In particular, Fungi provides language affordances for
 
 ## Fungi is a core calculus, and target language
 
-Fungi serves as the target language for [IODyn](https://github.com/cuplv/iodyn-lang.rust).  Unlike IODyn, the incremental features of Fungi are explicit.
+Fungi programs are demand-driven incremental computations, following
+the core calculi and run-time semantics of
+[Adapton](http://adapton.org).  Unlike prior Adapton-related projects,
+Fungi provides affordances, in the form of a type system, for
+reasoning about names statically.
+
+Fungi serves as the target language for
+[IODyn](https://github.com/cuplv/iodyn-lang.rust).  Unlike IODyn, the
+incremental features of Fungi are explicit.
 
 ## Status:
 
