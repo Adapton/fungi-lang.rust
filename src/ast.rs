@@ -900,6 +900,14 @@ pub enum Val {
     Name(Name),
     NameFn(NameTm),
     Anno(ValRec,Type),
+    //
+    // Gamma, a:g         ||- P true
+    // Gamma, a:g, P true |- v <= A
+    // -------------------------------------------- :: existsi
+    // Gamma |- pack(a,P,v) <= (exists a:g|P. A)
+    //
+    // concrete: `pack a. v`
+    Pack(Var,Prop,ValRec),
     
     // Anonymous thunks: "ordinary" CBPV thunks. They can be written
     // in the source program, and unlike named (store-allocated)
@@ -1032,6 +1040,14 @@ pub enum Exp {
     Force(Val),
     Thunk(Val,ExpRec),
     Unroll(Val,Var,ExpRec),
+    //
+    // Gamma |- v => (exists a:g|P. A)
+    // Gamma, a:g, P true, x:A |- e <= E
+    // -------------------------------- :: unpack
+    // Gamma |- unpack(v,x.a.e) <= E
+    //
+    // concrete: `unpack v x.a. e`
+    Unpack(Val,Var,Var,ExpRec),
     Fix(Var,ExpRec),
     Ret(Val),
     DefType(Var,Type,ExpRec),

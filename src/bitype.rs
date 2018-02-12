@@ -469,12 +469,12 @@ fn success<N:AstNode+HasType>(dir:Dir, _last_label:Option<&str>, ctxt:&TCtxt, n:
 /// using the body of the definition of `NmOp`, and reducing the
 /// type-index application.
 ///
-/// ### Reducible forms
+/// ### Reducible forms (not head normal form)
 ///
 /// The following type forms are **reducible**:
 ///
-///   1. `A [i]`   -- type-index application
-///   2. `A B`     -- type-type application
+///   1. `(foralli a:g. A) [i]`   -- type-index application
+///   2. `(forallt a:K. A) B`     -- type-type application
 ///   3. `User(_)` -- user-defined type name (reduces to its definition)
 ///
 /// ### Normal forms (irreducible forms)
@@ -488,13 +488,38 @@ fn success<N:AstNode+HasType>(dir:Dir, _last_label:Option<&str>, ctxt:&TCtxt, n:
 ///  5. `forallt`, `foralli`
 ///  6. `rec`
 ///  7. type variables, as introduced by `forallt` and `rec` (note: not the same as user-defined type names, which each have a known definition)
-///
+///  8. type applications in head normal form.
+/// 
 pub fn reduce_type(last_label:Option<&str>, ctxt:&TCtxt, typ:&Type) -> Type {
     /// XXX
     /// Needed to implement case in the max example; the `Seq [X][Y] Nat` arg type needs to be "reduced" and then unrolled.
     unimplemented!()
 }
 
+/*
+
+Not head normal:
+(#a. (#b. b) 3) 4
+-->
+(#a. 3) 4
+-->
+3 4
+-/->
+
+Not in normal form: (#b.b) 3) --> 3
+(#x. ((#b.b) 3))
+
+Is head normal (with lambda as outside thing)
+(#x. ((#b.b) 3))
+
+Head normal (with application as outside thing)
+x 1 2 3
+^
+| variable here
+
+*/
+
+*/
 
 /// Unroll a `rec` type, exposing its recursive body's type structure.
 ///
@@ -1355,7 +1380,9 @@ pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffec
                          TypeError::SynthFailVal(v.clone()))
                 }
                 Ok(v_ty) => {
-                    // XXX/TODO -- Call `reduce_type`, and then `unroll_type` before extending context with `v_ty`.
+                    // XXX/TODO -- Call `reduce_type`,
+                    // and then `unroll_type` before extending
+                    // context with `v_ty`.
                     let new_ctxt = ctxt.var(x.clone(), v_ty);
                     let td0 = check_exp(last_label, &new_ctxt, e, ceffect);
                     let td0_typ = td0.typ.clone();
