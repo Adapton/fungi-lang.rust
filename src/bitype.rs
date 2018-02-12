@@ -399,6 +399,7 @@ pub enum TypeError {
     SynthFailVal(Val),
     //TypeMismatch(Type1,Type2),
     UnexpectedCEffect(CEffect),
+    UnexpectedType(Type),
 }
 impl fmt::Display for TypeError {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
@@ -428,6 +429,7 @@ impl fmt::Display for TypeError {
             TypeError::SynthFailVal(ref v) => format!("failed to synthesize type for value {:?}",v),
             //TypeError::TypeMismatch(ref t1, ref t2) => format!("failed to equate types {:?} (given) and {:?} (expected)", t1, t2),
             TypeError::UnexpectedCEffect(ref ce) => format!("unexpected effect type: {:?}", ce),
+            TypeError::UnexpectedType(ref t) => format!("unexpected type: {:?}", t),
         };
         write!(f,"{}",s)
     }
@@ -1303,6 +1305,12 @@ pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffec
                         (Ok(_),Ok(_)) => succ(td, ceffect.clone()),
                         (_    ,_    ) => fail(td, TypeError::CheckFailCEffect((ceffect.clone()))),
                     }
+                }
+                Ok(t) => {
+                    let td1 = check_exp(last_label, ctxt, e1, ceffect);
+                    let td2 = check_exp(last_label, ctxt, e2, ceffect);
+                    fail(ExpTD::Case(v_td, x1.clone(), td1, x2.clone(), td2),
+                         TypeError::UnexpectedType(t))
                 }
                 _ => {
                     let td1 = check_exp(last_label, ctxt, e1, ceffect);

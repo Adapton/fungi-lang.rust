@@ -36,6 +36,57 @@ fn examples2() {
         }
     }
 
+    let max_simple : Bundle = fgi_bundle![
+        type Vec = (forallt T:type.user(Vec))
+        // Seq[X,Y]:
+        // Refinement type for a nominal, level-tree data structure,
+        // ...      with (unallocated) names in X
+        // ... and (allocated) pointer names in Y
+        //
+        type Seq = (
+            rec Seq. foralli (X,Y):NmSet. forallt T:type.
+            (+ Vec T
+             + (exists (X1,X2,X3)   :NmSet | (X1%X2%X3=X).
+                exists (Y1,Y2,Y3,Y4):NmSet | (Y1%Y2%Y3%Y4=Y).
+                x Nm[X1] x Nat
+                // Seq vs T ??
+                x Ref[Y1](Seq[X2][Y2] T)
+                // Seq vs T ??
+                x Ref[Y3](Seq[X3][Y4] T))
+            )
+        )
+        let nums:(Seq[X][Y] Nat) = { unimplemented }
+        let nat_id:(Thk[0] 0 Nat -> 0 F Nat) = {
+            // bind "unsafe" version of nat_id, written in Rust above,
+            // to the `nat_id` variable and type in Fungi. The body of
+            // this function will not be type-checked by the Fungi
+            // type system; Fungi assumes it type checks (hence, it is
+            // generally "unsafe" to use this trapdoor into Rust).
+            //#n. unsafe nat_id n
+            unimplemented
+        }        
+        let vec_max:(Thk[0] 0 Vec Nat -> 0 F Nat) = {
+            //#vec. unsafe vec_max vec // TODO
+            unimplemented
+        }
+        let rec max:(
+            Thk[0] foralli (X,Y):NmSet.
+                0 Seq[X][Y] Nat ->
+                {(#x:Nm.{x,@1} % {x,@2}) X; 0} F Nat
+        ) = {
+            #seq. unroll seq seq. match seq {
+                vec => { {force vec_max} vec }
+                bin => {
+                    let (n,_x,l,r) = {ret bin}
+                    let (unused, ml) = { memo{n,(@1)}{ {force max} {!l} } }
+                    let (unused, mr) = { memo{n,(@2)}{ {force max} {!r} } }
+                    if { mr < ml } {ret ml} else {ret mr}
+                }
+            }
+        }
+        {force max} nums
+    ];
+    
     let max : Bundle = fgi_bundle![
         type Vec = (forallt T:type.user(Vec))
         // Seq[X,Y]:
@@ -213,7 +264,8 @@ fn examples2() {
     //println!("Filter example numbered:");
     //println!("{:?}", label_exp(filter.clone(), &mut 0));
     
-    let bundle = max;
+    //let bundle = max;
+    let bundle = max_simple;
     
     let typed_exp = bundle.exp_td();
     
