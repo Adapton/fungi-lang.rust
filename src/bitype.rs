@@ -500,7 +500,7 @@ pub fn reduce_type(last_label:Option<&str>, ctxt:&TCtxt, typ:&Type) -> Type {
 ///
 /// ### Example 1:  
 ///
-/// `unroll_type(rec a. 1 + a)`
+/// `unroll_type(rec a. 1 + a)`  
 ///  = `1 + (rec a. 1 + (rec a. 1 + a))`
 ///
 /// ### Example 2:
