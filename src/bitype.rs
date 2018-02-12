@@ -456,16 +456,15 @@ fn success<N:AstNode+HasType>(dir:Dir, _last_label:Option<&str>, ctxt:&TCtxt, n:
 }
 
 
-/// Reduce type applications.
+/// Normalize types (expand definitions and reduce applications).
 ///
-/// To do so, we may generally need to do lookups and type
-/// substitutions using the type context, to find the definitions of
-/// user-defined types and apply them to type or index arguments.
+/// To normalize types, we generally need to **expand definitions** of
+/// user-defined types, and **apply them** to type or index arguments.
 ///
 /// ### Example:
 ///
 /// Suppose the user defines `NmOp := foralli X:NmSet. 1 + Nm[X]` in
-/// the context.  Then, `NmOp [{@1}]` reduces to `1 + Nm[{@1}]`, by
+/// the context.  Then, `NmOp [{@1}]` normalizes to `1 + Nm[{@1}]`, by
 /// using the body of the definition of `NmOp`, and reducing the
 /// type-index application.
 ///
@@ -490,7 +489,7 @@ fn success<N:AstNode+HasType>(dir:Dir, _last_label:Option<&str>, ctxt:&TCtxt, n:
 ///  7. type variables, as introduced by `forallt` and `rec` (note: not the same as user-defined type names, which each have a known definition)
 ///  8. type applications in head normal form.
 /// 
-pub fn reduce_type(last_label:Option<&str>, ctxt:&TCtxt, typ:&Type) -> Type {
+pub fn normal_type(last_label:Option<&str>, ctxt:&TCtxt, typ:&Type) -> Type {
     /// XXX
     /// Needed to implement case in the max example; the `Seq [X][Y] Nat` arg type needs to be "reduced" and then unrolled.
     unimplemented!()
