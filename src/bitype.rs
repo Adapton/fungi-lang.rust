@@ -397,6 +397,8 @@ pub enum TypeError {
     CheckFailType(Type),
     CheckFailCEffect(CEffect),
     SynthFailVal(Val),
+    //TypeMismatch(Type1,Type2),
+    UnexpectedCEffect(CEffect),
 }
 impl fmt::Display for TypeError {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
@@ -424,6 +426,8 @@ impl fmt::Display for TypeError {
             TypeError::CheckFailType(ref t) => format!("check fail for type {:?}",t),
             TypeError::CheckFailCEffect(ref ce) => format!("check fail for ceffect {:?}",ce),
             TypeError::SynthFailVal(ref v) => format!("failed to synthesize type for value {:?}",v),
+            //TypeError::TypeMismatch(ref t1, ref t2) => format!("failed to equate types {:?} (given) and {:?} (expected)", t1, t2),
+            TypeError::UnexpectedCEffect(ref ce) => format!("unexpected effect type: {:?}", ce),
         };
         write!(f,"{}",s)
     }
@@ -1074,7 +1078,7 @@ pub fn synth_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<Exp
                 Err(_) => {
                     let td1 = synth_val(last_label, ctxt, v);
                     let td = ExpTD::App(td0,td1);
-                    fail(td, TypeError::ParamNoSynth(0))
+                    fail(td, TypeError::SynthFailVal(v.clone()))
                 },
                 Ok(CEffect::Cons(CType::Arrow(ref ty,ref ce), ref _ef)) => {
                     let td1 = check_val(last_label, ctxt, v, ty);
@@ -1088,10 +1092,10 @@ pub fn synth_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<Exp
                         }
                     }
                 },
-                Ok(_) => {
+                Ok(ce) => {
                     let td1 = synth_val(last_label, ctxt, v);
                     let td = ExpTD::App(td0,td1);
-                    fail(td, TypeError::ParamMism(0))
+                    fail(td, TypeError::UnexpectedCEffect(ce.clone()))
                 }
             }
         },
@@ -1198,7 +1202,8 @@ pub fn synth_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<Exp
             let typ2 = td2.typ.clone();
             let td = ExpTD::DebugLabel(n.clone(),s.clone(),td2);
             match typ2 {
-                Err(_) => fail(td, TypeError::ParamNoSynth(0)),
+                // Copy/propagate the error; do not replace it with a new one.
+                Err(err) => fail(td, err),
                 Ok(ty) => succ(td, ty),
             }
         },
@@ -1264,7 +1269,13 @@ pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffec
                          TypeError::SynthFailVal(v.clone()))
                 }
                 Ok(v_ty) => {
-                    // TODO: Unroll the type `v_ty` before associating with `x`:
+                    // TODO: "Reduce" the type v_ty:
+                    // 1. Lookup user-defined types; substitute def bodies
+                    // 2. Reduce type applications
+                    // 3. Reduce index applications
+                    //
+                    // TODO: Unroll the type `v_ty` before associating with `x` (see steps above)
+                    //
                     let new_ctxt = ctxt.var(x.clone(), v_ty);
                     let td0 = check_exp(last_label, &new_ctxt, e, ceffect);
                     let td0_typ = td0.typ.clone();
