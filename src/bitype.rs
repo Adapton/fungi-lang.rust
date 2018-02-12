@@ -471,7 +471,7 @@ fn success<N:AstNode+HasType>(dir:Dir, _last_label:Option<&str>, ctxt:&TCtxt, n:
 ///
 /// ### Reducible forms
 ///
-/// The result types are reducible:
+/// The following type forms are **reducible**:
 ///
 ///   1. `A [i]`   -- type-index application
 ///   2. `A B`     -- type-type application
@@ -479,15 +479,15 @@ fn success<N:AstNode+HasType>(dir:Dir, _last_label:Option<&str>, ctxt:&TCtxt, n:
 ///
 /// ### Normal forms (irreducible forms)
 ///
-/// The following forms are "normal"; they each have intro/elim forms
-/// in the core language's program syntax:
+/// The following forms are "normal" (irreducible); they each have
+/// intro/elim forms in the core language's program syntax:
 ///
 ///  1. Base types, sums, products
 ///  3. `Ref`, `Thk`, `Nm`, `(Nm->Nm)[_]`,
 ///  4. `exists`
 ///  5. `forallt`, `foralli`
 ///  6. `rec`
-///  7. type variables (note: not the same as user-defined type)
+///  7. type variables, as introduced by `forallt` and `rec` (note: not the same as user-defined type names, which each have a known definition)
 ///
 pub fn reduce_type(last_label:Option<&str>, ctxt:&TCtxt, typ:&Type) -> Type {
     /// XXX
