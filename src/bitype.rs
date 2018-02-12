@@ -1276,10 +1276,31 @@ pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffec
                 }
             }
         },
-        
-        // TODO next:
-        // &Exp::Case(ref v, ref x1, ExpRec, ref x2, ExpRec) => {},
-       
+        &Exp::Case(ref v, ref x1, ref e1, ref x2, ref e2) => {
+            let v_td = synth_val(last_label, ctxt, v);
+            match v_td.typ.clone() {
+                Ok(Type::Sum(ty1, ty2)) => {
+                    // TODO: Unroll the type `v_ty` before associating with `x`:
+                    let new_ctxt1 = ctxt.var(x1.clone(), (*ty1).clone());
+                    let new_ctxt2 = ctxt.var(x2.clone(), (*ty2).clone());
+                    let td1 = check_exp(last_label, &new_ctxt1, e1, ceffect);
+                    let td1_typ = td1.typ.clone();
+                    let td2 = check_exp(last_label, &new_ctxt2, e2, ceffect);
+                    let td2_typ = td2.typ.clone();
+                    let td = ExpTD::Case(v_td, x1.clone(), td1, x2.clone(), td2);
+                    match (td1_typ, td2_typ) {
+                        (Ok(_),Ok(_)) => succ(td, ceffect.clone()),
+                        (_    ,_    ) => fail(td, TypeError::CheckFailCEffect((ceffect.clone()))),
+                    }
+                }
+                _ => {
+                    let td1 = check_exp(last_label, ctxt, e1, ceffect);
+                    let td2 = check_exp(last_label, ctxt, e2, ceffect);
+                    fail(ExpTD::Case(v_td, x1.clone(), td1, x2.clone(), td2),
+                         TypeError::SynthFailVal(v.clone()))
+                }
+            }
+        },
         &Exp::Let(ref x,ref e1, ref e2) => {
             if let CEffect::Cons(ref ctyp,ref _eff) = *ceffect {
                 let td1 = synth_exp(last_label, ctxt, e1);
