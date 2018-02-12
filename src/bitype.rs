@@ -519,8 +519,6 @@ x 1 2 3
 
 */
 
-*/
-
 /// Unroll a `rec` type, exposing its recursive body's type structure.
 ///
 /// ### Example 1:  
