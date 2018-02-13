@@ -907,7 +907,7 @@ pub enum Val {
     // Gamma |- pack(a,P,v) <= (exists a:g|P. A)
     //
     // concrete: `pack a. v`
-    Pack(Var, ValRec),
+    //Pack(Var, ValRec),
     
     // Anonymous thunks: "ordinary" CBPV thunks. They can be written
     // in the source program, and unlike named (store-allocated)
@@ -1047,7 +1047,7 @@ pub enum Exp {
     // Gamma |- unpack(v,x.a.e) <= E
     //
     // concrete: `unpack v x.a. e`
-    Unpack(Val,Var,Var,ExpRec),
+    //Unpack(Val,Var,Var,ExpRec),
     Fix(Var,ExpRec),
     Ret(Val),
     DefType(Var,Type,ExpRec),

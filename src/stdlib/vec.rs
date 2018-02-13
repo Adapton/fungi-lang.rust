@@ -3,7 +3,7 @@ use ast::*;
 
 pub fn exp () -> Exp { fgi_exp![
 
-    type Vec = (user(Vec))
+    type Vec = (forallt a:type. Vec a)
         
     fn vec_filter:(
         Thk[0]

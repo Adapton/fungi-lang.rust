@@ -10,10 +10,12 @@ Based on collections in these papers:
 
 #[macro_use]
 
+/// Vectors
+pub mod vec;
+/// Chunks: named, referenced vectors.
+pub mod chunk;
 /// Sequences, as balanced level trees.
 pub mod seq;
-/// Vectors and *chunks* (named, referenced vectors).
-pub mod vec;
 /// Linked lists.
 pub mod list;
 

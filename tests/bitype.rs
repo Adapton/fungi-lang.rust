@@ -36,6 +36,30 @@ fn examples2() {
         }
     }
 
+    // Hopefully simpler than the Seq code, below
+    let chunk_monoid : Bundle = fgi_bundle![
+        type Chk = (
+            forallt a:type.
+                foralli (X,Y):NmSet.
+                Nm[X] x Ref[Y](Vec a)
+        )
+        let chk:(Chk[X][Y] Nat) = { unimplemented }
+        let chk_monoid:(
+            Thk[0]
+                forallt (a,b):type.
+                foralli (X,Y):NmSet.
+                0 (Chk[X][Y] a) ->
+                0 (Thk[0] 0 Vec a -> 0 F b) ->
+            {X; Y}
+            F (Ref[X] b x b)
+        ) = {
+            #c. #mf.
+            let (n,r) = {ret c}
+            { memo(n){ {force mf} {!r} } }
+        }
+        {{ force chk_monoid } chk }
+    ];    
+    
     let max_simple2 : Bundle = fgi_bundle![
         type Vec = (forallt T:type.user(Vec))
         // Seq[X,Y]:
@@ -319,9 +343,10 @@ fn examples2() {
 
     //println!("Filter example numbered:");
     //println!("{:?}", label_exp(filter.clone(), &mut 0));
-    
+
+    let bundle = chunk_monoid;
     //let bundle = max;
-    let bundle = max_simple;
+    //let bundle = max_simple;
     
     let typed_exp = bundle.exp_td();
     
