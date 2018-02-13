@@ -1209,7 +1209,10 @@ pub fn synth_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<Exp
             fail(td, TypeError::NoSynthRule)
         },
         &Exp::DebugLabel(ref n, ref s,ref e) => {
-            let td2 = synth_exp(last_label, ctxt, e);
+            let td2 = match s {
+                &None => synth_exp(last_label, ctxt, e),
+                &Some(ref lbl) => synth_exp(Some(lbl), ctxt, e),
+            };
             let typ2 = td2.typ.clone();
             let td = ExpTD::DebugLabel(n.clone(),s.clone(),td2);
             match typ2 {
@@ -1494,9 +1497,12 @@ pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffec
         &Exp::Unimp => {
             succ(ExpTD::Unimp, ceffect.clone())
         },
-        &Exp::DebugLabel(ref _s, ref _n, ref e) => {
-            // TODO: update last_label here?
-            check_exp(last_label, ctxt, e, ceffect)
+        &Exp::DebugLabel(ref _n, ref s, ref e) => {
+            match s {
+                &None => check_exp(last_label, ctxt, e, ceffect),
+                &Some(ref lbl) => check_exp(Some(lbl), ctxt, e, ceffect),
+            }
+            
         },
         &Exp::NoParse(ref s) => {
             fail(ExpTD::NoParse(s.clone()), TypeError::NoParse(s.clone()))
