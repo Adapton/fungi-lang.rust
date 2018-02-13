@@ -23,31 +23,36 @@ use ast::*;
 // representation.
 //
 
-fn vec_filter(args:Vec<RtVal>) -> ExpTerm {
-    // filter(vector, userfun)
-    match (args.length, args[0], args[1]) {
-        _ => panic!("TODO")
+mod trapdoor {
+    // This code essentially extends the Fungi evaluator
+    use eval::{RtVal,ExpTerm};
+    
+    fn vec_filter(args:Vec<RtVal>) -> ExpTerm {
+        // filter(vector, userfun)
+        match (args.len(), &args[0], &args[1]) {
+            _ => panic!("TODO")
+        }
     }
-}
-
-fn vec_map(args:Vec<RtVal>) -> ExpTerm {
-    // map(vector, userfun)
-    match (args.length, args[0], args[1]) {
-        _ => panic!("TODO")
+    
+    fn vec_map(args:Vec<RtVal>) -> ExpTerm {
+        // map(vector, userfun)
+        match (args.len(), &args[0], &args[1]) {
+            _ => panic!("TODO")
+        }
     }
-}
-
-fn vec_fold(args:Vec<RtVal>) -> ExpTerm {
-    // map(vector, accum0, userfun)
-    match (args.length, args[0], args[1], args[2]) {
-        _ => panic!("TODO")
+    
+    fn vec_fold(args:Vec<RtVal>) -> ExpTerm {
+        // map(vector, accum0, userfun)
+        match (args.len(), &args[0], &args[1], &args[2]) {
+            _ => panic!("TODO")
+        }
     }
-}
-
-fn vec_fold_rev(args:Vec<RtVal>) -> ExpTerm {
-    // map(vector, accum0, userfun)
-    match (args.length, args[0], args[1], args[2]) {
-        _ => panic!("TODO")
+    
+    fn vec_fold_rev(args:Vec<RtVal>) -> ExpTerm {
+        // map(vector, accum0, userfun)
+        match (args.len(), &args[0], &args[1], &args[2]) {
+            _ => panic!("TODO")
+        }
     }
 }
 
@@ -86,6 +91,8 @@ fn vec_fold_rev(args:Vec<RtVal>) -> ExpTerm {
 // 
 //
 
+/*
+
 fgi_mod!{
     fn vec_fold:(
         Thk[0] forallt a:type.
@@ -93,7 +100,9 @@ fgi_mod!{
             0 (Thk[0] 0 a -> 0 b -> 0 F b) ->
             0 F b
     ) = {
-        #v.#b.#f. unsafe vec_fold v b f
+        #v.#b.#f.
+        unsafe trapdoor::vec_fold
+            v b f
     }
 
     fn vec_fold_rev:(
@@ -102,7 +111,9 @@ fgi_mod!{
             0 (Thk[0] 0 a -> 0 b -> 0 F b) ->
             0 F b
     ) = {
-        #v.#b.#f. unsafe vec_fold_rev v b f
+        #v.#b.#f.
+        unsafe trapdoor::vec_fold_rev
+            v b f
     }
 
     fn vec_filter:(
@@ -111,7 +122,9 @@ fgi_mod!{
             0 (Thk[0] 0 a -> 0 F Bool) ->
             0 F Vec a
     ) = {
-        #v.#f. unsafe vec_filter v f
+        #v.#f.
+        unsafe trapdoor::vec_filter
+            v f
     }
     
     fn vec_map:(
@@ -120,6 +133,10 @@ fgi_mod!{
             0 (Thk[0] 0 a -> 0 F b) ->
             0 F Vec b
     ) = {
-        #v.#f. unsafe vec_map v f
+        #v.#f.
+        unsafe trapdoor::vec_map
+            v f
     }
 }
+
+*/
