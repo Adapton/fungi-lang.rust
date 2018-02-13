@@ -80,7 +80,7 @@ pub fn exp () -> Exp { fgi_exp![
         { (#x:Nm.{x,@1} % {x,@2}) X; 0 }
         F Nat
     ) = {
-        #seq. #binop. unroll seq seq. match seq {
+        #seq. #binop. unroll match seq {
             vec => { {force vec_monoid} vec }
             bin => {
                 let (n,_x,l,r) = {ret bin}

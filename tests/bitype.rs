@@ -19,23 +19,6 @@ fn examples2() {
     use fungi_lang::vis::*;
     use fungi_lang::eval::*;
 
-    // Nat identity function for Fungi, written in "unsafe" Rust, the
-    // host language. The body of this function will not be
-    // type-checked by the Fungi type system (hence, it is generally
-    // "unsafe").
-    fn nat_id(args:Vec<RtVal>) -> ExpTerm {
-        match args[0] {
-            RtVal::Nat(x) => ExpTerm::Ret(RtVal::Nat(x)),
-            _ => panic!("")
-        }
-    }
-
-    fn vec_max(args:Vec<RtVal>) -> ExpTerm {
-        match args[0] {
-            _ => panic!("TODO")
-        }
-    }
-
     // Hopefully simpler than the Seq code, below
     let chunk_monoid : Bundle = fgi_bundle![
         type Chk = (

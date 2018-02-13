@@ -41,7 +41,7 @@ pub fn exp () -> Exp { fgi_exp![
     }
 
     /// filter a chunk, using an element-level predicate.
-    fn chk_filter__inlined:(
+    fn chk_filter__inlined_version:(
         Thk[0] forallt a:type.
             0 (Chk[X][Y] a) ->
             0 (Thk[0] 0 a -> 0 F Bool) ->
@@ -56,8 +56,7 @@ pub fn exp () -> Exp { fgi_exp![
         ret (n,rout)
     }
 
-
-    // map a chunk, using an element-level mapping function.
+    /// map a chunk, using an element-level mapping function.
     fn chk_map:(
         Thk[0] forallt (a,b):type.
             foralli (X,Y):NmSet.
