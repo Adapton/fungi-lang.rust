@@ -937,7 +937,7 @@ pub type ValRec = Rc<Val>;
 ///     inj1 v      (first sum value)
 ///     inj2 v      (second sum value)
 ///     roll v      (roll an unrolled recursively-typed value)
-///     pack a.v    (pack an existential index term variable)
+///     pack (a1,...).v  (pack existential index term variables)
 ///     name n      (name value)
 ///     nmfn M      (name function as value)
 ///     true,false  (bool primitive)
@@ -966,7 +966,14 @@ macro_rules! fgi_val {
     { inj2 $($v:tt)+ } => { Val::Inj2(Rc::new(fgi_val![$($v)+])) };
     //     roll v 
     { roll $($v:tt)+ } => { Val::Roll(Rc::new(fgi_val![$($v)+])) };
-    //     pack a.v    (pack an existential index term variable)
+    //     pack (a1,...).v    (pack an existential index term variable)
+    { pack ($a:ident,$($as:ident),+).$($v:tt)+ } => { Val::Pack(
+        stringify![$a].to_string(),
+        Rc::new(fgi_val![pack ($($as),+).$($v)+]),
+    )};
+    //     pack (a).v    (pack - base case)
+    { pack ($a:ident).$($v:tt)+ } => { fgi_val![pack $a.$($v)+] };
+    //     pack a.v    (pack - single case)
     { pack $a:ident.$($v:tt)+ } => { Val::Pack(
         stringify![$a].to_string(),
         Rc::new(fgi_val![$($v)+]),
@@ -1204,23 +1211,6 @@ macro_rules! fgi_exp {
             stringify![$x].to_string(),
             Rc::new(fgi_exp![$($e)+]))
     };
-    //     unpack (a1,...) x = {e1} e2     (unpack - expression)
-    { unpack $idxs:tt $var:tt = {$($e1:tt)+} $($e2:tt)+ } => {
-        fgi_exp![
-            let sugar_unpack_exp = {$($e1)+}
-            unpack $idxs $var = (sugar_unpack_exp)
-            $($e2)+
-        ]
-    };
-    //     unpack (a) x = (v) e            (unpack - single case)
-    { unpack ($idx:ident) $var:tt = $val:tt $($exp:tt)+ } => {
-        Exp::Unpack(
-            stringify![$idx].to_string(),
-            stringify![$var].to_string(),
-            fgi_val![$val],
-            Rc::new(fgi_exp![$($exp)+]),
-        )
-    };
     //     unpack (a1,...) x = (v) e       (unpack existentials from type, bind x to v)
     { unpack ($idx:ident,$($idxs:ident),+) $var:ident = $val:tt $($exp:tt)+ } => {
         Exp::Unpack(
@@ -1229,6 +1219,23 @@ macro_rules! fgi_exp {
             fgi_val![val],
             Rc::new(fgi_exp[unpack ($($idxs),+) $var = $val $($exp)+]),
         )
+    };
+    //     unpack (a) x = (v) e            (unpack - single case)
+    { unpack ($idx:ident) $var:ident = $val:tt $($exp:tt)+ } => {
+        Exp::Unpack(
+            stringify![$idx].to_string(),
+            stringify![$var].to_string(),
+            fgi_val![$val],
+            Rc::new(fgi_exp![$($exp)+]),
+        )
+    };
+    //     unpack (a1,...) x = {e1} e2     (unpack - expression)
+    { unpack $idxs:tt $var:ident = {$($e1:tt)+} $($e2:tt)+ } => {
+        fgi_exp![
+            let sugar_unpack_exp = {$($e1)+}
+            unpack $idxs $var = (sugar_unpack_exp)
+            $($e2)+
+        ]
     };
     //     {e} {!ref} ...                     (application get-sugar)
     { {$($e:tt)+} {!$ref:ident} $($more:tt)* } => {
@@ -1442,7 +1449,7 @@ macro_rules! fgi_exp {
         Rc::new(fgi_exp![$($e)+]),
     )};
     //     nm_lbl (n) e                    (debug name label)
-    { label $n:tt $($e:tt)+ } => { Exp::DebugLabel(
+    { nm_lbl $n:tt $($e:tt)+ } => { Exp::DebugLabel(
         Some(fgi_name![$n]),
         None,
         Rc::new(fgi_exp![$($e)+]),
