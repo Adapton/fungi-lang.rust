@@ -357,6 +357,7 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
                 v => eval_type_error(EvalTyErr::UnrollNonRoll(v), env, e)
             }
         }
+        Exp::Unpack(_i,_x,_v,_e) => { unimplemented!("eval unpack") }
         Exp::Thunk(v, e1) => {
             match close_val(&env, &v) {
                 RtVal::Name(n) => { // create engine thunk named n

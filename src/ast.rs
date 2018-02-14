@@ -1040,14 +1040,8 @@ pub enum Exp {
     Force(Val),
     Thunk(Val,ExpRec),
     Unroll(Val,Var,ExpRec),
-    //
-    // Gamma |- v => (exists a:g|P. A)
-    // Gamma, a:g, P true, x:A |- e <= E
-    // -------------------------------- :: unpack
-    // Gamma |- unpack(v,x.a.e) <= E
-    //
-    // concrete: `unpack v x.a. e`
-    //Unpack(Val,Var,Var,ExpRec),
+    // unpack (i)x = (v) e
+    Unpack(Var,Var,Val,ExpRec),
     Fix(Var,ExpRec),
     Ret(Val),
     DefType(Var,Type,ExpRec),
@@ -1082,6 +1076,7 @@ pub type ExpRec = Rc<Exp>;
 ///     fix x.e                         (recursive lambda)
 ///     unroll v x.e                    (unroll recursively-typed value v as x in e)
 ///     unroll match v { ... }          (unroll recursively-typed value and elim sum type)
+///     unpack (i1,...) x = (v) e       (unpack existentials from type, bind x to v)
 ///     {e} {!ref} ...                  (application get-sugar)
 ///     {e} v1 ...                      (extened application)
 ///     type t = (A) e                  (user type shorthand, recursive type)
@@ -1156,6 +1151,32 @@ macro_rules! fgi_exp {
             fgi_val![$v],
             stringify![$x].to_string(),
             Rc::new(fgi_exp![$($e)+]))
+    };
+    //     unpack (i1,...) x = {e1} e2     (unpack - expression)
+    { unpack $idxs:tt $var:tt = {$($e1:tt)+} $($e2:tt)+ } => {
+        fgi_exp![
+            let sugar_unpack_exp = {$($e1)+}
+            unpack $idxs $var = (sugar_unpack_exp)
+            $($e2)+
+        ]
+    };
+    //     unpack (i) x = (v) e            (unpack - single case)
+    { unpack ($idx:ident) $var:tt = $val:tt $($exp:tt)+ } => {
+        Exp::Unpack(
+            stringify![$idx].to_string(),
+            stringify![$var].to_string(),
+            fgi_val![$val],
+            Rc::new(fgi_exp![$($exp)+]),
+        )
+    };
+    //     unpack (i1,...) x = (v) e       (unpack existentials from type, bind x to v)
+    { unpack ($idx:ident,$($idxs:ident),+) $var:ident = $val:tt $($exp:tt)+ } => {
+        Exp::Unpack(
+            stringify![$idx].to_string(),
+            "sugar_unpack_multi".to_string(),
+            fgi_val![val],
+            Rc::new(fgi_exp[unpack ($($idxs),+) $var = $val $($exp)+]),
+        )
     };
     //     {e} {!ref} ...                     (application get-sugar)
     { {$($e:tt)+} {!$ref:ident} $($more:tt)* } => {

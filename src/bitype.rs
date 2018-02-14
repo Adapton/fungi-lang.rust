@@ -226,6 +226,7 @@ pub enum ExpTD {
     Force(TypeInfo<ValTD>),
     Thunk(TypeInfo<ValTD>,TypeInfo<ExpTD>),
     Unroll(TypeInfo<ValTD>,Var,TypeInfo<ExpTD>),
+    Unpack(Var,Var,TypeInfo<ValTD>,TypeInfo<ExpTD>),
     Fix(Var,TypeInfo<ExpTD>),
     Ret(TypeInfo<ValTD>),
     DefType(Var,Type,TypeInfo<ExpTD>),
@@ -328,6 +329,7 @@ impl AstNode for ExpTD {
             ExpTD::Force(_) => "Force",
             ExpTD::Thunk(_,_) => "Thunk",
             ExpTD::Unroll(_,_,_) => "Unroll",
+            ExpTD::Unpack(_,_,_,_) => "Unpack",
             ExpTD::Fix(_,_) => "Fix",
             ExpTD::Ret(_) => "Ret",
             ExpTD::DefType(_,_,_) => "DefType",
@@ -384,6 +386,7 @@ pub enum TypeError {
     ParamMism(usize),
     ParamNoSynth(usize),
     ParamNoCheck(usize),
+    ExistVarMism,
     ProjNotProd,
     AppNotArrow,
     ValNotArrow,
@@ -409,6 +412,7 @@ impl fmt::Display for TypeError {
             TypeError::AnnoMism => format!("annotation mismatch"),
             TypeError::NoSynthRule => format!("no synth rule found, try an annotation"),
             TypeError::NoCheckRule => format!("no check rule found"),
+            TypeError::ExistVarMism => format!("identifiers of packed/unpacked existensial vars must match"),
             TypeError::InvalidPtr => format!("invalid pointer"),
             // 0 based parameter numbers
             TypeError::ParamMism(num) => format!("parameter {} type incorrect",num),
@@ -1302,8 +1306,8 @@ pub fn synth_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<Exp
         &Exp::Thunk(ref v,ref e) => {
             let td0 = synth_val(last_label, ctxt, v);
             let td1 = synth_exp(last_label, ctxt, e);
-            let td = ExpTD::Thunk(td0,td1); // Ok
-            fail(td, TypeError::NoSynthRule)
+            let td = ExpTD::Thunk(td0,td1);
+            fail(td, TypeError::NoSynthRule) // Ok
         },
         &Exp::Fix(ref x,ref e) => {
             let td1 = synth_exp(last_label, ctxt, e);
@@ -1321,6 +1325,12 @@ pub fn synth_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<Exp
             let td = ExpTD::Unroll(td0, x.clone(), td2);
             fail(td, TypeError::Unimplemented) // Ok
         },
+        &Exp::Unpack(ref i, ref x, ref v, ref e) => {
+            let td2 = synth_val(last_label, ctxt, v);
+            let td3 = synth_exp(last_label, ctxt, e);
+            let td = ExpTD::Unpack(i.clone(),x.clone(),td2,td3);
+            fail(td, TypeError::NoSynthRule)
+        }
     }
 }
 
@@ -1391,6 +1401,44 @@ pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffec
                         Err(_) => fail(td, TypeError::CheckFailCEffect((ceffect.clone()))),
                         Ok(_)  => succ(td, ceffect.clone())
                     }
+                }
+            }
+        },
+        //
+        // Gamma |- v => (exists a:g|P. A)
+        // Gamma, a:g, P true, x:A |- e <= E
+        // ---------------------------------- :: unpack
+        // Gamma |- unpack(v,x.a.e) <= E
+        //
+        &Exp::Unpack(ref a1, ref x, ref v, ref e) => {
+            let td2 = synth_val(last_label, ctxt, v);
+            match td2.typ.clone() {
+                Ok(Type::Exists(ref a2, ref g, ref p, ref aa)) => {
+                    if *a1 == *a2 {
+                        let new_ctxt = ctxt
+                            .ivar(a1.clone(),(**g).clone())
+                            .prop(p.clone())
+                            .var(x.clone(),(**aa).clone())
+                        ;
+                        let td3 = check_exp(last_label, &new_ctxt, e, &ceffect);
+                        let typ3 = td3.typ.clone();
+                        let td = ExpTD::Unpack(a1.clone(),x.clone(),td2,td3);
+                        match typ3 {
+                            Err(_) => fail(td, TypeError::ParamNoCheck(3)),
+                            Ok(_) => succ(td, ceffect.clone())
+                        }
+
+                    } else {
+                        let td3 = synth_exp(last_label, ctxt, e);
+                        let td = ExpTD::Unpack(a1.clone(),x.clone(),td2,td3);
+                        fail(td, TypeError::ExistVarMism)
+                    }
+                },
+                rt => {
+                    let td3 = synth_exp(last_label, ctxt, e);
+                    let td = ExpTD::Unpack(a1.clone(),x.clone(),td2,td3);
+                    if let Err(_) = rt { fail(td, TypeError::ParamNoSynth(2)) }
+                    else { fail(td, TypeError::ParamMism(2)) }
                 }
             }
         },
