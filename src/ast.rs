@@ -1216,8 +1216,8 @@ macro_rules! fgi_exp {
         Exp::Unpack(
             stringify![$idx].to_string(),
             "sugar_unpack_multi".to_string(),
-            fgi_val![val],
-            Rc::new(fgi_exp[unpack ($($idxs),+) $var = $val $($exp)+]),
+            fgi_val![$val],
+            Rc::new(fgi_exp![unpack ($($idxs),+) $var = $val $($exp)+]),
         )
     };
     //     unpack (a) x = (v) e            (unpack - single case)
