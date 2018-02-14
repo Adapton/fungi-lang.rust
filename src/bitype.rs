@@ -1437,6 +1437,19 @@ pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffec
                 }
             }
         },
+        ///////////////////////////////////////////////////////
+        //
+        // Gamma |- v => (exists a:g|P. A)
+        // Gamma, b:g, [b/a]P true, x:[b/a]A |- e <= E
+        // -------------------------------------------- :: unpack2
+        // Gamma |- unpack(v,x.b.e) <= E                                   
+        //
+        // more general version of rule that permits index vars `a`
+        // and `b` to differ; requires substituting an index term for
+        // an index variable (index term 'b', a variable, for variable
+        // 'a') in propositions, in indices and in types.
+        //
+        /////////////////////////////////////////////////////////
         //
         // Gamma |- v => (exists a:g|P. A)
         // Gamma, a:g, P true, x:A |- e <= E
@@ -1462,6 +1475,7 @@ pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffec
                         }
 
                     } else {
+                        // TODO: See more general version of rule, above.
                         let td3 = synth_exp(last_label, ctxt, e);
                         let td = ExpTD::Unpack(a1.clone(),x.clone(),td2,td3);
                         fail(td, TypeError::ExistVarMism)

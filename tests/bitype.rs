@@ -282,7 +282,8 @@ fn examples2() {
             #seq. #f. unroll match seq {
                 vec => { {force vec_filter} f vec }
                 bin => {
-                    unpack bin (X1,X2,X3,X4,Y1,Y2,Y3). bin.
+                    //unpack (X1,X2,X3,X4,Y1,Y2,Y3) bin = bin
+                    unpack (X1,X2,X3,X4,Y1,Y2,Y3) = bin
                     let (n,lev,l,r) = {ret bin}
                     let (rsl, sl) = { memo{n,(@1)}{ {force filter} f {!l} } }
                     let (rsr, sr) = { memo{n,(@2)}{ {force filter} f {!r} } }
@@ -293,7 +294,7 @@ fn examples2() {
                         else {
                             // neither are empty; construct SeqBin node:
                             ret roll inj2 pack
-                                (X1%{@2},X2,X3,X4,Y1,Y2,Y3)
+                                (X1,X2,X3,X4,Y1,Y2,Y3)
                                 (n,lev,rsl,rsr)
                         }
                     }
@@ -327,9 +328,10 @@ fn examples2() {
     //println!("Filter example numbered:");
     //println!("{:?}", label_exp(filter.clone(), &mut 0));
 
-    let bundle = chunk_monoid;
+    //let bundle = chunk_monoid;
     //let bundle = max;
     //let bundle = max_simple;
+    let bundle = filter;
     
     let typed_exp = bundle.exp_td();
     
