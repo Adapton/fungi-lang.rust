@@ -292,8 +292,8 @@ fn examples2() {
                         if {{force is_empty} sr} { ret sl }
                         else {
                             // neither are empty; construct SeqBin node:
-                            ret roll inj2 pack
-                                (X1,X2,X3,X4,Y1,Y2,Y3).
+                            ret roll inj2
+                                pack (X1,X2,X3,X4,Y1,Y2,Y3)
                                 (n,lev,rsl,rsr)
                         }
                     }
