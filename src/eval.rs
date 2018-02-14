@@ -41,7 +41,7 @@ use adapton::macros::*;
 use adapton::engine::{thunk,NameChoice};
 use adapton::engine;
 
-use ast::{Exp,PrimApp,Var,Val,Name,NameTm};
+use ast::{Exp,PrimApp,Var,Val,Name,NameTm,HostEvalFn};
 use std::rc::Rc;
 
 /// Syntax for dynamic, evaluation-time structures.
@@ -99,6 +99,7 @@ pub mod ast_dynamic {
     #[derive(Clone,Debug,Eq,PartialEq,Hash)]
     pub enum ExpTerm {
         Lam(Env, Var, Rc<Exp>),
+        HostFn(HostEvalFn, Vec<RtVal>),
         Ret(RtVal),
     }
     
@@ -352,10 +353,14 @@ fn eval_type_error<A>(err:EvalTyErr, env:Env, e:Exp) -> A {
 ///
 pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
     match e.clone() {
-        // basecase 1: lambdas are terminal computations
-        Exp::Lam(x, e) => { ExpTerm::Lam(env, x, e) }
+        // basecase 1a: lambdas are terminal computations
+        Exp::Lam(x, e)   => { ExpTerm::Lam(env, x, e) }
+        // basecase 1b: host functions are terminal computations
+        Exp::HostFn(hef) => { ExpTerm::HostFn(hef, vec![]) }
         // basecase 2: returns are terminal computations
-        Exp::Ret(v)    => { ExpTerm::Ret(close_val(&env, &v)) }
+        Exp::Ret(v)      => { ExpTerm::Ret(close_val(&env, &v)) }
+
+        
         // ignore types at run time:
         Exp::DefType(_x, _a, e)  => { return eval(env, (*e).clone()) }
         Exp::AnnoC(e1,_ct)       => { return eval(env, (*e1).clone()) }
@@ -414,6 +419,18 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
                     env.push((x, v));
                     return eval(env, (*e2).clone())
                 },
+                ExpTerm::HostFn(hef, mut args) => {
+                    // Call-by-push-value!
+                    args.push(v);
+                    if args.len() < hef.arity {
+                        // keep pushing args:
+                        return ExpTerm::HostFn(hef, args)
+                    } else {
+                        // done pushing args:
+                        assert_eq!(args.len(), hef.arity);
+                        return (hef.eval)(args)
+                    }
+                },
                 term => eval_type_error(EvalTyErr::AppNonLam(term), env, e)
             }
         }
@@ -462,13 +479,6 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
                 v => eval_type_error(EvalTyErr::ForceNonThunk(v), env, e)                    
             }
         }
-        Exp::PrimApp(PrimApp::HostEval(hef)) => {
-            // TODO -- Convert into a rt host-eval function, with
-            // "slots" for the (unapplied, to be applied) arguments to
-            // go. Similar to a run-time lambda term with an
-            // associated environment.
-            unimplemented!()
-        }        
         Exp::PrimApp(PrimApp::RefThunk(v)) => {
             fn val_of_retval (et:ExpTerm) -> RtVal {
                 match et {

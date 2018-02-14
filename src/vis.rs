@@ -32,6 +32,7 @@ fn rewrite_exp(exp: &Exp, ct: &mut usize) -> Exp {
         Exp::DefType(ref s, ref t, ref e) => Exp::DefType(s.clone(), t.clone(), rewrite_exp_rec(e, ct)),
         Exp::Let(ref s, ref e1, ref e2) => Exp::Let(s.clone(), rewrite_exp_rec(e1, ct), rewrite_exp_rec(e2, ct)),
         Exp::Lam(ref s, ref e) => Exp::Lam(s.clone(), rewrite_exp_rec(e, ct)),
+        Exp::HostFn(ref hef) => Exp::HostFn(hef.clone()), // <-- no rewrites; no internal structure
         Exp::App(ref e, ref v) => Exp::App(rewrite_exp_rec(e, ct), rewrite_val(v, ct)),
         Exp::Split(ref v, ref s1, ref s2, ref e) => Exp::Split(rewrite_val(v, ct), s1.clone(), s2.clone(), rewrite_exp_rec(e, ct)),
         Exp::Case(ref v, ref s1, ref e1, ref s2, ref e2) => Exp::Case(rewrite_val(v, ct), s1.clone(), rewrite_exp_rec(e1, ct), s2.clone(), rewrite_exp_rec(e2, ct)),
@@ -62,7 +63,6 @@ fn rewrite_val(val: &Val, ct: &mut usize) -> Val {
 
 fn rewrite_prim_app(prim: &PrimApp, ct: &mut usize) -> PrimApp {
     match *prim {
-        PrimApp::HostEval(ref hef) => prim.clone(), // <-- no rewrites; no internal structure
         PrimApp::NatLte(ref v1, ref v2) => PrimApp::NatLte(rewrite_val(v1, ct), rewrite_val(v2, ct)),
         PrimApp::NatLt(ref v1, ref v2) => PrimApp::NatLt(rewrite_val(v1, ct), rewrite_val(v2, ct)),
         PrimApp::NatEq(ref v1, ref v2) => PrimApp::NatEq(rewrite_val(v1, ct), rewrite_val(v2, ct)),

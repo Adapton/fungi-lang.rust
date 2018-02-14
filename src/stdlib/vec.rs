@@ -29,28 +29,28 @@ mod trapdoor {
     
     fn vec_filter(args:Vec<RtVal>) -> ExpTerm {
         // filter(vector, userfun)
-        match (args.len(), &args[0], &args[1]) {
+        match (&args[0], &args[1]) {
             _ => panic!("TODO")
         }
     }
     
     fn vec_map(args:Vec<RtVal>) -> ExpTerm {
         // map(vector, userfun)
-        match (args.len(), &args[0], &args[1]) {
+        match (&args[0], &args[1]) {
             _ => panic!("TODO")
         }
     }
     
     fn vec_fold(args:Vec<RtVal>) -> ExpTerm {
         // map(vector, accum0, userfun)
-        match (args.len(), &args[0], &args[1], &args[2]) {
+        match (&args[0], &args[1], &args[2]) {
             _ => panic!("TODO")
         }
     }
     
     fn vec_fold_rev(args:Vec<RtVal>) -> ExpTerm {
         // map(vector, accum0, userfun)
-        match (args.len(), &args[0], &args[1], &args[2]) {
+        match (&args[0], &args[1], &args[2]) {
             _ => panic!("TODO")
         }
     }
@@ -73,27 +73,8 @@ mod trapdoor {
 // think wrapper around this one, with names and memoization.  That
 // module does not use the unsafe trapdoor directly.
 //
-//
 
-//
-// fgi_mod!{ ... }
-// ==>
-// pub fn fungi_module () -> ast::Module { fgi_module![ ... ] }
-//
-
-// Proposal:
-//
-// ast::Module has a vector (or linked list) of DefType, DefVal and
-// DefFn forms, and nothing else.  DefFn form is essentially
-// `Let+AnnoC+Fix`, but in a proper form of its own, to make it nicer
-// when we use tools to see the AST output.  Given all of this, we can
-// remove the exp::DefType form, which we no longer need.
-// 
-//
-
-/*
-
-fgi_mod!{
+fn main () -> Exp {fgi_exp!{
     fn vec_fold:(
         Thk[0] forallt a:type.
             0 Vec a -> 0 b ->
@@ -101,7 +82,7 @@ fgi_mod!{
             0 F b
     ) = {
         #v.#b.#f.
-        unsafe trapdoor::vec_fold
+        unsafe (3) trapdoor::vec_fold
             v b f
     }
 
@@ -112,7 +93,7 @@ fgi_mod!{
             0 F b
     ) = {
         #v.#b.#f.
-        unsafe trapdoor::vec_fold_rev
+        unsafe (3) trapdoor::vec_fold_rev
             v b f
     }
 
@@ -123,7 +104,7 @@ fgi_mod!{
             0 F Vec a
     ) = {
         #v.#f.
-        unsafe trapdoor::vec_filter
+        unsafe (2) trapdoor::vec_filter
             v f
     }
     
@@ -134,9 +115,7 @@ fgi_mod!{
             0 F Vec b
     ) = {
         #v.#f.
-        unsafe trapdoor::vec_map
+        unsafe (2) trapdoor::vec_map
             v f
     }
-}
-
-*/
+}}

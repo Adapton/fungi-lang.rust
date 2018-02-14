@@ -20,6 +20,18 @@ pub mod seq;
 pub mod list;
 
 
+// Proposal:
+//
+// ast::Module has a vector (or linked list) of DefType, DefVal and
+// DefFn forms, and nothing else.  DefFn form is essentially
+// `Let+AnnoC+Fix`, but in a proper form of its own, to make it nicer
+// when we use tools to see the AST output.  Given all of this, we can
+// remove the exp::DefType form, which we no longer need.
+//
+// fgi_mod!{ ... }
+// ==>
+// pub fn fungi_module () -> ast::Module { fgi_module![ ... ] }
+//
 
 // --- OLD -------------------------------------
 

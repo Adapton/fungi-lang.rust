@@ -1012,7 +1012,8 @@ macro_rules! parse_fgi_tuple {
 // different primitives in Fungi's standard library.
 #[derive(Clone)]
 pub struct HostEvalFn {
-    eval:Rc<Fn(Vec<eval::ast_dynamic::RtVal>) -> eval::ast_dynamic::ExpTerm>
+    pub arity:usize,
+    pub eval:Rc<Fn(Vec<eval::ast_dynamic::RtVal>) -> eval::ast_dynamic::ExpTerm>
 }
 impl Hash for HostEvalFn {
     fn hash<H:Hasher>(&self, hasher: &mut H) {
@@ -1036,16 +1037,6 @@ impl Eq for HostEvalFn { }
 pub enum PrimApp {
     // Binary combination of two names; produces a name.
     NameBin(Val,Val),
-
-    // Host-language evaluation function. Use cautiously.
-    //
-    // Generally unsafe, since this term checks against all
-    // computation types of the correct arity.  Fungi does not check
-    // the host language function; it trusts the programmer's
-    // annotation to check the remainder of the Fungi program.  This
-    // term does not synthesize a type; it only checks against a type
-    // annotation, which is generally required.
-    HostEval(HostEvalFn),
 
     // Force a value-producing thunk into a ref cell that holds this
     // produced value. (This operation forces the thunk).
@@ -1091,6 +1082,15 @@ pub enum Exp {
     DefType(Var,Type,ExpRec),
     Let(Var,ExpRec,ExpRec),
     Lam(Var, ExpRec),
+    // Host language (Rust) function. Use cautiously.
+    //
+    // Generally unsafe, since this term checks against all
+    // computation types of the correct arity.  Fungi does not check
+    // the host language function; it trusts the programmer's
+    // annotation to check the remainder of the Fungi program.  This
+    // term does not synthesize a type; it only checks against a type
+    // annotation, which is generally required.
+    HostFn(HostEvalFn),
     App(ExpRec, Val),
     Split(Val, Var, Var, ExpRec),
     Case(Val, Var, ExpRec, Var, ExpRec),
@@ -1111,7 +1111,7 @@ pub type ExpRec = Rc<Exp>;
 /// ```text
 /// e::=
 ///     fromast ast                     (inject ast nodes)
-///     unsafe rustfn                   (inject an evaluation function written in Rust)
+///     unsafe rustfn arity             (inject an evaluation function written in Rust)
 ///     e : C                           (type annotation, no effect)
 ///     e :> E                          (type annotation, with effect)
 ///     {e}                             (parens)
@@ -1152,7 +1152,12 @@ macro_rules! fgi_exp {
     //     fromast ast                     (inject ast nodes)
     { fromast $ast:expr } => { $ast };
     //     unsafe rustfn
-    { unsafe $rustfn:expr } => { Exp::PrimApp(HostEval(Rc::new($ast))) };
+    { unsafe ($arity:expr) $rustfn:expr } => {
+        Exp::HostFn(HostEvalFn{
+            arity:$arity,
+            eval:Rc::new($ast),
+        })
+    };
     //     e : C                           (type annotation, without effects)
     { $e:tt : $($c:tt)+ } => { Exp::AnnoC(
         Rc::new(fgi_exp![$e]),

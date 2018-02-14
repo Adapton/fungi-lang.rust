@@ -233,6 +233,7 @@ pub enum ExpTD {
     DefType(Var,Type,TypeInfo<ExpTD>),
     Let(Var,TypeInfo<ExpTD>,TypeInfo<ExpTD>),
     Lam(Var, TypeInfo<ExpTD>),
+    HostFn(HostEvalFn),
     App(TypeInfo<ExpTD>, TypeInfo<ValTD>),
     Split(TypeInfo<ValTD>, Var, Var, TypeInfo<ExpTD>),
     Case(TypeInfo<ValTD>, Var, TypeInfo<ExpTD>, Var, TypeInfo<ExpTD>),
@@ -250,7 +251,6 @@ impl HasType for ExpTD { type Type = CEffect; }
 
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum PrimAppTD {
-    HostEval(HostEvalFn),
     NatEq(TypeInfo<ValTD>,TypeInfo<ValTD>),
     NatLt(TypeInfo<ValTD>,TypeInfo<ValTD>),
     NatLte(TypeInfo<ValTD>,TypeInfo<ValTD>),
@@ -338,6 +338,7 @@ impl AstNode for ExpTD {
             ExpTD::DefType(_,_,_) => "DefType",
             ExpTD::Let(_,_,_) => "Let",
             ExpTD::Lam(_, _) => "Lam",
+            ExpTD::HostFn(_) => "HostFn",
             ExpTD::App(_, _) => "App",
             ExpTD::Split(_, _, _, _) => "Split",
             ExpTD::Case(_, _, _, _, _) => "Case",
@@ -357,7 +358,6 @@ impl AstNode for PrimAppTD {
     fn node_desc() -> &'static str { "primitive expression" }
     fn short(&self) -> &str {
         match *self {
-            PrimAppTD::HostEval(_) => "HostEval",
             PrimAppTD::NatEq(_,_) => "NatEq",
             PrimAppTD::NatLt(_,_) => "NatLt",
             PrimAppTD::NatLte(_,_) => "NatLte",
@@ -1263,8 +1263,8 @@ pub fn synth_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<Exp
         &Exp::NoParse(ref s) => {
             fail(ExpTD::NoParse(s.clone()), TypeError::NoParse(s.clone()))
         },
-        &Exp::PrimApp(PrimApp::HostEval(ref hef)) => {
-            fail(ExpTD::PrimApp(PrimAppTD::HostEval(hef.clone())),
+        &Exp::HostFn(ref hef) => {
+            fail(ExpTD::HostFn(hef.clone()),
                  TypeError::NoSynthRule)
         },
         //
@@ -1594,8 +1594,8 @@ pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffec
         //   &Exp::PrimApp(PrimApp) => {},
         //   &Exp::NameFnApp(ref v1,ref v2) => {},
         //
-        &Exp::PrimApp(PrimApp::HostEval(ref hef)) => {
-            succ(ExpTD::PrimApp(PrimAppTD::HostEval(hef.clone())), ceffect.clone())
+        &Exp::HostFn(ref hef) => {
+            succ(ExpTD::HostFn(hef.clone()), ceffect.clone())
         }        
         &Exp::Unimp => {
             succ(ExpTD::Unimp, ceffect.clone())
