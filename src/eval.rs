@@ -253,6 +253,7 @@ pub fn close_val(env:&Env, v:&Val) -> RtVal {
         Inj1(ref v1) => RtVal::Inj1(close_val_rec(env, v1)),
         Inj2(ref v1) => RtVal::Inj2(close_val_rec(env, v1)),
         Roll(ref v1) => RtVal::Roll(close_val_rec(env, v1)),
+        Pack(ref _a, ref _v) => unimplemented!("eval pack"),
         Pair(ref v1, ref v2) =>
             RtVal::Pair(close_val_rec(env, v1),
                         close_val_rec(env, v2)),

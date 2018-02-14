@@ -208,6 +208,7 @@ pub enum ValTD {
     Inj1(TypeInfo<ValTD>),
     Inj2(TypeInfo<ValTD>),
     Roll(TypeInfo<ValTD>),
+    Pack(Var,TypeInfo<ValTD>),
     Name(Name),
     NameFn(TypeInfo<NameTmTD>),
     Anno(TypeInfo<ValTD>,Type),
@@ -308,6 +309,7 @@ impl AstNode for ValTD {
             ValTD::Inj1(_) => "Inj1",
             ValTD::Inj2(_) => "Inj2",
             ValTD::Roll(_) => "Roll",
+            ValTD::Pack(_,_) => "Pack",
             ValTD::Name(_) => "Name",
             ValTD::NameFn(_) => "NameFn",
             ValTD::Anno(_,_) => "Anno",
@@ -864,6 +866,11 @@ pub fn synth_val(last_label:Option<&str>, ctxt:&TCtxt, val:&Val) -> TypeInfo<Val
             // TODO: Rule for Roll
             fail(td, TypeError::Unimplemented)
         },
+        &Val::Pack(ref a, ref v) => {
+            let td1 = synth_val(last_label, ctxt, v);
+            let td = ValTD::Pack(a.clone(), td1);
+            fail(td, TypeError::NoSynthRule)
+        }
         &Val::Name(ref n) => {
             let td = ValTD::Name(n.clone());
             match n {
@@ -1024,6 +1031,32 @@ pub fn check_val(last_label:Option<&str>, ctxt:&TCtxt, val:&Val, typ:&Type) -> T
                 }
             } else { fail(ValTD::Anno(
                 synth_val(last_label, ctxt, v), t.clone()
+            ), TypeError::AnnoMism) }
+        },
+        //
+        // Gamma, a:g         ||- P true
+        // Gamma, a:g, P true |- v <= A
+        // -------------------------------------------- :: existsi
+        // Gamma |- pack(a,v) <= (exists a:g|P. A)
+        //
+        &Val::Pack(ref a1, ref v) => {
+            if let Type::Exists(a2,g,p,aa) = typ.clone() {
+                if *a1 == a2 {
+                    let new_ctxt1 = ctxt.ivar(a1.clone(),(*g).clone());
+                    // TODO: check that p is true
+                    let new_ctxt2 = new_ctxt1.prop(p);
+                    let td1 = check_val(last_label, &new_ctxt2, v, &aa);
+                    let typ1 = td1.typ.clone();
+                    let td = ValTD::Pack(a1.clone(), td1);
+                    match typ1 {
+                        Err(_) => fail(td, TypeError::ParamNoCheck(1)),
+                        Ok(_) => succ(td, typ.clone()),
+                    }
+                } else { fail(ValTD::Pack(
+                    a1.clone(), synth_val(last_label, ctxt, v)
+                ), TypeError::ExistVarMism) }
+            } else { fail(ValTD::Pack(
+                a1.clone(), synth_val(last_label, ctxt, v)
             ), TypeError::AnnoMism) }
         },
         &Val::ThunkAnon(ref e) => {

@@ -900,14 +900,7 @@ pub enum Val {
     Name(Name),
     NameFn(NameTm),
     Anno(ValRec,Type),
-    //
-    // Gamma, a:g         ||- P true
-    // Gamma, a:g, P true |- v <= A
-    // -------------------------------------------- :: existsi
-    // Gamma |- pack(a,P,v) <= (exists a:g|P. A)
-    //
-    // concrete: `pack a. v`
-    //Pack(Var, ValRec),
+    Pack(Var, ValRec),
     
     // Anonymous thunks: "ordinary" CBPV thunks. They can be written
     // in the source program, and unlike named (store-allocated)
@@ -939,6 +932,7 @@ pub type ValRec = Rc<Val>;
 ///     inj1 v      (first sum value)
 ///     inj2 v      (second sum value)
 ///     roll v      (roll an unrolled recursively-typed value)
+///     pack a.v    (pack an existential index term variable)
 ///     name n      (name value)
 ///     nmfn M      (name function as value)
 ///     true,false  (bool primitive)
@@ -967,6 +961,11 @@ macro_rules! fgi_val {
     { inj2 $($v:tt)+ } => { Val::Inj2(Rc::new(fgi_val![$($v)+])) };
     //     roll v 
     { roll $($v:tt)+ } => { Val::Roll(Rc::new(fgi_val![$($v)+])) };
+    //     pack a.v    (pack an existential index term variable)
+    { pack $a:ident.$($v:tt)+ } => { Val::Pack(
+        stringify![$a].to_string(),
+        Rc::new(fgi_val![$($v)+]),
+    )};
     //     name n      (name value)
     { name $($n:tt)+ } => { Val::Name(fgi_name![$($n)+]) };
     //     nmfn M      (name function as value)
@@ -1040,7 +1039,7 @@ pub enum Exp {
     Force(Val),
     Thunk(Val,ExpRec),
     Unroll(Val,Var,ExpRec),
-    // unpack (i)x = (v) e
+    // unpack (a)x = (v) e
     Unpack(Var,Var,Val,ExpRec),
     Fix(Var,ExpRec),
     Ret(Val),
@@ -1076,7 +1075,7 @@ pub type ExpRec = Rc<Exp>;
 ///     fix x.e                         (recursive lambda)
 ///     unroll v x.e                    (unroll recursively-typed value v as x in e)
 ///     unroll match v { ... }          (unroll recursively-typed value and elim sum type)
-///     unpack (i1,...) x = (v) e       (unpack existentials from type, bind x to v)
+///     unpack (a1,...) x = (v) e       (unpack existentials from type, bind x to v)
 ///     {e} {!ref} ...                  (application get-sugar)
 ///     {e} v1 ...                      (extened application)
 ///     type t = (A) e                  (user type shorthand, recursive type)
@@ -1152,7 +1151,7 @@ macro_rules! fgi_exp {
             stringify![$x].to_string(),
             Rc::new(fgi_exp![$($e)+]))
     };
-    //     unpack (i1,...) x = {e1} e2     (unpack - expression)
+    //     unpack (a1,...) x = {e1} e2     (unpack - expression)
     { unpack $idxs:tt $var:tt = {$($e1:tt)+} $($e2:tt)+ } => {
         fgi_exp![
             let sugar_unpack_exp = {$($e1)+}
@@ -1160,7 +1159,7 @@ macro_rules! fgi_exp {
             $($e2)+
         ]
     };
-    //     unpack (i) x = (v) e            (unpack - single case)
+    //     unpack (a) x = (v) e            (unpack - single case)
     { unpack ($idx:ident) $var:tt = $val:tt $($exp:tt)+ } => {
         Exp::Unpack(
             stringify![$idx].to_string(),
@@ -1169,7 +1168,7 @@ macro_rules! fgi_exp {
             Rc::new(fgi_exp![$($exp)+]),
         )
     };
-    //     unpack (i1,...) x = (v) e       (unpack existentials from type, bind x to v)
+    //     unpack (a1,...) x = (v) e       (unpack existentials from type, bind x to v)
     { unpack ($idx:ident,$($idxs:ident),+) $var:ident = $val:tt $($exp:tt)+ } => {
         Exp::Unpack(
             stringify![$idx].to_string(),
