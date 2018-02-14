@@ -32,6 +32,11 @@
 //!
 
 use std::rc::Rc;
+use std::fmt;
+use std::fmt::{Debug,Formatter,Result};
+use std::hash::{Hash,Hasher};
+
+use eval;
 
 pub type Var = String;
 
@@ -1003,17 +1008,47 @@ macro_rules! parse_fgi_tuple {
     { $($any:tt)* } => { Val::NoParse(stringify![(, $($any)*)].to_string())};
 }
 
+// Host-language evaluation function, for use as a trapdoor for many
+// different primitives in Fungi's standard library.
+#[derive(Clone)]
+pub struct HostEvalFn {
+    eval:Rc<Fn(Vec<eval::ast_dynamic::RtVal>) -> eval::ast_dynamic::ExpTerm>
+}
+impl Hash for HostEvalFn {
+    fn hash<H:Hasher>(&self, hasher: &mut H) {
+        panic!("XXX")
+    }
+}
+impl Debug for HostEvalFn {
+    fn fmt(&self, f:&mut Formatter) -> fmt::Result {
+        write!(f, "HostEvalFn")
+    }
+}
+impl PartialEq for HostEvalFn {
+    fn eq(&self, other:&Self) -> bool {
+        panic!("XXX")        
+    }
+}
+impl Eq for HostEvalFn { }
+
 /// Expressions (aka, computation terms)
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum PrimApp {
-    NatEq(Val,Val),
-    NatLt(Val,Val),
-    NatLte(Val,Val),
-    NatPlus(Val,Val),
+    // Binary combination of two names; produces a name.
     NameBin(Val,Val),
+
+    // Host-language evaluation function. Use cautiously.
     //
-    // RefThunk: Coerce a value-producing thunk into a ref cell that
-    // holds this produced value. In the process, force the thunk.
+    // Generally unsafe, since this term checks against all
+    // computation types of the correct arity.  Fungi does not check
+    // the host language function; it trusts the programmer's
+    // annotation to check the remainder of the Fungi program.  This
+    // term does not synthesize a type; it only checks against a type
+    // annotation, which is generally required.
+    HostEval(HostEvalFn),
+
+    // Force a value-producing thunk into a ref cell that holds this
+    // produced value. (This operation forces the thunk).
     //
     // In detail: A practical variation of force, for when the forced
     // computation produces a value, and in particular, a data
@@ -1029,6 +1064,16 @@ pub enum PrimApp {
     // but rather, a suspended computation, like the thunk, with such
     // effects.  Hence the value-computation duality of CBPV.
     RefThunk(Val),
+    
+    // Natural number equality test; produces a boolean
+    NatEq(Val,Val),
+    // Natural number less-than test; produces a boolean
+    NatLt(Val,Val),
+    // Natural number less-than-or-equal test; produces a boolean
+    NatLte(Val,Val),
+    // Natural number addition; produces a natural number
+    NatPlus(Val,Val),
+
 }
 
 /// Expressions (aka, computation terms)
@@ -1066,6 +1111,7 @@ pub type ExpRec = Rc<Exp>;
 /// ```text
 /// e::=
 ///     fromast ast                     (inject ast nodes)
+///     unsafe rustfn                   (inject an evaluation function written in Rust)
 ///     e : C                           (type annotation, no effect)
 ///     e :> E                          (type annotation, with effect)
 ///     {e}                             (parens)
@@ -1105,6 +1151,8 @@ pub type ExpRec = Rc<Exp>;
 macro_rules! fgi_exp {
     //     fromast ast                     (inject ast nodes)
     { fromast $ast:expr } => { $ast };
+    //     unsafe rustfn
+    { unsafe $rustfn:expr } => { Exp::PrimApp(HostEval(Rc::new($ast))) };
     //     e : C                           (type annotation, without effects)
     { $e:tt : $($c:tt)+ } => { Exp::AnnoC(
         Rc::new(fgi_exp![$e]),

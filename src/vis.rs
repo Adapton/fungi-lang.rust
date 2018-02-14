@@ -62,6 +62,7 @@ fn rewrite_val(val: &Val, ct: &mut usize) -> Val {
 
 fn rewrite_prim_app(prim: &PrimApp, ct: &mut usize) -> PrimApp {
     match *prim {
+        PrimApp::HostEval(ref hef) => prim.clone(), // <-- no rewrites; no internal structure
         PrimApp::NatLte(ref v1, ref v2) => PrimApp::NatLte(rewrite_val(v1, ct), rewrite_val(v2, ct)),
         PrimApp::NatLt(ref v1, ref v2) => PrimApp::NatLt(rewrite_val(v1, ct), rewrite_val(v2, ct)),
         PrimApp::NatEq(ref v1, ref v2) => PrimApp::NatEq(rewrite_val(v1, ct), rewrite_val(v2, ct)),
