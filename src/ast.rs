@@ -1503,6 +1503,41 @@ pub struct Module {
     pub decls: Decls,
 }
 
+/// Declare the Fungi module for current host (Rust) module.
+///
+/// ```text
+/// module ::= d
+/// ```
+///
+#[macro_export]
+macro_rules! fgi_mod {
+    { $($decls:tt)+ } => {    
+        pub fn fgi_module () -> Module {
+            fgi_module![ $($decls)+ ]
+        }
+    };
+}
+
+/// Declare an inner, named Fungi module, using an inner host (Rust) module.
+///
+/// ```text
+/// module ::= d
+/// ```
+///
+#[macro_export]
+macro_rules! fgi_inner_mod {
+    { ( $name:ident ) $($decls:tt)+ } => {    
+        mod $name {
+            use std::rc::Rc;
+            use ast::*;
+            pub fn fgi_module () -> Module {
+                fgi_module![ $($decls)+ ]
+            }
+        }
+    };
+}
+
+
 /// Parser for modules, whose bodies consist of a declaration list.
 ///
 /// ```text
@@ -1557,10 +1592,10 @@ macro_rules! fgi_decls {
         unimplemented!()
     };
     { use $path:ident :: * ; $($d:tt)* } => {
-        // path is a Rust path (for not, an identifier), from which we
-        // project and run a function called `fgi_module`, that
-        // accepts no arguments and which produces a Module.  We also
-        // save the path, as a string.
+        // path is a Rust path (for now, just an identifier), from
+        // which we project and run a public function called
+        // `fgi_module`, that accepts no arguments and which produces
+        // a Module.  We also save the given path, as a string.
         Decls::UseAll(
             UseAllModule{
                 module:Rc::New( $path::fgi_module () ),
