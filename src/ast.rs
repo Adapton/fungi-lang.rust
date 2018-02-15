@@ -1151,8 +1151,10 @@ pub type ExpRec = Rc<Exp>;
 ///     v1, v2, ...                     (extended binary name construction)
 ///     v1 < v2                         (less-than)
 ///     unimplemented                   (marker for type checker)
-///     label (some_text) e             (debug string label)
-///     nm_lbl (n) e                    (debug name label)
+///     label (some text) e             (debug string label)
+///     label [n] e                     (debug name label)
+///     label (some text)[n] e          (debug string and name label)
+///     label [n](some text) e          (debug string and name label)
 /// ```
 #[macro_export]
 macro_rules! fgi_exp {
@@ -1443,15 +1445,27 @@ macro_rules! fgi_exp {
     ))};
     //     unimplemented                   (marker for type checker)
     { unimplemented } => { Exp::Unimp };
-    //     label (some_text) e             (debug string label)
-    { label ($s:tt) $($e:tt)+ } => { Exp::DebugLabel(
-        None,
-        Some(stringify![$s].to_string()),
+    //     label [n](some text) e                    (debug name label)
+    { label [$($n:tt)+]($($s:tt)+) $($e:tt)+ } => { Exp::DebugLabel(
+        Some(fgi_name![$($n)+]),
+        Some(stringify![$($s)+].to_string()),
         Rc::new(fgi_exp![$($e)+]),
     )};
-    //     nm_lbl (n) e                    (debug name label)
-    { nm_lbl $n:tt $($e:tt)+ } => { Exp::DebugLabel(
-        Some(fgi_name![$n]),
+    //     label (some text)[n] e                    (debug name label)
+    { label ($($s:tt)+)[$($n:tt)+] $($e:tt)+ } => { Exp::DebugLabel(
+        Some(fgi_name![$($n)+]),
+        Some(stringify![$($s)+].to_string()),
+        Rc::new(fgi_exp![$($e)+]),
+    )};
+    //     label (some text) e             (debug string label)
+    { label ($($s:tt)+) $($e:tt)+ } => { Exp::DebugLabel(
+        None,
+        Some(stringify![$($s)+].to_string()),
+        Rc::new(fgi_exp![$($e)+]),
+    )};
+    //     label [n] e                    (debug name label)
+    { label [$($n:tt)+] $($e:tt)+ } => { Exp::DebugLabel(
+        Some(fgi_name![$($n)+]),
         None,
         Rc::new(fgi_exp![$($e)+]),
     )};

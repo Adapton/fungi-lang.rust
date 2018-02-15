@@ -1208,25 +1208,66 @@ pub fn synth_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<Exp
             }
         },
         &Exp::Ret(ref v) => {
-            // XXX  -- for example
             let td0 = synth_val(last_label, ctxt, v);
+            let typ0 = td0.typ.clone();
             let td = ExpTD::Ret(td0);
-            fail(td, TypeError::NoSynthRule)
+            match typ0 {
+                Err(_) => fail(td, TypeError::ParamNoSynth(0)),
+                Ok(ty) => succ(td, CEffect::Cons(
+                    CType::Lift(ty),
+                    Effect::WR(IdxTm::Empty, IdxTm::Empty)
+                )),
+            }
         },
         &Exp::Let(ref x, ref e1, ref e2) => {
-            // XXX  -- for example
             let td1 = synth_exp(last_label, ctxt, e1);
-            let td2 = synth_exp(last_label, ctxt, e2);
-            let td = ExpTD::Let(x.clone(), td1, td2);
-            fail(td, TypeError::NoSynthRule)
+            match td1.typ.clone() {
+                Err(_) => fail(ExpTD::Let(x.clone(),td1,
+                    synth_exp(last_label, ctxt, e2)
+                ), TypeError::ParamNoSynth(1)),
+                Ok(CEffect::Cons(CType::Lift(ty1),_eff1)) => {
+                    let new_ctxt = ctxt.var(x.clone(), ty1);
+                    let td2 = synth_exp(last_label, &new_ctxt, e2);
+                    let typ2 = td2.typ.clone();
+                    let td = ExpTD::Let(x.clone(),td1,td2);
+                    match typ2 {
+                        Err(_) => fail(td, TypeError::ParamNoSynth(2)),
+                        Ok(CEffect::Cons(ty2,eff2)) => {
+                            // TODO: combine effects
+                            succ(td, CEffect::Cons(ty2, eff2))
+                        },
+                        _ => fail(td, TypeError::ParamMism(2)),
+                    }
+                },
+                _ => fail(ExpTD::Let(x.clone(),td1,
+                    synth_exp(last_label, ctxt, e2)
+                ), TypeError::ParamMism(1)),
+            }
         },
         &Exp::PrimApp(PrimApp::NameBin(ref v0,ref v1)) => {
             let td0 = synth_val(last_label, ctxt, v0);
             let td1 = synth_val(last_label, ctxt, v1);
+            let (typ0,typ1) = (td0.typ.clone(),td1.typ.clone());
             let td = ExpTD::PrimApp(PrimAppTD::NameBin(td0,td1));
-            // TODO: implement
-            // XXX -- for example
-            fail(td, TypeError::Unimplemented)
+            match (typ0,typ1) {
+                (Err(_),_) => fail(td,TypeError::ParamNoSynth(0)),
+                (_,Err(_)) => fail(td,TypeError::ParamNoSynth(1)),
+                (Ok(Type::Nm(_)),Ok(Type::Nm(_))) => {
+                    if let (&Val::Name(ref nm0),&Val::Name(ref nm1)) = (v0,v1) {
+                        succ(td, CEffect::Cons(
+                            CType::Lift(Type::Nm(
+                                IdxTm::Sing(NameTm::Name(Name::Bin(
+                                    Rc::new(nm0.clone()),
+                                    Rc::new(nm1.clone()),
+                                )))
+                            )),
+                            Effect::WR(IdxTm::Empty, IdxTm::Empty))
+                        )
+                    } else { unreachable!("NameBin: Type::Nm not Val::Name") }
+                },
+                (Ok(Type::Nm(_)),_) => fail(td,TypeError::ParamMism(1)),
+                _ => fail(td, TypeError::ParamMism(0))
+            }
         },
         &Exp::PrimApp(PrimApp::RefThunk(ref v)) => {
             let td0 = synth_val(last_label, ctxt, v);
