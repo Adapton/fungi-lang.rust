@@ -1,8 +1,4 @@
-use std::rc::Rc;
-use ast::*;
-
-pub fn exp () -> Exp { fgi_exp![
-    
+fgi_mod!{    
     type Seq = (
         rec Seq. foralli (X,Y):NmSet.
             (+ Vec 
@@ -150,7 +146,4 @@ pub fn exp () -> Exp { fgi_exp![
             }
         }
     }
-    
-    // Dummy "main"
-    ret 0
-]}
+}

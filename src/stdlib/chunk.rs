@@ -1,8 +1,4 @@
-use std::rc::Rc;
-use ast::*;
-
-pub fn exp () -> Exp { fgi_exp![
-
+fgi_mod!{
     /// A chunk is a pair of a name and a referenced vector.
     type Chk = (
         forallt a:type.
@@ -10,7 +6,7 @@ pub fn exp () -> Exp { fgi_exp![
             Nm[X] x Ref[Y](Vec a)
     )
 
-    // reduce a chunk, using a vector-level reduction function.
+    /// reduce a chunk, using a vector-level reduction function.
     fn chk_reduce:(
         Thk[0] forallt (a,b):type.
             foralli (X,Y):NmSet.
@@ -72,7 +68,4 @@ pub fn exp () -> Exp { fgi_exp![
         } } 
         ret (n,rout)
     }
-
-    // Dummy "main"
-    ret 0
-]}
+}

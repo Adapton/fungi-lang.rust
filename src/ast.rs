@@ -1511,7 +1511,9 @@ pub struct Module {
 ///
 #[macro_export]
 macro_rules! fgi_mod {
-    { $($decls:tt)+ } => {    
+    { $($decls:tt)+ } => {
+        use std::rc::Rc;
+        use ast::*;
         pub fn fgi_module () -> Module {
             fgi_module![ $($decls)+ ]
         }
@@ -1529,7 +1531,16 @@ macro_rules! fgi_inner_mod {
     { ( $name:ident ) $($decls:tt)+ } => {    
         mod $name {
             use std::rc::Rc;
-            use ast::*;
+            use fungi_lang::ast::*;
+            pub fn fgi_module () -> Module {
+                fgi_module![ $($decls)+ ]
+            }
+        }
+    };
+    { pub ( $name:ident ) $($decls:tt)+ } => {
+        pub mod $name {
+            use std::rc::Rc;
+            use fungi_lang::ast::*;
             pub fn fgi_module () -> Module {
                 fgi_module![ $($decls)+ ]
             }
@@ -1560,7 +1571,7 @@ pub enum Decls {
     UseAll(UseAllModule,   DeclsRec),
     TypeAlias(String,Type, DeclsRec),
     Val(String,Type,Val,   DeclsRec),
-    Fn(String,CEffect,Exp, DeclsRec),
+    Fn( String,Type,Exp,   DeclsRec),
     End,
     NoParse(String),
 }
@@ -1581,8 +1592,8 @@ pub struct UseAllModule {
 ///     use ( hostpath ) :: * ; d  (all module items from path are put into local scope)
 ///     type t = ( A ) d           (in local scope, define a type alias `t` for value type `A`)
 ///     val x : ( A ) = ( v ) d    (in local scope, define a value v, of type A, bound to x)
-///     fn f : ( E ) = { e } d     (in local scope, define a function f, of thunk type A, with recursive body e)
-///     fn f : ( E ) { e } d       (alternate syntax: equal sign is optional)
+///     fn f : ( A ) = { e } d     (in local scope, define a function f, of thunk type A, with recursive body e)
+///     fn f : ( A ) { e } d       (alternate syntax: equal sign is optional)
 ///     ; d                        (alternate syntax: optional semi colons can go between decls)
 /// ```
 ///
@@ -1624,13 +1635,13 @@ macro_rules! fgi_decls {
                     fgi_val![ $($v)+ ],
                     Rc::new( fgi_decls![ $($d)* ] ) )
     };
-    { fn $f:ident : ( $($ceffect:tt)+ )   { $($e:tt)+ } $($d:tt)* } => {
+    { fn $f:ident : ( $($a:tt)+ )   { $($e:tt)+ } $($d:tt)* } => {
         // parse with implied `=` sign
-        fgi_decls![ $f : ( $($ceffect)+ ) = { $($e)+ } $($d)* ]
+        fgi_decls![ $f : ( $($a)+ ) = { $($e)+ } $($d)* ]
     };
-    { fn $f:ident : ( $($ceffect:tt)+ ) = { $($e:tt)+ } $($d:tt)* } => {
+    { fn $f:ident : ( $($a:tt)+ ) = { $($e:tt)+ } $($d:tt)* } => {
         Decls::Fn( stringify![$f].to_string(),
-                   fgi_ceffect![ $($ceffect)+ ],
+                   fgi_vtype![ $($a)+ ],
                    fgi_exp![ $($e)+ ],                   
                    Rc::new( fgi_decls![ $($d)* ] ) )
     };

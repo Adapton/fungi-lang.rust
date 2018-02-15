@@ -25,11 +25,7 @@ later incremental reuse, via change propagation.
 
 */
 
-use std::rc::Rc;
-use ast::*;
-
-pub fn exp () -> Exp {fgi_exp![
-    
+fgi_mod!{    
     type List = (
         rec Seq.#X.#Y.
             (+ Vec // <-- Basecase with no level, name or ref
@@ -98,5 +94,4 @@ pub fn exp () -> Exp {fgi_exp![
     ) = {
         unimplemented
     }
-
-]}
+}
