@@ -1030,7 +1030,7 @@ impl Hash for HostEvalFn {
 }
 impl Debug for HostEvalFn {
     fn fmt(&self, f:&mut Formatter) -> fmt::Result {
-        write!(f, "HostEvalFn({})", self.path)
+        write!(f, "HostEvalFn({:?})", self.path)
     }
 }
 impl PartialEq for HostEvalFn {

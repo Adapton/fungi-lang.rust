@@ -14,10 +14,20 @@ fgi_inner_mod!{
     val two  : ( Len ) = ( 2 );;;    
 }
 pub fn fgi_module_test () -> Module {
-    fgi_module!{ 
-        use ( vec ) :: *;
+    fgi_module!{
+        // import vec module, defined in fungi_lang::stdlib::{vec};
+        use (vec)::*;
         // import nums module, defined above
-        use ( nums ) :: *;        
+        use (nums)::*;
+        // now, we can use anything in either module, as if they were
+        // defined here:        
+        val test_nums_vec : (Thk[0] 0 F (Nat x Vec Nat)) = (
+            thunk {
+                let x = {one + two}
+                let v = {{force vec_gen_range} x}
+                ret (x, v)
+            }
+        )
     }
 }
 
