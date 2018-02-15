@@ -334,8 +334,8 @@ fn examples2() {
     
     let typed_exp = bundle.exp_td();
     
-    println!("Max example with type info:");
-    println!("{:?}", typed_exp);
+    //println!("Max example with type info:");
+    //println!("{:?}", typed_exp);
     
     use std::fs::File;
     use std::io::Write;

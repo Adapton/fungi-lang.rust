@@ -26,6 +26,13 @@ use ast::*;
 mod trapdoor {
     // This code essentially extends the Fungi evaluator
     use eval::{RtVal,ExpTerm};
+
+    fn vec_gen_range(args:Vec<RtVal>) -> ExpTerm {
+        // gen_range(count)
+        match (&args[0], &args[1]) {
+            _ => panic!("TODO")
+        }
+    }
     
     fn vec_filter(args:Vec<RtVal>) -> ExpTerm {
         // filter(vector, userfun)
@@ -42,39 +49,39 @@ mod trapdoor {
     }
     
     fn vec_fold(args:Vec<RtVal>) -> ExpTerm {
-        // map(vector, accum0, userfun)
+        // fold(vector, accum0, userfun)
         match (&args[0], &args[1], &args[2]) {
             _ => panic!("TODO")
         }
     }
     
     fn vec_fold_rev(args:Vec<RtVal>) -> ExpTerm {
-        // map(vector, accum0, userfun)
+        // fold_rev(vector, accum0, userfun)
         match (&args[0], &args[1], &args[2]) {
             _ => panic!("TODO")
         }
     }
 }
 
-// Design proposal: `Vec a` is a built-in type, but there are no
-// (static) value forms, only run-time value forms, which vary for
-// each choice of `a`; further, there are no operations built into
-// the type checker, only the concept of the polymorphic type `Vec
-// a`.
-//
-// The operations over `Vec a` values are written here, using an
-// `unsafe` trapdoor into Rust (as opposed to in the main Fungi
-// `eval` module).
-//
-// Ordinarily, we'd say these trapdoors are "unsafe" because they
-// forgo the Fungi type and effect system, which prevents unintended
-// imperative name effects; in the case of this module, there are no
-// name-based effects.  See the `chunk` Fungi stdlib module for a
-// think wrapper around this one, with names and memoization.  That
-// module does not use the unsafe trapdoor directly.
-//
+fn fgi_module () -> Module {fgi_module!{
 
-fn main () -> Exp {fgi_exp!{
+    // parsing example
+    type Len = ( Nat )
+    type Len = ( Nat );;;
+
+    // for example
+    val zero : ( Len ) = ( 0 )
+    val zero : ( Len ) = ( 0 );
+    val zero : ( Len ) = ( 0 );;;
+    
+    fn vec_gen_range:(
+        Thk[0] 0 Nat -> 0 F Vec Nat
+    ) = {
+        #n.
+        unsafe (1) trapdoor::vec_gen_range
+            n
+    }
+
     fn vec_fold:(
         Thk[0] forallt a:type.
             0 Vec a -> 0 b ->
@@ -119,3 +126,8 @@ fn main () -> Exp {fgi_exp!{
             v f
     }
 }}
+
+#[test]
+fn vec() {
+    println!("{:?}", fgi_module())
+}

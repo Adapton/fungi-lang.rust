@@ -1495,6 +1495,115 @@ macro_rules! parse_fgi_split {
     { $($any:tt)* } => { Exp::NoParse(stringify![(, $($any)*)].to_string())};
 }
 
+
+/// Each module consists of a declaration list body
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub struct Module {
+    pub body:  String,
+    pub decls: Decls,
+}
+
+/// Parser for modules, whose bodies consist of a declaration list.
+///
+/// ```text
+/// module ::= d
+/// ```
+///
+#[macro_export]
+macro_rules! fgi_module {
+    { $($decls:tt)+ } => {
+        Module {
+            body:  stringify![ $($decls)+].to_string(),
+            decls: fgi_decls![ $($decls)+ ],
+        }
+    }
+}
+
+/// Declaration lists; the body of each module
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum Decls {
+    UseAll(UseAllModule,   DeclsRec),
+    TypeAlias(String,Type, DeclsRec),
+    Val(String,Type,Val,   DeclsRec),
+    Fn(String,CEffect,Exp, DeclsRec),
+    End,
+    NoParse(String),
+}
+pub type DeclsRec = Rc<Decls>;
+
+/// Declaration that uses (imports) all decls from another module
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub struct UseAllModule {
+    pub path: String,
+    pub module: Rc<Module>
+}
+
+/// Parser for declaration lists
+///
+/// ```text
+/// d ::=
+///     fromast ast                (inject ast nodes)
+///     use ( hostpath ) :: * ; d  (all module items from path are put into local scope)
+///     type t = ( A ) d           (in local scope, define a type alias `t` for value type `A`)
+///     val x : ( A ) = ( v ) d    (in local scope, define a value v, of type A, bound to x)
+///     fn f : ( E ) = { e } d     (in local scope, define a function f, of thunk type A, with recursive body e)
+///     fn f : ( E ) { e } d       (alternate syntax: equal sign is optional)
+///     ; d                        (alternate syntax: optional semi colons can go between decls)
+/// ```
+///
+#[macro_export]
+macro_rules! fgi_decls {
+    { fromast $ast:expr } => {
+        unimplemented!()
+    };
+    { use ( $path:path ) :: * ; $($d:tt)+ } => {
+        // path is a Rust path, from which we project and run a
+        // function called `fgi_module`, that accepts no arguments and
+        // which produces a Module.  We also save the path, as a string.
+        Decls::UseAll(
+            UseAllModule{
+                module:Rc::New( ( $path ) :: fgi_module () ),
+                path:stringify![path].to_string(),
+            },
+            fgi_decls![ $($d)+ ]
+        )
+    };
+    { type $t:ident = ( $($a:tt)+ ) $($d:tt)+ } => {
+        Decls::TypeAlias( stringify![$t].to_string(),
+                          fgi_vtype![ $($a)+ ],
+                          Rc::new( fgi_decls![ $($d)+ ] ) )
+    };
+    { val $x:ident : ( $($a:tt)+ ) = ( $($v:tt)+ ) $($d:tt)+ } => {
+        Decls::Val( stringify![$x].to_string(),
+                    fgi_vtype![ $($a)+ ],
+                    fgi_val![ $($v)+ ],
+                    Rc::new( fgi_decls![ $($d)+ ] ) )
+    };
+    { fn $f:ident : ( $($ceffect:tt)+ )   { $($e:tt)+ } $($d:tt)+ } => {
+        // parse with implied `=` sign
+        fgi_decls![ $f : ( $($ceffect)+ ) = { $($e)+ } $($d)+ ]
+    };
+    { fn $f:ident : ( $($ceffect:tt)+ ) = { $($e:tt)+ } $($d:tt)+ } => {
+        Decls::Fn( stringify![$f].to_string(),
+                   fgi_ceffect![ $($ceffect)+ ],
+                   fgi_exp![ $($e)+ ],                   
+                   Rc::new( fgi_decls![ $($d)+ ] ) )
+    };
+    { ; $($d:tt)+ } => {
+        // end of list; no more declarations
+        fgi_decls![ $($d)+ ]
+    };
+
+    { } => {
+        // end of list; no more declarations
+        Decls::End
+    };
+    // failure
+    { $($any:tt)* } => { Decls::NoParse(stringify![(, $($any)*)].to_string())};
+}
+
+
+
 ////////////////////////
 // Macro parsing helpers
 ////////////////////////
