@@ -1556,42 +1556,52 @@ macro_rules! fgi_decls {
     { fromast $ast:expr } => {
         unimplemented!()
     };
-    { use ( $path:path ) :: * ; $($d:tt)+ } => {
-        // path is a Rust path, from which we project and run a
-        // function called `fgi_module`, that accepts no arguments and
-        // which produces a Module.  We also save the path, as a string.
+    { use $path:ident :: * ; $($d:tt)* } => {
+        // path is a Rust path (for not, an identifier), from which we
+        // project and run a function called `fgi_module`, that
+        // accepts no arguments and which produces a Module.  We also
+        // save the path, as a string.
         Decls::UseAll(
             UseAllModule{
-                module:Rc::New( ( $path ) :: fgi_module () ),
-                path:stringify![path].to_string(),
+                module:Rc::New( $path::fgi_module () ),
+                path:stringify![$path].to_string(),
             },
-            fgi_decls![ $($d)+ ]
+            fgi_decls![ $($d)* ]
         )
     };
-    { type $t:ident = ( $($a:tt)+ ) $($d:tt)+ } => {
+    { use ( $path:ident ) :: * ; $($d:tt)* } => {
+        Decls::UseAll(
+            UseAllModule{
+                module:Rc::new( $path::fgi_module () ),
+                path:stringify![$path].to_string(),
+            },
+            Rc::new(fgi_decls![ $($d)* ])
+        )
+    };
+    { type $t:ident = ( $($a:tt)+ ) $($d:tt)* } => {
         Decls::TypeAlias( stringify![$t].to_string(),
                           fgi_vtype![ $($a)+ ],
-                          Rc::new( fgi_decls![ $($d)+ ] ) )
+                          Rc::new( fgi_decls![ $($d)* ] ) )
     };
-    { val $x:ident : ( $($a:tt)+ ) = ( $($v:tt)+ ) $($d:tt)+ } => {
+    { val $x:ident : ( $($a:tt)+ ) = ( $($v:tt)+ ) $($d:tt)* } => {
         Decls::Val( stringify![$x].to_string(),
                     fgi_vtype![ $($a)+ ],
                     fgi_val![ $($v)+ ],
-                    Rc::new( fgi_decls![ $($d)+ ] ) )
+                    Rc::new( fgi_decls![ $($d)* ] ) )
     };
-    { fn $f:ident : ( $($ceffect:tt)+ )   { $($e:tt)+ } $($d:tt)+ } => {
+    { fn $f:ident : ( $($ceffect:tt)+ )   { $($e:tt)+ } $($d:tt)* } => {
         // parse with implied `=` sign
-        fgi_decls![ $f : ( $($ceffect)+ ) = { $($e)+ } $($d)+ ]
+        fgi_decls![ $f : ( $($ceffect)+ ) = { $($e)+ } $($d)* ]
     };
-    { fn $f:ident : ( $($ceffect:tt)+ ) = { $($e:tt)+ } $($d:tt)+ } => {
+    { fn $f:ident : ( $($ceffect:tt)+ ) = { $($e:tt)+ } $($d:tt)* } => {
         Decls::Fn( stringify![$f].to_string(),
                    fgi_ceffect![ $($ceffect)+ ],
                    fgi_exp![ $($e)+ ],                   
-                   Rc::new( fgi_decls![ $($d)+ ] ) )
+                   Rc::new( fgi_decls![ $($d)* ] ) )
     };
-    { ; $($d:tt)+ } => {
+    { ; $($d:tt)* } => {
         // end of list; no more declarations
-        fgi_decls![ $($d)+ ]
+        fgi_decls![ $($d)* ]
     };
 
     { } => {
@@ -1599,7 +1609,7 @@ macro_rules! fgi_decls {
         Decls::End
     };
     // failure
-    { $($any:tt)* } => { Decls::NoParse(stringify![(, $($any)*)].to_string())};
+    { $($any:tt)* } => { Decls::NoParse(stringify![ $($any)* ].to_string())};
 }
 
 

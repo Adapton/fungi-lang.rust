@@ -63,7 +63,7 @@ mod trapdoor {
     }
 }
 
-fn fgi_module () -> Module {fgi_module!{
+pub fn fgi_module () -> Module {fgi_module!{
     
     fn vec_gen_range:(
         Thk[0] 0 Nat -> 0 F Vec Nat
@@ -118,19 +118,27 @@ fn fgi_module () -> Module {fgi_module!{
     }
 }}
 
+
+mod nums {
+    use std::rc::Rc;
+    use ast::*;    
+    pub fn fgi_module() -> Module { fgi_module!{
+        // parsing example
+        type Len = ( Nat )
+        type Cnt = ( Nat );;;
+        
+        // for example
+        val zero : ( Len ) = ( 0 )
+        val one  : ( Len ) = ( 1 );
+        val two  : ( Len ) = ( 2 );;;    
+    }}
+}
+
 fn fgi_module_test () -> Module {fgi_module!{
 
     // import vector module
-    use ( self::* )
+    use ( nums ) :: *;
 
-    // parsing example
-    type Len = ( Nat )
-    type Cnt = ( Nat );;;
-
-    // for example
-    val zero : ( Len ) = ( 0 )
-    val one  : ( Len ) = ( 1 );
-    val two  : ( Len ) = ( 2 );;;    
 }}
 
 #[test]
