@@ -7,22 +7,21 @@ use fungi_lang::stdlib::{vec};
 
 fgi_inner_mod!{
     pub (nums)
-    use ( vec ) :: *;
     type Len = ( Nat )
     type Cnt = ( Nat );;;
     val zero : ( Len ) = ( 0 )
     val one  : ( Len ) = ( 1 );
     val two  : ( Len ) = ( 2 );;;    
 }
-pub fn fgi_module_test () {
-    let _ = fgi_module!{
+pub fn fgi_module_test () -> Module {
+    fgi_module!{ 
+        use ( vec ) :: *;
         // import nums module, defined above
-        // transitively imports vec module, from stdlib
         use ( nums ) :: *;        
-    };
+    }
 }
 
 #[test]
-fn vec() {
+fn module() {
     println!("{:?}", fgi_module_test())
 }

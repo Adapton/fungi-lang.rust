@@ -1019,6 +1019,7 @@ macro_rules! parse_fgi_tuple {
 // different primitives in Fungi's standard library.
 #[derive(Clone)]
 pub struct HostEvalFn {
+    pub path:String,
     pub arity:usize,
     pub eval:Rc<Fn(Vec<eval::ast_dynamic::RtVal>) -> eval::ast_dynamic::ExpTerm>
 }
@@ -1029,7 +1030,7 @@ impl Hash for HostEvalFn {
 }
 impl Debug for HostEvalFn {
     fn fmt(&self, f:&mut Formatter) -> fmt::Result {
-        write!(f, "HostEvalFn")
+        write!(f, "HostEvalFn({})", self.path)
     }
 }
 impl PartialEq for HostEvalFn {
@@ -1161,10 +1162,11 @@ macro_rules! fgi_exp {
     //     fromast ast                     (inject ast nodes)
     { fromast $ast:expr } => { $ast };
     //     unsafe (arity) rustfn           (inject an evaluation function written in Rust)
-    { unsafe ($arity:expr) $rustfn:expr } => {
+    { unsafe ($arity:expr) $rustfn:path } => {
         Exp::HostFn(HostEvalFn{
+            path:stringify![$rustfn].to_string(),
             arity:$arity,
-            eval:Rc::new($ast),
+            eval:Rc::new($rustfn),
         })
     };
     //     e : C                           (type annotation, without effects)
