@@ -864,7 +864,7 @@ pub fn synth_val(last_label:Option<&str>, ctxt:&TCtxt, val:&Val) -> TypeInfo<Val
         &Val::Roll(ref v) => {
             let td0 = synth_val(last_label, ctxt, v);
             // let typ0 = td0.typ.clone();
-            let td = ValTD::Inj2(td0);
+            let td = ValTD::Roll(td0);
             // TODO: Rule for Roll
             fail(td, TypeError::Unimplemented)
         },
