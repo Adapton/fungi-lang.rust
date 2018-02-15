@@ -1118,7 +1118,7 @@ pub type ExpRec = Rc<Exp>;
 /// ```text
 /// e::=
 ///     fromast ast                     (inject ast nodes)
-///     unsafe rustfn arity             (inject an evaluation function written in Rust)
+///     unsafe (arity) rustfn           (inject an evaluation function written in Rust)
 ///     e : C                           (type annotation, no effect)
 ///     e :> E                          (type annotation, with effect)
 ///     {e}                             (parens)
@@ -1158,7 +1158,7 @@ pub type ExpRec = Rc<Exp>;
 macro_rules! fgi_exp {
     //     fromast ast                     (inject ast nodes)
     { fromast $ast:expr } => { $ast };
-    //     unsafe rustfn
+    //     unsafe (arity) rustfn           (inject an evaluation function written in Rust)
     { unsafe ($arity:expr) $rustfn:expr } => {
         Exp::HostFn(HostEvalFn{
             arity:$arity,
