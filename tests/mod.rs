@@ -3,8 +3,11 @@
 extern crate fungi_lang;
 use fungi_lang::ast::*;
 use std::rc::Rc;
+use fungi_lang::stdlib::{vec};
 
-fgi_inner_mod!{ pub (nums)
+fgi_inner_mod!{
+    pub (nums)
+    use ( vec ) :: *;
     type Len = ( Nat )
     type Cnt = ( Nat );;;
     val zero : ( Len ) = ( 0 )
@@ -14,6 +17,7 @@ fgi_inner_mod!{ pub (nums)
 pub fn fgi_module_test () {
     let _ = fgi_module!{
         // import nums module, defined above
+        // transitively imports vec module, from stdlib
         use ( nums ) :: *;        
     };
 }
