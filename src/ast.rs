@@ -1015,8 +1015,10 @@ macro_rules! parse_fgi_tuple {
     { $($any:tt)* } => { Val::NoParse(stringify![(, $($any)*)].to_string())};
 }
 
-// Host-language evaluation function, for use as a trapdoor for many
-// different primitives in Fungi's standard library.
+/// Host-language evaluation function (extend Rust-based Fungi interpreter).
+///
+/// For use as a trapdoor for many different primitives in Fungi's
+/// standard library (e.g., vectors, strings, etc.).
 #[derive(Clone)]
 pub struct HostEvalFn {
     pub path:String,

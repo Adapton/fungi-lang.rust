@@ -3,15 +3,17 @@
 extern crate fungi_lang;
 use fungi_lang::ast::*;
 use std::rc::Rc;
+
+
 use fungi_lang::stdlib::{vec};
 
 fgi_inner_mod!{
     pub (nums)
-    type Len = ( Nat )
-    type Cnt = ( Nat );;;
-    val zero : ( Len ) = ( 0 )
+    type Len = ( Nat );
+    type Cnt = ( Nat );
+    val zero : ( Len ) = ( 0 );
     val one  : ( Len ) = ( 1 );
-    val two  : ( Len ) = ( 2 );;;    
+    val two  : ( Len ) = ( 2 );;;;;;
 }
 pub fn fgi_module_test () -> Module {
     fgi_module!{
