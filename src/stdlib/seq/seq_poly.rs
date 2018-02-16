@@ -21,12 +21,12 @@ fgi_mod!{
     idxtm bin    = #x:Nm.{x,@1} % {x,@2};
 
     // Max, map and filter use the same patterns of named recursion:
-    idxtm max    = #X:NmSet.(bin X) % X;
-    idxtm map    = #X:NmSet.(bin X) % X;
-    idxtm filter = #X:NmSet.(bin X) % X;
+    idxtm max    = #X:NmSet.(bin X);
+    idxtm map    = #X:NmSet.(bin X);
+    idxtm filter = #X:NmSet.(bin X);
         
     fn is_empty:(
-        Thk[0] foralli (X,Y):NmSet. forallt T.
+        Thk[0] foralli (X,Y):NmSet. forallt T:type.
             0 (Seq[X][Y] T) ->
         { 0; Y }
         F Bool
@@ -35,7 +35,7 @@ fgi_mod!{
     }
 
     fn is_empty_shallow:(
-        Thk[0] foralli (X,Y):NmSet. forallt T.
+        Thk[0] foralli (X,Y):NmSet. forallt T:type.
             0 (Seq[X][Y] T) ->
         { 0; 0 }
         F Bool
@@ -44,7 +44,7 @@ fgi_mod!{
     }
 
     fn is_singleton:(
-        Thk[0] foralli (X,Y):NmSet. forallt T.
+        Thk[0] foralli (X,Y):NmSet. forallt T:type.
             0 (Seq[X][Y] T) ->
         { 0; 0 }
             0 F Bool
