@@ -1583,13 +1583,34 @@ macro_rules! fgi_module {
     }
 }
 
-/// Declaration lists; the body of each module
+/// Declaration lists of pure terms; the body of each module.
+///
+/// Each declaration is a definition (an alias) for a pure term of
+/// some `Type`, `Kind` or `Sort`.
+///
+/// Declaration lists are pure: There is no form for naming an
+/// unthunked, effectful expression. In particular, there is no `let`
+/// binding form for sequencing effects among the definitions here.
+/// In particular, the `Val` and `Fn` forms can each express
+/// recursive, effectful functions as values (thunks), but cannot
+/// express unthunked applications of these terms. Consequently,
+/// declaration lists are "pure" terms, when included within larger
+/// expressions via the `UseAll` form, or other future import forms.
+///
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Decls {
-    UseAll(UseAllModule,   DeclsRec),
-    TypeAlias(String,Type, DeclsRec),
-    Val(String,Type,Val,   DeclsRec),
-    Fn( String,Type,Exp,   DeclsRec),
+    /// Use all of the definitions of another module
+    UseAll(UseAllModule,    DeclsRec),
+    /// Define a name term
+    NmTm( String,NameTm,    DeclsRec),
+    /// Define an index term
+    IdxTm(String,IdxTm,     DeclsRec),
+    /// Define a type
+    Type( String,Type,      DeclsRec),
+    /// Define a value   
+    Val(  String,Type,Val,  DeclsRec),
+    /// Define a function
+    Fn(   String,Type,Exp,  DeclsRec),
     End,
     NoParse(String),
 }
@@ -1609,6 +1630,8 @@ pub struct UseAllModule {
 ///     fromast ast             (inject ast nodes)
 ///     use x :: * ; d          (all decls in module x are made "local")
 ///     use ( path ) :: * ; d   (all decls at module path p are made "local")
+///     nmtm  x = ( N ) d       (define x as a name term N)
+///     idxtm x = ( i ) d       (define x as an index term i)
 ///     type t = ( A ) d        (define a type alias `t` for value type `A`)
 ///     val x : ( A ) = ( v ) d (define a value v, of type A, bound to x)
 ///     fn f : ( A ) = { e } d  (define a function f, of thunk type A, with recursive body e)
@@ -1646,10 +1669,20 @@ macro_rules! fgi_decls {
             Rc::new(fgi_decls![ $($d)* ])
         )
     };
+    { idxtm $x:ident = ( $($i:tt)+ ) $($d:tt)* } => {
+        Decls::IdxTm( stringify![$x].to_string(),
+                      fgi_index![ $($i)+ ],
+                      Rc::new( fgi_decls![ $($d)* ] ) )
+    };
+    { nmtm $x:ident = ( $($N:tt)+ ) $($d:tt)* } => {
+        Decls::NmTm( stringify![$x].to_string(),
+                     fgi_nametm![ $($N)+ ],
+                     Rc::new( fgi_decls![ $($d)* ] ) )
+    };
     { type $t:ident = ( $($a:tt)+ ) $($d:tt)* } => {
-        Decls::TypeAlias( stringify![$t].to_string(),
-                          fgi_vtype![ $($a)+ ],
-                          Rc::new( fgi_decls![ $($d)* ] ) )
+        Decls::Type( stringify![$t].to_string(),
+                     fgi_vtype![ $($a)+ ],
+                     Rc::new( fgi_decls![ $($d)* ] ) )
     };
     { val $x:ident : ( $($a:tt)+ ) = ( $($v:tt)+ ) $($d:tt)* } => {
         Decls::Val( stringify![$x].to_string(),

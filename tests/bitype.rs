@@ -11,7 +11,7 @@ mod fungi_stdlib_examples {
         use fungi_lang::eval::*;
         use fungi_lang::stdlib::seq::{seq_nat};
         
-        let bundle : Bundle = fgi_bundle![
+        let bundle : Bundle = fgi_bundle![            
             use seq_nat::*;
             ret 0
         ];

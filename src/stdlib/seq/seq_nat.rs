@@ -1,13 +1,15 @@
 fgi_mod!{
 
-    fn max_opnat:(
-        Thk[0] 0 (1 + Nat) -> 0 (1 + Nat) -> 0 F (1 + Nat)
+    type OpNat = (+ Unit + Nat );
+
+    fn opnat_max:(
+        Thk[0] 0 OpNat -> 0 OpNat -> 0 F OpNat
     ) = {
         #xo.#yo.
-        match xo {
-            _  => { ret yo }
-            x => { match yo {
-                _ => { ret yo }
+        match (x_o) {
+            _u  => { ret yo }
+            x => { match (yo) {
+                _u => { ret yo }
                 y => {
                     if { x < y } {ret y}
                     else {ret x}
@@ -21,18 +23,18 @@ fgi_mod!{
     type Lev = ( Nat );
     type Seq = (
         rec Seq. foralli (X,Y):NmSet.
-            (+ (1 + Nat)
+            (+ OpNat
              + (exists (X1,X2,X3)   :NmSet | (X1%X2%X3=X).
                 exists (Y1,Y2,Y3,Y4):NmSet | (Y1%Y2%Y3%Y4=Y).
                 x Nm[X1] x Lev
                 x Ref[Y1](Seq[X2][Y2])
                 x Ref[Y3](Seq[X3][Y4]))
             )
-    )
+    );
         
     // name set function for naming structural recursion over binary
     // trees
-    idxtm bin = #x:Nm.{x,@1} % {x,@2};
+    idxtm bin = ( #x:Nm.{x,@1} % {x,@2} );
 
     fn is_empty:(
         Thk[0] foralli (X,Y):NmSet.
@@ -43,8 +45,8 @@ fgi_mod!{
         #seq. unroll match seq {
             opnat => {
                 match opnat {
-                    _ => {ret true},
-                    _ => {ret false},
+                    _u => {ret true}
+                    _u => {ret false}
                 }
             }
             bin => {
@@ -62,8 +64,8 @@ fgi_mod!{
     fn max:(
         Thk[0] foralli (X,Y):NmSet.
             0 Seq[X][Y] ->
-        { bin X; 0 }
-        F (1 + Nat)
+        { (bin) X; 0 }
+        F OpNat
     ) = {
         #seq. unroll seq seq.
         match seq {
@@ -81,9 +83,9 @@ fgi_mod!{
     fn monoid:(
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y]) ->
-            0 (Thk[0] 0 (1 + Nat) -> 0 (1 + Nat) -> 0 F (1 + Nat)) ->
-        { bin X; 0 }
-        F (1 + Nat)
+            0 (Thk[0] 0 OpNat -> 0 OpNat -> 0 F OpNat) ->
+        { (bin) X; 0 }
+        F OpNat
     ) = {
         #seq. #binop. unroll match seq {
             vec => { {force vec_monoid} vec }
@@ -100,8 +102,8 @@ fgi_mod!{
     fn map:(
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y]) ->
-            0 (Thk[0] 0 (1 + Nat) -> 0 F (1 + Nat))
-        { bin X; Y }
+            0 (Thk[0] 0 OpNat -> 0 F OpNat) ->
+        { (bin) X; Y }
         F (Seq[X][X])
     ) = {
         #seq. #f. unroll match seq {
@@ -123,14 +125,14 @@ fgi_mod!{
     fn filter:(
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y]) ->
-            0 (Thk[0] 0 Nat -> (0 F Bool)) ->
-        { bin X; Y }
+            0 (Thk[0] 0 Nat -> 0 F Bool) ->
+        { (bin) X; Y }
         F (Seq[X][X])
     ) = {
         #seq. #f. unroll match seq {
             opnat => {
                 match opnat {
-                    _ => {
+                    _u => {
                         // no number to filter
                         ret roll inj1 (inj1 ())
                     }
