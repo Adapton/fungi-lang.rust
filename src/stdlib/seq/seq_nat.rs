@@ -22,6 +22,9 @@ fgi_mod!{
     }
 
     // - - - - - - - - - - - - - - - - - - - - - - -
+
+    // Level tree holding (optional) natural numbers at the leaves.
+    // Each level is a number; along each path, levels are descending.
     
     type Lev = ( Nat );
     type Seq = (
@@ -35,11 +38,12 @@ fgi_mod!{
             )
     );
         
-    // name set function for naming **structural recursion** over
-    // binary trees; this function is used below to define the effects
-    // of such functions in more concise, abstract way.
+    // seq_sr: name set function for naming **structural recursion**
+    // over binary trees; this function is used below to define the
+    // effects of such functions in more concise, abstract way.
     idxtm seq_sr = ( #x:Nm.{x,@1} % {x,@2} );
 
+    // potentially reads all pointers of sequence, but writes no names.
     fn is_empty:(
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y]) ->
@@ -64,11 +68,14 @@ fgi_mod!{
             }
         }
     }
-    
+
+    // Reads all pointers of input using structural recursion,
+    // producing an optional natural number (and no output structure);
+    // the only named structure here is the recursive computation.
     fn max:(
         Thk[0] foralli (X,Y):NmSet.
             0 Seq[X][Y] ->
-        { (seq_sr) X; 0 }
+        { (seq_sr) X; Y }
         F OpNat
     ) = {
         #seq. unroll seq seq.
@@ -84,6 +91,8 @@ fgi_mod!{
         }
     }
 
+    // generic version of `max` above, where the operation need not be
+    // "natural number maximum".
     fn monoid:(
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y]) ->
@@ -102,7 +111,11 @@ fgi_mod!{
             }
         }
     }
-    
+
+    // generic mapping function.  reads all pointers of the input
+    // using structural recursion to name and produce the output tree.
+    // In terms of the named dependence graph, the output tree and the
+    // computation that produce it coincide exactly.
     fn map:(
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y]) ->
@@ -125,7 +138,12 @@ fgi_mod!{
             }
         }
     }
-    
+
+    // generic filtering function.  reads all pointers of the input
+    // using structural recursion to name and produce the output tree.
+    // In terms of the named dependence graph, the output tree and the
+    // computation that produce it coincide, except where the filtered
+    // output tree is empty.
     fn filter:(
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y]) ->
