@@ -1125,7 +1125,7 @@ pub type ExpRec = Rc<Exp>;
 /// e::=
 ///     fromast ast                     (inject ast nodes)
 ///     unsafe (arity) rustfn           (inject an evaluation function written in Rust)
-///     use ( hostpath ) :: * ; e       (all decls at path are made "local" to e)
+///     use x :: * ; e                  (all decls in module x made "local" to e)
 ///     e : C                           (type annotation, no effect)
 ///     e :> E                          (type annotation, with effect)
 ///     {e}                             (parens)
@@ -1175,7 +1175,7 @@ macro_rules! fgi_exp {
             eval:Rc::new($rustfn),
         })
     };
-    //     use hostpath :: * ; e       (all decls at path are made "local" to e)    
+    //     use x :: * ; e                  (all decls in module x made "local" to e)
     { use $path:ident :: * ; $($e:tt)* } => {
         Exp::UseAll(
             UseAllModule{
@@ -1606,14 +1606,15 @@ pub struct UseAllModule {
 ///
 /// ```text
 /// d ::=
-///     fromast ast                (inject ast nodes)
-///     use ( hostpath ) :: * ; d  (all decls at path are made "local")
-///     type t = ( A ) d           (define a type alias `t` for value type `A`)
-///     val x : ( A ) = ( v ) d    (define a value v, of type A, bound to x)
-///     fn f : ( A ) = { e } d     (define a function f, of thunk type A, with recursive body e)
-///     fn f : ( A ) { e } d       (alternate syntax: optional equal sign)
-///     ; d                        (alternate syntax: optional semi colons, anywhere)
-///     (end)                      (no decls)
+///     fromast ast             (inject ast nodes)
+///     use x :: * ; d          (all decls in module x are made "local")
+///     use ( path ) :: * ; d   (all decls at module path p are made "local")
+///     type t = ( A ) d        (define a type alias `t` for value type `A`)
+///     val x : ( A ) = ( v ) d (define a value v, of type A, bound to x)
+///     fn f : ( A ) = { e } d  (define a function f, of thunk type A, with recursive body e)
+///     fn f : ( A ) { e } d    (alternate syntax: optional equal sign)
+///     ; d                     (alternate syntax: optional semi colons, anywhere)
+///     (end)                   (no decls)
 /// ```
 ///
 #[macro_export]
@@ -1621,6 +1622,7 @@ macro_rules! fgi_decls {
     { fromast $ast:expr } => {
         unimplemented!()
     };
+    //     use x :: * ; d  (all decls in module x are made "local")
     { use $path:ident :: * ; $($d:tt)* } => {
         // path is a Rust path (for now, just an identifier), from
         // which we project and run a public function called
@@ -1628,12 +1630,13 @@ macro_rules! fgi_decls {
         // a Module.  We also save the given path, as a string.
         Decls::UseAll(
             UseAllModule{
-                module:Rc::New( $path::fgi_module () ),
+                module:Rc::new( $path::fgi_module () ),
                 path:stringify![$path].to_string(),
             },
-            fgi_decls![ $($d)* ]
+            Rc::new(fgi_decls![ $($d)* ])
         )
     };
+    //     use ( path ) :: * ; d   (all decls at module path p are made "local")
     { use ( $path:ident ) :: * ; $($d:tt)* } => {
         Decls::UseAll(
             UseAllModule{

@@ -5,7 +5,8 @@ use fungi_lang::ast::*;
 use std::rc::Rc;
 
 
-use fungi_lang::stdlib::{vec};
+use fungi_lang::stdlib::{vec,seq};
+use fungi_lang::stdlib::seq::seq_nat;
 
 fgi_inner_mod!{
     pub (nums)
@@ -18,9 +19,12 @@ fgi_inner_mod!{
 pub fn fgi_module_test () -> Module {
     fgi_module!{
         // import vec module, defined in fungi_lang::stdlib::{vec};
-        use (vec)::*;
+        use vec::*;
+        //use (seq::seq_nat)::*;
+        use seq_nat::*;
+
         // import nums module, defined above
-        use (nums)::*;
+        use nums::*;
         // now, we can use anything in either module, as if they were
         // defined here:        
         val test_nums_vec : (Thk[0] 0 F (Nat x Vec Nat)) = (
