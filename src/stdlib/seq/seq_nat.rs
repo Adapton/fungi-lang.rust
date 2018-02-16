@@ -1,5 +1,8 @@
 fgi_mod!{
 
+    // Optional natural numbers; the "leaves" of the binary tree
+    // holding the sequence of natural numbers.
+    
     type OpNat = (+ Unit + Nat );
 
     fn opnat_max:(
@@ -32,9 +35,10 @@ fgi_mod!{
             )
     );
         
-    // name set function for naming structural recursion over binary
-    // trees
-    idxtm bin = ( #x:Nm.{x,@1} % {x,@2} );
+    // name set function for naming **structural recursion** over
+    // binary trees; this function is used below to define the effects
+    // of such functions in more concise, abstract way.
+    idxtm seq_sr = ( #x:Nm.{x,@1} % {x,@2} );
 
     fn is_empty:(
         Thk[0] foralli (X,Y):NmSet.
@@ -64,7 +68,7 @@ fgi_mod!{
     fn max:(
         Thk[0] foralli (X,Y):NmSet.
             0 Seq[X][Y] ->
-        { (bin) X; 0 }
+        { (seq_sr) X; 0 }
         F OpNat
     ) = {
         #seq. unroll seq seq.
@@ -84,7 +88,7 @@ fgi_mod!{
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y]) ->
             0 (Thk[0] 0 OpNat -> 0 OpNat -> 0 F OpNat) ->
-        { (bin) X; 0 }
+        { (seq_sr) X; 0 }
         F OpNat
     ) = {
         #seq. #binop. unroll match seq {
@@ -103,7 +107,7 @@ fgi_mod!{
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y]) ->
             0 (Thk[0] 0 OpNat -> 0 F OpNat) ->
-        { (bin) X; Y }
+        { (seq_sr) X; Y }
         F (Seq[X][X])
     ) = {
         #seq. #f. unroll match seq {
@@ -126,7 +130,7 @@ fgi_mod!{
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y]) ->
             0 (Thk[0] 0 Nat -> 0 F Bool) ->
-        { (bin) X; Y }
+        { (seq_sr) X; Y }
         F (Seq[X][X])
     ) = {
         #seq. #f. unroll match seq {
