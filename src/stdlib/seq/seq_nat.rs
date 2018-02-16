@@ -115,7 +115,8 @@ fgi_mod!{
     // generic mapping function.  reads all pointers of the input
     // using structural recursion to name and produce the output tree.
     // In terms of the named dependence graph, the output tree and the
-    // computation that produce it coincide exactly.
+    // computation that produce it coincide exactly, and both are
+    // named with set `(seq_sr) X`.
     fn map:(
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y]) ->
@@ -143,7 +144,8 @@ fgi_mod!{
     // using structural recursion to name and produce the output tree.
     // In terms of the named dependence graph, the output tree and the
     // computation that produce it coincide, except where the filtered
-    // output tree is empty.
+    // output tree is empty; the set `(seq_sr) X` over approximates
+    // the named output structure.
     fn filter:(
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y]) ->
