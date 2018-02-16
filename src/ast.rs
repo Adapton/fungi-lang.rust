@@ -1,6 +1,8 @@
 //! Syntax: abstract (via Rust datatypes) and concrete (via Rust macros).
 //!
 //! **Program terms**:  
+//!  - Declarations (`d`):        [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_decls.html),
+//!                               [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Decls.html).   
 //!  - Expressions (`e`):         [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_exp.html),
 //!                               [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Exp.html).   
 //!  - Values (`v`):              [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_val.html),
@@ -1593,12 +1595,13 @@ pub struct UseAllModule {
 /// ```text
 /// d ::=
 ///     fromast ast                (inject ast nodes)
-///     use ( hostpath ) :: * ; d  (all module items from path are put into local scope)
-///     type t = ( A ) d           (in local scope, define a type alias `t` for value type `A`)
-///     val x : ( A ) = ( v ) d    (in local scope, define a value v, of type A, bound to x)
-///     fn f : ( A ) = { e } d     (in local scope, define a function f, of thunk type A, with recursive body e)
-///     fn f : ( A ) { e } d       (alternate syntax: equal sign is optional)
-///     ; d                        (alternate syntax: optional semi colons can go between decls)
+///     use ( hostpath ) :: * ; d  (all decls at path are made "local")
+///     type t = ( A ) d           (define a type alias `t` for value type `A`)
+///     val x : ( A ) = ( v ) d    (define a value v, of type A, bound to x)
+///     fn f : ( A ) = { e } d     (define a function f, of thunk type A, with recursive body e)
+///     fn f : ( A ) { e } d       (alternate syntax: optional equal sign)
+///     ; d                        (alternate syntax: optional semi colons, anywhere)
+///     (end)                      (no decls)
 /// ```
 ///
 #[macro_export]
