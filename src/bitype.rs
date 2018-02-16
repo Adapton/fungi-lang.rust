@@ -1115,6 +1115,18 @@ pub fn synth_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<Exp
     let fail = |td:ExpTD, err :TypeError| { failure(Dir::Synth, last_label, ctxt, td, err) };
     let succ = |td:ExpTD, typ :CEffect  | { success(Dir::Synth, last_label, ctxt, td, typ) };
     match exp {
+        &Exp::UseAll(ref _m, ref exp) => {
+            // TODO: import the decls of m into the typing context.
+            //
+            // TODO: We need a "decls import" judgement for modules
+            // that works by extending a given context with new
+            // bindings, and signaling errors when bindings shadow
+            // existing ones (shadowing is useful, but usually not
+            // intended for module-level bindings).
+            //
+            //
+            synth_exp(last_label, ctxt, exp)
+        }
         &Exp::AnnoC(ref e,ref ctyp) => {
             // TODO: this is a hackthat only works while we're ignoring effects,
             // we need check_exp to handle an optional effect

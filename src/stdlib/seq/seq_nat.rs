@@ -1,8 +1,27 @@
 fgi_mod!{
+
+    fn max_opnat:(
+        Thk[0] 0 (1 + Nat) -> 0 (1 + Nat) -> 0 F (1 + Nat)
+    ) = {
+        #xo.#yo.
+        match xo {
+            _  => { ret yo }
+            x => { match yo {
+                _ => { ret yo }
+                y => {
+                    if { x < y } {ret y}
+                    else {ret x}
+                }
+            }}
+        }                            
+    }
+
+    // - - - - - - - - - - - - - - - - - - - - - - -
+    
     type Lev = ( Nat );
     type Seq = (
         rec Seq. foralli (X,Y):NmSet.
-            (+ Nat 
+            (+ (1 + Nat)
              + (exists (X1,X2,X3)   :NmSet | (X1%X2%X3=X).
                 exists (Y1,Y2,Y3,Y4):NmSet | (Y1%Y2%Y3%Y4=Y).
                 x Nm[X1] x Lev
@@ -15,23 +34,6 @@ fgi_mod!{
     // trees
     idxtm bin = #x:Nm.{x,@1} % {x,@2};
 
-    fn max:(
-        Thk[0] foralli (X,Y):NmSet.
-            0 Seq[X][Y] ->
-        { bin X; 0 }
-        F Nat
-    ) = {
-        #seq. unroll seq seq. match seq {
-            vec => { {force vec_max} vec }
-            bin => {
-                let (n,_x,l,r) = {ret bin}
-                let (_l, ml) = { memo{n,(@1)}{ {force max} {!l} } }
-                let (_r, mr) = { memo{n,(@2)}{ {force max} {!r} } }
-                if { mr < ml } {ret ml} else {ret mr}
-            }
-        }
-    }
-
     fn is_empty:(
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y]) ->
@@ -39,8 +41,14 @@ fgi_mod!{
         F Bool
     ) = {
         #seq. unroll match seq {
-            vec => { {force vec_is_empty} vec }
+            opnat => {
+                match opnat {
+                    _ => {ret true},
+                    _ => {ret false},
+                }
+            }
             bin => {
+                // TODO: unpack
                 let (n,lev,l,r) = {ret bin}
                 if {{force is_empty} {!l}} {
                     {{force is_empty} {!r}}
@@ -50,40 +58,37 @@ fgi_mod!{
             }
         }
     }
-
-    fn is_empty_shallow:(
-        Thk[0] foralli (X,Y):NmSet.
-            0 (Seq[X][Y]) ->
-        { 0; 0 }
-        F Bool
-    ) = {
-        #seq. unroll match seq {
-            vec => { {force vec_is_empty} vec }
-            bin => { ret false }
-        }
-    }
-
-    fn is_singleton:(
-        Thk[0] foralli (X,Y):NmSet.
-            0 (Seq[X][Y]) ->
-            0 F Bool
-    ) = {
-        #seq. unroll match seq {
-            vec => { {force vec_is_singleton} vec }
-            bin => { ret false }
-        }
-    }
     
+    fn max:(
+        Thk[0] foralli (X,Y):NmSet.
+            0 Seq[X][Y] ->
+        { bin X; 0 }
+        F (1 + Nat)
+    ) = {
+        #seq. unroll seq seq.
+        match seq {
+            opelm => {ret opelm}
+            bin => {
+                // TODO: unpack
+                let (n,_x,l,r) = {ret bin}
+                let (_l, ml) = { memo{n,(@1)}{ {force max} {!l} } }
+                let (_r, mr) = { memo{n,(@2)}{ {force max} {!r} } }
+                {{force max_opnat} ml mr}
+            }
+        }
+    }
+
     fn monoid:(
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y]) ->
-            0 (Thk[0] 0 Nat -> 0 Nat -> 0 F Nat) ->
+            0 (Thk[0] 0 (1 + Nat) -> 0 (1 + Nat) -> 0 F (1 + Nat)) ->
         { bin X; 0 }
-        F Nat
+        F (1 + Nat)
     ) = {
         #seq. #binop. unroll match seq {
             vec => { {force vec_monoid} vec }
             bin => {
+                // TODO: unpack
                 let (n,_x,l,r) = {ret bin}
                 let (_l, ml) = { memo{n,(@1)}{ {force monoid} {!l} } }
                 let (_r, mr) = { memo{n,(@2)}{ {force monoid} {!r} } }
@@ -95,16 +100,21 @@ fgi_mod!{
     fn map:(
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y]) ->
-            0 (Thk[0] 0 Nat -> 0 F Nat)
+            0 (Thk[0] 0 (1 + Nat) -> 0 F (1 + Nat))
         { bin X; Y }
         F (Seq[X][X])
     ) = {
         #seq. #f. unroll match seq {
-            vec => { {force vec_map } f vec }
+            opnat => {
+                let opnat2 = {{force f} opnat}
+                ret roll inj1 opnat2
+            }
             bin => {
+                // TODO: unpack
                 let (n,lev,l,r) = {ret bin}
                 let (rsl, sl) = { memo{n,(@1)}{ {force map} f {!l} } }
                 let (rsr, sr) = { memo{n,(@2)}{ {force map} f {!r} } }
+                // TODO: repack
                 ret roll inj2 (n,lev,rsl,rsr)
             }
         }
@@ -118,37 +128,37 @@ fgi_mod!{
         F (Seq[X][X])
     ) = {
         #seq. #f. unroll match seq {
-            vec => { {force vec_filter} f vec }
+            opnat => {
+                match opnat {
+                    _ => {
+                        // no number to filter
+                        ret roll inj1 (inj1 ())
+                    }
+                    n => {
+                        // apply user-supplied predicate
+                        if {{force f} n} {
+                            // keep the number n
+                            ret roll inj1 (inj2 n )
+                        } else {
+                            // filter out the number n
+                            ret roll inj1 (inj1 ())
+                        }
+                    }
+                }
+            }
             bin => {
                 let (n,lev,l,r) = {ret bin}
+                // TODO: unpack
                 let (rsl, sl) = { memo{n,(@1)}{ {force filter} f {!l} } }
                 let (rsr, sr) = { memo{n,(@2)}{ {force filter} f {!r} } }
                 if {{force is_empty} sl} { ret sr }
                 else { if {{force is_empty} sr} { ret sl }
-                       else { ret roll inj2 (n,lev,rsl,rsr) }
+                       else {
+                           // TODO: repack
+                           ret roll inj2 (n,lev,rsl,rsr)
+                       }
                 }
             }
         }
-    }
-    
-    fn map_filter:(
-        Thk[0] foralli (X,Y):NmSet.
-            0 (Seq[X][Y]) ->
-            0 (Thk[0] 0 Nat -> 0 F (+ Unit + Nat)) ->
-        { bin X; Y }
-        F Nat
-    ) = {
-        #seq. #f. unroll match seq {
-            vec => { {force vec_map_filter} f vec }
-            bin => {
-                let (n,lev,l,r) = {ret bin}
-                let (rsl, sl) = { memo{n,(@1)}{ {force map_filter} f {!l} } }
-                let (rsr, sr) = { memo{n,(@2)}{ {force map_filter} f {!r} } }
-                if {{force is_empty} sl} { ret sr }
-                else { if {{force is_empty} sr} { ret sl }
-                       else { ret roll inj2 (n,lev,rsl,rsr) }
-                }
-            }
-        }
-    }
+    }    
 }

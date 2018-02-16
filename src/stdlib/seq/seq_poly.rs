@@ -6,7 +6,7 @@ fgi_mod!{
     type Seq = (
         rec Seq.
             foralli (X,Y): NmSet.
-            forallt T.
+            forallt T:type.
             (+ T[X][Y]
              + (exists (X1,X2,X3)   :NmSet | (X1%X2%X3=X).
                 exists (Y1,Y2,Y3,Y4):NmSet | (Y1%Y2%Y3%Y4=Y).

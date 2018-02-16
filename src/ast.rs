@@ -1082,6 +1082,7 @@ pub enum PrimApp {
 /// Expressions (aka, computation terms)
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Exp {
+    UseAll(UseAllModule, ExpRec),
     AnnoE(ExpRec,CEffect),
     AnnoC(ExpRec,CType),
     Force(Val),
@@ -1124,6 +1125,7 @@ pub type ExpRec = Rc<Exp>;
 /// e::=
 ///     fromast ast                     (inject ast nodes)
 ///     unsafe (arity) rustfn           (inject an evaluation function written in Rust)
+///     use ( hostpath ) :: * ; e       (all decls at path are made "local" to e)
 ///     e : C                           (type annotation, no effect)
 ///     e :> E                          (type annotation, with effect)
 ///     {e}                             (parens)
@@ -1172,6 +1174,16 @@ macro_rules! fgi_exp {
             arity:$arity,
             eval:Rc::new($rustfn),
         })
+    };
+    //     use hostpath :: * ; e       (all decls at path are made "local" to e)    
+    { use $path:ident :: * ; $($e:tt)* } => {
+        Exp::UseAll(
+            UseAllModule{
+                module:Rc::new( $path::fgi_module () ),
+                path:stringify![$path].to_string(),
+            },
+            Rc::new( fgi_exp![ $($e)* ] )
+        )
     };
     //     e : C                           (type annotation, without effects)
     { $e:tt : $($c:tt)+ } => { Exp::AnnoC(

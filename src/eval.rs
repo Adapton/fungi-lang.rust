@@ -360,8 +360,8 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
         // basecase 2: returns are terminal computations
         Exp::Ret(v)      => { ExpTerm::Ret(close_val(&env, &v)) }
 
-        
         // ignore types at run time:
+        Exp::UseAll(_, e)        => { return eval(env, (*e).clone()) }
         Exp::DefType(_x, _a, e)  => { return eval(env, (*e).clone()) }
         Exp::AnnoC(e1,_ct)       => { return eval(env, (*e1).clone()) }
         Exp::AnnoE(e1,_et)       => { return eval(env, (*e1).clone()) }
@@ -434,6 +434,7 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
                 term => eval_type_error(EvalTyErr::AppNonLam(term), env, e)
             }
         }
+        
         Exp::Split(v, x, y, e1) => {
             match close_val(&env, &v) {
                 RtVal::Pair(v1, v2) => {

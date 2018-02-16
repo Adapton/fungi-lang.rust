@@ -2,7 +2,38 @@
 #[macro_use]
 extern crate fungi_lang;
 
+mod fungi_stdlib_examples {
+    fn seq_nat2() {
+        use std::rc::Rc;
+        use fungi_lang::ast::*;
+        use fungi_lang::bitype::*;
+        use fungi_lang::vis::*;
+        use fungi_lang::eval::*;
+        use fungi_lang::stdlib::seq::{seq_nat};
+        
+        let bundle : Bundle = fgi_bundle![
+            use seq_nat::*;
+            ret 0
+        ];
+        
+        use std::fs::File;
+        use std::io::Write;        
+        let data = format!("{:?}", bundle);
+        let mut f = File::create("target/seq_nat.fgx").expect("Could not create bundle file");
+        f.write_all(data.as_bytes()).expect("Could not write bundle data");
+    }
 
+    #[test]
+    fn seq_nat () {
+        use std::thread;
+        let child =
+            thread::Builder::new().stack_size(64 * 1024 * 1024).spawn(move || { 
+                seq_nat2()
+            });
+        let _ = child.unwrap().join();
+    }
+}
+    
 #[test]
 fn examples () {
   use std::thread;
@@ -12,6 +43,7 @@ fn examples () {
     });
   let _ = child.unwrap().join();
 }
+
 fn examples2() {
     use std::rc::Rc;
     use fungi_lang::ast::*;
