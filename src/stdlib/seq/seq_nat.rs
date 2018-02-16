@@ -1,8 +1,6 @@
 fgi_mod!{
-
     // Optional natural numbers; the "leaves" of the binary tree
     // holding the sequence of natural numbers.
-    
     type OpNat = (+ Unit + Nat );
 
     fn opnat_max:(
@@ -24,8 +22,7 @@ fgi_mod!{
     // - - - - - - - - - - - - - - - - - - - - - - -
 
     // Level tree holding (optional) natural numbers at the leaves.
-    // Each level is a number; along each path, levels are descending.
-    
+    // Each level is a number; along each path, levels are descending.    
     type Lev = ( Nat );
     type Seq = (
         rec Seq. foralli (X,Y):NmSet.
@@ -38,9 +35,9 @@ fgi_mod!{
             )
     );
         
-    // seq_sr: name set function for naming **structural recursion**
-    // over binary trees; this function is used below to define the
-    // effects of such functions in more concise, abstract way.
+    // Names **structural recursion** over binary trees; this function
+    // is used below to define the effects of such functions in more
+    // concise, abstract way.
     idxtm seq_sr = ( #x:Nm.{x,@1} % {x,@2} );
 
     // potentially reads all pointers of sequence, but writes no names.

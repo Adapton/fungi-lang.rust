@@ -158,6 +158,7 @@ impl TCtxt {
 pub trait HasType { type Type; }
 
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+// Proposal: pub struct TypeInfo<Case:HasType> {   <---- Use "Case" not "TD" below
 pub struct TypeInfo<TD:HasType> { 
     pub dir:Dir,
     pub ctxt:TCtxt,
@@ -170,7 +171,7 @@ impl<A:HasType> TypeInfo<A> {
 }
 
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
-pub enum NameTmTD {
+pub enum NameTmTD { // <---------- "NameTmCase"; the typing derivation is `TypeInfo<NameTmCase>`
     Var(Var),
     Name(Name),
     Bin(TypeInfo<NameTmTD>, TypeInfo<NameTmTD>),
@@ -219,6 +220,42 @@ pub enum ValTD {
     NoParse(String),
 }
 impl HasType for ValTD { type Type = Type; }
+
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub struct ModuleTD {
+    pub ast: Rc<Module>,
+    pub td:  DeclsTD,
+}
+pub struct UseAllModuleTD {
+    pub ast: UseAllModule,
+    pub td:  ModuleTD,
+}
+
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum DeclsCase {
+    UseAll(UseAllModule,    DeclsTD),
+    NmTm( String,NmTmSort,  DeclsTD),
+    IdxTm(String,IdxTmSort, DeclsTD),
+    Type( String,TypeKind,  DeclsTD),
+    Val(  String,TypeKind,ValType, DeclsTD),
+    Fn(   String,TypeKind,ExpType, DeclsTD),
+    End,
+    NoParse(String),
+}
+//                     These X-TD's are all "misnamed"
+//                               |
+//       Derivations             |
+//          |                    |
+//         \./               <  \./  >
+pub type NmTmSort  = TypeInfo<NameTmTD>;
+pub type IdxTmSort = TypeInfo<IdxTmTD>;
+pub type TypeKind  = TypeInfo<IdxTmTD>;
+pub type ValType   = TypeInfo<ValTD>;
+pub type ExpType   = TypeInfo<ExpTD>;
+
+type DeclsTD = TypeInfo<DeclsCase>;
+impl HasType for DeclsCase { type Type = (); }
+impl HasType for DeclsTD   { type Type = (); }
 
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum ExpTD {
@@ -1111,21 +1148,31 @@ pub fn check_val(last_label:Option<&str>, ctxt:&TCtxt, val:&Val, typ:&Type) -> T
     }
 }
 
+// Synthesize a typing derivation for a module, given the module AST.
+pub fn synth_module(m:&Module) -> ModuleTD {
+    panic!("TODO")
+}
+
+// TODO: import the decls of m into the typing context.
+//
+// TODO: We need a "decls import" judgement for modules that works by
+// extending a given context with new bindings, and signaling errors
+// when bindings shadow existing ones (shadowing is useful, but
+// usually not intended for module-level bindings).
+//
+pub fn import_module(ctxt:&TCtxt, m:&ModuleTD) -> TCtxt {
+    // TODO
+    ctxt.clone()
+}
+
 pub fn synth_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp) -> TypeInfo<ExpTD> {
     let fail = |td:ExpTD, err :TypeError| { failure(Dir::Synth, last_label, ctxt, td, err) };
     let succ = |td:ExpTD, typ :CEffect  | { success(Dir::Synth, last_label, ctxt, td, typ) };
     match exp {
-        &Exp::UseAll(ref _m, ref exp) => {
-            // TODO: import the decls of m into the typing context.
-            //
-            // TODO: We need a "decls import" judgement for modules
-            // that works by extending a given context with new
-            // bindings, and signaling errors when bindings shadow
-            // existing ones (shadowing is useful, but usually not
-            // intended for module-level bindings).
-            //
-            //
-            synth_exp(last_label, ctxt, exp)
+        &Exp::UseAll(ref m, ref exp) => {
+            let mtd = synth_module(&(*m.module));
+            let ctxt = import_module(&ctxt, &mtd);
+            synth_exp(last_label, &ctxt, exp)
         }
         &Exp::AnnoC(ref e,ref ctyp) => {
             // TODO: this is a hackthat only works while we're ignoring effects,
