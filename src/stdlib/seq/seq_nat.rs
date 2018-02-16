@@ -1,19 +1,24 @@
-fgi_mod!{    
+fgi_mod!{
+    type Lev = ( Nat );
     type Seq = (
         rec Seq. foralli (X,Y):NmSet.
-            (+ Vec 
+            (+ Nat 
              + (exists (X1,X2,X3)   :NmSet | (X1%X2%X3=X).
                 exists (Y1,Y2,Y3,Y4):NmSet | (Y1%Y2%Y3%Y4=Y).
-                x Nm[X1] x Nat // <-- Name and level
+                x Nm[X1] x Lev
                 x Ref[Y1](Seq[X2][Y2])
                 x Ref[Y3](Seq[X3][Y4]))
             )
     )
-       
+        
+    // name set function for naming structural recursion over binary
+    // trees
+    idxtm bin = #x:Nm.{x,@1} % {x,@2};
+
     fn max:(
         Thk[0] foralli (X,Y):NmSet.
-            0 Seq[X][Y] Nat ->
-        { (#x.{x,@1} % {x,@2}) X; 0 }
+            0 Seq[X][Y] ->
+        { bin X; 0 }
         F Nat
     ) = {
         #seq. unroll seq seq. match seq {
@@ -29,7 +34,7 @@ fgi_mod!{
 
     fn is_empty:(
         Thk[0] foralli (X,Y):NmSet.
-            0 (Seq[X][Y] Nat) ->
+            0 (Seq[X][Y]) ->
         { 0; Y }
         F Bool
     ) = {
@@ -48,7 +53,7 @@ fgi_mod!{
 
     fn is_empty_shallow:(
         Thk[0] foralli (X,Y):NmSet.
-            0 (Seq[X][Y] Nat) ->
+            0 (Seq[X][Y]) ->
         { 0; 0 }
         F Bool
     ) = {
@@ -60,7 +65,7 @@ fgi_mod!{
 
     fn is_singleton:(
         Thk[0] foralli (X,Y):NmSet.
-            0 (Seq[X][Y] Nat) ->
+            0 (Seq[X][Y]) ->
             0 F Bool
     ) = {
         #seq. unroll match seq {
@@ -71,9 +76,9 @@ fgi_mod!{
     
     fn monoid:(
         Thk[0] foralli (X,Y):NmSet.
-            0 (Seq[X][Y] Nat) ->
-            0 (Thk[0] 0 Nat -> 0 Nat -> 0 F Bool) ->
-        { (#x:Nm.{x,@1} % {x,@2}) X; 0 }
+            0 (Seq[X][Y]) ->
+            0 (Thk[0] 0 Nat -> 0 Nat -> 0 F Nat) ->
+        { bin X; 0 }
         F Nat
     ) = {
         #seq. #binop. unroll match seq {
@@ -89,10 +94,10 @@ fgi_mod!{
     
     fn map:(
         Thk[0] foralli (X,Y):NmSet.
-            0 (Seq[X][Y] Nat) ->
+            0 (Seq[X][Y]) ->
             0 (Thk[0] 0 Nat -> 0 F Nat)
-        { (#x.{x,@1} % {x,@2}) X; Y }
-        F (Seq[X][X] Nat)
+        { bin X; Y }
+        F (Seq[X][X])
     ) = {
         #seq. #f. unroll match seq {
             vec => { {force vec_map } f vec }
@@ -107,10 +112,10 @@ fgi_mod!{
     
     fn filter:(
         Thk[0] foralli (X,Y):NmSet.
-            0 (Seq[X][Y] Nat) ->
+            0 (Seq[X][Y]) ->
             0 (Thk[0] 0 Nat -> (0 F Bool)) ->
-        { (#x.{x,@1} % {x,@2}) X; Y }
-        F (Seq[X][X] Nat)
+        { bin X; Y }
+        F (Seq[X][X])
     ) = {
         #seq. #f. unroll match seq {
             vec => { {force vec_filter} f vec }
@@ -128,9 +133,9 @@ fgi_mod!{
     
     fn map_filter:(
         Thk[0] foralli (X,Y):NmSet.
-            0 (Seq[X][Y] Nat) ->
+            0 (Seq[X][Y]) ->
             0 (Thk[0] 0 Nat -> 0 F (+ Unit + Nat)) ->
-        { (#x.{x,@1} % {x,@2}) X; Y }
+        { bin X; Y }
         F Nat
     ) = {
         #seq. #f. unroll match seq {
