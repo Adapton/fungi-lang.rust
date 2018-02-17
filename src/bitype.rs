@@ -385,9 +385,9 @@ fn success<R:HasClas+debug::DerRule>
 ///
 /// The following type forms are **reducible**:
 ///
-///   1. `(foralli a:g. A) [i]`   -- type-index application
-///   2. `(forallt a:K. A) B`     -- type-type application
-///   3. `User(_)` -- user-defined type name (reduces to its definition)
+///   1. `user(_)` / `Ident(_)`   -- user-defined identifiers (each reduces to its definition)
+///   2. `(foralli a:g. A) [i]`   -- type-index application
+///   3. `(forallt a:K. A) B`     -- type-type application
 ///
 /// ### Normal forms (irreducible forms)
 ///
@@ -421,12 +421,17 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
             =>
             typ.clone(),
 
-        &Type::Ident(ref ident) => {
-            match ctx.lookup_type_def(ident) {
+        &Type::Ident(ref ident) => { match ident.as_str() {
+            // Built-in primitives are normal; they lack a definition in the context:
+            "Nat" | "Bool" | "String"
+                => { typ.clone() }
+            
+            // all other identifiers are for defined types; look up the definition
+            _ => { match ctx.lookup_type_def(ident) {
                 Some(a) => a,
                 _ => panic!("undefined type: {}", ident)
-            }
-        }
+            }}
+        }}
         &Type::TypeApp(ref a, ref b) => {
             let a = normal_type(ctx, a);
             let a = match a {
