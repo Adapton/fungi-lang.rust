@@ -65,6 +65,10 @@ impl Ctx {
     pub fn prop(&self,p:Prop) -> Ctx {
         Ctx::PropTrue(Rc::new(self.clone()),p)
     }
+    // append another context to the given one
+    pub fn append(&self,other:&Ctx) -> Ctx {
+        panic!("XXXTODO")
+    }
 }
 
 impl Ctx {
@@ -203,14 +207,19 @@ pub enum Qual {
     Val
 }
 
-pub type ModuleVar = (Qual,String);
+/// Module item derivation
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum ItemDer {
+    Bind(Qual,String,DeclDer),
+    NoParse(String),
+}
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 /// Module typing derivation
 pub struct ModuleDer {
     /// untyped AST of the module
     pub ast: Rc<Module>,
-    /// typing sub-derivations: each (var,qual) pair is unique in the list
-    pub tds: Vec<(ModuleVar,DeclDer)>,
+    /// typing sub-derivations for each module item: each `ModuleVar` is unique
+    pub tds: Vec<ItemDer>,
     /// the context exported by this module to modules that use it
     pub ctx_out: Ctx,
 }
@@ -231,7 +240,6 @@ pub enum DeclRule {
     Type (String, Type), 
     Val  (String, ValDer),
     Fn   (String, ExpDer),
-    NoParse(String),
 }
 /// Classifier for declared object in a module
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
@@ -465,8 +473,8 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
             };
             let b = normal_type(ctx, b);
             match a {
-                Type::TypeFn(ref x, ref k, ref body) => {
-                    let c = subst_type_type(b,x,body);
+                Type::TypeFn(ref x, ref _k, ref body) => {
+                    let body = subst_type_type(b,x,body);
                     normal_type(ctx, &body)
                 },
                 _ => { panic!("sort error") }
@@ -479,8 +487,8 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
                 _ => a,
             };
             match a {
-                Type::IdxFn(ref x, ref g, ref body) => {
-                    let c = subst_idxtm_type(i.clone(),x,body);
+                Type::IdxFn(ref x, ref _g, ref body) => {
+                    let body = subst_idxtm_type(i.clone(),x,body);
                     normal_type(ctx, &body)
                 },
                 _ => { panic!("sort error") }
@@ -1109,62 +1117,70 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ:&Type) -> ValD
     }
 }
 
-/// Synthesize typing derivations for a module, given the module AST.
-pub fn synth_module(last_label:Option<&str>, m:&Module) -> ModuleDer {
+/// Synthesize a typing derivation for a module, given the module AST.
+pub fn synth_module(last_label:Option<&str>, m:&Rc<Module>) -> ModuleDer {
     let mut decls = &m.decls;
-    let mut tds = vec![];
+    let mut tds : Vec<ItemDer> = vec![];
     let ctx = Ctx::Empty;
+    fn der_of(d:DeclRule) -> DeclDer {
+        panic!("TODO")
+    };
     loop {
-        match *decls {
-            Decls::End => break,
-            Decls::NoParse(s) => {
-                tds.push(DeclRule::NoParse(s.clone()));
+        match decls {
+            &Decls::End => break,
+            &Decls::NoParse(ref s) => {
+                tds.push(ItemDer::NoParse(s.clone()));
                 break;
             },
-            Decls::UseAll(ref uam, ref d) => {
-                let (der, ctx) = synth_module(&*uam.module);
-                tds.append(der.tds);
-                ctx.append(der.ctx_out);
+            &Decls::UseAll(ref uam, ref d) => {
+                let der = synth_module(last_label, &uam.module);
+                tds.append(&mut der.tds.clone());
+                ctx.append(&der.ctx_out);
                 decls = d;
             }
-            Decls::NmTm(ref x, ref m, ref d) => {
-                let der = synth_nmtm(last_label, ctx, m);
-                tds.push((Qual::NmTm, x), DeclRule::NmTm(der));
-                ctx.def(x, Term::NmTm(m.clone()));
+            &Decls::NmTm(ref x, ref m, ref d) => {
+                let der = synth_nmtm(last_label, &ctx, m);
+                tds.push(ItemDer::Bind(Qual::NmTm, x.clone(),
+                                       der_of(DeclRule::NmTm(x.clone(), der))));
+                ctx.def(x.clone(), Term::NmTm(m.clone()));
                 decls = d;
             }
-            Decls::IdxTm(ref x, ref i, ref d) => {
-                let der = synth_idxtm(last_label, ctx, m);
-                tds.push((Qual::NmTm, x), DeclRule::IdxTm(der));
-                ctx.def(x, Term::IdxTm(i.clone()));
+            &Decls::IdxTm(ref x, ref i, ref d) => {
+                let der = synth_idxtm(last_label, &ctx, i);
+                tds.push(ItemDer::Bind(Qual::NmTm, x.clone(),
+                                       der_of(DeclRule::IdxTm(x.clone(), der))));
+                ctx.def(x.clone(), Term::IdxTm(i.clone()));
                 decls = d;
             }
-            Decls::Type(ref x, ref a, ref d) => {
+            &Decls::Type(ref x, ref a, ref d) => {
                 // TODO: synth kinding for type
-                tds.push((Qual::Type, x), DeclRule::Type(a.clone()));
-                ctx.def(x, Term::Type(a.clone()));
+                tds.push(ItemDer::Bind(Qual::Type, x.clone(),
+                                       der_of(DeclRule::Type(x.clone(), a.clone()))));
+                ctx.def(x.clone(), Term::Type(a.clone()));
                 decls = d;                
             }
-            Decls::Val(ref x, ref oa, ref v, ref d) => {
+            &Decls::Val(ref x, ref oa, ref v, ref d) => {
                 let der = match oa {
-                    None        => synth_val(last_label, ctx, v   ),
-                    Some(ref a) => check_val(last_label, ctx, v, a),
+                    &None        => synth_val(last_label, &ctx, v   ),
+                    &Some(ref a) => check_val(last_label, &ctx, v, a),
                 };
-                tds.push((Qual::Val, x), DeclRule::Val(der));
-                let ctx = match der.clas {
-                    Ok(a) => ctx.var(x, a.clone()),
-                    Err(_) => ctx,
+                let typ = der.clas.clone();
+                tds.push(ItemDer::Bind(Qual::Val, x.clone(),
+                                       der_of(DeclRule::Val(x.clone(), der))));
+                let ctx = match typ {
+                    Ok(a)  => ctx.var(x.clone(), a),
+                    Err(_) => ctx.clone(),
                 };
                 decls = d;
             }
-            Decls::Fn(ref f, ref a, ref e, ref d) => {
+            &Decls::Fn(ref f, ref a, ref e, ref d) => {
                 // TODO/XXX
                 decls = d;
             }
         }      
     };
     ModuleDer{
-        ast: m.module.clone(),
+        ast: m.clone(),
         tds: tds,
         ctx_out: ctx,
     }
@@ -1176,8 +1192,8 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
     let succ = |td:ExpRule, typ :CEffect  | { success(Dir::Synth, last_label, ctx, td, typ) };
     match exp {
         &Exp::UseAll(ref m, ref exp) => {
-            let der = synth_module(&(*m.module));
-            ctx.append(der.ctx_out);
+            let der = synth_module(last_label, &m.module);
+            ctx.append(&der.ctx_out);
             synth_exp(last_label, &ctx, exp)
         }
         &Exp::AnnoC(ref e,ref ctyp) => {
@@ -1497,11 +1513,11 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
             fn strip_foralls (ctx:&Ctx, ceffect:&CEffect) -> (Ctx, CEffect) {
                 match ceffect {
                     &CEffect::ForallType(ref _a, ref _kind, ref ceffect) => {
-                        // TODO: extend context with _x, etc.
+                        // XXX/TODO: extend context with _x, etc.
                         strip_foralls(ctx, ceffect)
                     },
                     &CEffect::ForallIdx(ref _a, ref _sort, ref _prop, ref ceffect) => {
-                        // TODO: extend context with _x, etc.
+                        // XXX/TODO: extend context with _x, etc.
                         strip_foralls(ctx, ceffect)
                     },
                     &CEffect::Cons(_, _) => { (ctx.clone(), ceffect.clone()) }

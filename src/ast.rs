@@ -36,6 +36,7 @@
 use std::rc::Rc;
 use std::fmt;
 use std::fmt::{Debug,Formatter,Result};
+//use std::fmt::{Debug,Result};
 use std::hash::{Hash,Hasher};
 
 use eval;
