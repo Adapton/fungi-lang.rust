@@ -8,10 +8,10 @@ use std::rc::Rc;
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Ctx {
     Empty,
+    TypeDef(CtxRec,Var,Type),
     Var(CtxRec,Var,Type),
     IVar(CtxRec,Var,Sort),
     TVar(CtxRec,Var,Kind),
-    TypeDef(CtxRec,Var,Type),
     Equiv(CtxRec,IdxTm,IdxTm,Sort),
     Apart(CtxRec,IdxTm,IdxTm,Sort),
     PropTrue(CtxRec,Prop),
@@ -30,12 +30,6 @@ impl Ctx {
     pub fn tvar(&self,v:Var,k:Kind) -> Ctx {
         Ctx::TVar(Rc::new(self.clone()),v,k)
     }
-    /*
-    /// bind a type constructor and kind
-    pub fn tcons(&self,d:TypeCons,k:Kind) -> Ctx {
-        Ctx::TCons(Rc::new(self.clone()),d,k)
-    }
-     */
     /// assume an index equivalence
     pub fn equiv(&self,i1:IdxTm,i2:IdxTm,s:Sort) -> Ctx {
         Ctx::Equiv(Rc::new(self.clone()),i1,i2,s)
@@ -58,7 +52,6 @@ impl Ctx {
             Ctx::Var(ref c, _, _) |
             Ctx::IVar(ref c,_,_) |
             Ctx::TVar(ref c,_,_) |
-            //Ctx::TCons(ref c,_,_) |
             Ctx::Equiv(ref c,_,_,_) |
             Ctx::Apart(ref c,_,_,_) |
             Ctx::PropTrue(ref c,_) => { Some(c.clone()) },
@@ -99,19 +92,7 @@ impl Ctx {
             },
             ref c => c.rest().unwrap().lookup_type_def(x)
         }        
-    }
-    
-    /*
-    pub fn lookup_tcons(&self, x:&TypeCons) -> Option<Kind> {
-        match *self {
-            Ctx::Empty => None,
-            Ctx::TCons(ref c,ref v,ref k) => {
-                if x == v { Some(k.clone()) } else { c.lookup_tcons(x) }
-            },
-            ref c => c.rest().unwrap().lookup_tcons(x)                
-        }
-}
-     */
+    }    
 }
 
 pub trait HasClas { type Clas; }
