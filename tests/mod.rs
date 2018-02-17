@@ -4,7 +4,6 @@ extern crate fungi_lang;
 use fungi_lang::ast::*;
 use std::rc::Rc;
 
-
 use fungi_lang::stdlib::{vec,seq};
 use fungi_lang::stdlib::seq::seq_nat;
 
@@ -18,9 +17,8 @@ fgi_inner_mod!{
 }
 pub fn fgi_module_test () -> Module {
     fgi_module!{
-        // import vec module, defined in fungi_lang::stdlib::{vec};
+        // import modules defined in fungi_lang::stdlib
         use vec::*;
-        //use (seq::seq_nat)::*;
         use seq_nat::*;
 
         // import nums module, defined above
@@ -39,5 +37,10 @@ pub fn fgi_module_test () -> Module {
 
 #[test]
 fn module() {
-    println!("{:?}", fgi_module_test())
+    use fungi_lang::bitype;
+
+    let m : Module = fgi_module_test();
+    let md : ModuleDer = bitype::synth_module(&bitype::Ctx::Empty, m);
+    
+    println!("{:?}", m)
 }

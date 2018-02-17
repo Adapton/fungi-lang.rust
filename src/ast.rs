@@ -576,13 +576,6 @@ macro_rules! fgi_vtype {
     { fromast $ast:expr } => { $ast };
     //     (A)             (parens)
     { ($($type:tt)+) } => { fgi_vtype![$($type)+] };
-    // XXX Remove:
-    //     D,Seq,Nat       (type constructors)
-    // { D } => { Type::Cons(TypeCons::D) };
-    // { Bool } => { Type::Cons(TypeCons::Bool) };
-    // { Nat } => { Type::Cons(TypeCons::Nat) };
-    // { String } => { Type::Cons(TypeCons::String) };
-    // { Seq } => { Type::Cons(TypeCons::Seq) };
     //     user(type)      (user-defined)
     { user($s:ident) } => { Type::Ident(
         stringify![$s].to_string()
@@ -704,6 +697,7 @@ macro_rules! fgi_vtype {
     { $a:ident } => {{
         let s = stringify![$a].to_string();
         assert!(s.len() > 0);
+        // TODO: Make this less wasteful :)
         let v:Vec<char> = s.chars().collect();
         if v[0].is_uppercase() {
             // uppercase: names for type definitions/aliases
