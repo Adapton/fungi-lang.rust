@@ -40,7 +40,7 @@ fn module() {
     use fungi_lang::bitype;
 
     let m : Module = fgi_module_test();
-    let md : ModuleDer = bitype::synth_module(&bitype::Ctx::Empty, m);
+    let md : bitype::ModuleDer = bitype::synth_module(&m);
     
     println!("{:?}", m)
 }

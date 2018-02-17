@@ -8,16 +8,39 @@ use std::rc::Rc;
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Ctx {
     Empty,
-    TypeDef(CtxRec,Var,Type),
+    /// Define a type term to be carried in the type context
+    Def(CtxRec,Var,Term),
+    /// Define a value variable's type
     Var(CtxRec,Var,Type),
+    /// Define a name/index variable's sort
     IVar(CtxRec,Var,Sort),
+    /// Define a type variable's kind
     TVar(CtxRec,Var,Kind),
+    /// Assume an index term equivalence, at a common sort
     Equiv(CtxRec,IdxTm,IdxTm,Sort),
+    /// Assume an index term apartness, at a common sort
     Apart(CtxRec,IdxTm,IdxTm,Sort),
+    /// Assume a proposition is true
     PropTrue(CtxRec,Prop),
 }
 pub type CtxRec = Rc<Ctx>;
+
+/// Type terms; each can be defined by a module declaration,
+/// and carried (by identifier name) in the typing context, and used
+/// (by identifier name) to construct terms used in typing
+/// derivations.
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum Term {
+    NmTm(NameTm),
+    IdxTm(IdxTm),
+    Type(Type),
+}
+
 impl Ctx {
+    /// define a term
+    pub fn def(&self,v:Var,t:Term) -> Ctx {
+        Ctx::Def(Rc::new(self.clone()),v,t)
+    }
     /// bind a var and type
     pub fn var(&self,v:Var,t:Type) -> Ctx {
         Ctx::Var(Rc::new(self.clone()),v,t)
@@ -48,7 +71,7 @@ impl Ctx {
     pub fn rest(&self) -> Option<CtxRec> {
         match *self {
             Ctx::Empty => None,
-            Ctx::TypeDef(ref c,_,_) |
+            Ctx::Def(ref c,_,_) |
             Ctx::Var(ref c, _, _) |
             Ctx::IVar(ref c,_,_) |
             Ctx::TVar(ref c,_,_) |
@@ -87,7 +110,7 @@ impl Ctx {
     pub fn lookup_type_def(&self, x:&Var) -> Option<Type> {
         match *self {
             Ctx::Empty => None,
-            Ctx::TypeDef(ref c,ref y,ref a) => {
+            Ctx::Def(ref c,ref y, Term::Type(ref a)) => {
                 if x == y { Some(a.clone()) } else { c.lookup_type_def(x) }
             },
             ref c => c.rest().unwrap().lookup_type_def(x)
@@ -97,11 +120,11 @@ impl Ctx {
 
 pub trait HasClas { type Clas; }
 
-/// Typing derivation: A context, a direction, a classifier (type, sort, etc) and a rule (`node`)
+/// Typing derivation: A context (`ctx`), a direction (`dir`), a classifier (type, sort, etc) and a rule (`rule`).
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub struct Der<Rule:HasClas> {
+    pub ctx:Ctx,
     pub dir:Dir,
-    pub ctx:Ctx,    
     pub rule:Rc<Rule>,
     pub clas:Result<Rule::Clas,TypeError>,
 }
@@ -188,6 +211,8 @@ pub struct ModuleDer {
     pub ast: Rc<Module>,
     /// typing sub-derivations: each (var,qual) pair is unique in the list
     pub tds: Vec<(ModuleVar,DeclDer)>,
+    /// the context exported by this module to modules that use it
+    pub ctx_out: Ctx,
 }
 /// Module import typing derivation
 pub struct UseAllModuleDer {
@@ -1085,21 +1110,56 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ:&Type) -> ValD
 }
 
 /// Synthesize typing derivations for a module, given the module AST.
-pub fn synth_module(m:&Module) -> ModuleDer {
-    // XXX
-    panic!("TODO")
-}
-
-// TODO: import the decls of m into the typing context.
-//
-// TODO: We need a "decls import" judgement for modules that works by
-// extending a given context with new bindings, and signaling errors
-// when bindings shadow existing ones (shadowing is useful, but
-// usually not intended for module-level bindings).
-//
-pub fn import_module(ctx:&Ctx, m:&ModuleDer) -> Ctx {
-    // XXX
-    ctx.clone()
+pub fn synth_module(last_label:Option<&str>, m:&Module) -> ModuleDer {
+    let mut decls = &m.decls;
+    let mut tds = vec![];
+    let ctx = Ctx::Empty;
+    loop {
+        match *decls {
+            Decls::NoParse(_) => break,
+            Decls::End => break,
+            Decls::UseAll(ref uam, ref d) => {
+                let (der, ctx) = synth_module(&*uam.module);
+                tds.append(der.tds);
+                ctx.append(der.ctx_out);
+                decls = d;
+            }
+            Decls::NmTm(ref x, ref m, ref d) => {
+                let der = synth_nmtm(last_label, ctx, m);
+                tds.push((Qual::NmTm, x), DeclRule::NmTm(m.clone()));
+                ctx.def(x, Term::NmTm(m.clone()));
+                decls = d;
+            }
+            Decls::IdxTm(ref x, ref i, ref d) => {
+                let der = synth_idxtm(last_label, ctx, m);
+                tds.push((Qual::NmTm, x), DeclRule::IdxTm(i.clone()));
+                ctx.def(x, Term::IdxTm(i.clone()));
+                decls = d;
+            }
+            Decls::Type(ref x, ref a, ref d) => {
+                tds.push((Qual::Type, x), DeclRule::Type(a.clone()));
+                ctx.def(x, Term::Type(a.clone()));
+                decls = d;                
+            }
+            Decls::Val(ref x, ref oa, ref v, ref d) => {
+                let der = match oa {
+                    None        => synth_val(last_label, ctx, v   ),
+                    Some(ref a) => check_val(last_label, ctx, v, a),
+                };
+                tds.push((Qual::Val, x), DeclRule::Val(a.clone()));
+                decls = d;                
+            }
+            Decls::Fn(ref f, ref a, ref e, ref d) => {
+                // TODO/XXX
+                decls = d;
+            }
+        }      
+    };
+    ModuleDer{
+        ast: m.module.clone(),
+        tds: tds,
+        ctx_out: ctx,
+    }
 }
 
 /// Synthesize a type and effect for a program expression
@@ -1108,8 +1168,8 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
     let succ = |td:ExpRule, typ :CEffect  | { success(Dir::Synth, last_label, ctx, td, typ) };
     match exp {
         &Exp::UseAll(ref m, ref exp) => {
-            let mtd = synth_module(&(*m.module));
-            let ctx = import_module(&ctx, &mtd);
+            let der = synth_module(&(*m.module));
+            ctx.append(der.ctx_out);
             synth_exp(last_label, &ctx, exp)
         }
         &Exp::AnnoC(ref e,ref ctyp) => {

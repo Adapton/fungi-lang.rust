@@ -1599,9 +1599,9 @@ pub enum Decls {
     /// Define a type
     Type( String,Type,      DeclsRec),
     /// Define a value   
-    Val(  String,Type,Val,  DeclsRec),
+    Val(  String,Option<Type>, Val, DeclsRec),
     /// Define a function
-    Fn(   String,Type,Exp,  DeclsRec),
+    Fn(   String,Type,Exp, DeclsRec),
     End,
     NoParse(String),
 }
