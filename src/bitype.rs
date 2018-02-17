@@ -428,7 +428,7 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
             
             // all other identifiers are for defined types; look up the definition
             _ => { match ctx.lookup_type_def(ident) {
-                Some(a) => a,
+                Some(a) => normal_type(ctx, &a),
                 _ => panic!("undefined type: {}", ident)
             }}
         }}
