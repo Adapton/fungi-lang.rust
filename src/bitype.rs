@@ -11,7 +11,7 @@ pub enum Ctx {
     Var(CtxRec,Var,Type),
     IVar(CtxRec,Var,Sort),
     TVar(CtxRec,Var,Kind),
-    TCons(CtxRec,TypeCons,Kind),
+    TypeDef(CtxRec,Var,Type),
     Equiv(CtxRec,IdxTm,IdxTm,Sort),
     Apart(CtxRec,IdxTm,IdxTm,Sort),
     PropTrue(CtxRec,Prop),
@@ -30,10 +30,12 @@ impl Ctx {
     pub fn tvar(&self,v:Var,k:Kind) -> Ctx {
         Ctx::TVar(Rc::new(self.clone()),v,k)
     }
+    /*
     /// bind a type constructor and kind
     pub fn tcons(&self,d:TypeCons,k:Kind) -> Ctx {
         Ctx::TCons(Rc::new(self.clone()),d,k)
     }
+     */
     /// assume an index equivalence
     pub fn equiv(&self,i1:IdxTm,i2:IdxTm,s:Sort) -> Ctx {
         Ctx::Equiv(Rc::new(self.clone()),i1,i2,s)
@@ -52,10 +54,11 @@ impl Ctx {
     pub fn rest(&self) -> Option<CtxRec> {
         match *self {
             Ctx::Empty => None,
+            Ctx::TypeDef(ref c,_,_) |
             Ctx::Var(ref c, _, _) |
             Ctx::IVar(ref c,_,_) |
             Ctx::TVar(ref c,_,_) |
-            Ctx::TCons(ref c,_,_) |
+            //Ctx::TCons(ref c,_,_) |
             Ctx::Equiv(ref c,_,_,_) |
             Ctx::Apart(ref c,_,_,_) |
             Ctx::PropTrue(ref c,_) => { Some(c.clone()) },
@@ -64,8 +67,8 @@ impl Ctx {
     pub fn lookup_var(&self, x:&Var) -> Option<Type> {
         match *self {
             Ctx::Empty => None,
-            Ctx::Var(ref c,ref v,ref t) => {
-                if x == v { Some(t.clone()) } else { c.lookup_var(x) }
+            Ctx::Var(ref c,ref y,ref a) => {
+                if x == y { Some(a.clone()) } else { c.lookup_var(x) }
             },
             ref c => c.rest().unwrap().lookup_var(x)
         }
@@ -73,8 +76,8 @@ impl Ctx {
     pub fn lookup_ivar(&self, x:&Var) -> Option<Sort> {
         match *self {
             Ctx::Empty => None,
-            Ctx::IVar(ref c,ref v,ref s) => {
-                if x == v { Some(s.clone()) } else { c.lookup_ivar(x) }
+            Ctx::IVar(ref c,ref y,ref g) => {
+                if x == y { Some(g.clone()) } else { c.lookup_ivar(x) }
             },
             ref c => c.rest().unwrap().lookup_ivar(x)
         }
@@ -82,12 +85,23 @@ impl Ctx {
     pub fn lookup_tvar(&self, x:&Var) -> Option<Kind> {
         match *self {
             Ctx::Empty => None,
-            Ctx::TVar(ref c,ref v,ref k) => {
-                if x == v { Some(k.clone()) } else { c.lookup_tvar(x) }
+            Ctx::TVar(ref c,ref y,ref k) => {
+                if x == y { Some(k.clone()) } else { c.lookup_tvar(x) }
             },
             ref c => c.rest().unwrap().lookup_tvar(x)
         }
     }
+    pub fn lookup_type_def(&self, x:&Var) -> Option<Type> {
+        match *self {
+            Ctx::Empty => None,
+            Ctx::TypeDef(ref c,ref y,ref a) => {
+                if x == y { Some(a.clone()) } else { c.lookup_type_def(x) }
+            },
+            ref c => c.rest().unwrap().lookup_type_def(x)
+        }        
+    }
+    
+    /*
     pub fn lookup_tcons(&self, x:&TypeCons) -> Option<Kind> {
         match *self {
             Ctx::Empty => None,
@@ -96,7 +110,8 @@ impl Ctx {
             },
             ref c => c.rest().unwrap().lookup_tcons(x)                
         }
-    }
+}
+     */
 }
 
 pub trait HasClas { type Clas; }
@@ -184,13 +199,14 @@ pub enum Qual {
     Val
 }
 
-/// Module typing derivation
+pub type ModuleVar = (Qual,String);
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+/// Module typing derivation
 pub struct ModuleDer {
     /// untyped AST of the module
     pub ast: Rc<Module>,
     /// typing sub-derivations: each (var,qual) pair is unique in the list
-    pub tds: Vec<((String,Qual),DeclTD)>,
+    pub tds: Vec<(ModuleVar,DeclDer)>,
 }
 /// Module import typing derivation
 pub struct UseAllModuleDer {
@@ -199,7 +215,7 @@ pub struct UseAllModuleDer {
     /// typing derivation for the imported module
     pub td: ModuleDer,
 }
-/// Declaration typing rule
+/// Module declaration typing rule
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum DeclRule {
     UseAll(UseAllModule),
@@ -211,11 +227,21 @@ pub enum DeclRule {
     Fn   (String, ExpDer),
     NoParse(String),
 }
-
-/// Declaration typing derivation
-type DeclTD = Der<DeclRule>;
-impl HasClas for DeclRule { type Clas = (); }
-impl HasClas for DeclTD   { type Clas = (); }
+/// Classifier for declared object in a module
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum DeclClas {
+    /// Classifier `g` for name terms `N` and index terms `i`
+    Sort(Sort),
+    /// Classifier `K` for types `A`
+    Kind(Kind),
+    /// Classifier `A` for values `v`
+    Type(Type),
+    /// Classifier `E` for function bodies `e` (implied thunk type is `Thk[0] E`)
+    CEffect(CEffect),
+}
+/// Module declaration typing derivation
+pub type DeclDer = Der<DeclRule>;
+impl HasClas for DeclRule { type Clas = DeclClas; }
 
 /// Expression typing rule
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
@@ -395,10 +421,70 @@ fn success<R:HasClas+debug::DerRule>
 ///  7. type variables, as introduced by `forallt` and `rec` (note: not the same as user-defined type names, which each have a known definition)
 ///  8. type applications in head normal form.
 /// 
-pub fn normal_type(last_label:Option<&str>, ctx:&Ctx, typ:&Type) -> Type {
-    /// XXX
-    /// Needed to implement case in the max example; the `Seq [X][Y] Nat` arg type needs to be "reduced" and then unrolled.
-    unimplemented!()
+pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
+    match typ {
+        // normal forms:
+        &Type::Unit         |
+        &Type::Var(_)       |
+        &Type::Sum(_, _)    |
+        &Type::Prod(_, _)   |
+        &Type::Thk(_, _)    |
+        &Type::Ref(_, _)    |
+        &Type::Rec(_, _)    |
+        &Type::Nm(_)        |
+        &Type::NmFn(_)      |
+        &Type::TypeFn(_,_,_)|
+        &Type::IdxFn(_,_,_) |
+        &Type::NoParse(_)   |
+        &Type::Exists(_,_,_,_)
+            =>
+            typ.clone(),
+
+        &Type::Ident(ref ident) => {
+            match ctx.lookup_type_def(ident) {
+                Some(a) => a,
+                _ => panic!("undefined type: {}", ident)
+            }
+        }
+        &Type::TypeApp(ref a, ref b) => {
+            let a = normal_type(ctx, a);
+            let a = match a {
+                Type::Rec(_,_) => unroll_type(&a),
+                _ => a,
+            };
+            let b = normal_type(ctx, b);
+            match a {
+                Type::TypeFn(ref x, ref k, ref body) => {
+                    let c = subst_type_type(b,x,body);
+                    normal_type(ctx, &body)
+                },
+                _ => { panic!("sort error") }
+            }
+        }
+        &Type::IdxApp(ref a, ref i) => {
+            let a = normal_type(ctx, a);
+            let a = match a {
+                Type::Rec(_,_) => unroll_type(&a),
+                _ => a,
+            };
+            match a {
+                Type::IdxFn(ref x, ref g, ref body) => {
+                    let c = subst_idxtm_type(i.clone(),x,body);
+                    normal_type(ctx, &body)
+                },
+                _ => { panic!("sort error") }
+            }
+        }
+    }
+    //unimplemented!()
+}
+
+pub fn subst_type_type(a:Type, x:&String, b:&Type) -> Type {
+    panic!("");
+}
+
+pub fn subst_idxtm_type(a:IdxTm, x:&String, b:&Type) -> Type {
+    panic!("");
 }
 
 /*
@@ -440,7 +526,7 @@ x 1 2 3
 ///     `)`  
 ///
 ///
-pub fn unroll_type(ctx:&Ctx, typ:&Type) -> Option<Type> {
+pub fn unroll_type(typ:&Type) -> Type {
     /// XXX
     /// Needed to implement case in the max example; the `Seq [X][Y] Nat` arg type needs to be "reduced" and then unrolled.
     unimplemented!()
@@ -815,13 +901,13 @@ pub fn synth_val(last_label:Option<&str>, ctx:&Ctx, val:&Val) -> ValDer {
             }
         },
         &Val::Bool(b) => {
-            succ(ValRule::Bool(b), Type::Cons(TypeCons::Bool))
+            succ(ValRule::Bool(b), type_bool())
         },
         &Val::Nat(n) => {
-            succ(ValRule::Nat(n), Type::Cons(TypeCons::Nat))
+            succ(ValRule::Nat(n), type_nat())
         },
         &Val::Str(ref s) => {
-            succ(ValRule::Str(s.clone()), Type::Cons(TypeCons::String))
+            succ(ValRule::Str(s.clone()), type_string())
         },
         &Val::NoParse(ref s) => {
             fail(ValRule::NoParse(s.clone()),TypeError::NoParse(s.clone()))
@@ -983,17 +1069,17 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ:&Type) -> ValD
         },
         &Val::Bool(b) => {
             let td = ValRule::Bool(b);
-            if Type::Cons(TypeCons::Bool) == *typ { succ(td, typ.clone())} 
+            if type_bool() == *typ { succ(td, typ.clone())} 
             else { fail(td, TypeError::ParamMism(0)) }
         },
         &Val::Nat(n) => {
             let td = ValRule::Nat(n);
-            if Type::Cons(TypeCons::Nat) == *typ { succ(td, typ.clone())} 
+            if type_nat() == *typ { succ(td, typ.clone())} 
             else { fail(td, TypeError::ParamMism(0)) }
         },
         &Val::Str(ref s) => {
             let td = ValRule::Str(s.clone());
-            if Type::Cons(TypeCons::String) == *typ { succ(td, typ.clone())} 
+            if type_string() == *typ { succ(td, typ.clone())} 
             else { fail(td, TypeError::ParamMism(0)) }
         },
         &Val::NoParse(ref s) => {

@@ -41,7 +41,8 @@ use std::hash::{Hash,Hasher};
 use eval;
 
 pub type Var = String;
-
+// type of identifiers
+pub type Ident = String;
 /// Name Literals
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Name {
@@ -80,7 +81,6 @@ macro_rules! fgi_name {
     // failure
     { $($any:tt)* } => { Name::NoParse(stringify![$($any)*].to_string())};
 }
-
 
 /// Name Terms
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
@@ -515,35 +515,11 @@ macro_rules! parse_fgi_eff {
     { $($any:tt)* } => { Effect::NoParse(stringify![(; $($any)*)].to_string())};
 }
 
-/// Type constructors
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
-pub enum TypeCons {
-    D,
-    Bool,
-    Nat,
-    String,
-    Seq,
-    User(String),
-    NoParse(String),
-}
-/// Parser for TypeConstructors
-#[macro_export]
-macro_rules! fgi_tcons {
-    { D } => { TypeCons::D };
-    { Bool } => { TypeCons::Bool };
-    { Nat } => { TypeCons::Nat };
-    { String } => { TypeCons::String };
-    { Seq } => { TypeCons::Seq };
-    { $s:ident } => { TypeCons::User(stringify![$s].to_string()) };
-    // failure
-    { $($any:tt)* } => { TypeCons::NoParse(stringify![$($any)*].to_string())};
-}
-
 /// Value types
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Type {
     Var(Var),
-    Cons(TypeCons),
+    Ident(Ident),
     Sum(TypeRec, TypeRec),
     Prod(TypeRec, TypeRec),
     Unit,
@@ -561,6 +537,14 @@ pub enum Type {
     NoParse(String),
 }
 pub type TypeRec = Rc<Type>;
+
+pub fn ident_nat()    -> Ident { "Nat".to_string() }
+pub fn ident_bool()   -> Ident { "Bool".to_string() }
+pub fn ident_string() -> Ident { "String".to_string() }
+
+pub fn type_string()  -> Type { Type::Ident(ident_string()) }
+pub fn type_nat()     -> Type { Type::Ident(ident_nat()) }
+pub fn type_bool()    -> Type { Type::Ident(ident_bool()) }
 
 /// Parser for value types
 /// 
@@ -584,7 +568,7 @@ pub type TypeRec = Rc<Type>;
 ///     exists (X,Y,...):g | P . A
 ///                     (existential index variables, with common sort g)
 ///     A B ...         (extended application of type constructor to type)
-///     a               (type var)
+///     a               (type var (lowercase), or type ident (uppercase))
 /// ```
 #[macro_export]
 macro_rules! fgi_vtype {
@@ -592,12 +576,13 @@ macro_rules! fgi_vtype {
     { fromast $ast:expr } => { $ast };
     //     (A)             (parens)
     { ($($type:tt)+) } => { fgi_vtype![$($type)+] };
+    // XXX Remove:
     //     D,Seq,Nat       (type constructors)
-    { D } => { Type::Cons(TypeCons::D) };
-    { Bool } => { Type::Cons(TypeCons::Bool) };
-    { Nat } => { Type::Cons(TypeCons::Nat) };
-    { String } => { Type::Cons(TypeCons::String) };
-    { Seq } => { Type::Cons(TypeCons::Seq) };
+    // { D } => { Type::Cons(TypeCons::D) };
+    // { Bool } => { Type::Cons(TypeCons::Bool) };
+    // { Nat } => { Type::Cons(TypeCons::Nat) };
+    // { String } => { Type::Cons(TypeCons::String) };
+    // { Seq } => { Type::Cons(TypeCons::Seq) };
     //     user(type)      (user-defined)
     { user($s:ident) } => { Type::Cons(TypeCons::User(
         stringify![$s].to_string()
@@ -715,8 +700,20 @@ macro_rules! fgi_vtype {
             Rc::new(fgi_vtype![$b]),
         )) $($more)+]
     };
-    //     a               (type var)
-    { $a:ident } => { Type::Var(stringify![$a].to_string()) };
+    //     a               (type var (lowercase), or type ident (uppercase))
+    { $a:ident } => {{
+        let s = stringify![$a].to_string();
+        assert!(s.len() > 0);
+        let v:Vec<char> = s.chars().collect();
+        if v[0].is_uppercase() {
+            // uppercase: names for type definitions/aliases
+            Type::Ident(s)
+        }
+        else {
+            // lowercase: names for type variables introduced by `forallt` and `rec`
+            Type::Var(s)
+        }
+    }};
     // failure
     { $($any:tt)* } => { Type::NoParse(stringify![$($any)*].to_string())};
 }
