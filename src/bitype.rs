@@ -8,7 +8,6 @@ use ast::*;
 use std::fmt;
 use std::rc::Rc;
 
-// TODO: Switch to outer linked-list or vector to simplify code
 pub type TCtxtRec = Rc<TCtxt>;
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum TCtxt {
@@ -53,18 +52,25 @@ impl TCtxt {
 }
 
 impl TCtxt {
+    pub fn rest(&self) -> Option<TCtxtRec> {
+        match *self {
+            TCtxt::Empty => None,
+            TCtxt::Var(ref c, _, _) |
+            TCtxt::IVar(ref c,_,_) |
+            TCtxt::TVar(ref c,_,_) |
+            TCtxt::TCons(ref c,_,_) |
+            TCtxt::Equiv(ref c,_,_,_) |
+            TCtxt::Apart(ref c,_,_,_) |
+            TCtxt::PropTrue(ref c,_) => { Some(c.clone()) },
+        }
+    }
     pub fn lookup_var(&self, x:&Var) -> Option<Type> {
         match *self {
             TCtxt::Empty => None,
             TCtxt::Var(ref c,ref v,ref t) => {
                 if x == v { Some(t.clone()) } else { c.lookup_var(x) }
             },
-            TCtxt::IVar(ref c,_,_)
-            | TCtxt::TVar(ref c,_,_)
-            | TCtxt::TCons(ref c,_,_)
-            | TCtxt::Equiv(ref c,_,_,_)
-            | TCtxt::Apart(ref c,_,_,_)
-            | TCtxt::PropTrue(ref c,_) => { c.lookup_var(x) },
+            ref c => c.rest().unwrap().lookup_var(x)
         }
     }
     pub fn lookup_ivar(&self, x:&Var) -> Option<Sort> {
@@ -73,12 +79,7 @@ impl TCtxt {
             TCtxt::IVar(ref c,ref v,ref s) => {
                 if x == v { Some(s.clone()) } else { c.lookup_ivar(x) }
             },
-            TCtxt::Var(ref c,_,_)
-            | TCtxt::TVar(ref c,_,_)
-            | TCtxt::TCons(ref c,_,_)
-            | TCtxt::Equiv(ref c,_,_,_)
-            | TCtxt::Apart(ref c,_,_,_)
-            | TCtxt::PropTrue(ref c,_) => { c.lookup_ivar(x) },
+            ref c => c.rest().unwrap().lookup_ivar(x)
         }
     }
     pub fn lookup_tvar(&self, x:&Var) -> Option<Kind> {
@@ -87,12 +88,7 @@ impl TCtxt {
             TCtxt::TVar(ref c,ref v,ref k) => {
                 if x == v { Some(k.clone()) } else { c.lookup_tvar(x) }
             },
-            TCtxt::Var(ref c,_,_)
-            | TCtxt::IVar(ref c,_,_)
-            | TCtxt::TCons(ref c,_,_)
-            | TCtxt::Equiv(ref c,_,_,_)
-            | TCtxt::Apart(ref c,_,_,_)
-            | TCtxt::PropTrue(ref c,_) => { c.lookup_tvar(x) },
+            ref c => c.rest().unwrap().lookup_tvar(x)
         }
     }
     pub fn lookup_tcons(&self, x:&TypeCons) -> Option<Kind> {
@@ -101,59 +97,7 @@ impl TCtxt {
             TCtxt::TCons(ref c,ref v,ref k) => {
                 if x == v { Some(k.clone()) } else { c.lookup_tcons(x) }
             },
-            TCtxt::Var(ref c,_,_)
-            | TCtxt::IVar(ref c,_,_)
-            | TCtxt::TVar(ref c,_,_)
-            | TCtxt::Equiv(ref c,_,_,_)
-            | TCtxt::Apart(ref c,_,_,_)
-            | TCtxt::PropTrue(ref c,_) => { c.lookup_tcons(x) },
-        }
-    }
-    // XXX --- not useful; this isn't how such context information is used
-    pub fn lookup_equiv(&self, idx1:&IdxTm, idx2:&IdxTm) -> Option<Sort> {
-        match *self {
-            TCtxt::Empty => None,
-            TCtxt::Equiv(ref c,ref i1,ref i2,ref s) => {
-                if (i1 == idx1) & (i2 == idx2) { Some(s.clone()) }
-                else { c.lookup_equiv(idx1,idx2) }
-            },
-            TCtxt::Var(ref c,_,_)
-            | TCtxt::IVar(ref c,_,_)
-            | TCtxt::TVar(ref c,_,_)
-            | TCtxt::TCons(ref c,_,_)
-            | TCtxt::Apart(ref c,_,_,_)
-            | TCtxt::PropTrue(ref c,_) => { c.lookup_equiv(idx1,idx2) },
-        }
-    }
-    // XXX --- not useful; this isn't how such context information is used
-    pub fn lookup_apart(&self, idx1:&IdxTm, idx2:&IdxTm) -> Option<Sort> {
-        match *self {
-            TCtxt::Empty => None,
-            TCtxt::Apart(ref c,ref i1,ref i2,ref s) => {
-                if (i1 == idx1) & (i2 == idx2) { Some(s.clone()) }
-                else { c.lookup_apart(idx1,idx2) }
-            },
-            TCtxt::Var(ref c,_,_)
-            | TCtxt::IVar(ref c,_,_)
-            | TCtxt::TVar(ref c,_,_)
-            | TCtxt::TCons(ref c,_,_)
-            | TCtxt::Equiv(ref c,_,_,_)
-            | TCtxt::PropTrue(ref c,_) => { c.lookup_apart(idx1,idx2) },
-        }
-    }
-    // XXX --- not useful; this isn't how such context information is used
-    pub fn lookup_prop(&self, prop:&Prop) -> bool {
-        match *self {
-            TCtxt::Empty => false,
-            TCtxt::PropTrue(ref c,ref p) => {
-                if p == prop { true } else { c.lookup_prop(prop) }
-            },
-            TCtxt::Var(ref c,_,_)
-            | TCtxt::IVar(ref c,_,_)
-            | TCtxt::TVar(ref c,_,_)
-            | TCtxt::TCons(ref c,_,_)
-            | TCtxt::Equiv(ref c,_,_,_)
-            | TCtxt::Apart(ref c,_,_,_) => { c.lookup_prop(prop) },
+            ref c => c.rest().unwrap().lookup_tcons(x)                
         }
     }
 }
