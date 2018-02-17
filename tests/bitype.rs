@@ -364,8 +364,7 @@ fn examples2() {
     //let bundle = max_simple;
     let bundle = filter;
     
-    let typed_exp = bundle.exp_td();
-    
+    //let typed_exp = bundle.exp_td();    
     //println!("Max example with type info:");
     //println!("{:?}", typed_exp);
     

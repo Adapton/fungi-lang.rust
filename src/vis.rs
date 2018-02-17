@@ -75,13 +75,13 @@ fn rewrite_prim_app(prim: &PrimApp, ct: &mut usize) -> PrimApp {
 #[derive(Clone,Debug)]
 pub struct Bundle {
     pub input: String,
-    pub program: bitype::TypeInfo<bitype::ExpTD>,
+    pub program: bitype::ExpDer,
     pub traces: Vec<reflect::trace::Trace>,
 }
 
 impl Bundle {
-    pub fn exp_td(&self) -> bitype::ExpTD {
-        (*self.program.node).clone()
+    pub fn exp_rule(&self) -> bitype::ExpRule {
+        (*self.program.rule).clone()
     }
 }
 
@@ -89,7 +89,7 @@ impl Bundle {
 macro_rules! fgi_bundle {
     [$($e:tt)+] => {{
         let exp = label_exp(fgi_exp![$($e)+], &mut 0);
-        let program = synth_exp(None, &TCtxt::Empty, &exp);
+        let program = synth_exp(None, &Ctx::Empty, &exp);
         // let (term, traces) = capture_traces(move || eval(vec![], exp));
         Bundle {
             input: stringify!($($e)+).to_owned(),
