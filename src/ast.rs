@@ -584,9 +584,9 @@ macro_rules! fgi_vtype {
     // { String } => { Type::Cons(TypeCons::String) };
     // { Seq } => { Type::Cons(TypeCons::Seq) };
     //     user(type)      (user-defined)
-    { user($s:ident) } => { Type::Cons(TypeCons::User(
+    { user($s:ident) } => { Type::Ident(
         stringify![$s].to_string()
-    ))};
+    )};
     //     Unit            (unit)
     { Unit } => { Type::Unit };
     //     + A + B ...     (extended sums)

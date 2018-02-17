@@ -476,7 +476,6 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
             }
         }
     }
-    //unimplemented!()
 }
 
 pub fn subst_type_type(a:Type, x:&String, b:&Type) -> Type {
