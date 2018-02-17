@@ -137,17 +137,17 @@ pub enum IdxTmRule {
     Var(Var),
     Sing(NmTmDer),
     Empty,
-    Disj(Der<IdxTmRule>, Der<IdxTmRule>),
-    Union(Der<IdxTmRule>, Der<IdxTmRule>),
+    Disj(IdxTmDer, IdxTmDer),
+    Union(IdxTmDer, IdxTmDer),
     Unit,
-    Pair(Der<IdxTmRule>, Der<IdxTmRule>),
-    Proj1(Der<IdxTmRule>),
-    Proj2(Der<IdxTmRule>),
-    Lam(Var, Sort, Der<IdxTmRule>),
-    App(Der<IdxTmRule>, Der<IdxTmRule>),
-    Map(NmTmDer, Der<IdxTmRule>),
-    FlatMap(Der<IdxTmRule>, Der<IdxTmRule>),
-    Star(Der<IdxTmRule>, Der<IdxTmRule>),
+    Pair(IdxTmDer, IdxTmDer),
+    Proj1(IdxTmDer),
+    Proj2(IdxTmDer),
+    Lam(Var, Sort, IdxTmDer),
+    App(IdxTmDer, IdxTmDer),
+    Map(NmTmDer, IdxTmDer),
+    FlatMap(IdxTmDer, IdxTmDer),
+    Star(IdxTmDer, IdxTmDer),
     NoParse(String),
 }
 pub type IdxTmDer = Der<IdxTmRule>;
@@ -158,14 +158,14 @@ impl HasClas for IdxTmRule { type Type = Sort; }
 pub enum ValRule {
     Var(Var),
     Unit,
-    Pair(Der<ValRule>, Der<ValRule>),
-    Inj1(Der<ValRule>),
-    Inj2(Der<ValRule>),
-    Roll(Der<ValRule>),
-    Pack(Var,Der<ValRule>),
+    Pair(ValDer, ValDer),
+    Inj1(ValDer),
+    Inj2(ValDer),
+    Roll(ValDer),
+    Pack(Var,ValDer),
     Name(Name),
     NameFn(NmTmDer),
-    Anno(Der<ValRule>,Type),
+    Anno(ValDer,Type),
     ThunkAnon(Der<ExpRule>),
     Bool(bool),
     Nat(usize),
@@ -209,7 +209,8 @@ pub enum DeclRule {
     UseAll(UseAllModule),
     NmTm (String, NmTmDer),
     IdxTm(String, IdxTmDer),
-    Type (String, Type),
+    // TODO: add kinds
+    Type (String, Type), 
     Val  (String, ValDer),
     Fn   (String, ExpDer),
     NoParse(String),
@@ -225,24 +226,24 @@ impl HasClas for DeclTD   { type Type = (); }
 pub enum ExpRule {
     AnnoC(ExpDer,CType),
     AnnoE(ExpDer,CEffect),
-    Force(Der<ValRule>),
-    Thunk(Der<ValRule>,ExpDer),
-    Unroll(Der<ValRule>,Var,ExpDer),
-    Unpack(Var,Var,Der<ValRule>,ExpDer),
+    Force(ValDer),
+    Thunk(ValDer,ExpDer),
+    Unroll(ValDer,Var,ExpDer),
+    Unpack(Var,Var,ValDer,ExpDer),
     Fix(Var,ExpDer),
-    Ret(Der<ValRule>),
+    Ret(ValDer),
     DefType(Var,Type,ExpDer),
     Let(Var,ExpDer,ExpDer),
     Lam(Var, ExpDer),
     HostFn(HostEvalFn),
-    App(ExpDer, Der<ValRule>),
-    Split(Der<ValRule>, Var, Var, ExpDer),
-    Case(Der<ValRule>, Var, ExpDer, Var, ExpDer),
-    IfThenElse(Der<ValRule>, ExpDer, ExpDer),
-    Ref(Der<ValRule>,Der<ValRule>),
-    Get(Der<ValRule>),
-    Scope(Der<ValRule>,ExpDer),
-    NameFnApp(Der<ValRule>,Der<ValRule>),
+    App(ExpDer, ValDer),
+    Split(ValDer, Var, Var, ExpDer),
+    Case(ValDer, Var, ExpDer, Var, ExpDer),
+    IfThenElse(ValDer, ExpDer, ExpDer),
+    Ref(ValDer,ValDer),
+    Get(ValDer),
+    Scope(ValDer,ExpDer),
+    NameFnApp(ValDer,ValDer),
     PrimApp(PrimAppRule),
     Unimp,
     DebugLabel(Option<Name>, Option<String>,ExpDer),
@@ -253,12 +254,12 @@ impl HasClas for ExpRule { type Type = CEffect; }
 
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum PrimAppRule {
-    NatEq(Der<ValRule>,Der<ValRule>),
-    NatLt(Der<ValRule>,Der<ValRule>),
-    NatLte(Der<ValRule>,Der<ValRule>),
-    NatPlus(Der<ValRule>,Der<ValRule>),
-    NameBin(Der<ValRule>,Der<ValRule>),
-    RefThunk(Der<ValRule>),
+    NatEq(ValDer,ValDer),
+    NatLt(ValDer,ValDer),
+    NatLte(ValDer,ValDer),
+    NatPlus(ValDer,ValDer),
+    NameBin(ValDer,ValDer),
+    RefThunk(ValDer),
 }
 
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
@@ -447,7 +448,7 @@ pub fn unroll_type(ctxt:&Ctx, typ:&Type) -> Option<Type> {
 }
 
 
-pub fn synth_idxtm(last_label:Option<&str>, ctxt:&Ctx, idxtm:&IdxTm) -> Der<IdxTmRule> {
+pub fn synth_idxtm(last_label:Option<&str>, ctxt:&Ctx, idxtm:&IdxTm) -> IdxTmDer {
     let fail = |td:IdxTmRule, err :TypeError| { failure(Dir::Synth, last_label, ctxt, td, err)  };
     let succ = |td:IdxTmRule, sort:Sort     | { success(Dir::Synth, last_label, ctxt, td, sort) };
     match idxtm {
@@ -616,7 +617,7 @@ pub fn synth_idxtm(last_label:Option<&str>, ctxt:&Ctx, idxtm:&IdxTm) -> Der<IdxT
     }
 }
 
-pub fn check_idxtm(last_label:Option<&str>, ctxt:&Ctx, idxtm:&IdxTm, sort:&Sort) -> Der<IdxTmRule> {
+pub fn check_idxtm(last_label:Option<&str>, ctxt:&Ctx, idxtm:&IdxTm, sort:&Sort) -> IdxTmDer {
     // let fail = |td:IdxTmRule, err :TypeError| { failure(Dir::Check, last_label, ctxt, td, err)  };
     // let succ = |td:IdxTmRule, sort:Sort     | { success(Dir::Check, last_label, ctxt, td, sort) };
     match idxtm {
@@ -722,7 +723,7 @@ pub fn check_nmtm(last_label:Option<&str>, ctxt:&Ctx, nmtm:&NameTm, sort:&Sort) 
     }  
 }
 
-pub fn synth_val(last_label:Option<&str>, ctxt:&Ctx, val:&Val) -> Der<ValRule> {
+pub fn synth_val(last_label:Option<&str>, ctxt:&Ctx, val:&Val) -> ValDer {
     let fail = |td:ValRule, err :TypeError| { failure(Dir::Synth, last_label, ctxt, td, err)  };
     let succ = |td:ValRule, typ :Type     | { success(Dir::Synth, last_label, ctxt, td, typ) };
     match val {
@@ -826,7 +827,7 @@ pub fn synth_val(last_label:Option<&str>, ctxt:&Ctx, val:&Val) -> Der<ValRule> {
 }
 
 
-pub fn check_val(last_label:Option<&str>, ctxt:&Ctx, val:&Val, typ:&Type) -> Der<ValRule> {
+pub fn check_val(last_label:Option<&str>, ctxt:&Ctx, val:&Val, typ:&Type) -> ValDer {
     let fail = |td:ValRule, err :TypeError| { failure(Dir::Check, last_label, ctxt, td, err)  };
     let succ = |td:ValRule, typ :Type     | { success(Dir::Check, last_label, ctxt, td, typ) };
     match val {
