@@ -1,14 +1,10 @@
-/*! Bidirectional type system.
-
-# Fungi: bidirectional type system
-
-*/
+/*! Bidirectional type system. */
 
 use ast::*;
 use std::fmt;
 use std::rc::Rc;
 
-pub type CtxRec = Rc<Ctx>;
+/// Typing context
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Ctx {
     Empty,
@@ -20,6 +16,7 @@ pub enum Ctx {
     Apart(CtxRec,IdxTm,IdxTm,Sort),
     PropTrue(CtxRec,Prop),
 }
+pub type CtxRec = Rc<Ctx>;
 impl Ctx {
     /// bind a var and type
     pub fn var(&self,v:Var,t:Type) -> Ctx {
@@ -106,13 +103,13 @@ pub trait HasClas { type Clas; }
 
 /// Typing derivation: A context, a direction, a classifier (type, sort, etc) and a rule (`node`)
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
-pub struct Der<TD:HasClas> {
+pub struct Der<Rule:HasClas> {
     pub dir:Dir,
     pub ctx:Ctx,    
-    pub rule:Rc<TD>,
-    pub clas:Result<TD::Clas,TypeError>,
+    pub rule:Rc<Rule>,
+    pub clas:Result<Rule::Clas,TypeError>,
 }
-impl<A:HasClas> Der<A> {
+impl<Rule:HasClas> Der<Rule> {
     pub fn is_err(&self) -> bool { self.clas.is_err() }
     pub fn is_ok(&self) -> bool { self.clas.is_ok() }
 }
@@ -189,18 +186,18 @@ pub enum Qual {
 
 /// Module typing derivation
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
-pub struct ModuleTD {
+pub struct ModuleDer {
     /// untyped AST of the module
     pub ast: Rc<Module>,
     /// typing sub-derivations: each (var,qual) pair is unique in the list
     pub tds: Vec<((String,Qual),DeclTD)>,
 }
 /// Module import typing derivation
-pub struct UseAllModuleTD {
+pub struct UseAllModuleDer {
     /// untyped AST of the imported module
     pub ast: UseAllModule,
     /// typing derivation for the imported module
-    pub td: ModuleTD,
+    pub td: ModuleDer,
 }
 /// Declaration typing rule
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
@@ -251,6 +248,7 @@ pub enum ExpRule {
 pub type ExpDer = Der<ExpRule>;
 impl HasClas for ExpRule { type Clas = CEffect; }
 
+/// Primitive application typing rule
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum PrimAppRule {
     NatEq(ValDer,ValDer),
@@ -261,6 +259,7 @@ pub enum PrimAppRule {
     RefThunk(ValDer),
 }
 
+/// Bidirectional direction: _Synthesis_ vs _Checking_
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Dir { Synth, Check }
 impl Dir {
@@ -272,6 +271,7 @@ impl Dir {
     }
 }
 
+/// Typing error
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum TypeError {
     VarNotInScope(String),
@@ -446,7 +446,7 @@ pub fn unroll_type(ctx:&Ctx, typ:&Type) -> Option<Type> {
     unimplemented!()
 }
 
-
+/// synthesize sort for index term
 pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer {
     let fail = |td:IdxTmRule, err :TypeError| { failure(Dir::Synth, last_label, ctx, td, err)  };
     let succ = |td:IdxTmRule, sort:Sort     | { success(Dir::Synth, last_label, ctx, td, sort) };
@@ -616,6 +616,7 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
     }
 }
 
+/// check sort against index term
 pub fn check_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm, sort:&Sort) -> IdxTmDer {
     // let fail = |td:IdxTmRule, err :TypeError| { failure(Dir::Check, last_label, ctx, td, err)  };
     // let succ = |td:IdxTmRule, sort:Sort     | { success(Dir::Check, last_label, ctx, td, sort) };
@@ -636,6 +637,7 @@ pub fn check_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm, sort:&Sort) 
     }  
 }
 
+/// synthesize sort for name term
 pub fn synth_nmtm(last_label:Option<&str>, ctx:&Ctx, nmtm:&NameTm) -> NmTmDer {
     let fail = |td:NmTmRule, err :TypeError| { failure(Dir::Synth, last_label, ctx, td, err)  };
     let succ = |td:NmTmRule, sort:Sort     | { success(Dir::Synth, last_label, ctx, td, sort) };
@@ -702,6 +704,7 @@ pub fn synth_nmtm(last_label:Option<&str>, ctx:&Ctx, nmtm:&NameTm) -> NmTmDer {
     }  
 }
 
+/// check sort against name term
 pub fn check_nmtm(last_label:Option<&str>, ctx:&Ctx, nmtm:&NameTm, sort:&Sort) -> NmTmDer {
     // let fail = |td:IdxTmRule, err :TypeError| { failure(Dir::Check, last_label, ctx, td, err)  };
     // let succ = |td:IdxTmRule, sort:Sort     | { success(Dir::Check, last_label, ctx, td, sort) };
@@ -722,6 +725,7 @@ pub fn check_nmtm(last_label:Option<&str>, ctx:&Ctx, nmtm:&NameTm, sort:&Sort) -
     }  
 }
 
+/// synthesize sort for value term
 pub fn synth_val(last_label:Option<&str>, ctx:&Ctx, val:&Val) -> ValDer {
     let fail = |td:ValRule, err :TypeError| { failure(Dir::Synth, last_label, ctx, td, err)  };
     let succ = |td:ValRule, typ :Type     | { success(Dir::Synth, last_label, ctx, td, typ) };
@@ -825,7 +829,7 @@ pub fn synth_val(last_label:Option<&str>, ctx:&Ctx, val:&Val) -> ValDer {
     }
 }
 
-
+/// check sort against value term
 pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ:&Type) -> ValDer {
     let fail = |td:ValRule, err :TypeError| { failure(Dir::Check, last_label, ctx, td, err)  };
     let succ = |td:ValRule, typ :Type     | { success(Dir::Check, last_label, ctx, td, typ) };
@@ -1009,8 +1013,8 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ:&Type) -> ValD
     }
 }
 
-// Synthesize a typing derivation for a module, given the module AST.
-pub fn synth_module(m:&Module) -> ModuleTD {
+/// Synthesize typing derivations for a module, given the module AST.
+pub fn synth_module(m:&Module) -> ModuleDer {
     // XXX
     panic!("TODO")
 }
@@ -1022,11 +1026,12 @@ pub fn synth_module(m:&Module) -> ModuleTD {
 // when bindings shadow existing ones (shadowing is useful, but
 // usually not intended for module-level bindings).
 //
-pub fn import_module(ctx:&Ctx, m:&ModuleTD) -> Ctx {
+pub fn import_module(ctx:&Ctx, m:&ModuleDer) -> Ctx {
     // XXX
     ctx.clone()
 }
 
+/// Synthesize a type and effect for a program expression
 pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
     let fail = |td:ExpRule, err :TypeError| { failure(Dir::Synth, last_label, ctx, td, err) };
     let succ = |td:ExpRule, typ :CEffect  | { success(Dir::Synth, last_label, ctx, td, typ) };
@@ -1334,6 +1339,7 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
     }
 }
 
+/// Check a type and effect against a program expression
 pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
     let fail = |td:ExpRule, err :TypeError| { failure(Dir::Check, last_label, ctx, td, err) };
     let succ = |td:ExpRule, typ :CEffect  | { success(Dir::Check, last_label, ctx, td, typ) };
