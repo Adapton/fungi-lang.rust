@@ -1147,7 +1147,11 @@ pub fn synth_module(last_label:Option<&str>, m:&Module) -> ModuleDer {
                     Some(ref a) => check_val(last_label, ctx, v, a),
                 };
                 tds.push((Qual::Val, x), DeclRule::Val(a.clone()));
-                decls = d;                
+                let ctx = match der.clas {
+                    Ok(a) => ctx.var(x, a.clone()),
+                    Err(_) => ctx,
+                };
+                decls = d;
             }
             Decls::Fn(ref f, ref a, ref e, ref d) => {
                 // TODO/XXX
