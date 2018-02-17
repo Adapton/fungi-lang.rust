@@ -38,15 +38,15 @@ impl TCtxt {
     pub fn tcons(&self,d:TypeCons,k:Kind) -> TCtxt {
         TCtxt::TCons(Rc::new(self.clone()),d,k)
     }
-    /// bind an index equivalence
+    /// assume an index equivalence
     pub fn equiv(&self,i1:IdxTm,i2:IdxTm,s:Sort) -> TCtxt {
         TCtxt::Equiv(Rc::new(self.clone()),i1,i2,s)
     }
-    /// bind an index apartness
+    /// assume an index apartness
     pub fn apart(&self,i1:IdxTm,i2:IdxTm,s:Sort) -> TCtxt {
         TCtxt::Apart(Rc::new(self.clone()),i1,i2,s)
     }
-    /// bind a true proposition
+    /// assume a true proposition
     pub fn prop(&self,p:Prop) -> TCtxt {
         TCtxt::PropTrue(Rc::new(self.clone()),p)
     }
@@ -109,6 +109,7 @@ impl TCtxt {
             | TCtxt::PropTrue(ref c,_) => { c.lookup_tcons(x) },
         }
     }
+    // XXX --- not useful; this isn't how such context information is used
     pub fn lookup_equiv(&self, idx1:&IdxTm, idx2:&IdxTm) -> Option<Sort> {
         match *self {
             TCtxt::Empty => None,
@@ -124,6 +125,7 @@ impl TCtxt {
             | TCtxt::PropTrue(ref c,_) => { c.lookup_equiv(idx1,idx2) },
         }
     }
+    // XXX --- not useful; this isn't how such context information is used
     pub fn lookup_apart(&self, idx1:&IdxTm, idx2:&IdxTm) -> Option<Sort> {
         match *self {
             TCtxt::Empty => None,
@@ -139,6 +141,7 @@ impl TCtxt {
             | TCtxt::PropTrue(ref c,_) => { c.lookup_apart(idx1,idx2) },
         }
     }
+    // XXX --- not useful; this isn't how such context information is used
     pub fn lookup_prop(&self, prop:&Prop) -> bool {
         match *self {
             TCtxt::Empty => false,
@@ -157,21 +160,23 @@ impl TCtxt {
 
 pub trait HasType { type Type; }
 
+/// Typing derivation: A context, a direction, a classifier (type, sort, etc) and a rule (`node`)
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
-// Proposal: pub struct TypeInfo<Case:HasType> {   <---- Use "Case" not "TD" below
-pub struct TypeInfo<TD:HasType> { 
+// Proposal: pub struct TypeInfo<Rule:HasType> {   <---- Use "Rule" not "TD" below
+pub struct TypeInfo<TD:HasType> {
     pub dir:Dir,
-    pub ctxt:TCtxt,
-    pub typ:Result<TD::Type,TypeError>,
-    pub node:Rc<TD>,
+    pub ctxt:TCtxt,    
+    pub node:Rc<TD>,                    // <-------- TODO: rename: `rule` for "typing rule"
+    pub typ:Result<TD::Type,TypeError>, // <-------- TODO: rename: `clas` for "classifier"
 }
 impl<A:HasType> TypeInfo<A> {
     pub fn is_err(&self) -> bool { self.typ.is_err() }
     pub fn is_ok(&self) -> bool { self.typ.is_ok() }
 }
 
+/// Name term sorting rule
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
-pub enum NameTmTD { // <---------- "NameTmCase"; the typing derivation is `TypeInfo<NameTmCase>`
+pub enum NameTmTD { // <---------- "NameTmRule"; the typing derivation is `TypeInfo<NameTmRule>`
     Var(Var),
     Name(Name),
     Bin(TypeInfo<NameTmTD>, TypeInfo<NameTmTD>),
@@ -181,6 +186,7 @@ pub enum NameTmTD { // <---------- "NameTmCase"; the typing derivation is `TypeI
 }
 impl HasType for NameTmTD { type Type = Sort; }
 
+/// Index term sorting rule
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum IdxTmTD {
     Var(Var),
@@ -201,6 +207,7 @@ pub enum IdxTmTD {
 }
 impl HasType for IdxTmTD { type Type = Sort; }
 
+/// Value typing rule
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum ValTD {
     Var(Var),
@@ -221,25 +228,43 @@ pub enum ValTD {
 }
 impl HasType for ValTD { type Type = Type; }
 
+
+/// Qualifiers for module item names
+///
+/// Two named objects in a module can reuse the same name if they have
+/// different qualifiers (e.g., name term vs index term vs type vs value).
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
-pub struct ModuleTD {
-    pub ast: Rc<Module>,
-    pub td:  DeclsTD,
-}
-pub struct UseAllModuleTD {
-    pub ast: UseAllModule,
-    pub td:  ModuleTD,
+pub enum Qual {
+    NmTm,
+    IdxTm,
+    Type,
+    Val
 }
 
+/// Module typing derivation
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
-pub enum DeclsCase {
-    UseAll(UseAllModule,    DeclsTD),
-    NmTm( String,NmTmSort,  DeclsTD),
-    IdxTm(String,IdxTmSort, DeclsTD),
-    Type( String,TypeKind,  DeclsTD),
-    Val(  String,TypeKind,ValType, DeclsTD),
-    Fn(   String,TypeKind,ExpType, DeclsTD),
-    End,
+pub struct ModuleTD {
+    /// untyped AST of the module
+    pub ast: Rc<Module>,
+    /// typing sub-derivations: each (var,qual) pair is unique in the list
+    pub tds: Vec<((String,Qual),DeclTD)>,
+}
+/// Module import typing derivation
+pub struct UseAllModuleTD {
+    /// untyped AST of the imported module
+    pub ast: UseAllModule,
+    /// typing derivation for the imported module
+    pub td:  ModuleTD,
+}
+/// Declaration typing rule
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum DeclRule {
+    UseAll(UseAllModule),
+    NmTm(String,NmTmSort),
+    IdxTm(String,IdxTmSort),
+    Type(String,TypeKind),
+    Val(String,TypeKind,ValType),
+    Fn(String,TypeKind,ExpType),
     NoParse(String),
 }
 //                     These X-TD's are all "misnamed"
@@ -253,10 +278,12 @@ pub type TypeKind  = TypeInfo<IdxTmTD>;
 pub type ValType   = TypeInfo<ValTD>;
 pub type ExpType   = TypeInfo<ExpTD>;
 
-type DeclsTD = TypeInfo<DeclsCase>;
-impl HasType for DeclsCase { type Type = (); }
-impl HasType for DeclsTD   { type Type = (); }
+/// Declaration typing derivation
+type DeclTD = TypeInfo<DeclRule>;
+impl HasType for DeclRule { type Type = (); }
+impl HasType for DeclTD   { type Type = (); }
 
+/// Expression typing rule
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum ExpTD {
     AnnoC(TypeInfo<ExpTD>,CType),
@@ -294,115 +321,6 @@ pub enum PrimAppTD {
     NatPlus(TypeInfo<ValTD>,TypeInfo<ValTD>),
     NameBin(TypeInfo<ValTD>,TypeInfo<ValTD>),
     RefThunk(TypeInfo<ValTD>),
-}
-trait AstNode {
-    fn node_desc() -> &'static str { "ast node" }
-    fn short(&self) -> &str { "unknown" }
-}
-
-impl AstNode for NameTmTD {
-    fn node_desc() -> &'static str { "name-term" }
-    fn short(&self) -> &str {
-        match *self {
-            NameTmTD::Var(_) => "Var",
-            NameTmTD::Name(_) => "Name",
-            NameTmTD::Bin(_, _) => "Bin",
-            NameTmTD::Lam(_,_,_) => "Lam",
-            NameTmTD::App(_, _) => "App",
-            NameTmTD::NoParse(_) => "NoParse",
-        }
-    }
-}
-
-impl AstNode for IdxTmTD {
-    fn node_desc() -> &'static str { "index-term" }
-    fn short(&self) -> &str {
-        match *self {
-            IdxTmTD::Var(_) => "Var",
-            IdxTmTD::Sing(_) => "Sing",
-            IdxTmTD::Empty => "Empty",
-            IdxTmTD::Disj(_, _) => "Disj",
-            IdxTmTD::Union(_, _) => "Union",
-            IdxTmTD::Unit => "Unit",
-            IdxTmTD::Pair(_, _) => "Pair",
-            IdxTmTD::Proj1(_) => "Proj1",
-            IdxTmTD::Proj2(_) => "Proj2",
-            IdxTmTD::Lam(_, _, _) => "Lam",
-            IdxTmTD::App(_, _) => "App",
-            IdxTmTD::Map(_, _) => "Map",
-            IdxTmTD::FlatMap(_, _) => "FlatMap",
-            IdxTmTD::Star(_, _) => "Star",
-            IdxTmTD::NoParse(_) => "NoParse",
-        }
-    }
-}
-
-impl AstNode for ValTD {
-    fn node_desc() -> &'static str { "value" }
-    fn short(&self) -> &str {
-        match *self {
-            ValTD::Var(_) => "Var",
-            ValTD::Unit => "Unit",
-            ValTD::Pair(_, _) => "Pair",
-            ValTD::Inj1(_) => "Inj1",
-            ValTD::Inj2(_) => "Inj2",
-            ValTD::Roll(_) => "Roll",
-            ValTD::Pack(_,_) => "Pack",
-            ValTD::Name(_) => "Name",
-            ValTD::NameFn(_) => "NameFn",
-            ValTD::Anno(_,_) => "Anno",
-            ValTD::ThunkAnon(_) => "ThunkAnon",
-            ValTD::Bool(_) => "Bool",
-            ValTD::Nat(_) => "Nat",
-            ValTD::Str(_) => "Str",
-            ValTD::NoParse(_) => "NoParse",
-        }
-    }
-}
-
-impl AstNode for ExpTD {
-    fn node_desc() -> &'static str { "expression" }
-    fn short(&self) -> &str {
-        match *self {
-            ExpTD::AnnoC(_,_) => "AnnoC",
-            ExpTD::AnnoE(_,_) => "AnnoE",
-            ExpTD::Force(_) => "Force",
-            ExpTD::Thunk(_,_) => "Thunk",
-            ExpTD::Unroll(_,_,_) => "Unroll",
-            ExpTD::Unpack(_,_,_,_) => "Unpack",
-            ExpTD::Fix(_,_) => "Fix",
-            ExpTD::Ret(_) => "Ret",
-            ExpTD::DefType(_,_,_) => "DefType",
-            ExpTD::Let(_,_,_) => "Let",
-            ExpTD::Lam(_, _) => "Lam",
-            ExpTD::HostFn(_) => "HostFn",
-            ExpTD::App(_, _) => "App",
-            ExpTD::Split(_, _, _, _) => "Split",
-            ExpTD::Case(_, _, _, _, _) => "Case",
-            ExpTD::IfThenElse(_, _, _) => "IfThenElse",
-            ExpTD::Ref(_,_) => "Ref",
-            ExpTD::Get(_) => "Get",
-            ExpTD::Scope(_,_) => "Scope",
-            ExpTD::NameFnApp(_,_) => "NameFnApp",
-            ExpTD::PrimApp(ref p) => p.short(),
-            ExpTD::Unimp => "Unimp",
-            ExpTD::DebugLabel(_,_,_) => "DebugLabel",
-            ExpTD::NoParse(_) => "NoParse",
-        }
-    }
-}
-impl AstNode for PrimAppTD {
-    fn node_desc() -> &'static str { "primitive expression" }
-    fn short(&self) -> &str {
-        match *self {
-            PrimAppTD::NatEq(_,_) => "NatEq",
-            PrimAppTD::NatLt(_,_) => "NatLt",
-            PrimAppTD::NatLte(_,_) => "NatLte",
-            PrimAppTD::NatPlus(_,_) => "NatPlus",
-            PrimAppTD::NameBin(_,_) => "NameBin",
-            PrimAppTD::RefThunk(_) => "RefThunk",
-        }
-    }
 }
 
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
@@ -480,7 +398,10 @@ impl fmt::Display for TypeError {
     }
 }
 
-fn failure<N:AstNode+HasType>(dir:Dir, last_label:Option<&str>, ctxt:&TCtxt, n:N, err:TypeError) -> TypeInfo<N> {
+fn failure<N:HasType+debug::AstNode>
+    (dir:Dir, last_label:Option<&str>,
+     ctxt:&TCtxt, n:N, err:TypeError) -> TypeInfo<N>
+{
     if let Some(lbl) = last_label {print!("After {}, ", lbl)}
     println!("Failed to {} {} {}, error: {}", dir.short(), n.short(), N::node_desc(), err);
     TypeInfo{
@@ -491,7 +412,10 @@ fn failure<N:AstNode+HasType>(dir:Dir, last_label:Option<&str>, ctxt:&TCtxt, n:N
     }
 }
 
-fn success<N:AstNode+HasType>(dir:Dir, _last_label:Option<&str>, ctxt:&TCtxt, n:N, typ:N::Type) -> TypeInfo<N> {
+fn success<N:HasType+debug::AstNode>
+    (dir:Dir, _last_label:Option<&str>,
+     ctxt:&TCtxt, n:N, typ:N::Type) -> TypeInfo<N>
+{
     TypeInfo{
         ctxt: ctxt.clone(),
         node: Rc::new(n),
@@ -1724,3 +1648,120 @@ pub fn check_exp(last_label:Option<&str>, ctxt:&TCtxt, exp:&Exp, ceffect:&CEffec
         },
     }
 }
+
+
+
+/// Stringification for debugging
+mod debug {
+    use super::*;
+    pub trait AstNode {
+        fn node_desc() -> &'static str { "ast node" }
+        fn short(&self) -> &str { "unknown" }
+    }
+
+    impl AstNode for NameTmTD {
+        fn node_desc() -> &'static str { "name-term" }
+        fn short(&self) -> &str {
+            match *self {
+                NameTmTD::Var(_) => "Var",
+                NameTmTD::Name(_) => "Name",
+                NameTmTD::Bin(_, _) => "Bin",
+                NameTmTD::Lam(_,_,_) => "Lam",
+                NameTmTD::App(_, _) => "App",
+                NameTmTD::NoParse(_) => "NoParse",
+            }
+        }
+    }
+
+    impl AstNode for IdxTmTD {
+        fn node_desc() -> &'static str { "index-term" }
+        fn short(&self) -> &str {
+            match *self {
+                IdxTmTD::Var(_) => "Var",
+                IdxTmTD::Sing(_) => "Sing",
+                IdxTmTD::Empty => "Empty",
+                IdxTmTD::Disj(_, _) => "Disj",
+                IdxTmTD::Union(_, _) => "Union",
+                IdxTmTD::Unit => "Unit",
+                IdxTmTD::Pair(_, _) => "Pair",
+                IdxTmTD::Proj1(_) => "Proj1",
+                IdxTmTD::Proj2(_) => "Proj2",
+                IdxTmTD::Lam(_, _, _) => "Lam",
+                IdxTmTD::App(_, _) => "App",
+                IdxTmTD::Map(_, _) => "Map",
+                IdxTmTD::FlatMap(_, _) => "FlatMap",
+                IdxTmTD::Star(_, _) => "Star",
+                IdxTmTD::NoParse(_) => "NoParse",
+            }
+        }
+    }
+
+    impl AstNode for ValTD {
+        fn node_desc() -> &'static str { "value" }
+        fn short(&self) -> &str {
+            match *self {
+                ValTD::Var(_) => "Var",
+                ValTD::Unit => "Unit",
+                ValTD::Pair(_, _) => "Pair",
+                ValTD::Inj1(_) => "Inj1",
+                ValTD::Inj2(_) => "Inj2",
+                ValTD::Roll(_) => "Roll",
+                ValTD::Pack(_,_) => "Pack",
+                ValTD::Name(_) => "Name",
+                ValTD::NameFn(_) => "NameFn",
+                ValTD::Anno(_,_) => "Anno",
+                ValTD::ThunkAnon(_) => "ThunkAnon",
+                ValTD::Bool(_) => "Bool",
+                ValTD::Nat(_) => "Nat",
+                ValTD::Str(_) => "Str",
+                ValTD::NoParse(_) => "NoParse",
+            }
+        }
+    }
+
+    impl AstNode for ExpTD {
+        fn node_desc() -> &'static str { "expression" }
+        fn short(&self) -> &str {
+            match *self {
+                ExpTD::AnnoC(_,_) => "AnnoC",
+                ExpTD::AnnoE(_,_) => "AnnoE",
+                ExpTD::Force(_) => "Force",
+                ExpTD::Thunk(_,_) => "Thunk",
+                ExpTD::Unroll(_,_,_) => "Unroll",
+                ExpTD::Unpack(_,_,_,_) => "Unpack",
+                ExpTD::Fix(_,_) => "Fix",
+                ExpTD::Ret(_) => "Ret",
+                ExpTD::DefType(_,_,_) => "DefType",
+                ExpTD::Let(_,_,_) => "Let",
+                ExpTD::Lam(_, _) => "Lam",
+                ExpTD::HostFn(_) => "HostFn",
+                ExpTD::App(_, _) => "App",
+                ExpTD::Split(_, _, _, _) => "Split",
+                ExpTD::Case(_, _, _, _, _) => "Case",
+                ExpTD::IfThenElse(_, _, _) => "IfThenElse",
+                ExpTD::Ref(_,_) => "Ref",
+                ExpTD::Get(_) => "Get",
+                ExpTD::Scope(_,_) => "Scope",
+                ExpTD::NameFnApp(_,_) => "NameFnApp",
+                ExpTD::PrimApp(ref p) => p.short(),
+                ExpTD::Unimp => "Unimp",
+                ExpTD::DebugLabel(_,_,_) => "DebugLabel",
+                ExpTD::NoParse(_) => "NoParse",
+            }
+        }
+    }
+    impl AstNode for PrimAppTD {
+        fn node_desc() -> &'static str { "primitive expression" }
+        fn short(&self) -> &str {
+            match *self {
+                PrimAppTD::NatEq(_,_) => "NatEq",
+                PrimAppTD::NatLt(_,_) => "NatLt",
+                PrimAppTD::NatLte(_,_) => "NatLte",
+                PrimAppTD::NatPlus(_,_) => "NatPlus",
+                PrimAppTD::NameBin(_,_) => "NameBin",
+                PrimAppTD::RefThunk(_) => "RefThunk",
+            }
+        }
+    }
+}
+use self::debug::*;
