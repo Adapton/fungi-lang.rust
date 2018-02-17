@@ -3,17 +3,27 @@ fgi_mod!{
     // holding the sequence of natural numbers.
     type OpNat = (+ Unit + Nat );
 
+    fn opnat_is_some: (
+        Thk[0] 0 OpNat -> 0 F Bool
+    ) = {
+        #xo.
+        match (xo) {
+            _u => { ret false }
+            _n => { ret true }
+        }
+    }
+    
     fn opnat_max:(
         Thk[0] 0 OpNat -> 0 OpNat -> 0 F OpNat
     ) = {
         #xo.#yo.
-        match (x_o) {
-            _u  => { ret yo }
-            x => { match (yo) {
+        match (xo) {
+            _u => { ret yo }
+            x  => { match (yo) {
                 _u => { ret yo }
-                y => {
-                    if { x < y } {ret y}
-                    else {ret x}
+                y  => {
+                    if { x < y } {ret yo}
+                    else {ret xo}
                 }
             }}
         }                            
