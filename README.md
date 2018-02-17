@@ -3,19 +3,22 @@
 ## Fungi _computes incrementally_
 
 [**Incremental computing**](https://en.wikipedia.org/wiki/Incremental_computing)
-consists of successively re-computing related outputs from related inputs.
+consists of successively running a program, computing related outputs
+from related inputs that change over time, often from some external
+source of change, like a human, or another computer system or program.
 
-**Fungi** provides a pair of related, complementary sub-languages for
+**Fungi** provides a pair of complementary sub-languages for
 expressing the interactions of incremental computations, which it
-organizes into a pair of complementary **computation roles**:
+organizes into two **computation roles**:
 
-1. A _**functional** language_ for the **Archivist role**, and
-2. An _**imperative** language_ for the **Editor role**.
+1. The **Archivist role** computes output from input using a
+   _**functional** language_, and the
 
-The archivist role computes incremental output from input on demand,
-and the editor role incrementally mutates this input over time, and
-may also change demand for output in the process (e.g., placing or
-removing focus on different outputs).
+2. The **Editor role** uses an _**imperative** language_ to
+   incrementally mutate this input over time, and change demand for
+   output in the process (e.g., placing or removing focus on different
+   outputs of the archivists' functions).
+
 
 ## Fungi programs name their (incremental) data and subcomputations
 
