@@ -1116,8 +1116,11 @@ pub fn synth_module(last_label:Option<&str>, m:&Module) -> ModuleDer {
     let ctx = Ctx::Empty;
     loop {
         match *decls {
-            Decls::NoParse(_) => break,
             Decls::End => break,
+            Decls::NoParse(s) => {
+                tds.push(DeclRule::NoParse(s.clone()));
+                break;
+            },
             Decls::UseAll(ref uam, ref d) => {
                 let (der, ctx) = synth_module(&*uam.module);
                 tds.append(der.tds);
@@ -1126,17 +1129,18 @@ pub fn synth_module(last_label:Option<&str>, m:&Module) -> ModuleDer {
             }
             Decls::NmTm(ref x, ref m, ref d) => {
                 let der = synth_nmtm(last_label, ctx, m);
-                tds.push((Qual::NmTm, x), DeclRule::NmTm(m.clone()));
+                tds.push((Qual::NmTm, x), DeclRule::NmTm(der));
                 ctx.def(x, Term::NmTm(m.clone()));
                 decls = d;
             }
             Decls::IdxTm(ref x, ref i, ref d) => {
                 let der = synth_idxtm(last_label, ctx, m);
-                tds.push((Qual::NmTm, x), DeclRule::IdxTm(i.clone()));
+                tds.push((Qual::NmTm, x), DeclRule::IdxTm(der));
                 ctx.def(x, Term::IdxTm(i.clone()));
                 decls = d;
             }
             Decls::Type(ref x, ref a, ref d) => {
+                // TODO: synth kinding for type
                 tds.push((Qual::Type, x), DeclRule::Type(a.clone()));
                 ctx.def(x, Term::Type(a.clone()));
                 decls = d;                
@@ -1146,7 +1150,7 @@ pub fn synth_module(last_label:Option<&str>, m:&Module) -> ModuleDer {
                     None        => synth_val(last_label, ctx, v   ),
                     Some(ref a) => check_val(last_label, ctx, v, a),
                 };
-                tds.push((Qual::Val, x), DeclRule::Val(a.clone()));
+                tds.push((Qual::Val, x), DeclRule::Val(der));
                 let ctx = match der.clas {
                     Ok(a) => ctx.var(x, a.clone()),
                     Err(_) => ctx,
