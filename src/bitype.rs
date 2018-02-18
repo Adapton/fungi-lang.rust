@@ -66,8 +66,8 @@ impl Ctx {
         Ctx::PropTrue(Rc::new(self.clone()),p)
     }
     // append another context to the given one
-    pub fn append(&self,other:&Ctx) -> Ctx {
-        panic!("XXXTODO")
+    pub fn append(&self,_other:&Ctx) -> Ctx {
+        panic!("XXXTODO append")
     }
 }
 
@@ -239,7 +239,7 @@ pub enum DeclRule {
     // TODO: add kinds
     Type (String, Type), 
     Val  (String, ValDer),
-    Fn   (String, ExpDer),
+    Fn   (String, ValDer),
 }
 /// Classifier for declared object in a module
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
@@ -498,11 +498,11 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
 }
 
 pub fn subst_type_type(a:Type, x:&String, b:&Type) -> Type {
-    panic!("");
+    panic!("{:?} {:?} {:?}", a, x, b);
 }
 
 pub fn subst_idxtm_type(a:IdxTm, x:&String, b:&Type) -> Type {
-    panic!("");
+    panic!("{:?} {:?} {:?}", a, x, b);
 }
 
 /*
@@ -547,7 +547,7 @@ x 1 2 3
 pub fn unroll_type(typ:&Type) -> Type {
     /// XXX
     /// Needed to implement case in the max example; the `Seq [X][Y] Nat` arg type needs to be "reduced" and then unrolled.
-    unimplemented!()
+    unimplemented!("{:?}", typ)
 }
 
 /// synthesize sort for index term
@@ -1121,9 +1121,11 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ:&Type) -> ValD
 pub fn synth_module(last_label:Option<&str>, m:&Rc<Module>) -> ModuleDer {
     let mut decls = &m.decls;
     let mut tds : Vec<ItemDer> = vec![];
-    let ctx = Ctx::Empty;
-    fn der_of(d:DeclRule) -> DeclDer {
-        panic!("TODO")
+    let mut ctx = Ctx::Empty;
+    fn der_of(ctx:Ctx, rule:DeclRule,
+              res:Result<DeclClas,TypeError>) -> DeclDer
+    {
+        Der{ ctx:ctx, dir:Dir::Synth, rule:Rc::new(rule), clas:res }
     };
     loop {
         match decls {
@@ -1140,41 +1142,71 @@ pub fn synth_module(last_label:Option<&str>, m:&Rc<Module>) -> ModuleDer {
             }
             &Decls::NmTm(ref x, ref m, ref d) => {
                 let der = synth_nmtm(last_label, &ctx, m);
-                tds.push(ItemDer::Bind(Qual::NmTm, x.clone(),
-                                       der_of(DeclRule::NmTm(x.clone(), der))));
+                let sort = der.clas.clone();
+                tds.push(ItemDer::Bind(
+                    Qual::NmTm, x.clone(),
+                    der_of(ctx.clone(),
+                           DeclRule::NmTm(x.clone(), der),
+                           sort.map(|s|DeclClas::Sort(s))
+                    )));
                 ctx.def(x.clone(), Term::NmTm(m.clone()));
                 decls = d;
             }
             &Decls::IdxTm(ref x, ref i, ref d) => {
                 let der = synth_idxtm(last_label, &ctx, i);
-                tds.push(ItemDer::Bind(Qual::NmTm, x.clone(),
-                                       der_of(DeclRule::IdxTm(x.clone(), der))));
+                let sort = der.clas.clone();
+                tds.push(ItemDer::Bind(
+                    Qual::NmTm, x.clone(),
+                    der_of(ctx.clone(),
+                           DeclRule::IdxTm(x.clone(), der),
+                           sort.map(|s|DeclClas::Sort(s))
+                    )));
                 ctx.def(x.clone(), Term::IdxTm(i.clone()));
                 decls = d;
             }
             &Decls::Type(ref x, ref a, ref d) => {
                 // TODO: synth kinding for type
-                tds.push(ItemDer::Bind(Qual::Type, x.clone(),
-                                       der_of(DeclRule::Type(x.clone(), a.clone()))));
+                tds.push(ItemDer::Bind(
+                    Qual::Type, x.clone(),
+                    der_of(ctx.clone(),
+                           DeclRule::Type(x.clone(), a.clone()),
+                           Ok(DeclClas::Kind(Kind::NoParse("TODO-XXX-bitype.rs".to_string()))))));
                 ctx.def(x.clone(), Term::Type(a.clone()));
-                decls = d;                
+                decls = d;
             }
             &Decls::Val(ref x, ref oa, ref v, ref d) => {
                 let der = match oa {
                     &None        => synth_val(last_label, &ctx, v   ),
                     &Some(ref a) => check_val(last_label, &ctx, v, a),
                 };
-                let typ = der.clas.clone();
-                tds.push(ItemDer::Bind(Qual::Val, x.clone(),
-                                       der_of(DeclRule::Val(x.clone(), der))));
-                let ctx = match typ {
-                    Ok(a)  => ctx.var(x.clone(), a),
-                    Err(_) => ctx.clone(),
+                ctx = match der.clas.clone() {
+                    Err(_) => match oa {
+                        &None        => ctx,
+                        &Some(ref a) => ctx.var(x.clone(), a.clone())
+                    },
+                    Ok(a) => ctx.var(x.clone(), a),
                 };
+                let der_typ = der.clas.clone();
+                tds.push(ItemDer::Bind(
+                    Qual::Val, x.clone(),
+                    der_of(ctx.clone(),
+                           DeclRule::Val(x.clone(), der),
+                           der_typ.map(|a| DeclClas::Type(a)))
+                ));
                 decls = d;
             }
             &Decls::Fn(ref f, ref a, ref e, ref d) => {
-                // TODO/XXX
+                let v : Val = fgi_val![ thunk fix ^f. ^e.clone() ];
+                let a2 = a.clone();
+                let der = check_val(last_label, &ctx, &v, a);
+                let der_typ = der.clas.clone();
+                tds.push(ItemDer::Bind(
+                    Qual::Val, f.clone(),
+                    der_of(ctx.clone(),
+                           DeclRule::Fn(f.clone(), der),
+                           der_typ.map(|_| DeclClas::Type(a2)))
+                ));
+                ctx = ctx.var(f.clone(), a.clone());
                 decls = d;
             }
         }      
@@ -1866,4 +1898,4 @@ mod debug {
         }
     }
 }
-use self::debug::*;
+//use self::debug::*;

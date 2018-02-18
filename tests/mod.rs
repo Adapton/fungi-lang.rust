@@ -36,11 +36,20 @@ pub fn fgi_module_test () -> Module {
 }
 
 #[test]
-fn module() {
+fn module () {
+    use std::thread;
+    let child =
+        thread::Builder::new().stack_size(64 * 1024 * 1024).spawn(move || { 
+            module2()
+        });
+    let _ = child.unwrap().join();
+}
+
+fn module2() {
     use fungi_lang::bitype;
 
-    let m : Module = fgi_module_test();
-    let md : bitype::ModuleDer = bitype::synth_module(&m);
+    let m : Rc<Module> = Rc::new(fgi_module_test());
+    let md : bitype::ModuleDer = bitype::synth_module(None, &m);
     
     println!("{:?}", m)
 }

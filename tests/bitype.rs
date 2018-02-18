@@ -82,7 +82,7 @@ fn examples2() {
         // ...      with (unallocated) names in X
         // ... and (allocated) pointer names in Y
         //
-        type Seq = (
+        Type Seq = (
             rec Seq. foralli (X,Y):NmSet. forallt T:type.
             (+ Vec T
              + (exists (X1,X2,X3)   :NmSet | (X1%X2%X3=X).

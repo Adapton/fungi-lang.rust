@@ -69,3 +69,8 @@ fgi_mod!{
         ret (n,rout)
     }
 }
+
+#[test]
+fn chunk() {
+    println!("{:?}", fgi_module());
+}

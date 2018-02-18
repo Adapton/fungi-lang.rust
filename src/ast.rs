@@ -35,7 +35,7 @@
 
 use std::rc::Rc;
 use std::fmt;
-use std::fmt::{Debug,Formatter,Result};
+use std::fmt::{Debug,Formatter};
 //use std::fmt::{Debug,Result};
 use std::hash::{Hash,Hasher};
 
@@ -1020,7 +1020,7 @@ pub struct HostEvalFn {
     pub eval:Rc<Fn(Vec<eval::ast_dynamic::RtVal>) -> eval::ast_dynamic::ExpTerm>
 }
 impl Hash for HostEvalFn {
-    fn hash<H:Hasher>(&self, hasher: &mut H) {
+    fn hash<H:Hasher>(&self, _hasher: &mut H) {
         panic!("XXX")
     }
 }
@@ -1030,7 +1030,7 @@ impl Debug for HostEvalFn {
     }
 }
 impl PartialEq for HostEvalFn {
-    fn eq(&self, other:&Self) -> bool {
+    fn eq(&self, _other:&Self) -> bool {
         panic!("XXX")        
     }
 }
@@ -1159,6 +1159,7 @@ pub type ExpRec = Rc<Exp>;
 macro_rules! fgi_exp {
     //     fromast ast                     (inject ast nodes)
     { fromast $ast:expr } => { $ast };
+    { ^       $ast:expr } => { $ast };
     //     unsafe (arity) rustfn           (inject an evaluation function written in Rust)
     { unsafe ($arity:expr) $rustfn:path } => {
         Exp::HostFn(HostEvalFn{
@@ -1171,7 +1172,7 @@ macro_rules! fgi_exp {
     { use $path:ident :: * ; $($e:tt)* } => {
         Exp::UseAll(
             UseAllModule{
-                module:Rc::new( $path::fgi_module () ),
+                module:$path::fgi_module (),
                 path:stringify![$path].to_string(),
             },
             Rc::new( fgi_exp![ $($e)* ] )
@@ -1204,6 +1205,11 @@ macro_rules! fgi_exp {
     //     fix x.e                         (recursive lambda)
     { fix $x:ident.$($e:tt)+ } => { Exp::Fix(
         stringify![$x].to_string(),
+        Rc::new(fgi_exp![$($e)+]),
+    )};
+    //     fix ^x.e                         (recursive lambda)
+    { fix ^ $x:ident.$($e:tt)+ } => { Exp::Fix(
+        ($x).clone(),
         Rc::new(fgi_exp![$($e)+]),
     )};
     // Sugar:
@@ -1524,8 +1530,8 @@ macro_rules! fgi_mod {
     { $($decls:tt)+ } => {
         use std::rc::Rc;
         use ast::*;
-        pub fn fgi_module () -> Module {
-            fgi_module![ $($decls)+ ]
+        pub fn fgi_module () -> Rc<Module> {
+            Rc::new( fgi_module![ $($decls)+ ] )
         }
     };
 }
@@ -1542,8 +1548,8 @@ macro_rules! fgi_inner_mod {
         mod $name {
             use std::rc::Rc;
             use fungi_lang::ast::*;
-            pub fn fgi_module () -> Module {
-                fgi_module![ $($decls)+ ]
+            pub fn fgi_module () -> Rc<Module> {
+                Rc::new( fgi_module![ $($decls)+ ] )
             }
         }
     };
@@ -1551,8 +1557,8 @@ macro_rules! fgi_inner_mod {
         pub mod $name {
             use std::rc::Rc;
             use fungi_lang::ast::*;
-            pub fn fgi_module () -> Module {
-                fgi_module![ $($decls)+ ]
+            pub fn fgi_module () -> Rc<Module> {
+                Rc::new( fgi_module![ $($decls)+ ] )
             }
         }
     };
@@ -1626,6 +1632,7 @@ pub struct UseAllModule {
 ///     idxtm x = ( i ) d       (define x as an index term i)
 ///     type t = ( A ) d        (define a type alias `t` for value type `A`)
 ///     val x : ( A ) = ( v ) d (define a value v, of type A, bound to x)
+///     val x =         ( v ) d (define a value v, bound to x; synthesizes type from v)
 ///     fn f : ( A ) = { e } d  (define a function f, of thunk type A, with recursive body e)
 ///     fn f : ( A ) { e } d    (alternate syntax: optional equal sign)
 ///     ; d                     (alternate syntax: optional semi colons, anywhere)
@@ -1645,7 +1652,7 @@ macro_rules! fgi_decls {
         // a Module.  We also save the given path, as a string.
         Decls::UseAll(
             UseAllModule{
-                module:Rc::new( $path::fgi_module () ),
+                module: $path::fgi_module (),
                 path:stringify![$path].to_string(),
             },
             Rc::new(fgi_decls![ $($d)* ])
@@ -1655,7 +1662,7 @@ macro_rules! fgi_decls {
     { use ( $path:ident ) :: * ; $($d:tt)* } => {
         Decls::UseAll(
             UseAllModule{
-                module:Rc::new( $path::fgi_module () ),
+                module: $path::fgi_module (),
                 path:stringify![$path].to_string(),
             },
             Rc::new(fgi_decls![ $($d)* ])
@@ -1678,8 +1685,14 @@ macro_rules! fgi_decls {
     };
     { val $x:ident : ( $($a:tt)+ ) = ( $($v:tt)+ ) $($d:tt)* } => {
         Decls::Val( stringify![$x].to_string(),
-                    fgi_vtype![ $($a)+ ],
+                    Some(fgi_vtype![ $($a)+ ]),
                     fgi_val![ $($v)+ ],
+                    Rc::new( fgi_decls![ $($d)* ] ) )
+    };
+    { val $x:ident = ( $($v:tt)+ ) $($d:tt)* } => {
+        Decls::Val( stringify![$x].to_string(),
+                    Some(fgi_vtype![ $($a)+ ]),
+                    None,
                     Rc::new( fgi_decls![ $($d)* ] ) )
     };
     { fn $f:ident : ( $($a:tt)+ )   { $($e:tt)+ } $($d:tt)* } => {
