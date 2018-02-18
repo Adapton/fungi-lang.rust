@@ -29,9 +29,9 @@ fgi_mod!{
         F (Chk[X][X] a)
     ) = {
         #c.#f.
-        let (rout,_) = {
+        let (rout,_x) = {
             {force chk_reduce}
-            c (thunk #vec. {force vec_filter} f)
+             c (thunk #vec. {force vec_filter} f)
         }
         ret (n,rout)
     }
@@ -46,7 +46,7 @@ fgi_mod!{
     ) = {
         #c.#f.
         let (n,rinp) = { ret c }
-        let (rout,_) = { memo(n){
+        let (rout,_x) = { memo(n){
             {force vec_filter} f {!rinp}
         } }
         ret (n,rout)
@@ -63,10 +63,10 @@ fgi_mod!{
     ) = {
         #c.#f.
         let (n,rinp) = {ret c}
-        let (rout,_) = { memo(n){
+        let (rout,_x) = { memo(n){
             {force vec_map} f {!rinp}
         } } 
-        ret (n,rout)
+        ret ((n,rout))
     }
 }
 

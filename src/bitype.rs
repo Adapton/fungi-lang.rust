@@ -66,8 +66,20 @@ impl Ctx {
         Ctx::PropTrue(Rc::new(self.clone()),p)
     }
     // append another context to the given one
-    pub fn append(&self,_other:&Ctx) -> Ctx {
-        panic!("XXXTODO append")
+    pub fn append(&self,other:&Ctx) -> Ctx {
+        match *self {
+            Ctx::Empty => other.clone(),
+            Ctx::Def(ref c, ref x, ref t)  => Ctx::Def(c.append_rec(other), x.clone(), t.clone()),
+            Ctx::Var(ref c, ref x, ref a)  => Ctx::Var(c.append_rec(other), x.clone(), a.clone()),
+            Ctx::IVar(ref c, ref x, ref g) => Ctx::IVar(c.append_rec(other), x.clone(), g.clone()),
+            Ctx::TVar(ref c, ref x, ref k) => Ctx::TVar(c.append_rec(other), x.clone(), k.clone()),
+            Ctx::PropTrue(ref c, ref prop) => Ctx::PropTrue(c.append_rec(other), prop.clone()),
+            Ctx::Equiv(ref c, ref i, ref j, ref g) => Ctx::Equiv(c.append_rec(other), i.clone(), j.clone(), g.clone()),
+            Ctx::Apart(ref c, ref i, ref j, ref g) => Ctx::Apart(c.append_rec(other), i.clone(), j.clone(), g.clone()),
+        }
+    }
+    pub fn append_rec(&self,other:&Ctx) -> Rc<Ctx> {
+        Rc::new(self.append(other))
     }
 }
 
@@ -462,7 +474,7 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
             // all other identifiers are for defined types; look up the definition
             _ => { match ctx.lookup_type_def(ident) {
                 Some(a) => normal_type(ctx, &a),
-                _ => panic!("undefined type: {}", ident)
+                _ => panic!("undefined type: {} in\n{:?}", ident, ctx)
             }}
         }}
         &Type::TypeApp(ref a, ref b) => {
@@ -1130,6 +1142,11 @@ pub fn synth_module(last_label:Option<&str>, m:&Rc<Module>) -> ModuleDer {
     loop {
         match decls {
             &Decls::End => break,
+            &Decls::Doc(ref _doc_string, ref d) =>
+            {
+                // TODO: save doc string
+                decls = d;
+            }            
             &Decls::NoParse(ref s) => {
                 tds.push(ItemDer::NoParse(s.clone()));
                 break;
@@ -1270,6 +1287,7 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
             }
         },
         &Exp::DefType(ref x,ref t, ref e) => {
+            let ctx = &ctx.def(x.clone(), Term::Type(t.clone()));
             let td2 = synth_exp(last_label, ctx, e);
             // TODO: user-type kinding??
             let typ2 = td2.clas.clone();
@@ -1651,7 +1669,8 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
         },
         &Exp::Case(ref v, ref x1, ref e1, ref x2, ref e2) => {
             let v_td = synth_val(last_label, ctx, v);
-            match v_td.clas.clone() {
+            let v_ty = v_td.clone().clas.map(|a| normal_type(ctx, &a));
+            match v_ty {
                 Ok(Type::Sum(ty1, ty2)) => {
                     let new_ctx1 = ctx.var(x1.clone(), (*ty1).clone());
                     let new_ctx2 = ctx.var(x2.clone(), (*ty2).clone());

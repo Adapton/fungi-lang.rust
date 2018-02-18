@@ -1601,6 +1601,8 @@ macro_rules! fgi_module {
 pub enum Decls {
     /// Use all of the definitions of another module
     UseAll(UseAllModule,    DeclsRec),
+    /// Documentation string; from rustdoc
+    Doc( String,            DeclsRec),
     /// Define a name term
     NmTm( String,NameTm,    DeclsRec),
     /// Define an index term
@@ -1627,24 +1629,29 @@ pub struct UseAllModule {
 ///
 /// ```text
 /// d ::=
-///     fromast ast             (inject ast nodes)
-///     use x :: * ; d          (all decls in module x are made "local")
-///     use ( path ) :: * ; d   (all decls at module path p are made "local")
-///     nmtm  x = ( N ) d       (define x as a name term N)
-///     idxtm x = ( i ) d       (define x as an index term i)
-///     type t = ( A ) d        (define a type alias `t` for value type `A`)
-///     val x : ( A ) = ( v ) d (define a value v, of type A, bound to x)
-///     val x =         ( v ) d (define a value v, bound to x; synthesizes type from v)
-///     fn f : ( A ) = { e } d  (define a function f, of thunk type A, with recursive body e)
-///     fn f : ( A ) { e } d    (alternate syntax: optional equal sign)
-///     ; d                     (alternate syntax: optional semi colons, anywhere)
-///     (end)                   (no decls)
+///     fromast ast              (inject ast nodes)
+///     use x :: * ; d           (all decls in module x are made "local")
+///     use ( path ) :: * ; d    (all decls at module path p are made "local")
+///     nmtm  x = ( N ) d        (define x as a name term N)
+///     idxtm x = ( i ) d        (define x as an index term i)
+///     type  t = ( A ) d        (define a type alias `t` for value type `A`)
+///     val x : ( A ) = ( v ) d  (define a value v, of type A, bound to x)
+///     val x         = ( v ) d  (define a value v, bound to x; synthesizes type from v)
+///     fn  f : ( A ) = { e } d  (define a function f, of thunk type A, with recursive body e)
+///     fn  f : ( A )   { e } d  (alternate syntax: optional equal sign)
+///     ; d                      (alternate syntax: optional semi colons, anywhere)
+///     (end)                    (no decls)
 /// ```
 ///
 #[macro_export]
 macro_rules! fgi_decls {
     { fromast $ast:expr } => {
         unimplemented!()
+    };
+    // documentation
+    { # [ doc = $doc:tt ] $($d:tt)* } => {
+        Decls::Doc( stringify![$doc].to_string(),
+                    Rc::new( fgi_decls![ $($d)* ] ))
     };
     //     use x :: * ; d  (all decls in module x are made "local")
     { use $path:ident :: * ; $($d:tt)* } => {

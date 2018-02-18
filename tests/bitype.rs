@@ -52,6 +52,13 @@ fn bitype2() {
     use fungi_lang::eval::*;
 
     let bundle : Bundle = fgi_bundle![
+        let vec_max:( Thk[0]
+            0 Vec Nat ->
+            0 F Nat
+        ) = {
+            unimplemented
+        }
+
         let vec_filter:( Thk[0]
             0 Vec Nat ->
             0 (Thk[0] 0 Nat -> 0 F Bool) ->
@@ -88,6 +95,7 @@ fn bitype2() {
             #seq. unroll seq seq. match seq {
                 vec => { {force vec_max} vec }
                 bin => {
+                    unpack (X1,X2,X3,X4,Y1,Y2,Y3) bin = bin
                     let (n,_x,l,r) = {ret bin}
                     let (unused, ml) = { memo{n,(@1)}{ {force max} {!l} } }
                     let (unused, mr) = { memo{n,(@2)}{ {force max} {!r} } }
@@ -134,6 +142,7 @@ fn bitype2() {
             #seq. #f. unroll match seq {
                 vec => { {force vec_map } f vec }
                 bin => {
+                    unpack (X1,X2,X3,X4,Y1,Y2,Y3) bin = bin
                     let (n,lev,l,r) = {ret bin}
                     let (rsl, sl) = { memo{n,(@1)}{ {force map} f {!l} } }
                     let (rsr, sr) = { memo{n,(@2)}{ {force map} f {!r} } }
