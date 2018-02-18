@@ -1265,6 +1265,7 @@ pub fn synth_module(last_label:Option<&str>, m:&Rc<Module>) -> ModuleDer {
                                der_typ.map(|_| DeclClas::Type(a2)))
                 };
                 ctx = ctx.var(f.clone(), a.clone());
+                tds.push(ItemRule::Bind(der));
                 doc = None;
                 decls = d;
             }
