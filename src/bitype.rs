@@ -222,10 +222,10 @@ pub enum Qual {
 /// Bound module item derivation
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub struct BindDer {
-    doc:Option<String>,
-    qual:Qual,
-    var:String,
-    der:DeclDer,
+    pub doc:Option<String>,
+    pub qual:Qual,
+    pub var:String,
+    pub der:DeclDer,
 }
 /// Module item derivation
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
