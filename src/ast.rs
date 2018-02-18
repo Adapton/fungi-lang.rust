@@ -1531,7 +1531,9 @@ macro_rules! fgi_mod {
         use std::rc::Rc;
         use ast::*;
         pub fn fgi_module () -> Rc<Module> {
-            Rc::new( fgi_module![ $($decls)+ ] )
+            let complete_parse_marker = ();
+            Rc::new( fgi_module![ $($decls)+
+                                  ^^ complete_parse_marker ] )
         }
     };
 }
@@ -1707,12 +1709,15 @@ macro_rules! fgi_decls {
     };
     { ; $($d:tt)* } => {
         // end of list; no more declarations
-        fgi_decls![ $($d)* ]
-    };
+        fgi_decls![ $($d)* ]    };
 
     { } => {
         // end of list; no more declarations
         Decls::End
+    };
+    { ^^ $e:expr } => {
+        // end of list; no more declarations
+        { drop($e); Decls::End }
     };
     // failure
     { $($any:tt)* } => { Decls::NoParse(stringify![ $($any)* ].to_string())};

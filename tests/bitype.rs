@@ -35,221 +35,23 @@ mod fungi_stdlib_examples {
 }
     
 #[test]
-fn examples () {
+fn bitype () {
   use std::thread;
   let child =
     thread::Builder::new().stack_size(64 * 1024 * 1024).spawn(move || { 
-      examples2()
+      bitype2()
     });
   let _ = child.unwrap().join();
 }
 
-fn examples2() {
+fn bitype2() {
     use std::rc::Rc;
     use fungi_lang::ast::*;
     use fungi_lang::bitype::*;
     use fungi_lang::vis::*;
     use fungi_lang::eval::*;
 
-    // Hopefully simpler than the Seq code, below
-    let chunk_monoid : Bundle = fgi_bundle![
-        type Chk = (
-            forallt a:type.
-                foralli (X,Y):NmSet.
-                Nm[X] x Ref[Y](Vec a)
-        )
-        let chk:(Chk[X][Y] Nat) = { unimplemented }
-        let chk_monoid:(
-            Thk[0]
-                forallt (a,b):type.
-                foralli (X,Y):NmSet.
-                0 (Chk[X][Y] a) ->
-                0 (Thk[0] 0 Vec a -> 0 F b) ->
-            {X; Y}
-            F (Ref[X] b x b)
-        ) = {
-            #c. #mf.
-            let (n,r) = {ret c}
-            { memo(n){ {force mf} {!r} } }
-        }
-        {{ force chk_monoid } chk }
-    ];    
-    
-    let max_simple2 : Bundle = fgi_bundle![
-        type Vec = (forallt T:type.user(Vec))
-        // Seq[X,Y]:
-        // Refinement type for a nominal, level-tree data structure,
-        // ...      with (unallocated) names in X
-        // ... and (allocated) pointer names in Y
-        //
-        Type Seq = (
-            rec Seq. foralli (X,Y):NmSet. forallt T:type.
-            (+ Vec T
-             + (exists (X1,X2,X3)   :NmSet | (X1%X2%X3=X).
-                exists (Y1,Y2,Y3,Y4):NmSet | (Y1%Y2%Y3%Y4=Y).
-                x Nm[X1] x Nat
-                // Seq vs T ??
-                x Ref[Y1](Seq[X2][Y2] T)
-                // Seq vs T ??
-                x Ref[Y3](Seq[X3][Y4] T))
-            )
-        )
-        let nums:(Seq[X][Y] Nat) = { unimplemented }
-        let nat_id:(Thk[0] 0 Nat -> 0 F Nat) = {
-            // bind "unsafe" version of nat_id, written in Rust above,
-            // to the `nat_id` variable and type in Fungi. The body of
-            // this function will not be type-checked by the Fungi
-            // type system; Fungi assumes it type checks (hence, it is
-            // generally "unsafe" to use this trapdoor into Rust).
-            //#n. unsafe nat_id n
-            unimplemented
-        }        
-        let vec_max:(Thk[0] 0 Vec Nat -> 0 F Nat) = {
-            //#vec. unsafe vec_max vec // TODO
-            unimplemented
-        }
-        let rec max:(
-            Thk[0] foralli (X,Y):NmSet.
-                0 Seq[X][Y] Nat ->
-                {(#x:Nm.{x,@1} % {x,@2}) X; 0} F Nat
-        ) = {
-            #seq. unroll seq seq. match seq {
-                vec => { {force vec_max} vec }
-                bin => {
-                    unpack bin (X1,X2,X3,Y1,Y2,Y3,Y4). bin.
-                    let (n,_x,l,r) = {ret bin}
-                    let (unused, ml) = { memo{n,(@1)}{ {force max} {!l} } }
-                    let (unused, mr) = { memo{n,(@2)}{ {force max} {!r} } }
-                    if { mr < ml } {ret ml} else {ret mr}
-                }
-            }
-        }
-        {force max} nums
-    ];
-    
-    let max_simple : Bundle = fgi_bundle![
-        type Vec = (forallt T:type.user(Vec))
-        // Seq[X,Y]:
-        // Refinement type for a nominal, level-tree data structure,
-        // ...      with (unallocated) names in X
-        // ... and (allocated) pointer names in Y
-        //
-        type Seq = (
-            rec Seq. foralli (X,Y):NmSet. forallt T:type.
-            (+ Vec T
-             + (exists (X1,X2,X3)   :NmSet | (X1%X2%X3=X).
-                exists (Y1,Y2,Y3,Y4):NmSet | (Y1%Y2%Y3%Y4=Y).
-                x Nm[X1] x Nat
-                // Seq vs T ??
-                x Ref[Y1](Seq[X2][Y2] T)
-                // Seq vs T ??
-                x Ref[Y3](Seq[X3][Y4] T))
-            )
-        )
-        let nums:(Seq[X][Y] Nat) = { unimplemented }
-        let nat_id:(Thk[0] 0 Nat -> 0 F Nat) = {
-            // bind "unsafe" version of nat_id, written in Rust above,
-            // to the `nat_id` variable and type in Fungi. The body of
-            // this function will not be type-checked by the Fungi
-            // type system; Fungi assumes it type checks (hence, it is
-            // generally "unsafe" to use this trapdoor into Rust).
-            //#n. unsafe nat_id n
-            unimplemented
-        }        
-        let vec_max:(Thk[0] 0 Vec Nat -> 0 F Nat) = {
-            //#vec. unsafe vec_max vec // TODO
-            unimplemented
-        }
-        let rec max:(
-            Thk[0] foralli (X,Y):NmSet.
-                0 Seq[X][Y] Nat ->
-                {(#x:Nm.{x,@1} % {x,@2}) X; 0} F Nat
-        ) = {
-            #seq. unroll seq seq. match seq {
-                vec => { {force vec_max} vec }
-                bin => {
-                    let (n,_x,l,r) = {ret bin}
-                    let (unused, ml) = { memo{n,(@1)}{ {force max} {!l} } }
-                    let (unused, mr) = { memo{n,(@2)}{ {force max} {!r} } }
-                    if { mr < ml } {ret ml} else {ret mr}
-                }
-            }
-        }
-        {force max} nums
-    ];
-    
-    let max : Bundle = fgi_bundle![
-        type Vec = (forallt T:type.user(Vec))
-        // Seq[X,Y]:
-        // Refinement type for a nominal, level-tree data structure,
-        // ...      with (unallocated) names in X
-        // ... and (allocated) pointer names in Y
-        //
-        type Seq = (
-            rec Seq. foralli (X,Y):NmSet. forallt T:type.
-            (+ Vec T
-             + (exists (X1,X2,X3)   :NmSet | (X1%X2%X3=X).
-                exists (Y1,Y2,Y3,Y4):NmSet | (Y1%Y2%Y3%Y4=Y).
-                x Nm[X1] x Nat
-                // Seq vs T ??
-                x Ref[Y1](Seq[X2][Y2] T)
-                // Seq vs T ??
-                x Ref[Y3](Seq[X3][Y4] T))
-            )
-        )
-        let nums:(Seq[X][Y] Nat) = { unimplemented }
-        let nat_id:(Thk[0] 0 Nat -> 0 F Nat) = {
-            // bind "unsafe" version of nat_id, written in Rust above,
-            // to the `nat_id` variable and type in Fungi. The body of
-            // this function will not be type-checked by the Fungi
-            // type system; Fungi assumes it type checks (hence, it is
-            // generally "unsafe" to use this trapdoor into Rust).
-            //#n. unsafe nat_id n
-            unimplemented
-        }        
-        let vec_max:(Thk[0] 0 Vec Nat -> 0 F Nat) = {
-            //#vec. unsafe vec_max vec // TODO
-            unimplemented
-        }
-        let rec max:(
-            Thk[0] foralli (X,Y):NmSet.
-                0 Seq[X][Y] Nat ->
-                {(#x:Nm.{x,@1} % {x,@2}) X; 0} F Nat
-        ) = {
-            #seq. unroll seq seq. match seq {
-                vec => { {force vec_max} vec }
-                bin => {
-                    let (n,_x,l,r) = {ret bin}
-                    //
-                    // Left recursion:
-                    // sugar version #1 (most sugared)
-                    let (unused, ml) = { memo{n,(@1)}{ {force max} {!l} } }
-                    // sugar version #2 (name construction first; then memo construct)
-                    let n1 = {n,(@1)}
-                    let (unused, ml) = { memo(n1){ {force max} {!l} } }
-                    //
-                    // Right recursion:
-                    // non-sugar version (all sub-expressions are explicit)
-                    let nf = { ret nmfn #n:Nm.#v:Nm.n,v }
-                    let n2 = { [nf] n (@2) }
-                    let mr = {
-                        let t = { thk n2
-                            let rv = {get r}
-                            {force max} rv
-                        }
-                        {force t}
-                    }
-                    if { mr < ml } {ret ml} else {ret mr}
-                }
-            }
-        }
-        {force max} nums
-    ];
-    //println!("Max example AST:");
-    //println!("{:?}", max);
-
-
-    let filter : Bundle = fgi_bundle![
+    let bundle : Bundle = fgi_bundle![
         // always Nats
         type Vec = (user(Vec))
 
@@ -269,21 +71,14 @@ fn examples2() {
             unimplemented
         }
 
-        // Syntax for idiomatic recursive types
-        // (avoid double-naming, as with `let rec`)?
-        //
-        //   type rec T = (A)  ==>  type T = (rec T. A)
-        //
-        // Using RHS below (not LHS yet, but maybe?)
-        //
         type Seq = (
-            rec Seq. foralli (X,Y):NmSet.
+            rec seq. foralli (X,Y):NmSet.
             (+ Vec 
              + (exists (X1,X2,X3)   :NmSet | (X1%X2%X3=X).
                 exists (Y1,Y2,Y3,Y4):NmSet | (Y1%Y2%Y3%Y4=Y).
                 x Nm[X1] x Nat
-                x Ref[Y1](Seq[X2][Y2])
-                x Ref[Y3](Seq[X3][Y4]))
+                x Ref[Y1](seq[X2][Y2])
+                x Ref[Y3](seq[X3][Y4]))
             )
         )
         let nums:(Seq[X][Y] Nat) = { unimplemented }
@@ -353,31 +148,12 @@ fn examples2() {
         {force max} nums
     ];
     
-    //println!("Filter example AST:");
-    //println!("{:?}", filter);
-
-    //println!("Filter example numbered:");
-    //println!("{:?}", label_exp(filter.clone(), &mut 0));
-
-    //let bundle = chunk_monoid;
-    //let bundle = max;
-    //let bundle = max_simple;
-    let bundle = filter;
-    
-    //let typed_exp = bundle.exp_td();    
-    //println!("Max example with type info:");
-    //println!("{:?}", typed_exp);
-    
     use std::fs::File;
     use std::io::Write;
     
     let data = format!("{:?}", bundle);
-    let mut f = File::create("target/bundle.fgx").expect("Could not create bundle file");
-    f.write_all(data.as_bytes()).expect("Could not write bundle data");
-    
-    //println!("Filter example with type info:");
-    //println!("{:?}", synth_exp(None, &TCtxt::Empty, &filter));
-
+    let mut f = File::create("target/bitype.fgx").expect("Could not create bundle file");
+    f.write_all(data.as_bytes()).expect("Could not write bundle data");    
 }
 
 /* 
