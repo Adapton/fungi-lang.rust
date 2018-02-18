@@ -219,10 +219,18 @@ pub enum Qual {
     Val
 }
 
+/// Bound module item derivation
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub struct BindDer {
+    doc:Option<String>,
+    qual:Qual,
+    var:String,
+    der:DeclDer,
+}
 /// Module item derivation
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum ItemDer {
-    Bind(Qual,String,DeclDer),
+    Bind(BindDer),
     NoParse(String),
 }
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
@@ -1144,6 +1152,7 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ:&Type) -> ValD
 pub fn synth_module(last_label:Option<&str>, m:&Rc<Module>) -> ModuleDer {
     let mut decls = &m.decls;
     let mut tds : Vec<ItemDer> = vec![];
+    let mut doc : Option<String> = None;
     let mut ctx = Ctx::Empty;
     fn der_of(ctx:Ctx, rule:DeclRule,
               res:Result<DeclClas,TypeError>) -> DeclDer
@@ -1153,9 +1162,9 @@ pub fn synth_module(last_label:Option<&str>, m:&Rc<Module>) -> ModuleDer {
     loop {
         match decls {
             &Decls::End => break,
-            &Decls::Doc(ref _doc_string, ref d) =>
+            &Decls::Doc(ref s, ref d) =>
             {
-                // TODO: save doc string
+                doc   = Some(s.clone());
                 decls = d;
             }            
             &Decls::NoParse(ref s) => {
@@ -1166,40 +1175,54 @@ pub fn synth_module(last_label:Option<&str>, m:&Rc<Module>) -> ModuleDer {
                 let der = synth_module(last_label, &uam.module);
                 tds.append(&mut der.tds.clone());
                 ctx.append(&der.ctx_out);
+                doc = None;
                 decls = d;
             }
             &Decls::NmTm(ref x, ref m, ref d) => {
                 let der = synth_nmtm(last_label, &ctx, m);
                 let sort = der.clas.clone();
-                tds.push(ItemDer::Bind(
-                    Qual::NmTm, x.clone(),
-                    der_of(ctx.clone(),
-                           DeclRule::NmTm(x.clone(), der),
-                           sort.map(|s|DeclClas::Sort(s))
-                    )));
+                let der = BindDer{
+                    doc:doc.clone(),
+                    qual:Qual::NmTm,
+                    var:x.clone(),
+                    der:der_of(ctx.clone(),
+                               DeclRule::NmTm(x.clone(), der),
+                               sort.map(|s|DeclClas::Sort(s)))
+                };
+                doc = None;
+                tds.push(ItemDer::Bind(der));
                 ctx = ctx.def(x.clone(), Term::NmTm(m.clone()));
                 decls = d;
             }
             &Decls::IdxTm(ref x, ref i, ref d) => {
                 let der = synth_idxtm(last_label, &ctx, i);
                 let sort = der.clas.clone();
-                tds.push(ItemDer::Bind(
-                    Qual::NmTm, x.clone(),
-                    der_of(ctx.clone(),
-                           DeclRule::IdxTm(x.clone(), der),
-                           sort.map(|s|DeclClas::Sort(s))
-                    )));
+                let der = BindDer{
+                    doc:doc.clone(),
+                    qual:Qual::IdxTm,
+                    var:x.clone(),
+                    der:der_of(ctx.clone(),
+                               DeclRule::IdxTm(x.clone(), der),
+                               sort.map(|s|DeclClas::Sort(s)))
+                };
+                doc = None;
+                tds.push(ItemDer::Bind(der));
                 ctx = ctx.def(x.clone(), Term::IdxTm(i.clone()));
                 decls = d;
             }
             &Decls::Type(ref x, ref a, ref d) => {
                 println!("define type {} {:?}",x, a);
                 // TODO: synth kinding for type
-                tds.push(ItemDer::Bind(
-                    Qual::Type, x.clone(),
-                    der_of(ctx.clone(),
-                           DeclRule::Type(x.clone(), a.clone()),
-                           Ok(DeclClas::Kind(Kind::NoParse("TODO-XXX-bitype.rs".to_string()))))));
+                let der = BindDer{
+                    doc:doc.clone(),
+                    qual:Qual::Type,
+                    var:x.clone(),
+                    der:der_of(ctx.clone(),
+                               DeclRule::Type(x.clone(), a.clone()),
+                               Ok(DeclClas::Kind(Kind::NoParse("TODO-XXX-bitype.rs".to_string()))))
+                };
+                doc = None;
+                tds.push(ItemDer::Bind(der));
                 ctx = ctx.def(x.clone(), Term::Type(a.clone()));
                 decls = d;
             }
@@ -1216,12 +1239,16 @@ pub fn synth_module(last_label:Option<&str>, m:&Rc<Module>) -> ModuleDer {
                     Ok(a) => ctx.var(x.clone(), a),
                 };
                 let der_typ = der.clas.clone();
-                tds.push(ItemDer::Bind(
-                    Qual::Val, x.clone(),
-                    der_of(ctx.clone(),
-                           DeclRule::Val(x.clone(), der),
-                           der_typ.map(|a| DeclClas::Type(a)))
-                ));
+                let der = BindDer{
+                    doc:doc.clone(),
+                    qual:Qual::Val,
+                    var:x.clone(),
+                    der:der_of(ctx.clone(),
+                               DeclRule::Val(x.clone(), der),
+                               der_typ.map(|a| DeclClas::Type(a)))
+                };
+                doc = None;
+                tds.push(ItemDer::Bind(der));
                 decls = d;
             }
             &Decls::Fn(ref f, ref a, ref e, ref d) => {
@@ -1229,13 +1256,16 @@ pub fn synth_module(last_label:Option<&str>, m:&Rc<Module>) -> ModuleDer {
                 let a2 = a.clone();
                 let der = check_val(last_label, &ctx, &v, a);
                 let der_typ = der.clas.clone();
-                tds.push(ItemDer::Bind(
-                    Qual::Val, f.clone(),
-                    der_of(ctx.clone(),
-                           DeclRule::Fn(f.clone(), der),
-                           der_typ.map(|_| DeclClas::Type(a2)))
-                ));
+                let der = BindDer{
+                    doc:doc.clone(),
+                    qual:Qual::Val,
+                    var:f.clone(),
+                    der:der_of(ctx.clone(),
+                               DeclRule::Fn(f.clone(), der),
+                               der_typ.map(|_| DeclClas::Type(a2)))
+                };
                 ctx = ctx.var(f.clone(), a.clone());
+                doc = None;
                 decls = d;
             }
         }      

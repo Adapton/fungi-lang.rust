@@ -85,6 +85,7 @@ fn bitype2() {
                 x Ref[Y3](seq[X3][Y4]))
             )
         )
+            
         let nums:(Seq[X][Y] Nat) = { unimplemented }
 
         let rec max:(

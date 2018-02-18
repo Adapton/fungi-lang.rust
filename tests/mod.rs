@@ -23,8 +23,9 @@ pub fn fgi_module_test () -> Module {
 
         // import nums module, defined above
         use nums::*;
-        // now, we can use anything in either module, as if they were
-        // defined here:        
+
+        /// now, we can use anything in either module, as if they were
+        /// defined here:        
         val test_nums_vec : (Thk[0] 0 F (Nat x Vec Nat)) = (
             thunk {
                 let x = {one + two}
