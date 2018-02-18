@@ -9,10 +9,15 @@ use fungi_lang::stdlib::seq::seq_nat;
 
 fgi_inner_mod!{
     pub (nums)
+    /// Len type
     type Len = ( Nat );
+    /// Cnt type
     type Cnt = ( Nat );
+    /// smallest number
     val zero : ( Len ) = ( 0 );
+    /// almost smallest number
     val one  : ( Len ) = ( 1 );
+    /// one + one
     val two  : ( Len ) = ( 2 );;;;;;
 }
 pub fn fgi_module_test () -> Module {
