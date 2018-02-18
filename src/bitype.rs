@@ -474,7 +474,11 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
             // all other identifiers are for defined types; look up the definition
             _ => { match ctx.lookup_type_def(ident) {
                 Some(a) => normal_type(ctx, &a),
-                _ => panic!("undefined type: {} in\n{:?}", ident, ctx)
+                _ => {
+                    println!("undefined type: {} in\n{:?}", ident, ctx);
+                    // Give up:
+                    typ.clone()
+                }
             }}
         }}
         &Type::TypeApp(ref a, ref b) => {
@@ -489,7 +493,10 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
                     let body = subst_type_type(b,x,body);
                     normal_type(ctx, &body)
                 },
-                _ => { panic!("sort error") }
+                a => {
+                    println!("sort error: expected TypeFn, not {:?}", a);
+                    typ.clone()
+                }
             }
         }
         &Type::IdxApp(ref a, ref i) => {
@@ -503,7 +510,10 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
                     let body = subst_idxtm_type(i.clone(),x,body);
                     normal_type(ctx, &body)
                 },
-                _ => { panic!("sort error") }
+                a => {
+                    println!("sort error: expected TypeFn, not {:?}", a);
+                    typ.clone()
+                }
             }
         }
     }
@@ -559,7 +569,8 @@ x 1 2 3
 pub fn unroll_type(typ:&Type) -> Type {
     /// XXX
     /// Needed to implement case in the max example; the `Seq [X][Y] Nat` arg type needs to be "reduced" and then unrolled.
-    unimplemented!("{:?}", typ)
+    //unimplemented!("{:?}", typ)
+    typ.clone()
 }
 
 /// synthesize sort for index term
@@ -1166,7 +1177,7 @@ pub fn synth_module(last_label:Option<&str>, m:&Rc<Module>) -> ModuleDer {
                            DeclRule::NmTm(x.clone(), der),
                            sort.map(|s|DeclClas::Sort(s))
                     )));
-                ctx.def(x.clone(), Term::NmTm(m.clone()));
+                ctx = ctx.def(x.clone(), Term::NmTm(m.clone()));
                 decls = d;
             }
             &Decls::IdxTm(ref x, ref i, ref d) => {
@@ -1178,17 +1189,18 @@ pub fn synth_module(last_label:Option<&str>, m:&Rc<Module>) -> ModuleDer {
                            DeclRule::IdxTm(x.clone(), der),
                            sort.map(|s|DeclClas::Sort(s))
                     )));
-                ctx.def(x.clone(), Term::IdxTm(i.clone()));
+                ctx = ctx.def(x.clone(), Term::IdxTm(i.clone()));
                 decls = d;
             }
             &Decls::Type(ref x, ref a, ref d) => {
+                println!("define type {} {:?}",x, a);
                 // TODO: synth kinding for type
                 tds.push(ItemDer::Bind(
                     Qual::Type, x.clone(),
                     der_of(ctx.clone(),
                            DeclRule::Type(x.clone(), a.clone()),
                            Ok(DeclClas::Kind(Kind::NoParse("TODO-XXX-bitype.rs".to_string()))))));
-                ctx.def(x.clone(), Term::Type(a.clone()));
+                ctx = ctx.def(x.clone(), Term::Type(a.clone()));
                 decls = d;
             }
             &Decls::Val(ref x, ref oa, ref v, ref d) => {
