@@ -52,9 +52,6 @@ fn bitype2() {
     use fungi_lang::eval::*;
 
     let bundle : Bundle = fgi_bundle![
-        // always Nats
-        type Vec = (user(Vec))
-
         let vec_filter:( Thk[0]
             0 Vec Nat ->
             0 (Thk[0] 0 Nat -> 0 F Bool) ->
@@ -73,7 +70,7 @@ fn bitype2() {
 
         type Seq = (
             rec seq. foralli (X,Y):NmSet.
-            (+ Vec 
+            (+ Vec Nat
              + (exists (X1,X2,X3)   :NmSet | (X1%X2%X3=X).
                 exists (Y1,Y2,Y3,Y4):NmSet | (Y1%Y2%Y3%Y4=Y).
                 x Nm[X1] x Nat
@@ -144,8 +141,12 @@ fn bitype2() {
                 }
             }
         }
-
-        {force max} nums
+        let pred : (Thk[0] 0 Nat -> 0 F Bool) = {ret thunk #x. unimplemented}
+        let mapf : (Thk[0] 0 Nat -> 0 F Nat)  = {ret thunk #x. unimplemented}
+        let nums1 = {{force filter} pred nums}
+        let nums2 = {{force map} mapf nums}
+        let nums3 = {{force max} nums}
+        ret (nums1, nums2, nums3)
     ];
     
     use std::fs::File;
