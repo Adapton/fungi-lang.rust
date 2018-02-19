@@ -250,6 +250,7 @@ pub struct ItemDer {
 /// Module item typing rule
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum ItemRule {
+    UseAll(UseAllModuleDer),
     Bind(ItemDer),
     NoParse(String),
 }
@@ -263,17 +264,18 @@ pub struct ModuleDer {
     /// the context exported by this module to modules that use it
     pub ctx_out: Ctx,
 }
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 /// Module import typing derivation
 pub struct UseAllModuleDer {
     /// untyped AST of the imported module
     pub ast: UseAllModule,
     /// typing derivation for the imported module
-    pub td: ModuleDer,
+    pub der: ModuleDer,
 }
 /// Module declaration typing rule
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum DeclRule {
-    UseAll(UseAllModule),
+    UseAll(UseAllModuleDer),
     NmTm (String, NmTmDer),
     IdxTm(String, IdxTmDer),
     // TODO: add kinds
@@ -303,6 +305,7 @@ impl HasClas for DeclRule {
 /// Expression typing rule
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum ExpRule {
+    UseAll(UseAllModuleDer,ExpDer),
     AnnoC(ExpDer,CType),
     AnnoE(ExpDer,CEffect),
     Force(ValDer),
@@ -447,6 +450,21 @@ fn success<R:HasClas+debug::DerRule>
         rule: Rc::new(rule),
         dir: dir,
         clas: Ok(clas),
+        vis:DerVis{
+            tmfam:R::tm_fam(),
+        }
+    }
+}
+
+fn propagate<R:HasClas+debug::DerRule>
+    (dir:Dir, _last_label:Option<&str>,
+     ctx:&Ctx, rule:R, result:Result<R::Clas,TypeError>) -> Der<R>
+{
+    Der{
+        ctx: ctx.clone(),
+        rule: Rc::new(rule),
+        dir: dir,
+        clas: result,
         vis:DerVis{
             tmfam:R::tm_fam(),
         }
@@ -1211,10 +1229,13 @@ pub fn synth_module(last_label:Option<&str>, m:&Rc<Module>) -> ModuleDer {
                 tds.push(ItemRule::NoParse(s.clone()));
                 break;
             },
-            &Decls::UseAll(ref uam, ref d) => {
-                let der = synth_module(last_label, &uam.module);
-                tds.append(&mut der.tds.clone());
+            &Decls::UseAll(ref m, ref d) => {
+                let der = synth_module(last_label, &m.module);
                 ctx = ctx.append(&der.ctx_out);
+                tds.push(ItemRule::UseAll(UseAllModuleDer{
+                    ast:m.clone(),
+                    der:der}
+                ));
                 doc = None;
                 decls = d;
             }
@@ -1322,11 +1343,21 @@ pub fn synth_module(last_label:Option<&str>, m:&Rc<Module>) -> ModuleDer {
 pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
     let fail = |td:ExpRule, err :TypeError| { failure(Dir::Synth, last_label, ctx, td, err) };
     let succ = |td:ExpRule, typ :CEffect  | { success(Dir::Synth, last_label, ctx, td, typ) };
+    let prop = |td:ExpRule, res:Result<CEffect,TypeError> | {
+        propagate(Dir::Synth, last_label, ctx, td, res)
+    };
     match exp {
         &Exp::UseAll(ref m, ref exp) => {
-            let der = synth_module(last_label, &m.module);
-            let ctx = ctx.append(&der.ctx_out);
-            synth_exp(last_label, &ctx, exp)
+            let m_der = synth_module(last_label, &m.module);
+            let ctx = ctx.append(&m_der.ctx_out);
+            let e_der = synth_exp(last_label, &ctx, exp);
+            let ce = e_der.clas.clone().map(|ce| ce.clone());
+            prop(ExpRule::UseAll(
+                UseAllModuleDer{
+                    ast:m.clone(),
+                    der:m_der
+                }, e_der),
+                 ce)
         }
         &Exp::AnnoC(ref e,ref ctyp) => {
             // TODO: this is a hackthat only works while we're ignoring effects,
@@ -1961,6 +1992,7 @@ mod debug {
             match *self {
                 ExpRule::AnnoC(_,_) => "AnnoC",
                 ExpRule::AnnoE(_,_) => "AnnoE",
+                ExpRule::UseAll(_,_) => "UseAll",
                 ExpRule::Force(_) => "Force",
                 ExpRule::Thunk(_,_) => "Thunk",
                 ExpRule::Unroll(_,_,_) => "Unroll",

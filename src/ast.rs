@@ -1515,6 +1515,7 @@ macro_rules! parse_fgi_split {
 /// Each module consists of a declaration list body
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub struct Module {
+    pub path:  String,
     pub body:  String,
     pub decls: Decls,
 }
@@ -1577,6 +1578,7 @@ macro_rules! fgi_inner_mod {
 macro_rules! fgi_module {
     { $($decls:tt)+ } => {
         Module {
+            path:  module_path!().to_string(),
             body:  stringify![ $($decls)+].to_string(),
             decls: fgi_decls![ $($decls)+ ],
         }
