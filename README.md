@@ -1,20 +1,22 @@
 # <img src="http://adapton.org/fungi-lang-logo/Fungi-lang-logo-64.png" alt="Logo" style="width: 64px;"/> Fungi: A typed functional language for programs that name their own cached dependency graphs [![Travis](https://api.travis-ci.org/Adapton/fungi-lang.rust.svg?branch=master)](https://travis-ci.org/Adapton/fungi-lang.rust)
 
-## Fungi _computes incrementally_
+## Fungi programs _compute incrementally_
 
-[**Incremental computing**](https://en.wikipedia.org/wiki/Incremental_computing)
-consists of successively running a program, computing related outputs
-from related inputs that change over time, often from some external
-source of change, like a human, or another computer system or program.
+[**Incremental
+computing**](https://en.wikipedia.org/wiki/Incremental_computing)
+consists of successively running a program while it computes related
+outputs from related inputs that change over time.  Often, these input
+changes arise from an external source, such as a human, or another
+computer program.
 
 **Fungi** provides a pair of complementary sub-languages for
 expressing the interactions of incremental computations, which it
 organizes into two **computation roles**:
 
 1. The **Archivist role** computes output from input using a
-   _**functional** language_, and the
+   _**functional** language_, and
 
-2. The **Editor role** uses an _**imperative** language_ to
+2. the **Editor role** uses an _**imperative** language_ to
    incrementally mutate this input over time, and change demand for
    output in the process (e.g., placing or removing focus on different
    outputs of the archivists' functions).
@@ -39,15 +41,17 @@ In particular, Fungi provides language affordances for
 
 ## Fungi is a core calculus, and target language
 
-Fungi programs are demand-driven incremental computations, following
-the core calculi and run-time semantics of
-[Adapton](http://adapton.org).  Unlike prior Adapton-related projects,
-Fungi provides affordances, in the form of a type system, for
-reasoning about names statically.
+Fungi gives a **typed**, **general-purpose core caluclus** for
+**demand-driven incremental computations**, following the core calculi
+and run-time semantics of [Adapton](http://adapton.org).  Unlike prior
+Adapton-related projects, Fungi provides additional language
+affordances for describing names, both statically and dynamically, but
+especially statically, before the incremental program runs.
 
-Fungi serves as the target language for
-[IODyn](https://github.com/cuplv/iodyn-lang.rust).  Unlike IODyn, the
-incremental features of Fungi are explicit.
+Fungi serves as a typed target language for
+[IODyn](https://github.com/cuplv/iodyn-lang.rust).  Unlike IODyn,
+which offers an **implicit** incremental language, the incremental
+features of Fungi are intentionally made **explicit**.
 
 ## Status:
 
