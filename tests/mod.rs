@@ -60,7 +60,7 @@ fn module2() {
 
     let bundle : Bundle = fgi_bundle![
         use seq_nat::*;
-        ret 666
+        ret 123
     ];
     use std::fs::File;
     use std::io::Write;        
