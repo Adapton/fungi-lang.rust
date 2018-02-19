@@ -30,8 +30,10 @@ pub fn relctx_of_ctx(c: &Ctx) -> RelCtx {
     unimplemented!()
 }
 
-/// Convert the context into the corresponding relational context
+/// Each relation has two sides, which we refer to as `L` and `R`
 pub enum HandSide { L, R }
+
+/// Convert the context into the corresponding relational context
 pub fn ctx_of_relctx(c: &RelCtx, hs:HandSide) -> Ctx {
     // TODO
     unimplemented!()
@@ -165,7 +167,8 @@ pub mod equiv {
         fn tm_fam() -> String { "CEffect".to_string() }
     }    
 
-    
+
+    /// Decide if two name terms are equivalent under the given context
     pub fn decide_nmtm_equiv(ctx: &RelCtx, n:&NameTm, m:&NameTm, g:&Sort) -> NmTmDec {
         if n == m {
             return Dec{
@@ -179,13 +182,15 @@ pub mod equiv {
             // TODO: the types are not identical, but could still be equivalent.
             // TODO: Use structural/deductive equiv rules.
 
-            // NOTE: This is a low priority over name and index term
-            // _apartness_ checks, which are likely to be the most
-            // important in many common examples.
+            // NOTE #1: This is a priority to the extent that it is
+            // used by name and index term _apartness_ checks, which
+            // are likely to be the most important in many common
+            // examples.
             unimplemented!()
         }
     }
 
+    /// Decide if two index terms are equivalent under the given context
     pub fn decide_idxtm_equiv(ctx: &RelCtx, i:&IdxTm, j:&IdxTm, g:&Sort) -> IdxTmDec {
         if i == j {
             return Dec{
@@ -199,13 +204,15 @@ pub mod equiv {
             // TODO: the types are not identical, but could still be equivalent.
             // TODO: Use structural/deductive equiv rules.
 
-            // NOTE: This is a low priority over name and index term
-            // _apartness_ checks, which are likely to be the most
-            // important in many common examples.
+            // NOTE #1: This is a priority to the extent that it is
+            // used by name and index term _apartness_ checks, which
+            // are likely to be the most important in many common
+            // examples.
             unimplemented!()
         }
     }
-    
+
+    /// Decide if two type terms are equivalent under the given context
     pub fn decide_type_equiv(ctx: &RelCtx, a:&Type, b:&Type, k:&Kind) -> TypeDec {
         if a == b {
             return Dec{
@@ -220,12 +227,92 @@ pub mod equiv {
             // equivalent.  TODO: Use structural/deductive equiv
             // rules.
 
-            // NOTE: This is a low priority over name and index term
-            // _apartness_ checks, which are likely to be the most
-            // important in many common examples.
+            // NOTE #2: This is a low priority over name and index
+            // term _apartness_ checks, which are likely to be the
+            // most important in many common examples.
             unimplemented!()
         }
     }
 
+
+}
+
+
+/// Decide apartness of two terms (indices, name terms)
+pub mod apart {
+    use ast::*;
+    use bitype::{Ctx,HasClas,TypeError};
+    use std::fmt;
+    use std::rc::Rc;
+    use super::*;
+
+    /// One side of a name term apartness
+    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+    pub enum NmTmSide {
+        Var(Var),
+        Name(Name),
+        Bin(NmTmDec, NmTmDec),
+        Lam(Var,Sort,NmTmDec),
+        App(NmTmDec, NmTmDec),
+        NoParse(String),
+    }
+    /// Name term apartness rule
+    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+    pub enum NmTmRule {
+        /// Use structural reasoning
+        Struct(NmTmSide, NmTmSide)
+    }
+    pub type NmTmDec  = Dec<NmTmRule>;
+    impl HasClas for NmTmRule {
+        type Clas = Sort;
+        fn tm_fam() -> String { "NmTm".to_string() }
+    }
+    
+    /// One side of an index term apartness
+    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+    pub enum IdxTmSide {
+        Var(Var),
+        Sing(NmTmDec),
+        Empty,
+        Disj(IdxTmDec, IdxTmDec),
+        Union(IdxTmDec, IdxTmDec),
+        Unit,
+        Pair(IdxTmDec, IdxTmDec),
+        Proj1(IdxTmDec),
+        Proj2(IdxTmDec),
+        Lam(Var, Sort, IdxTmDec),
+        App(IdxTmDec, IdxTmDec),
+        Map(NmTmDec, IdxTmDec),
+        FlatMap(IdxTmDec, IdxTmDec),
+        Star(IdxTmDec, IdxTmDec),
+        NoParse(String),
+    }
+    /// Index term apartness rule
+    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+    pub enum IdxTmRule {
+        /// Use structural reasoning
+        Struct(IdxTmSide, IdxTmSide)
+    }
+    pub type IdxTmDec  = Dec<IdxTmRule>;
+    impl HasClas for IdxTmRule {
+        type Clas = Sort;
+        fn tm_fam () -> String { "IdxTm".to_string() }
+    }
+
+    /// Decide if two name terms are apart under the given context
+    pub fn decide_nmtm_apart(ctx: &RelCtx, n:&NameTm, m:&NameTm, g:&Sort) -> NmTmDec {
+        // TODO: Use structural/deductive apartness rules.  Also, do
+        // normalization of the name term (aka, beta reduction).
+        unimplemented!()
+    }
+
+    /// Decide if two index terms are apart under the given context
+    pub fn decide_idxtm_apart(ctx: &RelCtx, i:&IdxTm, j:&IdxTm, g:&Sort) -> IdxTmDec {
+        // TODO: Use structural/deductive apartness rules. Also, do
+        // normalization of the index term (aka, beta reduction).
+        // Need to be careful not to expand Kleene star indefintely,
+        // though. :)
+        unimplemented!()
+    }
 
 }
