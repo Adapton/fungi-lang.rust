@@ -1,8 +1,9 @@
 fgi_mod!{
-    // Optional natural numbers; the "leaves" of the binary tree
-    // holding the sequence of natural numbers.
+    /// Optional natural numbers; the "leaves" of the binary tree
+    /// holding the sequence of natural numbers.
     type OpNat = (+ Unit + Nat );
 
+    /// Convert opnat into boolean
     fn opnat_is_some: (
         Thk[0] 0 OpNat -> 0 F Bool
     ) = {
@@ -12,7 +13,8 @@ fgi_mod!{
             _n => { ret true }
         }
     }
-    
+
+    /// Convert opnat into boolean
     fn opnat_max:(
         Thk[0] 0 OpNat -> 0 OpNat -> 0 F OpNat
     ) = {
@@ -31,8 +33,8 @@ fgi_mod!{
 
     // - - - - - - - - - - - - - - - - - - - - - - -
 
-    // Level tree holding (optional) natural numbers at the leaves.
-    // Each level is a number; along each path, levels are descending.    
+    /// Level tree holding (optional) natural numbers at the leaves.
+    /// Each level is a number; along each path, levels are descending.    
     type Lev = ( Nat );
     type Seq = (
         rec Seq. foralli (X,Y):NmSet.
@@ -45,12 +47,12 @@ fgi_mod!{
             )
     );
         
-    // Names **structural recursion** over binary trees; this function
-    // is used below to define the effects of such functions in more
-    // concise, abstract way.
+    /// Names **structural recursion** over binary trees; this function
+    /// is used below to define the effects of such functions in more
+    /// concise, abstract way.
     idxtm seq_sr = ( #x:Nm.{x,@1} % {x,@2} );
 
-    // potentially reads all pointers of sequence, but writes no names.
+    /// potentially reads all pointers of sequence, but writes no names.
     fn is_empty:(
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y]) ->
@@ -76,9 +78,9 @@ fgi_mod!{
         }
     }
 
-    // Reads all pointers of input using structural recursion,
-    // producing an optional natural number (and no output structure);
-    // the only named structure here is the recursive computation.
+    /// Reads all pointers of input using structural recursion,
+    /// producing an optional natural number (and no output structure);
+    /// the only named structure here is the recursive computation.
     fn max:(
         Thk[0] foralli (X,Y):NmSet.
             0 Seq[X][Y] ->
@@ -98,8 +100,8 @@ fgi_mod!{
         }
     }
 
-    // generic version of `max` above, where the operation need not be
-    // "natural number maximum".
+    /// generic version of `max` above, where the operation need not be
+    /// "natural number maximum".
     fn monoid:(
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y]) ->
@@ -119,11 +121,11 @@ fgi_mod!{
         }
     }
 
-    // generic mapping function.  reads all pointers of the input
-    // using structural recursion to name and produce the output tree.
-    // In terms of the named dependence graph, the output tree and the
-    // computation that produce it coincide exactly, and both are
-    // named with set `(seq_sr) X`.
+    /// generic mapping function.  reads all pointers of the input
+    /// using structural recursion to name and produce the output tree.
+    /// In terms of the named dependence graph, the output tree and the
+    /// computation that produce it coincide exactly, and both are
+    /// named with set `(seq_sr) X`.
     fn map:(
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y]) ->
@@ -147,12 +149,12 @@ fgi_mod!{
         }
     }
 
-    // generic filtering function.  reads all pointers of the input
-    // using structural recursion to name and produce the output tree.
-    // In terms of the named dependence graph, the output tree and the
-    // computation that produce it coincide, except where the filtered
-    // output tree is empty; the set `(seq_sr) X` over approximates
-    // the named output structure.
+    /// generic filtering function.  reads all pointers of the input
+    /// using structural recursion to name and produce the output tree.
+    /// In terms of the named dependence graph, the output tree and the
+    /// computation that produce it coincide, except where the filtered
+    /// output tree is empty; the set `(seq_sr) X` over approximates
+    /// the named output structure.
     fn filter:(
         Thk[0] foralli (X,Y):NmSet.
             0 (Seq[X][Y]) ->
