@@ -1214,7 +1214,7 @@ pub fn synth_module(last_label:Option<&str>, m:&Rc<Module>) -> ModuleDer {
             &Decls::UseAll(ref uam, ref d) => {
                 let der = synth_module(last_label, &uam.module);
                 tds.append(&mut der.tds.clone());
-                ctx.append(&der.ctx_out);
+                ctx = ctx.append(&der.ctx_out);
                 doc = None;
                 decls = d;
             }
@@ -1325,7 +1325,7 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
     match exp {
         &Exp::UseAll(ref m, ref exp) => {
             let der = synth_module(last_label, &m.module);
-            ctx.append(&der.ctx_out);
+            let ctx = ctx.append(&der.ctx_out);
             synth_exp(last_label, &ctx, exp)
         }
         &Exp::AnnoC(ref e,ref ctyp) => {
