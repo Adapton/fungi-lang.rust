@@ -1026,6 +1026,8 @@ pub fn synth_val(last_label:Option<&str>, ctx:&Ctx, val:&Val) -> ValDer {
 pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ:&Type) -> ValDer {
     let fail = |td:ValRule, err :TypeError| { failure(Dir::Check(typ.clone()), last_label, ctx, td, err)  };
     let succ = |td:ValRule, typ :Type     | { success(Dir::Check(typ.clone()), last_label, ctx, td, typ) };
+    // Normalize the type
+    let typ = &(normal_type(ctx, typ));
     match val {
         &Val::Var(ref x) => {
             let td = ValRule::Var(x.clone());
