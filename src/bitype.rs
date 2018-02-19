@@ -141,14 +141,14 @@ pub trait HasClas {
 
 /// Typing derivation: A context (`ctx`), a direction (`dir`), a classifier (type, sort, etc) and a rule (`rule`).
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
-pub struct Der<Rule:HasClas> {
+pub struct Der<Rule:HasClas+debug::DerRule> {
     pub ctx:Ctx,
-    pub dir:Dir,
+    pub dir:Dir<Rule>,
     pub rule:Rc<Rule>,
     pub clas:Result<Rule::Clas,TypeError>,
     pub vis:DerVis,
 }
-impl<Rule:HasClas> Der<Rule> {
+impl<Rule:HasClas+debug::DerRule> Der<Rule> {
     pub fn is_err(&self) -> bool { self.clas.is_err() }
     pub fn is_ok(&self) -> bool { self.clas.is_ok() }
 }
@@ -349,13 +349,21 @@ pub enum PrimAppRule {
 }
 
 /// Bidirectional direction: _Synthesis_ vs _Checking_
+///
+/// Checking direction has an associated system of rules, and
+/// classifier for the check, e.g., the system of rules for values and
+/// expressions check against a `Type` or a `CEffect`, respectively.
+///
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
-pub enum Dir { Synth, Check }
-impl Dir {
+pub enum Dir<R:HasClas+debug::DerRule> {
+    Synth,
+    Check(R::Clas),
+}
+impl<R:HasClas+debug::DerRule> Dir<R> {
     fn short(&self) -> &str {
         match *self {
-            Dir::Synth => "synth",
-            Dir::Check => "check",
+            Dir::Synth    => "synth",
+            Dir::Check(_) => "check",
         }
     }
 }
@@ -425,7 +433,7 @@ impl fmt::Display for TypeError {
 }
 
 fn failure<R:HasClas+debug::DerRule>
-    (dir:Dir, last_label:Option<&str>,
+    (dir:Dir<R>, last_label:Option<&str>,
      ctx:&Ctx, n:R, err:TypeError) -> Der<R>
 {
     if let Some(lbl) = last_label {print!("After {}, ", lbl)}
@@ -442,7 +450,7 @@ fn failure<R:HasClas+debug::DerRule>
 }
 
 fn success<R:HasClas+debug::DerRule>
-    (dir:Dir, _last_label:Option<&str>,
+    (dir:Dir<R>, _last_label:Option<&str>,
      ctx:&Ctx, rule:R, clas:R::Clas) -> Der<R>
 {
     Der{
@@ -457,7 +465,7 @@ fn success<R:HasClas+debug::DerRule>
 }
 
 fn propagate<R:HasClas+debug::DerRule>
-    (dir:Dir, _last_label:Option<&str>,
+    (dir:Dir<R>, _last_label:Option<&str>,
      ctx:&Ctx, rule:R, result:Result<R::Clas,TypeError>) -> Der<R>
 {
     Der{
@@ -1016,8 +1024,8 @@ pub fn synth_val(last_label:Option<&str>, ctx:&Ctx, val:&Val) -> ValDer {
 
 /// check sort against value term
 pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ:&Type) -> ValDer {
-    let fail = |td:ValRule, err :TypeError| { failure(Dir::Check, last_label, ctx, td, err)  };
-    let succ = |td:ValRule, typ :Type     | { success(Dir::Check, last_label, ctx, td, typ) };
+    let fail = |td:ValRule, err :TypeError| { failure(Dir::Check(typ.clone()), last_label, ctx, td, err)  };
+    let succ = |td:ValRule, typ :Type     | { success(Dir::Check(typ.clone()), last_label, ctx, td, typ) };
     match val {
         &Val::Var(ref x) => {
             let td = ValRule::Var(x.clone());
@@ -1660,8 +1668,8 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
 
 /// Check a type and effect against a program expression
 pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
-    let fail = |td:ExpRule, err :TypeError| { failure(Dir::Check, last_label, ctx, td, err) };
-    let succ = |td:ExpRule, typ :CEffect  | { success(Dir::Check, last_label, ctx, td, typ) };
+    let fail = |td:ExpRule, err :TypeError| { failure(Dir::Check(ceffect.clone()), last_label, ctx, td, err) };
+    let succ = |td:ExpRule, typ :CEffect  | { success(Dir::Check(ceffect.clone()), last_label, ctx, td, typ) };
     match exp {
         &Exp::Fix(ref x,ref e) => {            
             let new_ctx = ctx.var(x.clone(), Type::Thk(IdxTm::Empty, Rc::new(ceffect.clone())));
@@ -2028,6 +2036,14 @@ mod debug {
                 PrimAppRule::NatPlus(_,_) => "NatPlus",
                 PrimAppRule::NameBin(_,_) => "NameBin",
                 PrimAppRule::RefThunk(_) => "RefThunk",
+            }
+        }
+    }
+    impl DerRule for DeclRule {
+        fn term_desc() -> &'static str { "primitive expression" }
+        fn short(&self) -> &str {
+            match *self {
+                _ => "TODO"
             }
         }
     }
