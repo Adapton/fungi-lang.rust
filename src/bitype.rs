@@ -653,7 +653,7 @@ pub fn subst_term_type(t:Term, x:&String, a:Type) -> Type {
         Type::Exists(x, g, p, a1) => {
             unimplemented!()
         }
-        Type::NoParse(s) => Type::NoParse(s),
+        Type::NoParse(s) => Type::NoParse(s)
     }
 }
 
@@ -1109,9 +1109,10 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ:&Type) -> ValD
             let td = ValRule::Var(x.clone());
             match ctx.lookup_var(x) {
                 None => fail(td, TypeError::VarNotInScope(x.clone())),
-                Some(ty) => {
+                Some(x_typ) => {
+                    let x_typ = normal_type(ctx, &x_typ);
                     // TODO: Type equality may be more complex than this test (e.g. alpha equivalent types should be equal)
-                    if ty == *typ { succ(td, ty) }
+                    if x_typ == *typ { succ(td, x_typ) }
                     else { fail(td, TypeError::AnnoMism) }
                 }
             }
