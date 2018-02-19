@@ -9,9 +9,9 @@ use std::rc::Rc;
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum RelCtx {
     Empty,
-    /// Define a value variable's type
-    Var(RelCtxRec,Var,Var,Type),
-    /// Define a name/index variable's sort
+    /// Define a name variable's sort
+    NVar(RelCtxRec,Var,Var,Sort),
+    /// Define an index variable's sort
     IVar(RelCtxRec,Var,Var,Sort),
     /// Define a type variable's kind
     TVar(RelCtxRec,Var,Var,Kind),
