@@ -601,16 +601,69 @@ pub fn subst_idxtm_type(i:IdxTm, x:&String, b:Type) -> Type {
 
 /// Substitute name terms, index terms and types into type terms
 pub fn subst_term_type(t:Term, x:&String, a:Type) -> Type {
-    panic!("TODO: {:?} {:?} {:?}", t, x, a)
+    match a {
+        Type::Unit => Type::Unit,
+        Type::Ident(x) => Type::Ident(x),
+        Type::Var(y) => {
+            let term_is_type = match &t { &Term::Type(_) => true, _ => false };
+            if term_is_type && x == &y {
+                match t {
+                    Term::Type(b) => b.clone(),
+                    _ => unreachable!(),
+                }
+            }
+            else {
+                Type::Var(y)
+            }
+        }
+        Type::Sum(a1, a2) => {
+            unimplemented!()
+        }
+        Type::Prod(a1, a2) => {
+            unimplemented!()
+        }
+        Type::Ref(i, a0) => {
+            unimplemented!()
+        }
+        Type::Thk(i, ce) => {
+            unimplemented!()
+        }        
+        Type::IdxApp(a0, i) => {
+            unimplemented!()
+        }
+        Type::TypeApp(a1, a2) => {
+            unimplemented!()
+        }
+        Type::Nm(i) => {
+            unimplemented!()
+        }
+        Type::NmFn(n) => {
+            unimplemented!()
+        }
+        Type::TypeFn(x, k, a1) => {
+            unimplemented!()
+        }
+        Type::IdxFn(x, g, a1) => {
+            unimplemented!()
+        }
+        Type::Rec(x, a1) => {
+            unimplemented!()
+        }
+        // Exists for index-level variables; they are classified by sorts
+        Type::Exists(x, g, p, a1) => {
+            unimplemented!()
+        }
+        Type::NoParse(s) => Type::NoParse(s),
+    }
 }
 
 /// Substitute name terms and index terms into index terms
-pub fn subst_term_idxtm(t:Term, x:&String, i:IdxTm) -> Type {
+pub fn subst_term_idxtm(t:Term, x:&String, i:IdxTm) -> IdxTm {
     panic!("TODO: {:?} {:?} {:?}", t, x, i)
 }
 
 /// Substitute name terms
-pub fn subst_nmtm(n:NameTm, x:&String, m:NameTm) -> Type {
+pub fn subst_nmtm(n:NameTm, x:&String, m:NameTm) -> NameTm {
     panic!("TODO: {:?} {:?} {:?}", n, x, m)
 }
 
