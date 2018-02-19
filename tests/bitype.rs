@@ -52,6 +52,43 @@ fn bitype2() {
     use fungi_lang::eval::*;
 
     let bundle : Bundle = fgi_bundle![
+
+
+        // Optional natural numbers; the "leaves" of the binary tree
+        // holding the sequence of natural numbers.
+        type OpNat = (+ Unit + Nat )
+
+        // Convert opnat into boolean
+        let opnat_is_some: (
+            Thk[0] 0 OpNat -> 0 F Bool
+        ) = {
+            #xo.
+            match (xo) {
+                _u => { ret false }
+                _n => { ret true }
+            }
+        }
+        
+        // Convert opnat into boolean
+        let opnat_max:(
+            Thk[0] 0 OpNat -> 0 OpNat -> 0 F OpNat
+        ) = {
+            #xo.#yo.
+            match (xo) {
+                _u => { ret yo }
+                x  => { match (yo) {
+                    _u => { ret yo }
+                    y  => {
+                        if { x < y } {ret yo}
+                        else {ret xo}
+                    }
+                }}
+            }
+        }       
+        
+
+        // --------------------------------------------------------
+        
         let vec_max:( Thk[0]
             0 Vec Nat ->
             0 F Nat

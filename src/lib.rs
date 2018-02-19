@@ -16,6 +16,7 @@
 #[macro_use]
 pub mod ast;
 pub mod bitype;
+pub mod decide;
 pub mod eval;
 pub mod vis;
 pub mod stdlib;
