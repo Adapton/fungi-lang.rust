@@ -556,7 +556,7 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
             let b = normal_type(ctx, b);
             match a {
                 Type::TypeFn(ref x, ref _k, ref body) => {
-                    let body = subst_type_type(b,x,body);
+                    let body = subst_type_type(b,x,(**body).clone());
                     normal_type(ctx, &body)
                 },
                 a => {
@@ -573,7 +573,7 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
             };
             match a {
                 Type::IdxFn(ref x, ref _g, ref body) => {
-                    let body = subst_idxtm_type(i.clone(),x,body);
+                    let body = subst_idxtm_type(i.clone(),x,(**body).clone());
                     normal_type(ctx, &body)
                 },
                 a => {
@@ -585,13 +585,36 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
     }
 }
 
-pub fn subst_type_type(a:Type, x:&String, b:&Type) -> Type {
-    panic!("{:?} {:?} {:?}", a, x, b);
+
+/// Substitute a type for a type variable into another type
+pub fn subst_type_type(a:Type, x:&String, b:Type) -> Type {
+    subst_term_type(Term::Type(a), x, b)
 }
 
-pub fn subst_idxtm_type(a:IdxTm, x:&String, b:&Type) -> Type {
-    panic!("{:?} {:?} {:?}", a, x, b);
+/// Substitute an index for an index variable into another type
+pub fn subst_idxtm_type(i:IdxTm, x:&String, b:Type) -> Type {
+    subst_term_type(Term::IdxTm(i), x, b)
 }
+
+
+// TODO next --------------------------
+
+/// Substitute name terms, index terms and types into type terms
+pub fn subst_term_type(t:Term, x:&String, a:Type) -> Type {
+    panic!("TODO: {:?} {:?} {:?}", t, x, a)
+}
+
+/// Substitute name terms and index terms into index terms
+pub fn subst_term_idxtm(t:Term, x:&String, i:IdxTm) -> Type {
+    panic!("TODO: {:?} {:?} {:?}", t, x, i)
+}
+
+/// Substitute name terms
+pub fn subst_nmtm(n:NameTm, x:&String, m:NameTm) -> Type {
+    panic!("TODO: {:?} {:?} {:?}", n, x, m)
+}
+
+
 
 /*
 
