@@ -52,26 +52,19 @@ fn module () {
 }
 
 fn module2() {
-    use fungi_lang::bitype;
-
-    let m : Rc<Module> = Rc::new(fgi_module_test());
-    let md : bitype::ModuleDer = bitype::synth_module(None, &m);
-
-    /*
+    use fungi_lang::bitype::*;
+    use fungi_lang::vis::*;
+    
+    //let m : Rc<Module> = Rc::new(fgi_module_test());
+    //let md : bitype::ModuleDer = bitype::synth_module(None, &m);
 
     let bundle : Bundle = fgi_bundle![
         use seq_nat::*;
-        use seq_nat::*;
-        ret 0
+        ret 123
     ];
     use std::fs::File;
     use std::io::Write;        
-    let data = format!("{:?}", bundle);
-    let mut f = File::create("target/seq_nat.fgx").expect("Could not create bundle file");
-    f.write_all(data.as_bytes()).expect("Could not write bundle data");
-    
-
-*/
-    
-    println!("{:?}", m)
+    let data = format!("{:#?}", bundle);
+    let mut f = File::create("target/mod.fgx").expect("Could not create bundle file");
+    f.write_all(data.as_bytes()).expect("Could not write bundle data");    
 }
