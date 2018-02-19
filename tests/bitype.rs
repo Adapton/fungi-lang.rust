@@ -19,7 +19,7 @@ mod fungi_stdlib_examples {
         use std::fs::File;
         use std::io::Write;        
         let data = format!("{:?}", bundle);
-        let mut f = File::create("target/seq_nat.fgx").expect("Could not create bundle file");
+        let mut f = File::create("target/seq_nat.fgb").expect("Could not create bundle file");
         f.write_all(data.as_bytes()).expect("Could not write bundle data");
     }
 
@@ -163,7 +163,7 @@ fn bitype2() {
     use std::io::Write;
     
     let data = format!("{:?}", bundle);
-    let mut f = File::create("target/bitype.fgx").expect("Could not create bundle file");
+    let mut f = File::create("target/bitype.fgb").expect("Could not create bundle file");
     f.write_all(data.as_bytes()).expect("Could not write bundle data");    
 }
 
