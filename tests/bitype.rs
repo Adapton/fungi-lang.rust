@@ -56,13 +56,14 @@ fn bitype2() {
 
         // Optional natural numbers; the "leaves" of the binary tree
         // holding the sequence of natural numbers.
-        type OpNat = (+ Unit + Nat )
+        type OpNat  = (+ Unit + Nat )
+        type Op2Nat = (+ Unit + (x Nat x Nat))
 
         // Convert opnat into boolean
         let opnat_is_some: (
             Thk[0] 0 OpNat -> 0 F Bool
         ) = {
-            #xo.
+            ret thunk #xo.
             match (xo) {
                 _u => { ret false }
                 _n => { ret true }
@@ -73,8 +74,7 @@ fn bitype2() {
         let opnat_max:(
             Thk[0] 0 OpNat -> 0 OpNat -> 0 F OpNat
         ) = {
-            #xo.#yo.
-            match (xo) {
+            ret thunk #xo.#yo. match (xo) {
                 _u => { ret yo }
                 x  => { match (yo) {
                     _u => { ret yo }
@@ -85,7 +85,32 @@ fn bitype2() {
                 }}
             }
         }       
-        
+
+        let opnat_split:(
+            Thk[0] 0 Op2Nat -> 0 F (x OpNat x OpNat)
+        ) = {            
+            ret thunk #xyo. match (xyo) {
+                _u => {
+                    ret (inj1 (), inj1 ())
+                }
+                xy => {
+                    let (x,y) = { ret xy }
+                    ret (inj2 x, inj2 y)
+                }}
+        }
+
+        let opnat_pair:(
+            Thk[0] 0 (x OpNat x OpNat) -> F (Op2Nat)
+        ) = {
+            ret thunk #xoyo. let (xo,yo) = { ret xoyo }
+            match (xo) {
+                _u => { ret inj1 () }
+                x  => match (yo) {
+                    _u => { ret inj1 () }
+                    y  => { ret inj2 (x,y) }
+                }
+            }
+        }
 
         // --------------------------------------------------------
         
