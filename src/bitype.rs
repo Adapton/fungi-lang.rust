@@ -134,7 +134,10 @@ impl Ctx {
     }    
 }
 
-pub trait HasClas { type Clas; }
+pub trait HasClas {
+    type Clas;
+    fn tm_fam() -> String;
+}
 
 /// Typing derivation: A context (`ctx`), a direction (`dir`), a classifier (type, sort, etc) and a rule (`rule`).
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
@@ -143,11 +146,19 @@ pub struct Der<Rule:HasClas> {
     pub dir:Dir,
     pub rule:Rc<Rule>,
     pub clas:Result<Rule::Clas,TypeError>,
+    pub vis:DerVis,
 }
 impl<Rule:HasClas> Der<Rule> {
     pub fn is_err(&self) -> bool { self.clas.is_err() }
     pub fn is_ok(&self) -> bool { self.clas.is_ok() }
 }
+/// Information for visualizing derivation trees in HFI
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub struct DerVis {
+    /// Term family name, for HFI
+    pub tmfam:String,
+}
+
 
 /// Name term sorting rule
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
@@ -160,7 +171,10 @@ pub enum NmTmRule {
     NoParse(String),
 }
 pub type NmTmDer = Der<NmTmRule>;
-impl HasClas for NmTmRule { type Clas = Sort; }
+impl HasClas for NmTmRule {
+    type Clas = Sort;
+    fn tm_fam() -> String { "NmTm".to_string() }
+}
 
 /// Index term sorting rule
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
@@ -182,7 +196,10 @@ pub enum IdxTmRule {
     NoParse(String),
 }
 pub type IdxTmDer = Der<IdxTmRule>;
-impl HasClas for IdxTmRule { type Clas = Sort; }
+impl HasClas for IdxTmRule {
+    type Clas = Sort;
+    fn tm_fam () -> String { "IdxTm".to_string() }
+}
 
 /// Value typing rule
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
@@ -204,7 +221,10 @@ pub enum ValRule {
     NoParse(String),
 }
 pub type ValDer = Der<ValRule>;
-impl HasClas for ValRule { type Clas = Type; }
+impl HasClas for ValRule {
+    type Clas = Type;
+    fn tm_fam () -> String { "Val".to_string() }
+}
 
 
 /// Qualifiers for module item names
@@ -275,7 +295,10 @@ pub enum DeclClas {
 }
 /// Module declaration typing derivation
 pub type DeclDer = Der<DeclRule>;
-impl HasClas for DeclRule { type Clas = DeclClas; }
+impl HasClas for DeclRule {
+    type Clas = DeclClas;
+    fn tm_fam () -> String { "Decl".to_string() }
+}
 
 /// Expression typing rule
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
@@ -306,7 +329,10 @@ pub enum ExpRule {
     NoParse(String),
 }
 pub type ExpDer = Der<ExpRule>;
-impl HasClas for ExpRule { type Clas = CEffect; }
+impl HasClas for ExpRule {
+    type Clas = CEffect;
+    fn tm_fam () -> String { "Exp".to_string() }
+}
 
 /// Primitive application typing rule
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
@@ -395,17 +421,20 @@ impl fmt::Display for TypeError {
     }
 }
 
-fn failure<N:HasClas+debug::DerRule>
+fn failure<R:HasClas+debug::DerRule>
     (dir:Dir, last_label:Option<&str>,
-     ctx:&Ctx, n:N, err:TypeError) -> Der<N>
+     ctx:&Ctx, n:R, err:TypeError) -> Der<R>
 {
     if let Some(lbl) = last_label {print!("After {}, ", lbl)}
-    println!("Failed to {} {} {}, error: {}", dir.short(), n.short(), N::term_desc(), err);
+    println!("Failed to {} {} {}, error: {}", dir.short(), n.short(), R::term_desc(), err);
     Der{
         ctx: ctx.clone(),
         rule: Rc::new(n),
         dir: dir,
         clas: Err(err),
+        vis:DerVis{
+            tmfam:R::tm_fam(),
+        }
     }
 }
 
@@ -417,7 +446,10 @@ fn success<R:HasClas+debug::DerRule>
         ctx: ctx.clone(),
         rule: Rc::new(rule),
         dir: dir,
-        clas: Ok(clas)
+        clas: Ok(clas),
+        vis:DerVis{
+            tmfam:R::tm_fam(),
+        }
     }
 }
 
@@ -575,8 +607,8 @@ x 1 2 3
 ///
 ///
 pub fn unroll_type(typ:&Type) -> Type {
-    /// XXX
-    /// Needed to implement case in the max example; the `Seq [X][Y] Nat` arg type needs to be "reduced" and then unrolled.
+    // TODO***
+    // Needed to implement case in the max example; the `Seq [X][Y] Nat` arg type needs to be "reduced" and then unrolled.
     //unimplemented!("{:?}", typ)
     typ.clone()
 }
@@ -902,7 +934,7 @@ pub fn synth_val(last_label:Option<&str>, ctx:&Ctx, val:&Val) -> ValDer {
             let td0 = synth_val(last_label, ctx, v);
             // let typ0 = td0.clas.clone();
             let td = ValRule::Roll(td0);
-            // TODO: Rule for Roll
+            // TODO*: Rule for Roll
             fail(td, TypeError::Unimplemented)
         },
         &Val::Pack(ref a, ref v) => {
@@ -1157,7 +1189,15 @@ pub fn synth_module(last_label:Option<&str>, m:&Rc<Module>) -> ModuleDer {
     fn der_of(ctx:Ctx, rule:DeclRule,
               res:Result<DeclClas,TypeError>) -> DeclDer
     {
-        Der{ ctx:ctx, dir:Dir::Synth, rule:Rc::new(rule), clas:res }
+        Der{
+            ctx:ctx,
+            dir:Dir::Synth,
+            rule:Rc::new(rule),
+            clas:res,
+            vis:DerVis{
+                tmfam:"Module".to_string(),
+            }
+        }
     };
     loop {
         match decls {
@@ -1446,7 +1486,7 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
         &Exp::PrimApp(PrimApp::RefThunk(ref v)) => {
             let td0 = synth_val(last_label, ctx, v);
             let td = ExpRule::PrimApp(PrimAppRule::RefThunk(td0));
-            // TODO: implement
+            // TODO**: implement
             // XXX -- for example
             fail(td, TypeError::Unimplemented)
         },        
@@ -1454,7 +1494,7 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let td0 = synth_val(last_label, ctx, v0);
             let td1 = synth_val(last_label, ctx, v1);
             let td = ExpRule::PrimApp(PrimAppRule::NatLt(td0,td1));
-            // TODO: implement
+            // TODO**: implement
             // XXX -- for max example:
             fail(td, TypeError::Unimplemented)
         },
@@ -1606,11 +1646,11 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
             fn strip_foralls (ctx:&Ctx, ceffect:&CEffect) -> (Ctx, CEffect) {
                 match ceffect {
                     &CEffect::ForallType(ref _a, ref _kind, ref ceffect) => {
-                        // XXX/TODO: extend context with _x, etc.
+                        // TODO**: extend context with _x, etc.
                         strip_foralls(ctx, ceffect)
                     },
                     &CEffect::ForallIdx(ref _a, ref _sort, ref _prop, ref ceffect) => {
-                        // XXX/TODO: extend context with _x, etc.
+                        // TODO**: extend context with _x, etc.
                         strip_foralls(ctx, ceffect)
                     },
                     &CEffect::Cons(_, _) => { (ctx.clone(), ceffect.clone()) }
@@ -1644,7 +1684,7 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
                          TypeError::SynthFailVal(v.clone()))
                 }
                 Ok(v_ty) => {
-                    // XXX/TODO -- Call `reduce_type`,
+                    // TODO** -- Call `reduce_type`,
                     // and then `unroll_type` before extending
                     // context with `v_ty`.
                     let new_ctx = ctx.var(x.clone(), v_ty);
