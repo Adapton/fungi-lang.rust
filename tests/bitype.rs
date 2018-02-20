@@ -107,113 +107,88 @@ fn bitype2() {
             }
         }
 
-        // --------------------------------------------------------
-        
-        let vec_max:( Thk[0]
-            0 Vec Nat ->
-            0 F Nat
-        ) = {
-            unimplemented
-        }
-
-        let vec_filter:( Thk[0]
-            0 Vec Nat ->
-            0 (Thk[0] 0 Nat -> 0 F Bool) ->
-            0 F Vec Nat
-        ) = {
-            unimplemented
-        }
-
-        let vec_map:( Thk[0]
-            0 Vec Nat ->
-            0 (Thk[0] 0 Nat -> 0 F Nat) ->
-            0 F Vec Nat
-        ) = {
-            unimplemented
-        }
-
+        type Lev = ( Nat )
         type Seq = (
             rec seq. foralli (X,Y):NmSet.
-            (+ Vec Nat
+            (+ OpNat
              + (exists (X1,X2,X3)   :NmSet | (X1%X2%X3=X).
                 exists (Y1,Y2,Y3,Y4):NmSet | (Y1%Y2%Y3%Y4=Y).
-                x Nm[X1] x Nat
+                x Nm[X1] x Lev
                 x Ref[Y1](seq[X2][Y2])
                 x Ref[Y3](seq[X3][Y4]))
             )
         )
             
-        let nums:(Seq[X][Y] Nat) = { unimplemented }
+        let nums:(Seq[X][Y]) = { unimplemented }
 
-        let rec max:(
+        let max:(
             Thk[0] foralli (X,Y):NmSet.
-                0 Seq[X][Y] Nat ->
-                {(#x:Nm.{x,@1} % {x,@2}) X; 0} F Nat
+                0 Seq[X][Y] ->
+            { (#x:Nm.{x,@1} % {x,@2}) X; Y }
+            F OpNat
         ) = {
-            #seq. unroll seq seq. match seq {
-                vec => { {force vec_max} vec }
+            ret thunk fix max. #seq. unroll seq seq.
+            match seq {
+                opn => {ret opn}
                 bin => {
-                    unpack (X1,X2,X3,X4,Y1,Y2,Y3) bin = bin
+                    unpack (X1,X2,X3,Y1,Y2,Y3,Y4) bin = bin
                     let (n,_x,l,r) = {ret bin}
-                    let (unused, ml) = { memo{n,(@1)}{ {force max} {!l} } }
-                    let (unused, mr) = { memo{n,(@2)}{ {force max} {!r} } }
-                    if { mr < ml } {ret ml} else {ret mr}
+                    let (_l, ml) = { memo{n,(@1)}{ {force max} {!l} } }
+                    let (_r, mr) = { memo{n,(@2)}{ {force max} {!r} } }
+                    {{force opnat_max} ml mr}
                 }
             }
         }
         
-        let rec filter:(
+        let filter:(
             Thk[0] foralli (X,Y):NmSet.
-                0 Seq[X][Y] Nat ->
+                0 (Seq[X][Y]) ->
                 0 (Thk[0] 0 Nat -> 0 F Bool) ->
-            {(#x:Nm.{x,@1} % {x,@2}) X; 0}
-            F (Seq [X][Y] Nat)
+            { (seq_sr) X; Y }
+            F (Seq[X][X])
         ) = {
-            #seq. #f. unroll match seq {
-                vec => { {force vec_filter} f vec }
-                bin => {
-                    unpack (X1,X2,X3,X4,Y1,Y2,Y3) bin = bin
-                    let (n,lev,l,r) = {ret bin}
-                    let (rsl, sl) = { memo{n,(@1)}{ {force filter} f {!l} } }
-                    let (rsr, sr) = { memo{n,(@2)}{ {force filter} f {!r} } }
-                    // if left is empty, return the right
-                    if {{force is_empty} sl} { ret sr }
-                    else { // if right is empty, return the left
-                        if {{force is_empty} sr} { ret sl }
-                        else {
-                            // neither are empty; construct SeqBin node:
-                            ret roll inj2
-                                pack (X1,X2,X3,X4,Y1,Y2,Y3)
-                                (n,lev,rsl,rsr)
+            ret thunk fix filter. #seq. #f. unroll match seq {
+                opnat => {
+                    match opnat {
+                        _u => {
+                            // no number to filter
+                            ret roll inj1 (inj1 ())
+                        }
+                        n => {
+                            // apply user-supplied predicate
+                            if {{force f} n} {
+                                // keep the number n
+                                ret roll inj1 (inj2 n )
+                            } else {
+                                // filter out the number n
+                                ret roll inj1 (inj1 ())
+                            }
                         }
                     }
                 }
-            }
-        }
-        
-        let rec map:(
-            Thk[0] foralli (X,Y):NmSet.
-                0 Seq[X][Y] Nat ->
-                0 (Thk[0] 0 Nat -> 0 F Nat) ->
-                {(#x:Nm.{x,@1} % {x,@2}) X; 0} F Nat
-        ) = {
-            #seq. #f. unroll match seq {
-                vec => { {force vec_map } f vec }
                 bin => {
-                    unpack (X1,X2,X3,X4,Y1,Y2,Y3) bin = bin
+                    unpack (X1,X2,X3,Y1,Y2,Y3,Y4) bin = bin
                     let (n,lev,l,r) = {ret bin}
-                    let (rsl, sl) = { memo{n,(@1)}{ {force map} f {!l} } }
-                    let (rsr, sr) = { memo{n,(@2)}{ {force map} f {!r} } }
-                    ret roll inj2 (n,lev,rsl,rsr)
+                    let (rsl, sl) = { memo{n,(@1)}{ {force filter} f {!l} } }
+                    let (rsr, sr) = { memo{n,(@2)}{ {force filter} f {!r} } }
+                    if {{force is_empty} sl} { ret sr }
+                    else { if {{force is_empty} sr} { ret sl }
+                           else {
+                               ret pack (X1,X2,X3,Y1,Y2,Y3,Y4)
+                                   roll inj2 (n,lev,rsl,rsr)
+                           }
+                    }
                 }
             }
-        }
+        }    
+
         let pred : (Thk[0] 0 Nat -> 0 F Bool) = {ret thunk #x. unimplemented}
-        let mapf : (Thk[0] 0 Nat -> 0 F Nat)  = {ret thunk #x. unimplemented}
+        //let mapf : (Thk[0] 0 Nat -> 0 F Nat)  = {ret thunk #x. unimplemented}
         let nums1 = {{force filter} pred nums}
-        let nums2 = {{force map} mapf nums}
+        //let nums2 = {{force map} mapf nums}
         let nums3 = {{force max} nums}
-        ret (nums1, nums2, nums3)
+        //ret (nums1, nums2, nums3)
+        ret (nums1, nums3)
     ];
     write_bundle("target/bitype.fgb", &bundle);
 }

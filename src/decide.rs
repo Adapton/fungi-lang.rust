@@ -5,6 +5,9 @@ use bitype::{Ctx,HasClas,TypeError};
 use std::fmt;
 use std::rc::Rc;
 
+/// Pair of related variables
+pub type Var2 = (Var, Var);
+
 /// Relational typing context: Relates pairs of variables, terms, etc
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum RelCtx {
@@ -64,23 +67,15 @@ pub mod equiv {
     use std::rc::Rc;
     use super::*;
 
-    /// One side of a name term equivalence
-    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
-    pub enum NmTmSide {
-        Var(Var),
-        Name(Name),
-        Bin(NmTmDec, NmTmDec),
-        Lam(Var,Sort,NmTmDec),
-        App(NmTmDec, NmTmDec),
-        NoParse(String),
-    }
-    /// Name term equivalence rule
+    /// Name term equivalence rules
     #[derive(Clone,Debug,Eq,PartialEq,Hash)]
     pub enum NmTmRule {
-        /// Every term is equal to itself
         Refl(NameTm),
-        /// Use structural reasoning
-        Struct(NmTmSide, NmTmSide)
+        Var(Var2),
+        Bin(NmTmDec, NmTmDec),
+        Lam(Var2,Sort,NmTmDec),
+        App(NmTmDec, NmTmDec),
+        NoParse(String),
     }
     pub type NmTmDec  = Dec<NmTmRule>;
     impl HasClas for NmTmRule {
@@ -88,10 +83,11 @@ pub mod equiv {
         fn tm_fam() -> String { "NmTm".to_string() }
     }
     
-    /// One side of an index term equivalence
+    /// Index term equivalence rules
     #[derive(Clone,Debug,Eq,PartialEq,Hash)]
-    pub enum IdxTmSide {
-        Var(Var),
+    pub enum IdxTmRule {
+        Var(Var2),
+        Refl(IdxTm),
         Sing(NmTmDec),
         Empty,
         Disj(IdxTmDec, IdxTmDec),
@@ -100,20 +96,12 @@ pub mod equiv {
         Pair(IdxTmDec, IdxTmDec),
         Proj1(IdxTmDec),
         Proj2(IdxTmDec),
-        Lam(Var, Sort, IdxTmDec),
+        Lam(Var2, Sort, IdxTmDec),
         App(IdxTmDec, IdxTmDec),
         Map(NmTmDec, IdxTmDec),
         FlatMap(IdxTmDec, IdxTmDec),
         Star(IdxTmDec, IdxTmDec),
         NoParse(String),
-    }
-    /// Index term equivalence rule
-    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
-    pub enum IdxTmRule {
-        /// Every term is equal to itself
-        Refl(IdxTm),
-        /// Use structural reasoning
-        Struct(IdxTmSide, IdxTmSide)
     }
     pub type IdxTmDec  = Dec<IdxTmRule>;
     impl HasClas for IdxTmRule {
@@ -121,12 +109,11 @@ pub mod equiv {
         fn tm_fam () -> String { "IdxTm".to_string() }
     }
 
-    /// One side of a value type equivalence
+    /// Value type equivalence rules
     #[derive(Clone,Debug,Eq,PartialEq,Hash)]
     pub enum TypeRule {
-        /// Every type is equal to itself
         Refl(Type),
-        Var(Var, Var),
+        Var(Var2),
         Sum(TypeDec, TypeDec),
         Prod(TypeDec, TypeDec),
         Ref(IdxTm, TypeDec),
@@ -135,10 +122,10 @@ pub mod equiv {
         TypeApp(TypeDec, TypeDec),
         Nm(IdxTm),
         NmFn(NameTm),
-        TypeFn(Var, Kind, TypeDec),
-        IdxFn(Var, Sort, TypeDec),
-        Rec(Var, TypeDec),
-        Exists(Var, SortRec, Prop, TypeDec),
+        TypeFn(Var2, Kind, TypeDec),
+        IdxFn(Var2, Sort, TypeDec),
+        Rec(Var2, TypeDec),
+        Exists(Var2, SortRec, Prop, TypeDec),
         NoParse(String),
     }
     pub type TypeDec  = Dec<TypeRule>;
@@ -147,7 +134,7 @@ pub mod equiv {
         fn tm_fam() -> String { "Type".to_string() }
     }    
 
-    /// Computation type equivalence
+    /// Computation type equivalence rules
     #[derive(Clone,Debug,Eq,PartialEq,Hash)]
     pub enum CEffectRule {
         /// Every term is equal to itself
@@ -239,7 +226,7 @@ pub mod apart {
     use std::rc::Rc;
     use super::*;
 
-    /// One side of a name term apartness
+    /// Name term apartness rules
     ///
     /// Fig. 24 of https://arxiv.org/abs/1610.00097v5
     ///
@@ -248,14 +235,14 @@ pub mod apart {
     ///
     #[derive(Clone,Debug,Eq,PartialEq,Hash)]
     pub enum NmTmRule {
-        Var(Var,Var),
+        Var(Var2),
         Sym(NmTmDec),
         Trans(equiv::NmTmDec, NmTmDec, NmTmDec),
         Bin1(NmTmDec),
         Bin2(NmTmDec),
         BinEq1(equiv::NmTmDec),
         BinEq2(equiv::NmTmDec),
-        Lam((Var,Var),Sort,NmTmDec),
+        Lam(Var2,Sort,NmTmDec),
         App(NmTmDec, NmTmDec),
         Beta(bitype::NmTmDer, bitype::NmTmDer, NmTmDec),
         NoParse(String),
@@ -272,11 +259,11 @@ pub mod apart {
     ///
     #[derive(Clone,Debug,Eq,PartialEq,Hash)]
     pub enum IdxTmRule {
-        Var(Var, Var),
+        Var(Var2),
         Sym(IdxTmDec),
         Proj1(IdxTmDec,IdxTmDec),
         Proj2(IdxTmDec,IdxTmDec),
-        Lam((Var,Var), Sort, IdxTmDec),
+        Lam(Var2, Sort, IdxTmDec),
         App(IdxTmDec, equiv::IdxTmDec),
         Beta(IdxTmDec, bitype::IdxTmDer, bitype::IdxTmDer),
         Empty(NmTmDec),
