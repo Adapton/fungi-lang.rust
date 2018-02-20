@@ -13,8 +13,9 @@
 
 // Target language (Typed Adapton)
 // --------------------------------
-#[macro_use]
 pub mod ast;
+#[macro_use]
+pub mod parse;
 pub mod bitype;
 pub mod decide;
 pub mod eval;
