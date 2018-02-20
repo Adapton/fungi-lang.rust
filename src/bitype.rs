@@ -599,14 +599,39 @@ pub fn subst_idxtm_type(i:IdxTm, x:&String, b:Type) -> Type {
 
 // TODO next --------------------------
 
+pub fn term_is_type(t:&Term) -> bool {
+    match t { &Term::Type(_) => true, _ => false }
+}
+
+pub fn term_is_idxtm(t:&Term) -> bool {
+    match t { &Term::IdxTm(_) => true, _ => false }
+}
+
+pub fn term_is_nmtm(t:&Term) -> bool {
+    match t { &Term::NmTm(_) => true, _ => false }
+}
+
+pub fn subst_term_type_rec(t:Term, x:&String, a:Rc<Type>) -> Rc<Type> {
+    Rc::new(subst_term_type(t, x, (*a).clone()))
+}
+
+/// Substitute name terms, index terms and types into type terms
+pub fn subst_term_ceffect_rec(t:Term, x:&String, ce:Rc<CEffect>) -> Rc<CEffect> {
+    Rc::new(subst_term_ceffect(t, x, (*ce).clone()))
+}
+
+/// Substitute name terms, index terms and types into type terms
+pub fn subst_term_ceffect(t:Term, x:&String, ce:CEffect) -> CEffect {
+    panic!("TODO")
+}
+
 /// Substitute name terms, index terms and types into type terms
 pub fn subst_term_type(t:Term, x:&String, a:Type) -> Type {
     match a {
         Type::Unit => Type::Unit,
         Type::Ident(x) => Type::Ident(x),
         Type::Var(y) => {
-            let term_is_type = match &t { &Term::Type(_) => true, _ => false };
-            if term_is_type && x == &y {
+            if term_is_type(&t) && x == &y {
                 match t {
                     Term::Type(b) => b.clone(),
                     _ => unreachable!(),
@@ -617,54 +642,115 @@ pub fn subst_term_type(t:Term, x:&String, a:Type) -> Type {
             }
         }
         Type::Sum(a1, a2) => {
-            unimplemented!()
+            Type::Sum(
+                subst_term_type_rec(t.clone(), x, a1),
+                subst_term_type_rec(t,         x, a2),
+            )
         }
         Type::Prod(a1, a2) => {
-            unimplemented!()
+            Type::Prod(
+                subst_term_type_rec(t.clone(), x, a1),
+                subst_term_type_rec(t,         x, a2),
+            )
         }
         Type::Ref(i, a0) => {
-            unimplemented!()
+            Type::Ref(
+                subst_term_idxtm(t.clone(), x, i),
+                subst_term_type_rec(t, x, a0),
+            )
         }
         Type::Thk(i, ce) => {
-            unimplemented!()
+            Type::Thk(
+                subst_term_idxtm(t.clone(), x, i),
+                subst_term_ceffect_rec(t, x, ce),
+            )
         }        
         Type::IdxApp(a0, i) => {
-            unimplemented!()
+            Type::IdxApp(
+                subst_term_type_rec(t.clone(), x, a0),
+                subst_term_idxtm(t, x, i)
+            )
         }
         Type::TypeApp(a1, a2) => {
-            unimplemented!()
+            Type::TypeApp(
+                subst_term_type_rec(t.clone(), x, a1),
+                subst_term_type_rec(t, x, a2)
+            )
         }
         Type::Nm(i) => {
-            unimplemented!()
+            Type::Nm(subst_term_idxtm(t, x, i))
         }
         Type::NmFn(n) => {
-            unimplemented!()
+            Type::NmFn(subst_term_nmtm(t, x, n))
         }
-        Type::TypeFn(x, k, a1) => {
-            unimplemented!()
+        Type::TypeFn(y, k, a1) => {
+            if term_is_type(&t) && x == &y {
+                Type::TypeFn(y, k, a1)
+            } else {
+                Type::TypeFn(y, k, subst_term_type_rec(t, x, a1))
+            }
         }
-        Type::IdxFn(x, g, a1) => {
-            unimplemented!()
+        Type::IdxFn(y, g, a1) => {
+            if term_is_idxtm(&t) && x == &y {
+                // no change
+                Type::IdxFn(y, g, a1)
+            } else {
+                Type::IdxFn(y, g, subst_term_type_rec(t, x, a1))
+            }
         }
-        Type::Rec(x, a1) => {
-            unimplemented!()
+        Type::Rec(y, a1) => {
+            if term_is_idxtm(&t) && x == &y {
+                // no change
+                Type::Rec(y, a1)
+            } else {
+                Type::Rec(y, subst_term_type_rec(t, x, a1))
+            }            
         }
-        // Exists for index-level variables; they are classified by sorts
-        Type::Exists(x, g, p, a1) => {
-            unimplemented!()
+        Type::Exists(y, g, p, a1) => {
+            if term_is_idxtm(&t) && x == &y {
+                // no change
+                Type::Exists(y, g, p, a1)
+            } else {
+                Type::Exists(
+                    y, g,
+                    subst_term_prop(t.clone(), x, p),
+                    subst_term_type_rec(t, x, a1),
+                )
+            }
         }
         Type::NoParse(s) => Type::NoParse(s)
     }
 }
 
+pub fn subst_term_prop(t:Term, x:&String, p:Prop) -> Prop {
+    // XXX/TODO
+    p
+}
+
 /// Substitute name terms and index terms into index terms
 pub fn subst_term_idxtm(t:Term, x:&String, i:IdxTm) -> IdxTm {
-    panic!("TODO: {:?} {:?} {:?}", t, x, i)
+    // Types never appear in index terms
+    if term_is_type(&t) { i.clone() } else { match i {
+        IdxTm::Var(y) => {
+            if term_is_idxtm(&t) && x == &y {
+                match t {
+                    Term::IdxTm(i) => i.clone(),
+                    _ => unreachable!(),
+                }
+            }
+            else {
+                IdxTm::Var(y)
+            }
+        }
+        _ => unimplemented!("{:?}", i)
+    }}
 }
 
 /// Substitute name terms
-pub fn subst_nmtm(n:NameTm, x:&String, m:NameTm) -> NameTm {
-    panic!("TODO: {:?} {:?} {:?}", n, x, m)
+pub fn subst_term_nmtm(t:Term, x:&String, m:NameTm) -> NameTm {
+    if ! term_is_nmtm(&t) { m.clone() } else { match m {
+        _ => unimplemented!("{:?}", m)
+    }}
 }
 
 
@@ -709,10 +795,18 @@ x 1 2 3
 ///
 ///
 pub fn unroll_type(typ:&Type) -> Type {
-    // TODO***
-    // Needed to implement case in the max example; the `Seq [X][Y] Nat` arg type needs to be "reduced" and then unrolled.
-    //unimplemented!("{:?}", typ)
-    typ.clone()
+    match typ {
+        // case: rec x.A =>
+        &Type::Rec(ref x, ref a) => {
+            // [(rec x.A)/x]A
+            subst_type_type(typ.clone(), x, (**a).clone())
+        }
+        // error
+        _ => {
+            println!("error: not a recursive type; did not unroll it: {:?}", typ);
+            typ.clone()
+        }
+    }
 }
 
 /// synthesize sort for index term
