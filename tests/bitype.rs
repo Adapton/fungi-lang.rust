@@ -140,7 +140,7 @@ fn bitype2() {
                     let (n,_x,l,r) = {ret bin}
                     let (_l, ml) = { memo{n,(@1)}{ {force max} {!l} } }
                     let (_r, mr) = { memo{n,(@2)}{ {force max} {!r} } }
-                    {{force max_opnat} ml mr}
+                    {{force opnat_max} ml mr}
                 }
             }
         }
@@ -179,8 +179,8 @@ fn bitype2() {
                     if {{force is_empty} sl} { ret sr }
                     else { if {{force is_empty} sr} { ret sl }
                            else {
-                               pack (X1,X2,X3,Y1,Y2,Y3,Y4)
-                               ret roll inj2 (n,lev,rsl,rsr)
+                               ret pack (X1,X2,X3,Y1,Y2,Y3,Y4)
+                                   roll inj2 (n,lev,rsl,rsr)
                            }
                     }
                 }
