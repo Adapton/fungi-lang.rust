@@ -1690,14 +1690,12 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
                             Effect::WR(IdxTm::Empty, IdxTm::Empty))
                         )
                     } else {
-                        // ?????????
-                        // TODO: What about the Val::Var(_) case above?
+                        // TODO-Next: Handle the more general cases above (e.g., Val::Var(_)).
+                        // XXX
                         //
-                        // We should be combining indices i and j (of
-                        // types Nm[i] and Nm[j], not names, which are
-                        // generally unknown).
-                        //
-                        //unreachable!("NameBin: Type::Nm not Val::Name")
+                        // To be general, we should be combining
+                        // indices i and j (of types Nm[i] and Nm[j],
+                        // not names, which are generally unknown).
                         fail(td, TypeError::Unimplemented)
                     }
                 },
@@ -1708,8 +1706,8 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
         &Exp::PrimApp(PrimApp::RefThunk(ref v)) => {
             let td0 = synth_val(last_label, ctx, v);
             let td = ExpRule::PrimApp(PrimAppRule::RefThunk(td0));
-            // TODO**: implement
-            // XXX -- for example
+            // TODO-Next
+            // XXX
             fail(td, TypeError::Unimplemented)
         },        
         &Exp::PrimApp(PrimApp::NatLt(ref v0,ref v1)) => {
@@ -1932,24 +1930,11 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
                 }
             }
         },
-        ///////////////////////////////////////////////////////
         //
         // Gamma |- v => (exists a:g|P. A)
         // Gamma, b:g, [b/a]P true, x:[b/a]A |- e <= E
         // -------------------------------------------- :: unpack2
         // Gamma |- unpack(v,x.b.e) <= E                                   
-        //
-        // more general version of rule that permits index vars `a`
-        // and `b` to differ; requires substituting an index term for
-        // an index variable (index term 'b', a variable, for variable
-        // 'a') in propositions, in indices and in types.
-        //
-        /////////////////////////////////////////////////////////
-        //
-        // Gamma |- v => (exists a:g|P. A)
-        // Gamma, a:g, P true, x:A |- e <= E
-        // ---------------------------------- :: unpack
-        // Gamma |- unpack(v,x.a.e) <= E
         //
         &Exp::Unpack(ref a1, ref x, ref v, ref e) => {
             let v_td = synth_val(last_label, ctx, v);
@@ -1958,7 +1943,6 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
                 Ok(Type::Exists(ref a2, ref g, ref p, ref aa)) => {
                     let p  = subst_term_prop(Term::IdxTm(IdxTm::Var(a1.clone())), a2, p.clone());
                     let aa = subst_term_type(Term::IdxTm(IdxTm::Var(a1.clone())), a2, (**aa).clone());
-                    //if *a1 == *a2 {
                     let new_ctx = ctx
                         .ivar(a1.clone(),(**g).clone())
                         .prop(p.clone())
@@ -1971,12 +1955,6 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
                         Err(_) => fail(rule, TypeError::ParamNoCheck(3)),
                         Ok(_) => succ(rule, ceffect.clone())
                     }
-                    // } else {
-                    //     // TODO: See more general version of rule, above.
-                    //     let td3 = synth_exp(last_label, ctx, e);
-                    //     let td = ExpRule::Unpack(a1.clone(),x.clone(),td2,td3);
-                    //     fail(td, TypeError::ExistVarMism)
-                    // }
                 },
                 rt => {
                     let td3 = synth_exp(last_label, ctx, e);
@@ -2068,7 +2046,8 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
         },
         &Exp::Split(ref v, ref x1, ref x2, ref e) => {
             let td0 = synth_val(last_label, ctx, v);
-            match td0.clas.clone() {
+            let v_ty = td0.clone().clas.map(|a| normal_type(ctx, &a));
+            match v_ty.clone() {
                 Err(_) => fail(ExpRule::Split(
                     td0, x1.clone(), x2.clone(),
                     synth_exp(last_label, ctx, e)
@@ -2096,9 +2075,10 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
             let td0 = synth_val(last_label, ctx, v);
             let td1 = check_exp(last_label, ctx, e1, ceffect);
             let td2 = check_exp(last_label, ctx, e2, ceffect);
+            let v_ty = td0.clas.clone().map(|a| normal_type(ctx, &a));
             let (t0,t1,t2) = (td0.clas.clone(),td1.clas.clone(),td2.clas.clone());
             let td = ExpRule::IfThenElse(td0,td1,td2);
-            match (t0,t1,t2) {
+            match (v_ty,t1,t2) {
                 (Err(_),_,_) => fail(td, TypeError::ParamNoSynth(0)),
                 (_,Err(_),_) => fail(td, TypeError::ParamNoCheck(1)),
                 (_,_,Err(_)) => fail(td, TypeError::ParamNoCheck(2)),
