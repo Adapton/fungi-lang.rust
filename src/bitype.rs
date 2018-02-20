@@ -560,7 +560,7 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
                     normal_type(ctx, &body)
                 },
                 a => {
-                    println!("sort error: expected TypeFn, not {:?}", a);
+                    panic!("sort error: expected TypeFn, not {:?}", a);
                     typ.clone()
                 }
             }
@@ -577,7 +577,7 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
                     normal_type(ctx, &body)
                 },
                 a => {
-                    println!("sort error: expected TypeFn, not {:?}", a);
+                    panic!("sort error: expected TypeFn, not {:?}", a);
                     typ.clone()
                 }
             }
@@ -1809,7 +1809,6 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let td1 = synth_exp(last_label, ctx, e1);
             let td2 = synth_exp(last_label, ctx, e2);
             let td = ExpRule::IfThenElse(td0,td1,td2);
-            // TODO: implement
             fail(td, TypeError::NoSynthRule) // Ok, for now.
         },
         &Exp::Ref(ref v1,ref v2) => {
@@ -1910,9 +1909,8 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
                          TypeError::SynthFailVal(v.clone()))
                 }
                 Ok(v_ty) => {
-                    // TODO** -- Call `reduce_type`,
-                    // and then `unroll_type` before extending
-                    // context with `v_ty`.
+                    let v_ty = normal_type(ctx, &v_ty);
+                    let v_ty = unroll_type(&v_ty);
                     let new_ctx = ctx.var(x.clone(), v_ty);
                     let td0 = check_exp(last_label, &new_ctx, e, ceffect);
                     let td0_typ = td0.clas.clone();
@@ -2067,7 +2065,7 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
                     let new_ctx = ctx
                         .var(x1.clone(),(*t1).clone())
                         .var(x2.clone(),(*t2).clone())
-                    ;
+                        ;
                     let td3 = check_exp(last_label, &new_ctx, e, ceffect);
                     let typ3 = td3.clas.clone();
                     let td = ExpRule::Split(td0, x1.clone(), x2.clone(), td3);
@@ -2099,7 +2097,8 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
                 _ => fail(td, TypeError::ParamMism(0)),
             }
         },
-        
+
+        //
         // TODO later:
         //   &Exp::Scope(ref v,ref e) => {},
         //
