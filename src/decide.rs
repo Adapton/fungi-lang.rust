@@ -123,12 +123,12 @@ pub mod equiv {
 
     /// One side of a value type equivalence
     #[derive(Clone,Debug,Eq,PartialEq,Hash)]
-    pub enum TypeSide {
-        Var(Var),
-        Ident(Ident),
+    pub enum TypeRule {
+        /// Every type is equal to itself
+        Refl(Type),
+        Var(Var, Var),
         Sum(TypeDec, TypeDec),
         Prod(TypeDec, TypeDec),
-        Unit,
         Ref(IdxTm, TypeDec),
         Thk(IdxTm, CEffectDec),
         IdxApp(TypeDec, IdxTmDec),
@@ -140,14 +140,6 @@ pub mod equiv {
         Rec(Var, TypeDec),
         Exists(Var, SortRec, Prop, TypeDec),
         NoParse(String),
-    }
-    /// Value type equivalence
-    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
-    pub enum TypeRule {
-        /// Every term is equal to itself
-        Refl(Type),
-        /// Use structural reasoning
-        Struct(TypeSide, TypeSide),
     }
     pub type TypeDec  = Dec<TypeRule>;
     impl HasClas for TypeRule {
@@ -242,25 +234,31 @@ pub mod equiv {
 pub mod apart {
     use ast::*;
     use bitype::{Ctx,HasClas,TypeError};
+    use bitype;
     use std::fmt;
     use std::rc::Rc;
     use super::*;
 
     /// One side of a name term apartness
-    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
-    pub enum NmTmSide {
-        Var(Var),
-        Name(Name),
-        Bin(NmTmDec, NmTmDec),
-        Lam(Var,Sort,NmTmDec),
-        App(NmTmDec, NmTmDec),
-        NoParse(String),
-    }
-    /// Name term apartness rule
+    ///
+    /// Fig. 24 of https://arxiv.org/abs/1610.00097v5
+    ///
+    /// Note: Removed D-Proj1 and D-Proj2, which are stale and should
+    /// not be there in the rules.
+    ///
     #[derive(Clone,Debug,Eq,PartialEq,Hash)]
     pub enum NmTmRule {
-        /// Use structural reasoning
-        Struct(NmTmSide, NmTmSide)
+        Var(Var,Var),
+        Sym(NmTmDec),
+        Trans(equiv::NmTmDec, NmTmDec, NmTmDec),
+        Bin1(NmTmDec),
+        Bin2(NmTmDec),
+        BinEq1(equiv::NmTmDec),
+        BinEq2(equiv::NmTmDec),
+        Lam((Var,Var),Sort,NmTmDec),
+        App(NmTmDec, NmTmDec),
+        Beta(bitype::NmTmDer, bitype::NmTmDer, NmTmDec),
+        NoParse(String),
     }
     pub type NmTmDec  = Dec<NmTmRule>;
     impl HasClas for NmTmRule {
@@ -269,29 +267,25 @@ pub mod apart {
     }
     
     /// One side of an index term apartness
-    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
-    pub enum IdxTmSide {
-        Var(Var),
-        Sing(NmTmDec),
-        Empty,
-        Disj(IdxTmDec, IdxTmDec),
-        Union(IdxTmDec, IdxTmDec),
-        Unit,
-        Pair(IdxTmDec, IdxTmDec),
-        Proj1(IdxTmDec),
-        Proj2(IdxTmDec),
-        Lam(Var, Sort, IdxTmDec),
-        App(IdxTmDec, IdxTmDec),
-        Map(NmTmDec, IdxTmDec),
-        FlatMap(IdxTmDec, IdxTmDec),
-        Star(IdxTmDec, IdxTmDec),
-        NoParse(String),
-    }
-    /// Index term apartness rule
+    ///
+    /// Fig. 29 of https://arxiv.org/abs/1610.00097v5
+    ///
     #[derive(Clone,Debug,Eq,PartialEq,Hash)]
     pub enum IdxTmRule {
-        /// Use structural reasoning
-        Struct(IdxTmSide, IdxTmSide)
+        Var(Var, Var),
+        Sym(IdxTmDec),
+        Proj1(IdxTmDec,IdxTmDec),
+        Proj2(IdxTmDec,IdxTmDec),
+        Lam((Var,Var), Sort, IdxTmDec),
+        App(IdxTmDec, equiv::IdxTmDec),
+        Beta(IdxTmDec, bitype::IdxTmDer, bitype::IdxTmDer),
+        Empty(NmTmDec),
+        Single(IdxTmDec),
+        Apart(IdxTmDec, IdxTmDec),
+        Map(NmTmDec, IdxTmDec),
+        FlatMap(IdxTmDec, IdxTmDec),
+        Star(IdxTmDec, equiv::IdxTmDec),
+        NoParse(String),
     }
     pub type IdxTmDec  = Dec<IdxTmRule>;
     impl HasClas for IdxTmRule {
