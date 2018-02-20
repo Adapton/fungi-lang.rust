@@ -62,9 +62,5 @@ fn module2() {
         use seq_nat::*;
         ret 123
     ];
-    use std::fs::File;
-    use std::io::Write;        
-    let data = format!("{:#?}", bundle);
-    let mut f = File::create("target/mod.fgb").expect("Could not create bundle file");
-    f.write_all(data.as_bytes()).expect("Could not write bundle data");
+    write_bundle("target/mod.fgb", &bundle);
 }

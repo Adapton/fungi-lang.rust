@@ -8,6 +8,9 @@ use eval;
 use adapton::reflect;
 use adapton::engine::manage;
 
+use std::fs::File;
+use std::io::Write;
+
 pub fn label_exp(e: Exp, ct: &mut usize) -> Exp {
     rewrite_exp(&e, ct)
 }
@@ -108,4 +111,10 @@ where F: FnOnce() -> eval::ExpTerm {
     let term = f();
     let traces = reflect::dcg_reflect_end();
     (term, traces)
+}
+
+pub fn write_bundle(filename: &str, bundle: &Bundle) {
+    let data = format!("{:?}", bundle);
+    let mut f = File::create(filename).expect("Could not create bundle file");
+    f.write_all(data.as_bytes()).expect("Could not write bundle data");
 }
