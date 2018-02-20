@@ -1678,7 +1678,8 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
             match (typ0,typ1) {
                 (Err(_),_) => fail(td,TypeError::ParamNoSynth(0)),
                 (_,Err(_)) => fail(td,TypeError::ParamNoSynth(1)),
-                (Ok(Type::Nm(_)),Ok(Type::Nm(_))) => {
+                (Ok(Type::Nm(n1)),Ok(Type::Nm(n2))) => {
+                    // ?TODO: unnessecary special case?
                     if let (&Val::Name(ref nm0),&Val::Name(ref nm1)) = (v0,v1) {
                         succ(td, CEffect::Cons(
                             CType::Lift(Type::Nm(
@@ -1690,13 +1691,12 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
                             Effect::WR(IdxTm::Empty, IdxTm::Empty))
                         )
                     } else {
-                        // TODO-Next: Handle the more general cases above (e.g., Val::Var(_)).
-                        // XXX
-                        //
-                        // To be general, we should be combining
-                        // indices i and j (of types Nm[i] and Nm[j],
-                        // not names, which are generally unknown).
-                        fail(td, TypeError::Unimplemented)
+                        succ(td, CEffect::Cons(
+                            CType::Lift(Type::Nm(
+                                IdxTm::Pair(Rc::new(n1),Rc::new(n2))
+                            )),
+                            Effect::WR(IdxTm::Empty, IdxTm::Empty))
+                        )
                     }
                 },
                 (Ok(Type::Nm(_)),_) => fail(td,TypeError::ParamMism(1)),
