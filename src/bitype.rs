@@ -1689,7 +1689,17 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
                             )),
                             Effect::WR(IdxTm::Empty, IdxTm::Empty))
                         )
-                    } else { unreachable!("NameBin: Type::Nm not Val::Name") }
+                    } else {
+                        // ?????????
+                        // TODO: What about the Val::Var(_) case above?
+                        //
+                        // We should be combining indices i and j (of
+                        // types Nm[i] and Nm[j], not names, which are
+                        // generally unknown).
+                        //
+                        //unreachable!("NameBin: Type::Nm not Val::Name")
+                        fail(td, TypeError::Unimplemented)
+                    }
                 },
                 (Ok(Type::Nm(_)),_) => fail(td,TypeError::ParamMism(1)),
                 _ => fail(td, TypeError::ParamMism(0))
@@ -1942,33 +1952,35 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
         // Gamma |- unpack(v,x.a.e) <= E
         //
         &Exp::Unpack(ref a1, ref x, ref v, ref e) => {
-            let td2 = synth_val(last_label, ctx, v);
-            match td2.clas.clone() {
+            let v_td = synth_val(last_label, ctx, v);
+            let v_ty = v_td.clone().clas.map(|a| normal_type(ctx, &a));
+            match v_ty.clone() {
                 Ok(Type::Exists(ref a2, ref g, ref p, ref aa)) => {
-                    if *a1 == *a2 {
-                        let new_ctx = ctx
-                            .ivar(a1.clone(),(**g).clone())
-                            .prop(p.clone())
-                            .var(x.clone(),(**aa).clone())
+                    let p  = subst_term_prop(Term::IdxTm(IdxTm::Var(a1.clone())), a2, p.clone());
+                    let aa = subst_term_type(Term::IdxTm(IdxTm::Var(a1.clone())), a2, (**aa).clone());
+                    //if *a1 == *a2 {
+                    let new_ctx = ctx
+                        .ivar(a1.clone(),(**g).clone())
+                        .prop(p.clone())
+                        .var(x.clone(),aa)
                         ;
-                        let td3 = check_exp(last_label, &new_ctx, e, &ceffect);
-                        let typ3 = td3.clas.clone();
-                        let td = ExpRule::Unpack(a1.clone(),x.clone(),td2,td3);
-                        match typ3 {
-                            Err(_) => fail(td, TypeError::ParamNoCheck(3)),
-                            Ok(_) => succ(td, ceffect.clone())
-                        }
-
-                    } else {
-                        // TODO: See more general version of rule, above.
-                        let td3 = synth_exp(last_label, ctx, e);
-                        let td = ExpRule::Unpack(a1.clone(),x.clone(),td2,td3);
-                        fail(td, TypeError::ExistVarMism)
+                    let td3 = check_exp(last_label, &new_ctx, e, &ceffect);
+                    let typ3 = td3.clas.clone();
+                    let rule = ExpRule::Unpack(a1.clone(),x.clone(),v_td,td3);
+                    match typ3 {
+                        Err(_) => fail(rule, TypeError::ParamNoCheck(3)),
+                        Ok(_) => succ(rule, ceffect.clone())
                     }
+                    // } else {
+                    //     // TODO: See more general version of rule, above.
+                    //     let td3 = synth_exp(last_label, ctx, e);
+                    //     let td = ExpRule::Unpack(a1.clone(),x.clone(),td2,td3);
+                    //     fail(td, TypeError::ExistVarMism)
+                    // }
                 },
                 rt => {
                     let td3 = synth_exp(last_label, ctx, e);
-                    let td = ExpRule::Unpack(a1.clone(),x.clone(),td2,td3);
+                    let td = ExpRule::Unpack(a1.clone(),x.clone(),v_td,td3);
                     if let Err(_) = rt { fail(td, TypeError::ParamNoSynth(2)) }
                     else { fail(td, TypeError::ParamMism(2)) }
                 }

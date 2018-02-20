@@ -136,7 +136,7 @@ fn bitype2() {
             match seq {
                 opn => {ret opn}
                 bin => {
-                    unpack (X1,X2,X3,X4,Y1,Y2,Y3) bin = bin
+                    unpack (X1,X2,X3,Y1,Y2,Y3,Y4) bin = bin
                     let (n,_x,l,r) = {ret bin}
                     let (_l, ml) = { memo{n,(@1)}{ {force max} {!l} } }
                     let (_r, mr) = { memo{n,(@2)}{ {force max} {!r} } }
@@ -172,14 +172,14 @@ fn bitype2() {
                     }
                 }
                 bin => {
+                    unpack (X1,X2,X3,Y1,Y2,Y3,Y4) bin = bin
                     let (n,lev,l,r) = {ret bin}
-                    unpack (X1,X2,X3,X4,Y1,Y2,Y3) bin = bin
                     let (rsl, sl) = { memo{n,(@1)}{ {force filter} f {!l} } }
                     let (rsr, sr) = { memo{n,(@2)}{ {force filter} f {!r} } }
                     if {{force is_empty} sl} { ret sr }
                     else { if {{force is_empty} sr} { ret sl }
                            else {
-                               pack (X1,X2,X3,X4,Y1,Y2,Y3)
+                               pack (X1,X2,X3,Y1,Y2,Y3,Y4)
                                ret roll inj2 (n,lev,rsl,rsr)
                            }
                     }
