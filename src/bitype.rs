@@ -396,6 +396,8 @@ pub enum TypeError {
     SynthFailVal(Val),
     UnexpectedCEffect(CEffect),
     UnexpectedType(Type),
+    // for statement-like AST nodes e.g. `Let`
+    LaterError,
 }
 impl fmt::Display for TypeError {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
@@ -427,6 +429,7 @@ impl fmt::Display for TypeError {
             //TypeError::TypeMismatch(ref t1, ref t2) => format!("failed to equate types {:?} (given) and {:?} (expected)", t1, t2),
             TypeError::UnexpectedCEffect(ref ce) => format!("unexpected effect type: {:?}", ce),
             TypeError::UnexpectedType(ref t) => format!("unexpected type: {:?}", t),
+            TypeError::LaterError => format!("error in a later line of code"),
         };
         write!(f,"{}",s)
     }
@@ -1588,7 +1591,7 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let typ2 = td2.clas.clone();
             let td = ExpRule::DefType(x.clone(), t.clone(), td2);
             match typ2 {
-                Err(_) => fail(td, TypeError::ParamNoSynth(2)),
+                Err(_) => fail(td, TypeError::LaterError),
                 Ok(ty) => succ(td, ty.clone()),
             }
         },
@@ -1657,7 +1660,7 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
                     let typ2 = td2.clas.clone();
                     let td = ExpRule::Let(x.clone(),td1,td2);
                     match typ2 {
-                        Err(_) => fail(td, TypeError::ParamNoSynth(2)),
+                        Err(_) => fail(td, TypeError::LaterError),
                         Ok(CEffect::Cons(ty2,eff2)) => {
                             // TODO: combine effects
                             succ(td, CEffect::Cons(ty2, eff2))
@@ -1744,8 +1747,7 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let typ2 = td2.clas.clone();
             let td = ExpRule::DebugLabel(n.clone(),s.clone(),td2);
             match typ2 {
-                // Copy/propagate the error; do not replace it with a new one.
-                Err(err) => fail(td, err),
+                Err(err) => fail(td, TypeError::LaterError),
                 Ok(ty) => succ(td, ty),
             }
         },
@@ -1849,7 +1851,7 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let td0 = synth_val(last_label, ctx, v);
             let td2 = synth_exp(last_label, ctx, e);
             let td = ExpRule::Unroll(td0, x.clone(), td2);
-            fail(td, TypeError::Unimplemented) // Ok
+            fail(td, TypeError::NoSynthRule) // Ok
         },
         &Exp::Unpack(ref i, ref x, ref v, ref e) => {
             let td2 = synth_val(last_label, ctx, v);
@@ -1952,7 +1954,7 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
                     let typ3 = td3.clas.clone();
                     let rule = ExpRule::Unpack(a1.clone(),x.clone(),v_td,td3);
                     match typ3 {
-                        Err(_) => fail(rule, TypeError::ParamNoCheck(3)),
+                        Err(_) => fail(rule, TypeError::LaterError),
                         Ok(_) => succ(rule, ceffect.clone())
                     }
                 },
@@ -2013,7 +2015,7 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
                         let typ2res = td2.clas.clone();
                         let td = ExpRule::Let(x.clone(), td1,td2);
                         match typ2res {
-                            Err(_) => fail(td, TypeError::ParamNoCheck(2)),
+                            Err(_) => fail(td, TypeError::LaterError),
                             Ok(_) => succ(td, ceffect.clone()),
                         }
                     },
@@ -2061,7 +2063,7 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
                     let typ3 = td3.clas.clone();
                     let td = ExpRule::Split(td0, x1.clone(), x2.clone(), td3);
                     match typ3 {
-                        Err(_) => fail(td, TypeError::ParamNoCheck(0)),
+                        Err(_) => fail(td, TypeError::LaterError),
                         Ok(_) => succ(td, ceffect.clone())
                     }
                 },

@@ -1130,7 +1130,7 @@ pub type ExpRec = Rc<Exp>;
 ///     unpack (a1,...) x = (v) e       (unpack existentials from type, bind x to v)
 ///     {e} {!ref} ...                  (application get-sugar)
 ///     {e} v1 ...                      (extened application)
-///     type t = (A) e                  (user type shorthand, recursive type)
+///     type t = (A) e                  (user type shorthand)
 ///     let x = {e1} e2                 (let-binding)
 ///     let x : A = {e1} e2             (annotated let-binding)
 ///     let rec x : A = {e1} e2         (annotated let-rec binding)
