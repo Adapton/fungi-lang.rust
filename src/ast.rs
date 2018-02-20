@@ -169,6 +169,33 @@ pub enum IdxTm {
     Disj(IdxTmRec, IdxTmRec),
     Union(IdxTmRec, IdxTmRec),
     Unit,
+    /// All binary combinations of two name sets.
+    ///
+    /// This is a common special case of curried nameset mapping:
+    ///
+    /// `( i ,, j ) := (#a:Nm. ((#b:Nm. a,,b) j)) i`
+    ///
+    /// Since this double-mapping pattern is very common, we introduce
+    /// a special AST node for it.
+    ///
+    /// `Bin` Sorting rule:
+    ///
+    /// ```text
+    /// Gamma |- i : NmSet
+    /// Gamma |- j : NmSet
+    /// ---------------------------- :: Bin
+    /// Gamma |- ( i ,, j ) : NmSet
+    /// ```
+    Bin(IdxTmRec, IdxTmRec),
+
+    /// `Pair` Sorting rule:
+    ///
+    /// ```text
+    /// Gamma |- i : g1
+    /// Gamma |- j : g2
+    /// ----------------------------- :: Pair
+    /// Gamma |- ( i , j ) : g1 x g2
+    /// ```
     Pair(IdxTmRec, IdxTmRec),
     Proj1(IdxTmRec),
     Proj2(IdxTmRec),

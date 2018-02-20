@@ -863,6 +863,19 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
                 (_,_) => fail(td, TypeError::ParamMism(0)),
             }
         },
+        &IdxTm::Bin(ref idx0, ref idx1) => {
+            let td0 = synth_idxtm(last_label,ctx,idx0);
+            let td1 = synth_idxtm(last_label,ctx,idx1);
+            let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
+            let td = IdxTmRule::Union(td0,td1);
+            match (typ0,typ1) {
+                (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
+                (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
+                (Ok(Sort::NmSet),Ok(Sort::NmSet)) => succ(td, Sort::NmSet),
+                (Ok(Sort::NmSet),_) => fail(td, TypeError::ParamMism(1)),
+                (_,_) => fail(td, TypeError::ParamMism(0)),
+            }
+        },
         &IdxTm::Unit => {
             succ(IdxTmRule::Unit, Sort::Unit)
         },
@@ -1683,24 +1696,24 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
                 (_,Err(_)) => fail(td,TypeError::ParamNoSynth(1)),
                 (Ok(Type::Nm(n1)),Ok(Type::Nm(n2))) => {
                     // ?TODO: unnessecary special case?
-                    if let (&Val::Name(ref nm0),&Val::Name(ref nm1)) = (v0,v1) {
-                        succ(td, CEffect::Cons(
-                            CType::Lift(Type::Nm(
-                                IdxTm::Sing(NameTm::Name(Name::Bin(
-                                    Rc::new(nm0.clone()),
-                                    Rc::new(nm1.clone()),
-                                )))
-                            )),
-                            Effect::WR(IdxTm::Empty, IdxTm::Empty))
-                        )
-                    } else {
-                        succ(td, CEffect::Cons(
-                            CType::Lift(Type::Nm(
-                                IdxTm::Pair(Rc::new(n1),Rc::new(n2))
-                            )),
-                            Effect::WR(IdxTm::Empty, IdxTm::Empty))
-                        )
-                    }
+                    // if let (&Val::Name(ref nm0),&Val::Name(ref nm1)) = (v0,v1) {
+                    //     succ(td, CEffect::Cons(
+                    //         CType::Lift(Type::Nm(
+                    //             IdxTm::Sing(NameTm::Name(Name::Bin(
+                    //                 Rc::new(nm0.clone()),
+                    //                 Rc::new(nm1.clone()),
+                    //             )))
+                    //         )),
+                    //         Effect::WR(IdxTm::Empty, IdxTm::Empty))
+                    //     )
+                    // } else {
+                    succ(td, CEffect::Cons(
+                        CType::Lift(Type::Nm(
+                            IdxTm::Bin(Rc::new(n1),Rc::new(n2))
+                        )),
+                        Effect::WR(IdxTm::Empty, IdxTm::Empty))
+                    )
+                    //}
                 },
                 (Ok(Type::Nm(_)),_) => fail(td,TypeError::ParamMism(1)),
                 _ => fail(td, TypeError::ParamMism(0))
