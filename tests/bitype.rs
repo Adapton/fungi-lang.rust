@@ -132,7 +132,7 @@ fn bitype2() {
             { (#x:Nm.{x,@1} % {x,@2}) X; Y }
             F OpNat
         ) = {
-            #seq. unroll seq seq.
+            ret thunk #seq. unroll seq seq.
             match seq {
                 opn => {ret opn}
                 bin => {
@@ -152,7 +152,7 @@ fn bitype2() {
             { (seq_sr) X; Y }
             F (Seq[X][X])
         ) = {
-            #seq. #f. unroll match seq {
+            ret thunk #seq. #f. unroll match seq {
                 opnat => {
                     match opnat {
                         _u => {
