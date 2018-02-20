@@ -1705,10 +1705,24 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
         &Exp::PrimApp(PrimApp::NatLt(ref v0,ref v1)) => {
             let td0 = synth_val(last_label, ctx, v0);
             let td1 = synth_val(last_label, ctx, v1);
+            let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
             let td = ExpRule::PrimApp(PrimAppRule::NatLt(td0,td1));
-            // TODO**: implement
-            // XXX -- for max example:
-            fail(td, TypeError::Unimplemented)
+            match (typ0,typ1) {
+                (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
+                (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
+                (Ok(Type::Ident(ref n0)), Ok(Type::Ident(ref n1)))
+                if (n0 == "Nat") & (n1 == "Nat") => {
+                    let ce = CEffect::Cons(
+                        CType::Lift(Type::Ident("Bool".to_string())),
+                        Effect::WR(IdxTm::Empty, IdxTm::Empty),
+                    );
+                    succ(td, ce)
+                },
+                (Ok(Type::Ident(ref n0)),_) if n0 == "Nat" => {
+                    fail(td, TypeError::ParamMism(1))
+                },
+                _ => fail(td, TypeError::ParamMism(0))
+            }
         },
         &Exp::Unimp => {
             let td = ExpRule::Unimp;
@@ -1796,7 +1810,7 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let td2 = synth_exp(last_label, ctx, e2);
             let td = ExpRule::IfThenElse(td0,td1,td2);
             // TODO: implement
-            fail(td, TypeError::Unimplemented) // Ok, for now.
+            fail(td, TypeError::NoSynthRule) // Ok, for now.
         },
         &Exp::Ref(ref v1,ref v2) => {
             let td0 = synth_val(last_label, ctx, v1);
@@ -2042,11 +2056,50 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
                 synth_val(last_label,ctx,v)
             ), TypeError::AnnoMism) }
         },
+        &Exp::Split(ref v, ref x1, ref x2, ref e) => {
+            let td0 = synth_val(last_label, ctx, v);
+            match td0.clas.clone() {
+                Err(_) => fail(ExpRule::Split(
+                    td0, x1.clone(), x2.clone(),
+                    synth_exp(last_label, ctx, e)
+                ), TypeError::ParamNoSynth(0)),
+                Ok(Type::Prod(t1,t2)) => {
+                    let new_ctx = ctx
+                        .var(x1.clone(),(*t1).clone())
+                        .var(x2.clone(),(*t2).clone())
+                    ;
+                    let td3 = check_exp(last_label, &new_ctx, e, ceffect);
+                    let typ3 = td3.clas.clone();
+                    let td = ExpRule::Split(td0, x1.clone(), x2.clone(), td3);
+                    match typ3 {
+                        Err(_) => fail(td, TypeError::ParamNoCheck(0)),
+                        Ok(_) => succ(td, ceffect.clone())
+                    }
+                },
+                _ => fail(ExpRule::Split(
+                    td0, x1.clone(), x2.clone(),
+                    synth_exp(last_label, ctx, e)
+                ), TypeError::ParamMism(0)),
+            }
+        },
+        &Exp::IfThenElse(ref v, ref e1, ref e2) => {
+            let td0 = synth_val(last_label, ctx, v);
+            let td1 = check_exp(last_label, ctx, e1, ceffect);
+            let td2 = check_exp(last_label, ctx, e2, ceffect);
+            let (t0,t1,t2) = (td0.clas.clone(),td1.clas.clone(),td2.clas.clone());
+            let td = ExpRule::IfThenElse(td0,td1,td2);
+            match (t0,t1,t2) {
+                (Err(_),_,_) => fail(td, TypeError::ParamNoSynth(0)),
+                (_,Err(_),_) => fail(td, TypeError::ParamNoCheck(1)),
+                (_,_,Err(_)) => fail(td, TypeError::ParamNoCheck(2)),
+                (Ok(Type::Ident(ref b)),_,_) if b == "Bool" => {
+                    // the exps are correct, because of the check above
+                    succ(td, ceffect.clone())
+                },
+                _ => fail(td, TypeError::ParamMism(0)),
+            }
+        },
         
-        // XXX: TODO next:
-        //   &Exp::Split(ref v, ref x1, ref x2, ref e) => {},
-        //   &Exp::IfThenElse(ref v, ExpRec, ExpRec) => {},
-        //
         // TODO later:
         //   &Exp::Scope(ref v,ref e) => {},
         //
