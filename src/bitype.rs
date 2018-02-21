@@ -1964,6 +1964,33 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
                 _ => fail(td, TypeError::ParamMism(0)),
             }
         },
+        &Exp::Thunk(ref v,ref e) => {
+            // TODO: Handle scope
+            if let &CEffect::Cons(
+                CType::Lift(Type::Thk(ref idx,ref ce)),
+                Effect::WR(ref w,ref _r)
+            ) = ceffect {
+                // TODO: use this once effects are properly implemented
+                // if (*w,r) != (*idx,IdxTm::Empty) {
+                //     return fail(ExpRule::Thunk(
+                //         synth_val(last_label, ctx, v),
+                //         synth_exp(last_label, ctx, e),
+                //     ), TypeError::InvalidPtr)
+                // }
+                let td0 = check_val(last_label,ctx,v,&Type::Nm(idx.clone()));
+                let td1 = check_exp(last_label,ctx,e,&**ce);
+                let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
+                let td = ExpRule::Thunk(td0,td1);
+                match (typ0,typ1) {
+                    (Err(_),_) => fail(td, TypeError::ParamNoCheck(0)),
+                    (_,Err(_)) => fail(td, TypeError::ParamNoCheck(1)),
+                    (Ok(_),Ok(_)) => succ(td, ceffect.clone()),
+                }
+            } else { fail(ExpRule::Thunk(
+                synth_val(last_label, ctx, v),
+                synth_exp(last_label, ctx, e),
+            ),TypeError::AnnoMism)}
+        },
 
         //
         // TODO later:
@@ -1978,7 +2005,6 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
         //   &Exp::DefType(ref x,Type,ref e) => {},
         //   &Exp::AnnoC(ref e,ref ct) => {},
         //   &Exp::AnnoE(ref e,ref et) => {},      
-        //   &Exp::Thunk(ref v,ref e) => {},
         //   &Exp::Ref(ref v1,ref v2) => {},
         //   &Exp::PrimApp(PrimApp) => {},
         //   &Exp::NameFnApp(ref v1,ref v2) => {},
