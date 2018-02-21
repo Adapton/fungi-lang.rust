@@ -399,6 +399,9 @@ pub enum TypeError {
     UnexpectedType(Type),
     // for statement-like AST nodes e.g. `Let`
     LaterError,
+    // error in subderivation; for tree-shaped AST nodes e.g. `App`, and value forms.
+    Subder,
+    Mismatch,
 }
 impl fmt::Display for TypeError {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
@@ -431,6 +434,8 @@ impl fmt::Display for TypeError {
             TypeError::UnexpectedCEffect(ref ce) => format!("unexpected effect type: {:?}", ce),
             TypeError::UnexpectedType(ref t) => format!("unexpected type: {:?}", t),
             TypeError::LaterError => format!("error in a later line of code"),
+            TypeError::Subder     => format!("error in a subderivation"),
+            TypeError::Mismatch   => format!("type mismatch"),
         };
         write!(f,"{}",s)
     }
@@ -1145,10 +1150,8 @@ pub fn synth_val(last_label:Option<&str>, ctx:&Ctx, val:&Val) -> ValDer {
         },
         &Val::Roll(ref v) => {
             let td0 = synth_val(last_label, ctx, v);
-            // let typ0 = td0.clas.clone();
             let td = ValRule::Roll(td0);
-            // TODO*: Rule for Roll
-            fail(td, TypeError::Unimplemented)
+            fail(td, TypeError::NoSynthRule)
         },
         &Val::Pack(ref a, ref v) => {
             let td1 = synth_val(last_label, ctx, v);
@@ -1276,9 +1279,10 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ:&Type) -> ValD
             ), TypeError::AnnoMism) }
         },
         &Val::Roll(ref v) => {
-            // TODO: Rule for Roll
-            let temp_td = synth_val(last_label, ctx, v);
-            fail(ValRule::Roll(temp_td), TypeError::Unimplemented)
+            let vd = check_val(last_label, ctx, v, typ);
+            let vt = vd.clas.clone();
+            propagate(Dir::Check(typ.clone()), last_label,
+                      ctx, ValRule::Roll(vd), vt)
         },
         &Val::Name(ref n) => {
             let td = ValRule::Name(n.clone());
@@ -1539,10 +1543,10 @@ pub fn synth_module(last_label:Option<&str>, m:&Rc<Module>) -> ModuleDer {
 
 /// Synthesize a type and effect for a program expression
 pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
-    let fail = |td:ExpRule, err :TypeError| { failure(Dir::Synth, last_label, ctx, td, err) };
-    let succ = |td:ExpRule, typ :CEffect  | { success(Dir::Synth, last_label, ctx, td, typ) };
-    let prop = |td:ExpRule, res:Result<CEffect,TypeError> | {
-        propagate(Dir::Synth, last_label, ctx, td, res)
+    let fail = |r:ExpRule, err :TypeError| { failure(Dir::Synth, last_label, ctx, r, err) };
+    let succ = |r:ExpRule, typ :CEffect  | { success(Dir::Synth, last_label, ctx, r, typ) };
+    let prop = |r:ExpRule, res:Result<CEffect,TypeError> | {
+        propagate(Dir::Synth, last_label, ctx, r, res)
     };
     match exp {
         &Exp::UseAll(ref m, ref exp) => {
@@ -1638,11 +1642,27 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
             }
         },
         &Exp::IdxApp(ref e, ref i) => {
-            // TODO: implement
-            let td0 = synth_exp(last_label,ctx,e);
-            let td1 = synth_idxtm(last_label,ctx,i);
-            let td = ExpRule::IdxApp(td0,td1);
-            fail(td, TypeError::Unimplemented)
+            let ed = synth_exp(last_label,ctx,e);
+            let id = synth_idxtm(last_label,ctx,i);
+            let edt = ed.clas.clone();
+            match (ed.clas.clone(), id.clas.clone())  {
+                (Ok(ec), Ok(is)) => { match ec {
+                    CEffect::ForallIdx(x, g, p, ce) => {
+                        let _p = subst_term_prop(Term::IdxTm(i.clone()), &x, p);
+                        let ce = subst_term_ceffect(Term::IdxTm(i.clone()), &x, (*ce).clone());
+                        // TODO need to prove (decide) that p is true
+                        let td = ExpRule::IdxApp(ed,id);
+                        succ(td, ce)
+                    }
+                    _ => {
+                        fail(ExpRule::IdxApp(ed,id),
+                             TypeError::Mismatch)
+                    }                    
+                }}
+                (_, _) => {
+                    fail(ExpRule::IdxApp(ed,id), TypeError::Subder)
+                }
+            }
         },
         &Exp::Get(ref v) => {
             let td0 = synth_val(last_label, ctx, v);

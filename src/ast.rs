@@ -95,7 +95,6 @@ pub enum IdxTm {
     /// Gamma |- ( i ,, j ) : NmSet
     /// ```
     Bin(IdxTmRec, IdxTmRec),
-
     /// `Pair` Sorting rule:
     ///
     /// ```text
