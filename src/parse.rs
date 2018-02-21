@@ -166,13 +166,13 @@ macro_rules! fgi_index {
     //     0           (empty set)
     { 0 } => { IdxTm::Empty };
     //     X % Y       (separating union)
-    { $x:tt % $y:tt } => { IdxTm::Disj(
+    { $x:tt % $y:tt } => { IdxTm::Apart(
         Rc::new(fgi_index![$x]),
         Rc::new(fgi_index![$y]),
     )};
     //     X % Y ...   (separating union extended - left to right)
     { $x:tt % $y:tt $($more:tt)+ } => {
-        fgi_index![(fromast IdxTm::Disj(
+        fgi_index![(fromast IdxTm::Apart(
             Rc::new(fgi_index![$x]),
             Rc::new(fgi_index![$y]),
         )) $($more)+]
@@ -365,7 +365,7 @@ macro_rules! fgi_prop {
         Rc::new(fgi_prop![$($p2)+]),
     )};
     //     i % j : g       (index apartness)
-    { $i:tt % $j:tt : $($g:tt)+ } => { Prop::Disj(
+    { $i:tt % $j:tt : $($g:tt)+ } => { Prop::Apart(
         fgi_index![$i],
         fgi_index![$j],
         fgi_sort![$($g)+],

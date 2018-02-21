@@ -74,7 +74,7 @@ pub enum IdxTm {
     Var(Var),
     Sing(NameTm),
     Empty,
-    Disj(IdxTmRec, IdxTmRec),
+    Apart(IdxTmRec, IdxTmRec),
     Union(IdxTmRec, IdxTmRec),
     Unit,
     /// All binary combinations of two name sets.
@@ -143,7 +143,7 @@ pub type KindRec = Rc<Kind>;
 pub enum Prop {
     Tt,
     Equiv(IdxTm, IdxTm, Sort),
-    Disj(IdxTm, IdxTm, Sort),
+    Apart(IdxTm, IdxTm, Sort),
     Conj(PropRec, PropRec),
     NoParse(String),
 }

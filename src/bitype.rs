@@ -182,7 +182,7 @@ pub enum IdxTmRule {
     Var(Var),
     Sing(NmTmDer),
     Empty,
-    Disj(IdxTmDer, IdxTmDer),
+    Apart(IdxTmDer, IdxTmDer),
     Union(IdxTmDer, IdxTmDer),
     Unit,
     Pair(IdxTmDer, IdxTmDer),
@@ -818,8 +818,8 @@ pub fn subst_term_idxtm(t:Term, x:&String, i:IdxTm) -> IdxTm {
         },
         IdxTm::Unit  => IdxTm::Unit,
         IdxTm::Empty => IdxTm::Empty,
-        IdxTm::Disj(i, j) => {
-            IdxTm::Disj(subst_term_idxtm_rec(t.clone(),x,i),
+        IdxTm::Apart(i, j) => {
+            IdxTm::Apart(subst_term_idxtm_rec(t.clone(),x,i),
                         subst_term_idxtm_rec(t,x,j))
         }
         IdxTm::Union(i, j) => {
@@ -961,11 +961,11 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
         &IdxTm::Empty => {
             succ(IdxTmRule::Empty, Sort::NmSet)
         },
-        &IdxTm::Disj(ref idx0, ref idx1) => {
+        &IdxTm::Apart(ref idx0, ref idx1) => {
             let td0 = synth_idxtm(last_label,ctx,idx0);
             let td1 = synth_idxtm(last_label,ctx,idx1);
             let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
-            let td = IdxTmRule::Disj(td0,td1);
+            let td = IdxTmRule::Apart(td0,td1);
             match (typ0,typ1) {
                 (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
                 (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
@@ -2334,7 +2334,7 @@ mod debug {
                 IdxTmRule::Var(_) => "Var",
                 IdxTmRule::Sing(_) => "Sing",
                 IdxTmRule::Empty => "Empty",
-                IdxTmRule::Disj(_, _) => "Disj",
+                IdxTmRule::Apart(_, _) => "Apart",
                 IdxTmRule::Union(_, _) => "Union",
                 IdxTmRule::Unit => "Unit",
                 IdxTmRule::Pair(_, _) => "Pair",
