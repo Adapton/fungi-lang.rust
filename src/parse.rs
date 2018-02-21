@@ -368,13 +368,13 @@ macro_rules! fgi_prop {
     { $i:tt % $j:tt : $($g:tt)+ } => { Prop::Disj(
         fgi_index![$i],
         fgi_index![$j],
-        fgi_sort![$g],
+        fgi_sort![$($g)+],
     )};
     //     i = j : g       (index equivalence)
     { $i:tt = $j:tt : $($g:tt)+ } => { Prop::Equiv(
         fgi_index![$i],
         fgi_index![$j],
-        fgi_sort![$g],
+        fgi_sort![$($g)+],
     )};
     // failure
     { $($any:tt)* } => { Prop::NoParse(stringify![$($any)*].to_string())};

@@ -111,8 +111,8 @@ fn bitype2() {
         type Seq = (
             rec seq. foralli (X,Y):NmSet.
             (+ OpNat
-             + (exists (X1,X2,X3)   :NmSet | (X1%X2%X3=X).
-                exists (Y1,Y2,Y3,Y4):NmSet | (Y1%Y2%Y3%Y4=Y).
+             + (exists (X1,X2,X3)   :NmSet | ((X1%X2%X3)=(X):NmSet).
+                exists (Y1,Y2,Y3,Y4):NmSet | ((Y1%Y2%Y3%Y4)=(Y):NmSet).
                 x Nm[X1] x Lev
                 x Ref[Y1](seq[X2][Y2])
                 x Ref[Y3](seq[X3][Y4]))

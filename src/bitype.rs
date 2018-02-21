@@ -2120,6 +2120,7 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
         //
         // Later and/or use synth rule:
         //   &Exp::App(ref e, ref v) => {},
+        //   &Exp::IdxApp(ref e, ref i) => {},
         //   &Exp::Force(ref v) => {},
         //   &Exp::Get(ref v) => {},
         //   &Exp::DefType(ref x,Type,ref e) => {},
