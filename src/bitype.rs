@@ -620,8 +620,43 @@ pub fn term_is_nmtm(t:&Term) -> bool {
     match t { &Term::NmTm(_) => true, _ => false }
 }
 
+/// Substitute name terms, index terms and types into type terms
 pub fn subst_term_type_rec(t:Term, x:&String, a:Rc<Type>) -> Rc<Type> {
     Rc::new(subst_term_type(t, x, (*a).clone()))
+}
+
+/// Substitute name terms, index terms and types into type terms
+pub fn subst_term_ctype(t:Term, x:&String, ct:CType) -> CType {
+    match ct {
+        CType::Lift(a) => {
+            CType::Lift(subst_term_type(t,x,a))
+        }
+        CType::Arrow(a, ce) => {
+            CType::Arrow(subst_term_type(t.clone(),x,a),
+                         subst_term_ceffect_rec(t,x,ce))
+        }
+        CType::NoParse(s) => CType::NoParse(s)
+    }
+}
+
+/// Substitute name terms and index terms into effects
+pub fn subst_term_effect_rec(t:Term, x:&String, eff:Rc<Effect>) -> Rc<Effect> {
+    Rc::new(subst_term_effect(t, x, (*eff).clone()))
+}
+
+/// Substitute name terms and index terms into effects
+pub fn subst_term_effect(t:Term, x:&String, eff:Effect) -> Effect {
+    match eff {
+        Effect::WR(i, j) => {
+            Effect::WR(subst_term_idxtm(t.clone(), x, i),
+                       subst_term_idxtm(t, x, j))
+        },
+        Effect::Then(e1, e2) => {
+            Effect::Then(subst_term_effect_rec(t.clone(), x, e1),
+                         subst_term_effect_rec(t, x, e2))
+        }
+        Effect::NoParse(s) => Effect::NoParse(s)
+    }
 }
 
 /// Substitute name terms, index terms and types into type terms
@@ -629,9 +664,32 @@ pub fn subst_term_ceffect_rec(t:Term, x:&String, ce:Rc<CEffect>) -> Rc<CEffect> 
     Rc::new(subst_term_ceffect(t, x, (*ce).clone()))
 }
 
+
 /// Substitute name terms, index terms and types into type terms
 pub fn subst_term_ceffect(t:Term, x:&String, ce:CEffect) -> CEffect {
-    panic!("TODO")
+    match ce {
+        CEffect::Cons(ct, eff) => {
+            CEffect::Cons(subst_term_ctype(t.clone(), x, ct),
+                          subst_term_effect(t, x, eff))
+        }
+        CEffect::ForallType(y, k, ce) => {
+            if term_is_type(&t) && x == &y {
+                CEffect::ForallType(y, k, ce)
+            } else {
+                CEffect::ForallType(y, k, subst_term_ceffect_rec(t, x, ce))
+            }
+        }
+        CEffect::ForallIdx(y, g, p, ce) => {
+            if term_is_idxtm(&t) && x == &y {
+                CEffect::ForallIdx(y, g, p, ce)
+            } else {
+                CEffect::ForallIdx(y, g,
+                                   subst_term_prop(t.clone(), x, p),
+                                   subst_term_ceffect_rec(t, x, ce))
+            }
+        }
+        CEffect::NoParse(s) => CEffect::NoParse(s)
+    }
 }
 
 /// Substitute name terms, index terms and types into type terms
@@ -736,6 +794,10 @@ pub fn subst_term_prop(t:Term, x:&String, p:Prop) -> Prop {
     p
 }
 
+pub fn subst_term_idxtm_rec(t:Term, x:&String, i:Rc<IdxTm>) -> Rc<IdxTm> {
+    Rc::new(subst_term_idxtm(t, x, (*i).clone()))
+}
+
 /// Substitute name terms and index terms into index terms
 pub fn subst_term_idxtm(t:Term, x:&String, i:IdxTm) -> IdxTm {
     // Types never appear in index terms
@@ -751,9 +813,65 @@ pub fn subst_term_idxtm(t:Term, x:&String, i:IdxTm) -> IdxTm {
                 IdxTm::Var(y)
             }
         }
-        _ => unimplemented!("{:?}", i)
+        IdxTm::Sing(n) => {
+            IdxTm::Sing(subst_term_nmtm(t,x,n))
+        },
+        IdxTm::Unit  => IdxTm::Unit,
+        IdxTm::Empty => IdxTm::Empty,
+        IdxTm::Disj(i, j) => {
+            IdxTm::Disj(subst_term_idxtm_rec(t.clone(),x,i),
+                        subst_term_idxtm_rec(t,x,j))
+        }
+        IdxTm::Union(i, j) => {
+            IdxTm::Union(subst_term_idxtm_rec(t.clone(),x,i),
+                         subst_term_idxtm_rec(t,x,j))
+        }
+        IdxTm::Bin(i, j) => {
+            IdxTm::Bin(subst_term_idxtm_rec(t.clone(),x,i),
+                       subst_term_idxtm_rec(t,x,j))
+        }
+        IdxTm::Pair(i, j) => {
+            IdxTm::Pair(subst_term_idxtm_rec(t.clone(),x,i),
+                        subst_term_idxtm_rec(t,x,j))
+        }
+        IdxTm::Proj1(i) => {
+            IdxTm::Proj1(subst_term_idxtm_rec(t,x,i))
+        }
+        IdxTm::Proj2(i) => {
+            IdxTm::Proj2(subst_term_idxtm_rec(t,x,i))
+        }
+        IdxTm::Lam(y,g,i) => {
+            if term_is_idxtm(&t) && x == &y {
+                IdxTm::Lam(y,g,i)
+            } else {
+                IdxTm::Lam(y,g,subst_term_idxtm_rec(t,x,i))
+            }
+        }
+        IdxTm::App(i, j) => {
+            IdxTm::App(subst_term_idxtm_rec(t.clone(), x, i),
+                       subst_term_idxtm_rec(t, x, j))
+        }
+        IdxTm::Map(n, j) => {
+            IdxTm::Map(subst_term_nmtm_rec(t.clone(), x, n),
+                       subst_term_idxtm_rec(t, x, j))
+        }
+        IdxTm::FlatMap(i, j) => {
+            IdxTm::FlatMap(subst_term_idxtm_rec(t.clone(), x, i),
+                           subst_term_idxtm_rec(t, x, j))
+        }
+        IdxTm::Star(i, j) => {
+            IdxTm::Star(subst_term_idxtm_rec(t.clone(), x, i),
+                        subst_term_idxtm_rec(t, x, j))
+        }
+        IdxTm::NoParse(s) =>
+            IdxTm::NoParse(s)
     }}
 }
+
+pub fn subst_term_nmtm_rec(t:Term, x:&String, m:Rc<NameTm>) -> Rc<NameTm> {
+    Rc::new(subst_term_nmtm(t,x,(*m).clone()))
+}
+
 
 /// Substitute name terms
 pub fn subst_term_nmtm(t:Term, x:&String, m:NameTm) -> NameTm {
