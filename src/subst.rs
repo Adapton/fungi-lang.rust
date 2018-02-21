@@ -1,4 +1,4 @@
-/*! Bidirectional type system. */
+/*! Static (typing-time) substitutions. */
 
 use std::fmt;
 use std::rc::Rc;
@@ -6,37 +6,38 @@ use std::rc::Rc;
 use ast::*;
 use bitype::{Term};
 
-/// Substitute a type for a type variable into another type
+/// Substitute a type for a type variable in another type
 pub fn subst_type_type(a:Type, x:&String, b:Type) -> Type {
     subst_term_type(Term::Type(a), x, b)
 }
 
-/// Substitute an index for an index variable into another type
+/// Substitute an index for an index variable in another type
 pub fn subst_idxtm_type(i:IdxTm, x:&String, b:Type) -> Type {
     subst_term_type(Term::IdxTm(i), x, b)
 }
 
 
-// TODO next --------------------------
-
+/// Predicate for type terms
 pub fn term_is_type(t:&Term) -> bool {
     match t { &Term::Type(_) => true, _ => false }
 }
 
+/// Predicate for index terms
 pub fn term_is_idxtm(t:&Term) -> bool {
     match t { &Term::IdxTm(_) => true, _ => false }
 }
 
+/// Predicate for name terms
 pub fn term_is_nmtm(t:&Term) -> bool {
     match t { &Term::NmTm(_) => true, _ => false }
 }
 
-/// Substitute name terms, index terms and types into type terms
+/// Substitute terms into types
 pub fn subst_term_type_rec(t:Term, x:&String, a:Rc<Type>) -> Rc<Type> {
     Rc::new(subst_term_type(t, x, (*a).clone()))
 }
 
-/// Substitute name terms, index terms and types into type terms
+/// Substitute terms into computation types
 pub fn subst_term_ctype(t:Term, x:&String, ct:CType) -> CType {
     match ct {
         CType::Lift(a) => {
@@ -50,12 +51,12 @@ pub fn subst_term_ctype(t:Term, x:&String, ct:CType) -> CType {
     }
 }
 
-/// Substitute name terms and index terms into effects
+/// Substitute terms into effects
 pub fn subst_term_effect_rec(t:Term, x:&String, eff:Rc<Effect>) -> Rc<Effect> {
     Rc::new(subst_term_effect(t, x, (*eff).clone()))
 }
 
-/// Substitute name terms and index terms into effects
+/// Substitute terms into effects
 pub fn subst_term_effect(t:Term, x:&String, eff:Effect) -> Effect {
     match eff {
         Effect::WR(i, j) => {
@@ -70,13 +71,12 @@ pub fn subst_term_effect(t:Term, x:&String, eff:Effect) -> Effect {
     }
 }
 
-/// Substitute name terms, index terms and types into type terms
+/// Substitute terms into computation effects 
 pub fn subst_term_ceffect_rec(t:Term, x:&String, ce:Rc<CEffect>) -> Rc<CEffect> {
     Rc::new(subst_term_ceffect(t, x, (*ce).clone()))
 }
 
-
-/// Substitute name terms, index terms and types into type terms
+/// Substitute terms into computation effects 
 pub fn subst_term_ceffect(t:Term, x:&String, ce:CEffect) -> CEffect {
     match ce {
         CEffect::Cons(ct, eff) => {
@@ -103,7 +103,7 @@ pub fn subst_term_ceffect(t:Term, x:&String, ce:CEffect) -> CEffect {
     }
 }
 
-/// Substitute name terms, index terms and types into type terms
+/// Substitute terms into types
 pub fn subst_term_type(t:Term, x:&String, a:Type) -> Type {
     match a {
         Type::Unit => Type::Unit,
@@ -200,16 +200,18 @@ pub fn subst_term_type(t:Term, x:&String, a:Type) -> Type {
     }
 }
 
+/// Substitute terms into propositions
 pub fn subst_term_prop(t:Term, x:&String, p:Prop) -> Prop {
     // XXX/TODO
     p
 }
 
+/// Substitute terms into index terms
 pub fn subst_term_idxtm_rec(t:Term, x:&String, i:Rc<IdxTm>) -> Rc<IdxTm> {
     Rc::new(subst_term_idxtm(t, x, (*i).clone()))
 }
 
-/// Substitute name terms and index terms into index terms
+/// Substitute terms into index terms
 pub fn subst_term_idxtm(t:Term, x:&String, i:IdxTm) -> IdxTm {
     // Types never appear in index terms
     if term_is_type(&t) { i.clone() } else { match i {
@@ -279,12 +281,13 @@ pub fn subst_term_idxtm(t:Term, x:&String, i:IdxTm) -> IdxTm {
     }}
 }
 
+/// Substitute terms into name terms
 pub fn subst_term_nmtm_rec(t:Term, x:&String, m:Rc<NameTm>) -> Rc<NameTm> {
     Rc::new(subst_term_nmtm(t,x,(*m).clone()))
 }
 
 
-/// Substitute name terms
+/// Substitute name terms into name terms
 pub fn subst_term_nmtm(t:Term, x:&String, m:NameTm) -> NameTm {
     if ! term_is_nmtm(&t) { m.clone() } else { match m {
         _ => unimplemented!("{:?}", m)
