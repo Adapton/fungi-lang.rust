@@ -30,15 +30,15 @@ mod fungi_stdlib_examples {
 }
     
 #[test]
-fn bitype () {
+fn bitype_filter () {
   use std::thread;
   let child =
     thread::Builder::new().stack_size(64 * 1024 * 1024).spawn(move || { 
-      bitype_short()
+      bitype_filter2()
     });
   let _ = child.unwrap().join();
 }
-fn bitype_short() {
+fn bitype_filter2() {
     use std::rc::Rc;
     use fungi_lang::ast::*;
     use fungi_lang::bitype::*;
@@ -90,8 +90,8 @@ fn bitype_short() {
                 bin => {
                     unpack (X1,X2,X3,Y1,Y2,Y3,Y4) bin = bin
                     let (n,lev,l,r) = {ret bin}
-                    let (rsl, sl) = { memo{n,(@1)}{ {force filter}[X2][Y2] {!l} f } }
-                    let (rsr, sr) = { memo{n,(@2)}{ {force filter}[X3][Y4] {!r} f } }
+                    let (rsl, sl) = { memo{n,(@1)}{ {{force filter}[X2][Y2]} {!l} f } }
+                    let (rsr, sr) = { memo{n,(@2)}{ {{force filter}[X3][Y4]} {!r} f } }
                     if {{force is_empty} sl} { ret sr }
                     else { if {{force is_empty} sr} { ret sl }
                            else {

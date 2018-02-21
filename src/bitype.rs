@@ -930,7 +930,7 @@ pub fn unroll_type(typ:&Type) -> Type {
         }
         // error
         _ => {
-            println!("error: not a recursive type; did not unroll it: {:?}", typ);
+            //println!("error: not a recursive type; did not unroll it: {:?}", typ);
             typ.clone()
         }
     }
