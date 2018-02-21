@@ -1581,10 +1581,26 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
         },
         &Exp::PrimApp(PrimApp::RefThunk(ref v)) => {
             let td0 = synth_val(last_label, ctx, v);
+            let typ0 = td0.clas.clone();
             let td = ExpRule::PrimApp(PrimAppRule::RefThunk(td0));
-            // TODO-Next
-            // XXX
-            fail(td, TypeError::Unimplemented)
+            match typ0 {
+                Err(_) => fail(td, TypeError::ParamNoSynth(0)),
+                Ok(Type::Thk(idx,ce)) => {
+                    match *ce {
+                        CEffect::Cons(CType::Lift(ref typ),ref eff) => {
+                            // TODO: compose write effect above with a read effect
+                            succ(td, CEffect::Cons(CType::Lift(
+                                Type::Prod(
+                                    Rc::new(Type::Ref(idx,Rc::new(typ.clone()))),
+                                    Rc::new(typ.clone())
+                                )
+                            ),eff.clone()))
+                        },
+                        _ => fail(td, TypeError::ParamMism(0)),
+                    }
+                },
+                _ => fail(td, TypeError::ParamMism(0)),
+            }
         },        
         &Exp::PrimApp(PrimApp::NatLt(ref v0,ref v1)) => {
             let td0 = synth_val(last_label, ctx, v0);
