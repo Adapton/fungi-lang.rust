@@ -16,6 +16,7 @@
 pub mod ast;
 #[macro_use]
 pub mod parse;
+pub mod subst;
 pub mod bitype;
 pub mod decide;
 pub mod eval;
