@@ -319,6 +319,7 @@ pub enum ExpRule {
     Lam(Var, ExpDer),
     HostFn(HostEvalFn),
     App(ExpDer, ValDer),
+    IdxApp(ExpDer, IdxTmDer),
     Split(ValDer, Var, Var, ExpDer),
     Case(ValDer, Var, ExpDer, Var, ExpDer),
     IfThenElse(ValDer, ExpDer, ExpDer),
@@ -1636,6 +1637,13 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
                 }
             }
         },
+        &Exp::IdxApp(ref e, ref i) => {
+            // TODO: implement
+            let td0 = synth_exp(last_label,ctx,e);
+            let td1 = synth_idxtm(last_label,ctx,i);
+            let td = ExpRule::IdxApp(td0,td1);
+            fail(td, TypeError::Unimplemented)
+        },
         &Exp::Get(ref v) => {
             let td0 = synth_val(last_label, ctx, v);
             let typ0 = td0.clas.clone();
@@ -2244,6 +2252,7 @@ mod debug {
                 ExpRule::Lam(_, _) => "Lam",
                 ExpRule::HostFn(_) => "HostFn",
                 ExpRule::App(_, _) => "App",
+                ExpRule::IdxApp(_, _) => "IdxApp",
                 ExpRule::Split(_, _, _, _) => "Split",
                 ExpRule::Case(_, _, _, _, _) => "Case",
                 ExpRule::IfThenElse(_, _, _) => "IfThenElse",

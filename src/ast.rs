@@ -329,6 +329,7 @@ pub enum Exp {
     // annotation, which is generally required.
     HostFn(HostEvalFn),
     App(ExpRec, Val),
+    IdxApp(ExpRec, IdxTm),
     Split(Val, Var, Var, ExpRec),
     Case(Val, Var, ExpRec, Var, ExpRec),
     IfThenElse(Val, ExpRec, ExpRec),

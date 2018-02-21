@@ -855,6 +855,7 @@ macro_rules! parse_fgi_tuple {
 ///     unroll v x.e                    (unroll recursively-typed value v as x in e)
 ///     unroll match v { ... }          (unroll recursively-typed value and elim sum type)
 ///     unpack (a1,...) x = (v) e       (unpack existentials from type, bind x to v)
+///     {e} [i1] ...                    (extened index application)
 ///     {e} {!ref} ...                  (application get-sugar)
 ///     {e} v1 ...                      (extened application)
 ///     type t = (A) e                  (user type shorthand)
@@ -1003,6 +1004,18 @@ macro_rules! fgi_exp {
                 )),
             )),
         )} $($more)*]
+    };
+    //     {e} [i]                             (single index application)
+    { {$($e:tt)+} [$i:tt] } => { Exp::IdxApp(
+        Rc::new(fgi_exp![$($e)+]),
+        fgi_index![$i],
+    )};
+    //     {e} [i1] ...                        (extened index application)
+    { {$($e:tt)+} [$i:tt] $($more:tt)+ } => {
+        fgi_exp![{fromast Exp::IdxApp(
+            Rc::new(fgi_exp![$($e)+]),
+            fgi_index![$i],
+        )} $($more)+]
     };
     //     {e} v                             (single application)
     { {$($e:tt)+} $v:tt } => { Exp::App(
