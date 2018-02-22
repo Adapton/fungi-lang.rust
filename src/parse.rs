@@ -788,16 +788,10 @@ macro_rules! fgi_val {
     { inj2 $($v:tt)+ } => { Val::Inj2(Rc::new(fgi_val![$($v)+])) };
     //     roll v 
     { roll $($v:tt)+ } => { Val::Roll(Rc::new(fgi_val![$($v)+])) };
-    //     pack (a1,...) v    (pack an existential index term variable)
-    //{ pack ($a:ident,$($as:ident),+) $($v:tt)+ } => { Val::Pack(
-    //stringify![$a].to_string(),
-    //Rc::new(fgi_val![pack ($($as),+) $($v)+]),
-    //)};
     //     pack (i1,...) v    (pack an existential index term variable)
-    { pack ($i:tt,$($is:tt),+) $($v:tt)+ } => { Val::Pack(
-        fgi_index![ $i ],
-        Rc::new(fgi_val![pack ($($is),+) $($v)+]),
-    )};
+    { pack ($($is:tt)+) $($v:tt)+ } => {
+        split_comma![parse_fgi_pack_multi (($($v)+)) <= $($is)+]
+    };
     //     pack i v    (pack - single case)
     { pack $i:tt $($v:tt)+ } => { Val::Pack(
         fgi_index![ $i ],
@@ -824,7 +818,7 @@ macro_rules! fgi_val {
     // failure
     { $($any:tt)* } => { Val::NoParse(stringify![$($any)*].to_string())};
 }
-/// this macro is a helper for fgi_ceffect, not for external use
+/// this macro is a helper for fgi_val, not for external use
 #[macro_export]
 macro_rules! parse_fgi_tuple {
     // unit
@@ -840,6 +834,20 @@ macro_rules! parse_fgi_tuple {
     { $($any:tt)* } => { Val::NoParse(stringify![(, $($any)*)].to_string())};
 }
 
+/// this macro is a helper for fgi_val, not for external use
+#[macro_export]
+macro_rules! parse_fgi_pack_multi {
+    // single
+    {($($v:tt)+) ($i:tt) } => { Val::Pack(
+        fgi_index![$i],
+        Rc::new(fgi_val![$($v)+]),
+    )};
+    // multi
+    {($($v:tt)+) ($i:tt) $($more:tt)+ } => { Val::Pack(
+        fgi_index![$i],
+        Rc::new(parse_fgi_pack_multi![($($v)+) $($more)+]),
+    )};
+}
 
 /// Parser for expressions
 ///
