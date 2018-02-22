@@ -1,33 +1,6 @@
 #![recursion_limit="128"]
 #[macro_use]
 extern crate fungi_lang;
-
-mod fungi_stdlib_examples {
-    fn seq_nat2() {
-        use std::rc::Rc;
-        use fungi_lang::ast::*;
-        use fungi_lang::bitype::*;
-        use fungi_lang::vis::*;
-        use fungi_lang::eval::*;
-        use fungi_lang::stdlib::seq::{seq_nat};
-        
-        let bundle : Bundle = fgi_bundle![            
-            use seq_nat::*;
-            ret 0
-        ];
-        write_bundle("target/seq_nat.fgb", &bundle);
-    }
-
-    #[test]
-    fn seq_nat () {
-        use std::thread;
-        let child =
-            thread::Builder::new().stack_size(64 * 1024 * 1024).spawn(move || { 
-                seq_nat2()
-            });
-        let _ = child.unwrap().join();
-    }
-}
     
 #[test]
 fn bitype_filter () {
@@ -61,11 +34,30 @@ fn bitype_filter2() {
             
         let nums:(Seq[X][Y]) = { unimplemented }
 
+        // Write scopes in type signatures:
+        // 
+        // Proposal #1: Use `@!` as the special, built-in name for the
+        // "current write scope", as a nameset-to-nameset function:
+        //
+        // @! : NmSet -> NmSet
+        //
+        // The special built-in name-to-name function could be `@@`.
+        // And, we should have that `@!` is equivalent to
+        // `#x:NmSet. [@@] x`, but useful as a built-in shorthand.
+        //
+        // So the filter function would write the names in set
+        // `(@!)((seq_sr) X)`, where
+        //
+        // `(seq_sr) := #x:Nm.{ x,@(1) } % { x,@(2) }`
+        //
+        // and where `(@!)(__)` maps the names in the given set by the
+        // current write scope.
+        //        
         let filter:(
             Thk[0] foralli (X,Y):NmSet.
                 0 (Seq[X][Y]) ->
                 0 (Thk[0] 0 Nat -> 0 F Bool) ->
-            { (seq_sr) X; Y }
+            { (@!)((seq_sr) X); Y }
             F (Seq[X][X])
         ) = {
             ret thunk fix filter. #seq. #f. unroll match seq {
@@ -95,7 +87,15 @@ fn bitype_filter2() {
                     if {{force is_empty} sl} { ret sr }
                     else { if {{force is_empty} sr} { ret sl }
                            else {
-                               ret pack (X1,X2,X3, Z1,Z2,Z3,Z4)
+                               // Proposal #2: Use `*` as an infix
+                               // operator, similar to the NameBin
+                               // operator (`,`), except that it lifts
+                               // this pair-wise operation to sets of
+                               // names (so (*) has sort `NmSet ->
+                               // NmSet -> NmSet`).
+                               ret pack (X1,X2,X3,
+                                         X1*{(@1)},(@!)X2,
+                                         X1*{(@2)},(@!)X3)
                                    roll inj2 (n,lev,rsl,rsr)
                            }
                     }
