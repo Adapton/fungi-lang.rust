@@ -838,13 +838,13 @@ macro_rules! parse_fgi_tuple {
 #[macro_export]
 macro_rules! parse_fgi_pack_multi {
     // single
-    {($($v:tt)+) ($i:tt) } => { Val::Pack(
-        fgi_index![$i],
+    {($($v:tt)+) ($($i:tt)+) } => { Val::Pack(
+        fgi_index![$($i)+],
         Rc::new(fgi_val![$($v)+]),
     )};
     // multi
-    {($($v:tt)+) ($i:tt) $($more:tt)+ } => { Val::Pack(
-        fgi_index![$i],
+    {($($v:tt)+) ($($i:tt)+) $($more:tt)+ } => { Val::Pack(
+        fgi_index![$($i)+],
         Rc::new(parse_fgi_pack_multi![($($v)+) $($more)+]),
     )};
 }

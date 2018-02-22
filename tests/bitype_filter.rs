@@ -24,8 +24,8 @@ fn bitype_filter2() {
         type Seq = (
             rec seq. foralli (X,Y):NmSet.
             (+ (+ Unit + Nat)
-             + (exists (X1,X2,X3)   :NmSet | ((X1%X2%X3)=(X):NmSet).
-                exists (Y1,Y2,Y3,Y4):NmSet | ((Y1%Y2%Y3%Y4)=(Y):NmSet).
+             + (exists (X1,X2,X3)   :NmSet | ((X1%X2%X3)=X:NmSet).
+                exists (Y1,Y2,Y3,Y4):NmSet | ((Y1%Y2%Y3%Y4)=Y:NmSet).
                 x Nm[X1] x Lev
                 x Ref[Y1](seq[X2][Y2])
                 x Ref[Y3](seq[X3][Y4]))
@@ -70,26 +70,26 @@ fn bitype_filter2() {
         //        
         let filter:(
             Thk[0] foralli (X,Y):NmSet.
-                0 (Seq[X][Y]) ->
+                0 Seq[X][Y] ->
                 0 (Thk[0] 0 Nat -> 0 F Bool) ->
-            { ((ws_seq_sr) X); Y }
-            F (Seq[X][X])
+            { (ws_seq_sr) X; Y }
+            F Seq[X][X]
         ) = {
             ret thunk fix filter. #seq. #f. unroll match seq {
                 opnat => {
                     match opnat {
                         _u => {
                             // no number to filter
-                            ret roll inj1 (inj1 ())
+                            ret roll inj1 inj1 ()
                         }
                         n => {
                             // apply user-supplied predicate
                             if {{force f} n} {
                                 // keep the number n
-                                ret roll inj1 (inj2 n )
+                                ret roll inj1 inj2 n
                             } else {
                                 // filter out the number n
-                                ret roll inj1 (inj1 ())
+                                ret roll inj1 inj1 ()
                             }
                         }
                     }
@@ -97,14 +97,14 @@ fn bitype_filter2() {
                 bin => {
                     unpack (X1,X2,X3,Y1,Y2,Y3,Y4) bin = bin
                     let (n,lev,l,r) = {ret bin}
-                    let (rsl, sl) = { memo{n,(@1)}{ {{force filter}[X2][Y2]} {!l} f } }
-                    let (rsr, sr) = { memo{n,(@2)}{ {{force filter}[X3][Y4]} {!r} f } }
+                    let (rsl, sl) = { memo{n,(@1)}{ {force filter}[X2][Y2]{!l} f } }
+                    let (rsr, sr) = { memo{n,(@2)}{ {force filter}[X3][Y4]{!r} f } }
                     if {{force is_empty} sl} { ret sr }
                     else { if {{force is_empty} sr} { ret sl }
                            else {
                                ret pack (X1, X2, X3,
-                                         ((ws_seq_sr1) X1), ((ws_seq_sr) X2),
-                                         ((ws_seq_sr2) X1), ((ws_seq_sr) X3))
+                                         (ws_seq_sr1) X1, (ws_seq_sr) X2,
+                                         (ws_seq_sr2) X1, (ws_seq_sr) X3)
                                    roll inj2 (n,lev,rsl,rsr)
                            }
                     }
