@@ -219,13 +219,20 @@ pub enum Val {
     Name(Name),
     NameFn(NameTm),
     Anno(ValRec,Type),
-    Pack(Var, ValRec),
+
+    /// Pack an index term that describes a given value.
+    ///
+    /// E.g., value `pack {@1} name @1` checks against type
+    /// `exists a:NmSet | a in {@1,@2}. Nm[a]`.
+    ///
+    Pack(IdxTm, ValRec),
     
-    // Anonymous thunks: "ordinary" CBPV thunks. They can be written
-    // in the source program, and unlike named (store-allocated)
-    // thunks, and closed, run-time thunks, these thunks exist in the
-    // pre-evaluation AST (not the store); also, they don't yet have a
-    // run-time environment.
+    /// Anonymous thunks ("ordinary" CBPV thunks).
+    ///
+    /// They can be written in the source program, and unlike named
+    /// (store-allocated) thunks, and closed, run-time thunks, these
+    /// thunks exist in the pre-evaluation AST (not the store); also,
+    /// they don't yet have a run-time environment.
     ThunkAnon(ExpRec),
 
     /// Primitive (Rust) `bool`, injected into `Val` type

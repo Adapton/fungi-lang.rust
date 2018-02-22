@@ -103,8 +103,8 @@ fn bitype_filter2() {
                     else { if {{force is_empty} sr} { ret sl }
                            else {
                                ret pack (X1, X2, X3,
-                                         (ws_seq_sr1) X1, (ws_seq_sr) X2 ,
-                                         (ws_seq_sr2) X1, (ws_seq_sr) X3 )
+                                         ((ws_seq_sr1) X1), ((ws_seq_sr) X2),
+                                         ((ws_seq_sr2) X1), ((ws_seq_sr) X3))
                                    roll inj2 (n,lev,rsl,rsr)
                            }
                     }

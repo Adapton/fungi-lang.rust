@@ -212,7 +212,7 @@ pub enum ValRule {
     Inj1(ValDer),
     Inj2(ValDer),
     Roll(ValDer),
-    Pack(Var,ValDer),
+    Pack(IdxTmDer,ValDer),
     Name(Name),
     NameFn(NmTmDer),
     Anno(ValDer,Type),
@@ -985,9 +985,10 @@ pub fn synth_val(last_label:Option<&str>, ctx:&Ctx, val:&Val) -> ValDer {
             let td = ValRule::Roll(td0);
             fail(td, TypeError::NoSynthRule)
         },
-        &Val::Pack(ref a, ref v) => {
+        &Val::Pack(ref i, ref v) => {
+            let td0 = synth_idxtm(last_label, ctx, i);
             let td1 = synth_val(last_label, ctx, v);
-            let td = ValRule::Pack(a.clone(), td1);
+            let td = ValRule::Pack(td0, td1);
             fail(td, TypeError::NoSynthRule)
         }
         &Val::Name(ref n) => {
@@ -1157,29 +1158,28 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ:&Type) -> ValD
             ), TypeError::AnnoMism) }
         },
         //
-        // Gamma, a:g         ||- P true
+        // Gamma              |- i <= g
+        // Gamma, a:g         |= P true
         // Gamma, a:g, P true |- v <= A
         // -------------------------------------------- :: existsi
-        // Gamma |- pack(a,v) <= (exists a:g|P. A)
+        // Gamma |- pack(i,v) <= (exists a:g|P. A)
         //
-        &Val::Pack(ref a1, ref v) => {
-            if let Type::Exists(a2,g,p,aa) = typ.clone() {
-                if *a1 == a2 {
-                    let new_ctx1 = ctx.ivar(a1.clone(),(*g).clone());
-                    // TODO: check that p is true
-                    let new_ctx2 = new_ctx1.prop(p);
-                    let td1 = check_val(last_label, &new_ctx2, v, &aa);
-                    let typ1 = td1.clas.clone();
-                    let td = ValRule::Pack(a1.clone(), td1);
-                    match typ1 {
-                        Err(_) => fail(td, TypeError::ParamNoCheck(1)),
-                        Ok(_) => succ(td, typ.clone()),
-                    }
-                } else { fail(ValRule::Pack(
-                    a1.clone(), synth_val(last_label, ctx, v)
-                ), TypeError::ExistVarMism) }
+        &Val::Pack(ref i, ref v) => {
+            if let Type::Exists(a,g,p,aa) = typ.clone() {
+                let td0 = check_idxtm(last_label, ctx, i, &g);
+                let new_ctx1 = ctx.ivar(a.clone(),(*g).clone());
+                // TODO: check that p is true
+                let new_ctx2 = new_ctx1.prop(p);                    
+                let td1 = check_val(last_label, &new_ctx2, v, &aa);
+                let typ1 = td1.clas.clone();
+                let td = ValRule::Pack(td0, td1);
+                match typ1 {
+                    Err(_) => fail(td, TypeError::ParamNoCheck(1)),
+                    Ok(_) => succ(td, typ.clone()),
+                }
             } else { fail(ValRule::Pack(
-                a1.clone(), synth_val(last_label, ctx, v)
+                synth_idxtm(last_label, ctx, i),
+                synth_val(last_label, ctx, v)
             ), TypeError::AnnoMism) }
         },
         &Val::ThunkAnon(ref e) => {

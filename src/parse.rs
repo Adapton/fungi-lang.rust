@@ -759,7 +759,7 @@ macro_rules! parse_fgi_earrow {
 ///     inj1 v      (first sum value)
 ///     inj2 v      (second sum value)
 ///     roll v      (roll an unrolled recursively-typed value)
-///     pack (a1,...) v  (pack existential index term variables)
+///     pack (i1,...) v  (pack index term(s) that describe a value v)
 ///     name n      (name value)
 ///     nmfn M      (name function as value)
 ///     true,false  (bool primitive)
@@ -789,15 +789,18 @@ macro_rules! fgi_val {
     //     roll v 
     { roll $($v:tt)+ } => { Val::Roll(Rc::new(fgi_val![$($v)+])) };
     //     pack (a1,...) v    (pack an existential index term variable)
-    { pack ($a:ident,$($as:ident),+) $($v:tt)+ } => { Val::Pack(
-        stringify![$a].to_string(),
-        Rc::new(fgi_val![pack ($($as),+) $($v)+]),
+    //{ pack ($a:ident,$($as:ident),+) $($v:tt)+ } => { Val::Pack(
+    //stringify![$a].to_string(),
+    //Rc::new(fgi_val![pack ($($as),+) $($v)+]),
+    //)};
+    //     pack (i1,...) v    (pack an existential index term variable)
+    { pack ($i:tt,$($is:tt),+) $($v:tt)+ } => { Val::Pack(
+        fgi_index![ $i ],
+        Rc::new(fgi_val![pack ($($is),+) $($v)+]),
     )};
-    //     pack (a) v    (pack - base case)
-    { pack ($a:ident) $($v:tt)+ } => { fgi_val![pack $a $($v)+] };
-    //     pack a v    (pack - single case)
-    { pack $a:ident $($v:tt)+ } => { Val::Pack(
-        stringify![$a].to_string(),
+    //     pack i v    (pack - single case)
+    { pack $i:tt $($v:tt)+ } => { Val::Pack(
+        fgi_index![ $i ],
         Rc::new(fgi_val![$($v)+]),
     )};
     //     name n      (name value)
