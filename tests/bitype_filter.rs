@@ -48,7 +48,7 @@ fn bitype_filter2() {
         // So the filter function would write the names in set
         // `(@!)((seq_sr) X)`, where
         //
-        //   (seq_sr) := #x:Nm.{ x,@(1) } % { x,@(2) }
+        //   seq_sr := #x:Nm.{ x,@(1) } % { x,@(2) }
         //
         // and where `(@!)(__)` maps the names in the given set by the
         // current write scope.
@@ -64,9 +64,9 @@ fn bitype_filter2() {
         // the function's write effect (the same "tree", as a set of
         // node names):
         //
-        //   (ws_seq_sr)  := #x:NmSet.(@!)(seq_sr x)
-        //   (ws_seq_sr1) := #x:NmSet.(@!)(x * {(@1)})
-        //   (ws_seq_sr2) := #x:NmSet.(@!)(x * {(@2)})
+        //   ws_seq_sr  := #x:NmSet.(@!)(seq_sr x)
+        //   ws_seq_sr1 := #x:NmSet.(@!)(x * {(@1)})
+        //   ws_seq_sr2 := #x:NmSet.(@!)(x * {(@2)})
         //        
         let filter:(
             Thk[0] foralli (X,Y):NmSet.
