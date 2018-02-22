@@ -1421,6 +1421,22 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
                 }
             }
         },
+        &Exp::Thunk(ref v,ref e) => {
+            let td0 = synth_val(last_label, ctx, v);
+            let td1 = synth_exp(last_label, ctx, e);
+            let (tp0,typ1) = (td0.clas.clone(),td1.clas.clone());
+            let td = ExpRule::Thunk(td0,td1);
+            match (tp0,typ1) {
+                (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
+                (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
+                (Ok(Type::Nm(idx)),Ok(ce)) => {
+                    let typ = Type::Thk(idx.clone(),Rc::new(ce));
+                    let eff = Effect::WR(idx,IdxTm::Empty);
+                    succ(td, CEffect::Cons(CType::Lift(typ),eff))
+                },
+                _ => fail(td, TypeError::ParamMism(1)),
+            }
+        },
         &Exp::Force(ref v) => {
             let td0 = synth_val(last_label, ctx, v);
             let typ0 = td0.clas.clone();
@@ -1720,12 +1736,6 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
         // ==  
         // == -- No synth rules for these forms
         // ==
-        &Exp::Thunk(ref v,ref e) => {
-            let td0 = synth_val(last_label, ctx, v);
-            let td1 = synth_exp(last_label, ctx, e);
-            let td = ExpRule::Thunk(td0,td1);
-            fail(td, TypeError::NoSynthRule) // Ok
-        },
         &Exp::Fix(ref x,ref e) => {
             let td1 = synth_exp(last_label, ctx, e);
             let td = ExpRule::Fix(x.clone(), td1);
