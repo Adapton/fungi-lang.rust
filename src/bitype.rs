@@ -1171,11 +1171,12 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ:&Type) -> ValD
                 // TODO: check that p is true
                 let new_ctx2 = new_ctx1.prop(p);                    
                 let td1 = check_val(last_label, &new_ctx2, v, &aa);
-                let typ1 = td1.clas.clone();
+                let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
                 let td = ValRule::Pack(td0, td1);
-                match typ1 {
-                    Err(_) => fail(td, TypeError::ParamNoCheck(1)),
-                    Ok(_) => succ(td, typ.clone()),
+                match (typ0,typ1) {
+                    (Err(_),_) => fail(td, TypeError::ParamNoCheck(0)),
+                    (_,Err(_)) => fail(td, TypeError::ParamNoCheck(1)),
+                    _ => succ(td, typ.clone()),
                 }
             } else { fail(ValRule::Pack(
                 synth_idxtm(last_label, ctx, i),
