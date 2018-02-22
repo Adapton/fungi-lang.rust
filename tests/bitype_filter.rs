@@ -94,8 +94,8 @@ fn bitype_filter2() {
                                // names (so (*) has sort `NmSet ->
                                // NmSet -> NmSet`).
                                ret pack (X1,X2,X3,
-                                         X1*{(@1)},(@!)X2,
-                                         X1*{(@2)},(@!)X3)
+                                         (@!)(X1*{(@1)}),(@!)((seq_sr) X2),
+                                         (@!)(X1*{(@2)}),(@!)((seq_sr) X3))
                                    roll inj2 (n,lev,rsl,rsr)
                            }
                     }
