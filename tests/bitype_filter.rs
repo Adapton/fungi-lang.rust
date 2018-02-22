@@ -48,16 +48,31 @@ fn bitype_filter2() {
         // So the filter function would write the names in set
         // `(@!)((seq_sr) X)`, where
         //
-        // `(seq_sr) := #x:Nm.{ x,@(1) } % { x,@(2) }`
+        //   (seq_sr) := #x:Nm.{ x,@(1) } % { x,@(2) }
         //
         // and where `(@!)(__)` maps the names in the given set by the
         // current write scope.
+        //
+        // Proposal #2: Use `*` as an infix operator, similar to the
+        // NameBin operator (`,`), except that it lifts this pair-wise
+        // operation to sets of names, so (*) has sort `NmSet -> NmSet
+        // -> NmSet`.
+        //
+        // It seems useful to define these "write scope" versions, to
+        // bring out the structure of the `pack` data structure value
+        // (a tree) in the listing below, and connect it clearly to
+        // the function's write effect (the same "tree", as a set of
+        // node names):
+        //
+        //   (ws_seq_sr)  := #x:NmSet.(@!)(seq_sr x)
+        //   (ws_seq_sr1) := #x:NmSet.(@!)(x * {(@1)})
+        //   (ws_seq_sr2) := #x:NmSet.(@!)(x * {(@2)})
         //        
         let filter:(
             Thk[0] foralli (X,Y):NmSet.
                 0 (Seq[X][Y]) ->
                 0 (Thk[0] 0 Nat -> 0 F Bool) ->
-            { (@!)((seq_sr) X); Y }
+            { ((ws_seq_sr) X); Y }
             F (Seq[X][X])
         ) = {
             ret thunk fix filter. #seq. #f. unroll match seq {
@@ -87,15 +102,9 @@ fn bitype_filter2() {
                     if {{force is_empty} sl} { ret sr }
                     else { if {{force is_empty} sr} { ret sl }
                            else {
-                               // Proposal #2: Use `*` as an infix
-                               // operator, similar to the NameBin
-                               // operator (`,`), except that it lifts
-                               // this pair-wise operation to sets of
-                               // names (so (*) has sort `NmSet ->
-                               // NmSet -> NmSet`).
-                               ret pack (X1,X2,X3,
-                                         (@!)(X1*{(@1)}),(@!)((seq_sr) X2),
-                                         (@!)(X1*{(@2)}),(@!)((seq_sr) X3))
+                               ret pack (X1, X2, X3,
+                                         (ws_seq_sr1) X1, (ws_seq_sr) X2 ,
+                                         (ws_seq_sr2) X1, (ws_seq_sr) X3 )
                                    roll inj2 (n,lev,rsl,rsr)
                            }
                     }
