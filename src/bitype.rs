@@ -178,6 +178,7 @@ pub enum NmTmRule {
     Name(Name),
     Bin(NmTmDer, NmTmDer),
     Lam(Var,Sort,NmTmDer),
+    ScopeFn,
     App(NmTmDer, NmTmDer),
     NoParse(String),
 }
@@ -921,6 +922,9 @@ pub fn synth_nmtm(last_label:Option<&str>, ctx:&Ctx, nmtm:&NameTm) -> NmTmDer {
                 )),
             }
         },
+        &NameTm::ScopeFn => { succ(NmTmRule::ScopeFn, Sort::NmArrow(
+            Rc::new(Sort::Nm), Rc::new(Sort::Nm)
+        ))}
         &NameTm::App(ref nt0, ref nt1) => {
             let td0 = synth_nmtm(last_label,ctx,nt0);
             let td1 = synth_nmtm(last_label,ctx,nt1);
@@ -2130,6 +2134,7 @@ mod debug {
                 NmTmRule::Name(_) => "Name",
                 NmTmRule::Bin(_, _) => "Bin",
                 NmTmRule::Lam(_,_,_) => "Lam",
+                NmTmRule::ScopeFn => "ScopeFn",
                 NmTmRule::App(_, _) => "App",
                 NmTmRule::NoParse(_) => "NoParse",
             }

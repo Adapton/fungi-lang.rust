@@ -32,11 +32,11 @@ fn bitype_filter2() {
         // `#x:NmSet. [@@] x`, but useful as a built-in shorthand.
         //
         // So the filter function would write the names in set
-        // `(@!)((seq_sr) X)`, where
+        // `[@!]((seq_sr) X)`, where
         //
         //   seq_sr := #x:Nm.{ x,@(1) } % { x,@(2) }
         //
-        // and where `(@!)(__)` maps the names in the given set by the
+        // and where `[@!](__)` maps the names in the given set by the
         // current write scope.
         //
         // Proposal #2: Use `*` as an infix operator, similar to the

@@ -48,6 +48,7 @@ use eval;
 ///     fromast ast_expr    (inject ast nodes)
 ///     []                  (leaf)
 ///     n * n * ...         (extended bin)
+///     @@                  (scope name)
 ///     @@str               (symbol)
 ///     @123                (number)
 /// ```
@@ -61,6 +62,8 @@ macro_rules! fgi_name {
     { name:tt * $($names:tt)+ } => {
         Name::Bin(Rc::new(fgi_name![$name]),Rc::new(fgi_name![$($names)+]))
     };
+    // @@     (scope name)
+    { @@ } => { Name::ScopeId };
     // @@str (symbol)
     { @@$($s:tt)+ } => { Name::Sym(stringify![$($s)+].to_string())};
     // @123 (number)
@@ -75,6 +78,7 @@ macro_rules! fgi_name {
 /// M,N ::=
 ///     fromast ast_expr    (inject ast nodes)
 ///     [N]                 (parens)
+///     @!                  (scope mapping function - `#x:NmSet. [@@] x`)
 ///     #a:g.M              (abstraction)
 ///     [M] N ...           (curried application)
 ///     a                   (Variable)
@@ -87,6 +91,8 @@ macro_rules! fgi_nametm {
     { fromast $ast:expr } => { $ast };
     //     [N]                 (parens)
     { [$($nmtm:tt)+] } => { fgi_nametm![$($nmtm)+] };
+    //
+    { @! } => { NameTm::ScopeFn };
     //     @n                  (literal name)
     { @$($nm:tt)+ } => { NameTm::Name(fgi_name![@$($nm)+]) };
     //     #a:g.M                (abstraction)
