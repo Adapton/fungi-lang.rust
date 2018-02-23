@@ -48,6 +48,7 @@ pub type Ident = String;
 /// Name Literals
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Name {
+    ScopeId,
     Leaf,
     Sym(String),
     Num(usize),
@@ -63,6 +64,7 @@ pub enum NameTm {
     Name(Name),
     Bin(NameTmRec, NameTmRec),
     Lam(Var, Sort, NameTmRec),
+    ScopeFn,
     App(NameTmRec, NameTmRec),
     NoParse(String),
 }
