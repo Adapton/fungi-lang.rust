@@ -20,23 +20,6 @@ fn bitype_filter2() {
 
     let bundle : Bundle = fgi_bundle![
 
-<<<<<<< bca273e3bf02c5f5b6118fa14cd9de1c49391fca
-=======
-        type Lev = ( Nat )
-        type Seq = (
-            rec seq. foralli (X,Y):NmSet.
-            (+ (+ Unit + Nat)
-             + (exists (X1,X2,X3)   :NmSet | ((X1%X2%X3)=X:NmSet).
-                exists (Y1,Y2,Y3,Y4):NmSet | ((Y1%Y2%Y3%Y4)=Y:NmSet).
-                x Nm[X1] x Lev
-                x Ref[Y1] seq[X2][Y2]
-                x Ref[Y3] seq[X3][Y4])
-            )
-        )
-            
-        let nums:(Seq[X][Y]) = { unimplemented }
-
->>>>>>> sketch scope function
         // Write scopes in type signatures:
         // 
         // Proposal #1: Use `@!` as the special, built-in name for the
@@ -67,7 +50,6 @@ fn bitype_filter2() {
         // the function's write effect (the same "tree", as a set of
         // node names):
         //
-<<<<<<< bca273e3bf02c5f5b6118fa14cd9de1c49391fca
         //   ws_seq_sr  := #x:NmSet.(@!)(seq_sr x)
         //   ws_seq_sr1 := #x:NmSet.(@!)(x * {(@1)})
         //   ws_seq_sr2 := #x:NmSet.(@!)(x * {(@2)})
@@ -97,12 +79,6 @@ fn bitype_filter2() {
             ) = { unimplemented }
         }
         
-=======
-        //   ws_seq_sr  := #x:NmSet.[@!](seq_sr x)
-        //   ws_seq_sr1 := #x:NmSet.[@!](x * {(@1)})
-        //   ws_seq_sr2 := #x:NmSet.[@!](x * {(@2)})
-        //        
->>>>>>> sketch scope function
         let filter:(
             Thk[0] foralli (X,Y):NmSet.
                 0 Seq[X][Y] ->
