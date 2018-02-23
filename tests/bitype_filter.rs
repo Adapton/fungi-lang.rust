@@ -68,11 +68,11 @@ fn bitype_filter2() {
                         x Ref[Y3](seq[X3][Y4]))
                     )
             );                
-            
-            idxtm    Seq_SR  = ( #x:Nm.   {x,@1} % {x,@2} );
-            idxtm WS_Seq_SR  = ( #x:NmSet.{Seq_SR} x      );
-            idxtm WS_Seq_SR1 = ( #x:NmSet.x * {@1}        );
-            idxtm WS_Seq_SR2 = ( #x:NmSet.x * {@2}        );
+
+            idxtm    Seq_SR  = ( #x:Nm.   ({x,@1})%({x,@2}));
+            idxtm WS_Seq_SR  = ( #x:NmSet.(Seq_SR) x       );
+            idxtm WS_Seq_SR1 = ( #x:NmSet.x * {@1}         );
+            idxtm WS_Seq_SR2 = ( #x:NmSet.x * {@2}         );
 
             fn is_empty:(
                 Thk[0] foralli (X,Y):NmSet.
@@ -115,14 +115,16 @@ fn bitype_filter2() {
                     let (rsl, sl) = { memo{n,(@1)}{ {force filter}[X2][Y2]{!l} f } }
                     label (rec 2)
                     let (rsr, sr) = { memo{n,(@2)}{ {force filter}[X3][Y4]{!r} f } }
-                    if {{force is_empty}[X2][((WS_Seq_SR) X1)] sl} {
+                    label (is_empty)
+                    if {{force is_empty}[X2][({WS_Seq_SR} X1)] sl} {
                         ret sr
-                    } else {if {{force is_empty}[X2][((WS_Seq_SR) X1)] sr} {
+                    } else {if {{force is_empty}[X2][({WS_Seq_SR} X1)] sr} {
                         ret sl
                     } else {
+                        label (pack)
                         ret pack (X1, X2, X3,
-                                  (WS_Seq_SR1) X1, (WS_Seq_SR) X2,
-                                  (WS_Seq_SR2) X1, (WS_Seq_SR) X3)
+                                  {WS_Seq_SR1} X1, {WS_Seq_SR} X2,
+                                  {WS_Seq_SR2} X1, {WS_Seq_SR} X3)
                             roll inj2 (n,lev,rsl,rsr)
                     }}
                 }
