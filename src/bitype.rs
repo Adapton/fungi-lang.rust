@@ -1538,6 +1538,14 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
                 )),
             }
         },
+        /*
+        Gamma        |- e1 ==> effect1 F A
+        Gamma, x : A |- e2 ==> effect2 C
+        Gamma       ||- (effect1 then effect2) = effect3
+        --------------------------------------------------:: let
+        Gamma |- let x = e1 in e2 => effect3 C
+        
+         */
         &Exp::Let(ref x, ref e1, ref e2) => {
             let td1 = synth_exp(last_label, ctx, e1);
             match td1.clas.clone() {

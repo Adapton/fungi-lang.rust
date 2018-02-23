@@ -14,6 +14,7 @@
 // Target language (Typed Adapton)
 // --------------------------------
 pub mod ast;
+#[doc(hidden)]
 #[macro_use]
 pub mod parse;
 pub mod subst;
