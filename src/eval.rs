@@ -361,10 +361,14 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
         Exp::Ret(v)      => { ExpTerm::Ret(close_val(&env, &v)) }
 
         // ignore types at run time:
-        Exp::UseAll(_, e)        => { return eval(env, (*e).clone()) }
         Exp::DefType(_x, _a, e)  => { return eval(env, (*e).clone()) }
         Exp::AnnoC(e1,_ct)       => { return eval(env, (*e1).clone()) }
         Exp::AnnoE(e1,_et)       => { return eval(env, (*e1).clone()) }
+
+        // XXX/TODO: Extend context with values/thunks from these definitions:
+        Exp::UseAll(_, e)        => { return eval(env, (*e).clone()) }
+        Exp::Decls(_, e)         => { return eval(env, (*e).clone()) }
+        
         // save a copy of e as thunk f in e
         Exp::Fix(f,e1) => {
             let env_saved = env.clone();

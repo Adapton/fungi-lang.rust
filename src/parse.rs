@@ -855,7 +855,9 @@ macro_rules! parse_fgi_pack_multi {
 /// e::=
 ///     fromast ast                     (inject ast nodes)
 ///     unsafe (arity) rustfn           (inject an evaluation function written in Rust)
-///     use x :: * ; e                  (all decls in module x made "local" to e)
+///     use x :: * ; e                  (all decls in module x made local to e)
+///     decls { d } ; e                 (all decls in d are made local to e)
+///     decls { d }   e                 (optional semicolon)
 ///     e : C                           (type annotation, no effect)
 ///     e :> E                          (type annotation, with effect)
 ///     {e}                             (parens)
@@ -917,6 +919,18 @@ macro_rules! fgi_exp {
             Rc::new( fgi_exp![ $($e)* ] )
         )
     };
+    //     decls { d } ; e                 (all decls in d are made local to e)
+    { decls $d:tt ; $($e:tt)+ } => { Exp::Decls(
+        Rc::new(fgi_decls![$d]),
+        Rc::new(fgi_exp![$($e)+])
+    )
+    };
+    //     decls { d }   e                 (all decls in d are made local to e)    
+    { decls $d:tt $($e:tt)+ } => { Exp::Decls(
+        Rc::new(fgi_decls![$d]),
+        Rc::new(fgi_exp![$($e)+])
+    )
+    };    
     //     e : C                           (type annotation, without effects)
     { $e:tt : $($c:tt)+ } => { Exp::AnnoC(
         Rc::new(fgi_exp![$e]),
@@ -1342,6 +1356,7 @@ macro_rules! fgi_module {
 ///     fn  f : ( A ) = { e } d  (define a function f, of thunk type A, with recursive body e)
 ///     fn  f : ( A )   { e } d  (alternate syntax: optional equal sign)
 ///     ; d                      (alternate syntax: optional semi colons, anywhere)
+///     { d }                    (alternate syntax: optional braces, anywhere)
 ///     (end)                    (no decls)
 /// ```
 ///
@@ -1427,6 +1442,10 @@ macro_rules! fgi_decls {
     { ^^ $e:expr } => {
         // end of list; no more declarations
         { drop($e); Decls::End }
+    };
+    //     { d }                    (alternate syntax: optional braces, anywhere)
+    { { $($d:tt)+ } } => {
+        fgi_decls![$($d)+]
     };
     // failure
     { $($any:tt)* } => { Decls::NoParse(stringify![ $($any)* ].to_string())};

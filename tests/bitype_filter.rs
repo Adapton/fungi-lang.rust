@@ -20,20 +20,6 @@ fn bitype_filter2() {
 
     let bundle : Bundle = fgi_bundle![
 
-        type Lev = ( Nat )
-        type Seq = (
-            rec seq. foralli (X,Y):NmSet.
-            (+ (+ Unit + Nat)
-             + (exists (X1,X2,X3)   :NmSet | ((X1%X2%X3)=X:NmSet).
-                exists (Y1,Y2,Y3,Y4):NmSet | ((Y1%Y2%Y3%Y4)=Y:NmSet).
-                x Nm[X1] x Lev
-                x Ref[Y1](seq[X2][Y2])
-                x Ref[Y3](seq[X3][Y4]))
-            )
-        )
-            
-        let nums:(Seq[X][Y]) = { unimplemented }
-
         // Write scopes in type signatures:
         // 
         // Proposal #1: Use `@!` as the special, built-in name for the
@@ -67,7 +53,31 @@ fn bitype_filter2() {
         //   ws_seq_sr  := #x:NmSet.(@!)(seq_sr x)
         //   ws_seq_sr1 := #x:NmSet.(@!)(x * {(@1)})
         //   ws_seq_sr2 := #x:NmSet.(@!)(x * {(@2)})
-        //        
+        //
+
+        decls {
+            type Lev = ( Nat )
+            type Seq = (
+                rec seq. foralli (X,Y):NmSet.
+                    (+ (+ Unit + Nat)
+                     + (exists (X1,X2,X3)   :NmSet | ((X1%X2%X3)=X:NmSet).
+                        exists (Y1,Y2,Y3,Y4):NmSet | ((Y1%Y2%Y3%Y4)=Y:NmSet).
+                        x Nm[X1] x Lev
+                        x Ref[Y1](seq[X2][Y2])
+                        x Ref[Y3](seq[X3][Y4]))
+                    )
+            );                
+            
+            idxtm ws_seq_sr  = ( #x:NmSet.(seq_sr x)   );
+            idxtm ws_seq_sr1 = ( #x:NmSet.(x * {(@1)}) );
+            idxtm ws_seq_sr2 = ( #x:NmSet.(x * {(@2)}) );
+
+            fn is_empty:(
+                Thk[0] foralli (X,Y):NmSet.
+                    0 (Seq[X][Y]) -> { 0; Y } F Bool
+            ) = { unimplemented }
+        }
+        
         let filter:(
             Thk[0] foralli (X,Y):NmSet.
                 0 Seq[X][Y] ->
@@ -99,15 +109,16 @@ fn bitype_filter2() {
                     let (n,lev,l,r) = {ret bin}
                     let (rsl, sl) = { memo{n,(@1)}{ {force filter}[X2][Y2]{!l} f } }
                     let (rsr, sr) = { memo{n,(@2)}{ {force filter}[X3][Y4]{!r} f } }
-                    if {{force is_empty} sl} { ret sr }
-                    else { if {{force is_empty} sr} { ret sl }
-                           else {
-                               ret pack (X1, X2, X3,
-                                         (ws_seq_sr1) X1, (ws_seq_sr) X2,
-                                         (ws_seq_sr2) X1, (ws_seq_sr) X3)
-                                   roll inj2 (n,lev,rsl,rsr)
-                           }
-                    }
+                    if {{force is_empty}[X2][((ws_seq_sr) X1)] sl} {
+                        ret sr
+                    } else {if {{force is_empty}[X2][((ws_seq_sr) X1)] sr} {
+                        ret sl
+                    } else {
+                        ret pack (X1, X2, X3,
+                                  (ws_seq_sr1) X1, (ws_seq_sr) X2,
+                                  (ws_seq_sr2) X1, (ws_seq_sr) X3)
+                            roll inj2 (n,lev,rsl,rsr)
+                    }}
                 }
             }
         }    

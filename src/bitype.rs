@@ -241,7 +241,7 @@ pub enum Qual {
     Val
 }
 
-/// Module item derivation
+/// Module item derivation; wraps a `DeclDer` with additional structure
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub struct ItemDer {
     pub doc:Option<String>,
@@ -249,7 +249,7 @@ pub struct ItemDer {
     pub var:String,
     pub der:DeclDer,
 }
-/// Module item typing rule
+/// Module item typing rule; each `Decl` is typed by an `ItemRule`
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum ItemRule {
     UseAll(UseAllModuleDer),
@@ -308,6 +308,7 @@ impl HasClas for DeclRule {
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum ExpRule {
     UseAll(UseAllModuleDer,ExpDer),
+    Decls(Vec<ItemRule>,ExpDer),
     AnnoC(ExpDer,CType),
     AnnoE(ExpDer,CEffect),
     Force(ValDer),
@@ -429,8 +430,10 @@ impl fmt::Display for TypeError {
             TypeError::EmptyDT => format!("ambiguous empty data type"),
             TypeError::Unimplemented => format!("Internal Error: type-checking unimplemented"),
             // 
-            TypeError::CheckFailType(ref t) => format!("check fail for type {:?}",t),
-            TypeError::CheckFailCEffect(ref ce) => format!("check fail for ceffect {:?}",ce),
+            //TypeError::CheckFailType(ref t) => format!("check fail for type {:?}",t),
+            //TypeError::CheckFailCEffect(ref ce) => format!("check fail for ceffect {:?}",ce),
+            TypeError::CheckFailType(ref _t) => format!("check fail for type ..."),
+            TypeError::CheckFailCEffect(ref _ce) => format!("check fail for ceffect ..."),
             TypeError::SynthFailVal(ref v) => format!("failed to synthesize type for value {:?}",v),
             //TypeError::TypeMismatch(ref t1, ref t2) => format!("failed to equate types {:?} (given) and {:?} (expected)", t1, t2),
             TypeError::UnexpectedCEffect(ref ce) => format!("unexpected effect type: {:?}", ce),
@@ -448,7 +451,7 @@ fn failure<R:HasClas+debug::DerRule>
      ctx:&Ctx, n:R, err:TypeError) -> Der<R>
 {
     if let Some(lbl) = last_label {print!("After {}, ", lbl)}
-    println!("Failed to {} {} {}, error: {}", dir.short(), n.short(), R::term_desc(), err);
+    println!("Failed to {} {} {}, error: {}", dir.short(), R::term_desc(), n.short(), err);
     Der{
         ctx: ctx.clone(),
         rule: Rc::new(n),
@@ -1233,12 +1236,13 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ:&Type) -> ValD
     }
 }
 
-/// Synthesize a typing derivation for a module, given the module AST.
-pub fn synth_module(last_label:Option<&str>, m:&Rc<Module>) -> ModuleDer {
-    let mut decls = &m.decls;
+/// Synthesize typing derivations for a list of declarations (e.g., from a module)
+pub fn synth_items(last_label:Option<&str>, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
+   
+    let mut decls = d;
     let mut tds : Vec<ItemRule> = vec![];
     let mut doc : Option<String> = None;
-    let mut ctx = Ctx::Empty;
+    let mut ctx = ctx.clone();
     fn der_of(ctx:Ctx, rule:DeclRule,
               res:Result<DeclClas,TypeError>) -> DeclDer
     {
@@ -1307,7 +1311,6 @@ pub fn synth_module(last_label:Option<&str>, m:&Rc<Module>) -> ModuleDer {
                 decls = d;
             }
             &Decls::Type(ref x, ref a, ref d) => {
-                println!("define type {} {:?}",x, a);
                 // TODO: synth kinding for type
                 let der = ItemDer{
                     doc:doc.clone(),
@@ -1367,11 +1370,17 @@ pub fn synth_module(last_label:Option<&str>, m:&Rc<Module>) -> ModuleDer {
             }
         }      
     };
+    return (tds, ctx)
+}
+
+/// Synthesize a typing derivation for a module, given the module AST.
+pub fn synth_module(last_label:Option<&str>, m:&Rc<Module>) -> ModuleDer {
+    let (item_tds, ctx) = synth_items(last_label, &Ctx::Empty, &m.decls);
     ModuleDer{
         ast: m.clone(),
-        tds: tds,
+        tds: item_tds,
         ctx_out: ctx,
-    }
+    } 
 }
 
 /// Synthesize a type and effect for a program expression
@@ -1382,6 +1391,15 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
         propagate(Dir::Synth, last_label, ctx, r, res)
     };
     match exp {
+        &Exp::Decls(ref decls, ref exp) => {
+            let (ds_der, ds_ctx) = synth_items(last_label, ctx, &decls);
+            let ctx = &ds_ctx;
+            //println!("{:?}", ctx);
+            let e_der = synth_exp(last_label, &ctx, exp);
+            let ce = e_der.clas.clone().map(|ce| ce.clone());
+            prop(ExpRule::Decls(ds_der, e_der),
+                 ce)
+        }        
         &Exp::UseAll(ref m, ref exp) => {
             let m_der = synth_module(last_label, &m.module);
             let ctx = ctx.append(&m_der.ctx_out);
@@ -2155,6 +2173,7 @@ mod debug {
                 ExpRule::AnnoC(_,_) => "AnnoC",
                 ExpRule::AnnoE(_,_) => "AnnoE",
                 ExpRule::UseAll(_,_) => "UseAll",
+                ExpRule::Decls(_,_) => "Decls",
                 ExpRule::Force(_) => "Force",
                 ExpRule::Thunk(_,_) => "Thunk",
                 ExpRule::Unroll(_,_,_) => "Unroll",

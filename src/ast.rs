@@ -313,6 +313,7 @@ pub enum PrimApp {
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Exp {
     UseAll(UseAllModule, ExpRec),
+    Decls(DeclsRec, ExpRec),
     AnnoE(ExpRec,CEffect),
     AnnoC(ExpRec,CType),
     Force(Val),
