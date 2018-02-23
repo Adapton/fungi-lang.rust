@@ -47,7 +47,7 @@ use eval;
 /// n ::=
 ///     fromast ast_expr    (inject ast nodes)
 ///     []                  (leaf)
-///     n,n, ...            (extended bin)
+///     n * n * ...         (extended bin)
 ///     @@str               (symbol)
 ///     @123                (number)
 /// ```
@@ -57,8 +57,8 @@ macro_rules! fgi_name {
     { fromast $ast:expr } => { $ast };
     // [] (leaf)
     { [] } => { Name::Leaf };
-    // n,n, ... (extended bin)
-    { name:tt, $($names:tt)+ } => {
+    // n * n * ...         (extended bin)
+    { name:tt * $($names:tt)+ } => {
         Name::Bin(Rc::new(fgi_name![$name]),Rc::new(fgi_name![$($names)+]))
     };
     // @@str (symbol)
@@ -144,6 +144,7 @@ macro_rules! parse_fgi_name_bin {
 ///     0           (empty set)
 ///     X % Y ...   (separating union extended - left to right)
 ///     X U Y ...   (union extended - left to right)
+///     X * Y       (pair-wise name combination of two sets)
 ///     ()          (unit)
 ///     (i,j)       (pairing)
 ///     prj1 i      (projection)
@@ -165,6 +166,11 @@ macro_rules! fgi_index {
     { {$($nmtm:tt)+} } => { IdxTm::Sing(fgi_nametm![$($nmtm)+])};
     //     0           (empty set)
     { 0 } => { IdxTm::Empty };
+    //     X * Y       (pair-wise name combination of two sets)
+    { $x:tt * $y:tt } => { IdxTm::Bin(
+        Rc::new(fgi_index![$x]),
+        Rc::new(fgi_index![$y]),
+    )};
     //     X % Y       (separating union)
     { $x:tt % $y:tt } => { IdxTm::Apart(
         Rc::new(fgi_index![$x]),
@@ -238,7 +244,20 @@ macro_rules! fgi_index {
         Rc::new(fgi_index![$($par)+]),
     )};
     //     a           (variable)
-    { $var:ident } => { IdxTm::Var(stringify![$var].to_string()) };
+    { $var:ident } => {{
+        let s = stringify![$var].to_string();
+        assert!(s.len() > 0);
+        // TODO: Make this less wasteful :)
+        let v:Vec<char> = s.chars().collect();
+        if v[0].is_uppercase() {
+            // uppercase: names for type definitions/aliases
+            IdxTm::Ident(s)
+        }
+        else {
+            // lowercase: names for type variables introduced by `forallt` and `rec`
+            IdxTm::Var(s)
+        }
+    }};
     // failure
     { $($any:tt)* } => { IdxTm::NoParse(stringify![$($any)*].to_string())};
 }

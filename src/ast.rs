@@ -72,6 +72,7 @@ pub type NameTmRec = Rc<NameTm>;
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum IdxTm {
     Var(Var),
+    Ident(Ident),
     Sing(NameTm),
     Empty,
     Apart(IdxTmRec, IdxTmRec),

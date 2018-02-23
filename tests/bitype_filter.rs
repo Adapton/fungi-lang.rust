@@ -68,9 +68,10 @@ fn bitype_filter2() {
                     )
             );                
             
-            idxtm ws_seq_sr  = ( #x:NmSet.(seq_sr x)   );
-            idxtm ws_seq_sr1 = ( #x:NmSet.(x * {(@1)}) );
-            idxtm ws_seq_sr2 = ( #x:NmSet.(x * {(@2)}) );
+            idxtm    Seq_SR  = ( #x:Nm.{x,@1} % {x,@2} );
+            idxtm WS_Seq_SR  = ( #x:NmSet.((Seq_SR) x)   );
+            idxtm WS_Seq_SR1 = ( #x:NmSet.(x * {@1}) );
+            idxtm WS_Seq_SR2 = ( #x:NmSet.(x * {@2}) );
 
             fn is_empty:(
                 Thk[0] foralli (X,Y):NmSet.
@@ -82,7 +83,7 @@ fn bitype_filter2() {
             Thk[0] foralli (X,Y):NmSet.
                 0 Seq[X][Y] ->
                 0 (Thk[0] 0 Nat -> 0 F Bool) ->
-            { (ws_seq_sr) X; Y }
+            { (WS_Seq_SR) X; Y }
             F Seq[X][X]
         ) = {
             ret thunk fix filter. #seq. #f. unroll match seq {
@@ -105,18 +106,19 @@ fn bitype_filter2() {
                     }
                 }
                 bin => {
+                    label (bin case)
                     unpack (X1,X2,X3,Y1,Y2,Y3,Y4) bin = bin
                     let (n,lev,l,r) = {ret bin}
                     let (rsl, sl) = { memo{n,(@1)}{ {force filter}[X2][Y2]{!l} f } }
                     let (rsr, sr) = { memo{n,(@2)}{ {force filter}[X3][Y4]{!r} f } }
-                    if {{force is_empty}[X2][((ws_seq_sr) X1)] sl} {
+                    if {{force is_empty}[X2][((WS_Seq_SR) X1)] sl} {
                         ret sr
-                    } else {if {{force is_empty}[X2][((ws_seq_sr) X1)] sr} {
+                    } else {if {{force is_empty}[X2][((WS_Seq_SR) X1)] sr} {
                         ret sl
                     } else {
                         ret pack (X1, X2, X3,
-                                  (ws_seq_sr1) X1, (ws_seq_sr) X2,
-                                  (ws_seq_sr2) X1, (ws_seq_sr) X3)
+                                  (WS_Seq_SR1) X1, (WS_Seq_SR) X2,
+                                  (WS_Seq_SR2) X1, (WS_Seq_SR) X3)
                             roll inj2 (n,lev,rsl,rsr)
                     }}
                 }

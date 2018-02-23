@@ -215,6 +215,8 @@ pub fn subst_term_idxtm_rec(t:Term, x:&String, i:Rc<IdxTm>) -> Rc<IdxTm> {
 pub fn subst_term_idxtm(t:Term, x:&String, i:IdxTm) -> IdxTm {
     // Types never appear in index terms
     if term_is_type(&t) { i.clone() } else { match i {
+        // Variables and identifiers are lexically distinct
+        IdxTm::Ident(y) => IdxTm::Ident(y),
         IdxTm::Var(y) => {
             if term_is_idxtm(&t) && x == &y {
                 match t {

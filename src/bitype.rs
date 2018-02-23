@@ -134,6 +134,15 @@ impl Ctx {
             ref c => c.rest().unwrap().lookup_type_def(x)
         }        
     }    
+    pub fn lookup_idxtm_def(&self, x:&Var) -> Option<IdxTm> {
+        match *self {
+            Ctx::Empty => None,
+            Ctx::Def(ref c,ref y, Term::IdxTm(ref i)) => {
+                if x == y { Some(i.clone()) } else { c.lookup_idxtm_def(x) }
+            },
+            ref c => c.rest().unwrap().lookup_idxtm_def(x)
+        }        
+    }    
 }
 
 pub trait HasClas {
@@ -376,6 +385,7 @@ impl<R:HasClas+debug::DerRule> Dir<R> {
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum TypeError {
     VarNotInScope(String),
+    IdentNotInScope(String),
     NoParse(String),
     AnnoMism,
     NoSynthRule,
@@ -384,7 +394,6 @@ pub enum TypeError {
     ParamMism(usize),
     ParamNoSynth(usize),
     ParamNoCheck(usize),
-    ExistVarMism,
     ProjNotProd,
     AppNotArrow,
     ValNotArrow,
@@ -410,11 +419,11 @@ impl fmt::Display for TypeError {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
         let s = match *self {
             TypeError::VarNotInScope(ref s) => format!("variable {} not in scope",s),
+            TypeError::IdentNotInScope(ref i) => format!("identifier {} not in scope",i),
             TypeError::NoParse(ref s) => format!("term did not parse: `{}`",s),
             TypeError::AnnoMism => format!("annotation mismatch"),
             TypeError::NoSynthRule => format!("no synth rule found, try an annotation"),
             TypeError::NoCheckRule => format!("no check rule found"),
-            TypeError::ExistVarMism => format!("identifiers of packed/unpacked existensial vars must match"),
             TypeError::InvalidPtr => format!("invalid pointer"),
             // 0 based parameter numbers
             TypeError::ParamMism(num) => format!("parameter {} type incorrect",num),
@@ -658,11 +667,18 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
     let fail = |td:IdxTmRule, err :TypeError| { failure(Dir::Synth, last_label, ctx, td, err)  };
     let succ = |td:IdxTmRule, sort:Sort     | { success(Dir::Synth, last_label, ctx, td, sort) };
     match idxtm {
+        &IdxTm::Ident(ref x) => {
+            let rule = IdxTmRule::Var(x.clone());
+            match ctx.lookup_idxtm_def(x) {
+                None => fail(rule, TypeError::IdentNotInScope(x.clone())),
+                Some(i) => synth_idxtm(last_label, ctx, &i)
+            }
+        }
         &IdxTm::Var(ref x) => {
-            let td = IdxTmRule::Var(x.clone());
+            let rule = IdxTmRule::Var(x.clone());
             match ctx.lookup_ivar(x) {
-                None => fail(td, TypeError::VarNotInScope(x.clone())),
-                Some(sort) => succ(td, sort)
+                None => fail(rule, TypeError::VarNotInScope(x.clone())),
+                Some(sort) => succ(rule, sort)
             }   
         }
         &IdxTm::Sing(ref nt) => {
