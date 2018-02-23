@@ -249,13 +249,20 @@ macro_rules! fgi_index {
         assert!(s.len() > 0);
         // TODO: Make this less wasteful :)
         let v:Vec<char> = s.chars().collect();
-        if v[0].is_uppercase() {
-            // uppercase: names for type definitions/aliases
-            IdxTm::Ident(s)
-        }
-        else {
+        //
+        // Variables in index terms are _either_ lowercase, or they
+        // are uppercase X, Y or Z (and variants).
+        if v[0].is_lowercase() ||
+            v[0] == 'X' ||
+            v[0] == 'Y' ||
+            v[0] == 'Z'
+        {
             // lowercase: names for type variables introduced by `forallt` and `rec`
             IdxTm::Var(s)
+        }
+        else {
+            // uppercase: names for type definitions/aliases
+            IdxTm::Ident(s)
         }
     }};
     // failure

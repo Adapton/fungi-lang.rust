@@ -109,7 +109,9 @@ fn bitype_filter2() {
                     label (bin case)
                     unpack (X1,X2,X3,Y1,Y2,Y3,Y4) bin = bin
                     let (n,lev,l,r) = {ret bin}
+                    label (rec 1)
                     let (rsl, sl) = { memo{n,(@1)}{ {force filter}[X2][Y2]{!l} f } }
+                    label (rec 2)
                     let (rsr, sr) = { memo{n,(@2)}{ {force filter}[X3][Y4]{!r} f } }
                     if {{force is_empty}[X2][((WS_Seq_SR) X1)] sl} {
                         ret sr
