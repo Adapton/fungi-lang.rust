@@ -55,6 +55,7 @@ fn bitype_filter2() {
         //   ws_seq_sr2 := #x:NmSet.(@!)(x * {(@2)})
         //
 
+        label(decls)
         decls {
             type Lev = ( Nat )
             type Seq = (
@@ -68,17 +69,18 @@ fn bitype_filter2() {
                     )
             );                
             
-            idxtm    Seq_SR  = ( #x:Nm.{x,@1} % {x,@2} );
-            idxtm WS_Seq_SR  = ( #x:NmSet.((Seq_SR) x)   );
-            idxtm WS_Seq_SR1 = ( #x:NmSet.(x * {@1}) );
-            idxtm WS_Seq_SR2 = ( #x:NmSet.(x * {@2}) );
+            idxtm    Seq_SR  = ( #x:Nm.   {x,@1} % {x,@2} );
+            idxtm WS_Seq_SR  = ( #x:NmSet.{Seq_SR} x      );
+            idxtm WS_Seq_SR1 = ( #x:NmSet.x * {@1}        );
+            idxtm WS_Seq_SR2 = ( #x:NmSet.x * {@2}        );
 
             fn is_empty:(
                 Thk[0] foralli (X,Y):NmSet.
                     0 (Seq[X][Y]) -> { 0; Y } F Bool
             ) = { unimplemented }
         }
-        
+
+        label(filter)        
         let filter:(
             Thk[0] foralli (X,Y):NmSet.
                 0 Seq[X][Y] ->
