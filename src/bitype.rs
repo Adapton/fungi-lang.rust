@@ -65,7 +65,11 @@ impl Ctx {
     }
     /// assume a proposition is true
     pub fn prop(&self,p:Prop) -> Ctx {
-        Ctx::PropTrue(Rc::new(self.clone()),p)
+        match p {
+            // Avoid adding the trivial prop to the context, to make them smaller/shorter
+            Prop::Tt => self.clone(),
+            _ => Ctx::PropTrue(Rc::new(self.clone()),p)
+        }
     }
     // append another context to the given one
     pub fn append(&self,other:&Ctx) -> Ctx {
@@ -1228,19 +1232,19 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ:&Type) -> ValD
             ), TypeError::AnnoMism) }
         },
         //
-        // Gamma              |- i <= g
-        // Gamma, a:g         |= P true
-        // Gamma, a:g, P true |- v <= A
-        // -------------------------------------------- :: existsi
+        // Gamma |- i <= g
+        // Gamma |= P[i/a] true
+        // Gamma |- v <= A[i/a]
+        // ---------------------------------------- :: existsi
         // Gamma |- pack(i,v) <= (exists a:g|P. A)
         //
         &Val::Pack(ref i, ref v) => {
             if let Type::Exists(a,g,p,aa) = typ.clone() {
-                let td0 = check_idxtm(last_label, ctx, i, &g);
-                let new_ctx1 = ctx.ivar(a.clone(),(*g).clone());
-                // TODO: check that p is true
-                let new_ctx2 = new_ctx1.prop(p);                    
-                let td1 = check_val(last_label, &new_ctx2, v, &aa);
+                let td0  = check_idxtm(last_label, ctx, i, &g);
+                let pi   = subst::subst_term_prop(Term::IdxTm(i.clone()), &a, p);
+                // TODO: check that pi = p[i/a] is true
+                let aai  = subst::subst_term_type(Term::IdxTm(i.clone()), &a, (*aa).clone());
+                let td1 = check_val(last_label, ctx, v, &aai);
                 let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
                 let td = ValRule::Pack(td0, td1);
                 match (typ0,typ1) {
@@ -1875,13 +1879,14 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
             // Strip off "forall" quantifiers in the ceffect type, moving their assumptions into the context.
             fn strip_foralls (ctx:&Ctx, ceffect:&CEffect) -> (Ctx, CEffect) {
                 match ceffect {
-                    &CEffect::ForallType(ref _a, ref _kind, ref ceffect) => {
-                        // TODO**: extend context with _x, etc.
-                        strip_foralls(ctx, ceffect)
+                    &CEffect::ForallType(ref a, ref k, ref ceffect) => {
+                        let ctx = ctx.tvar(a.clone(), k.clone());
+                        strip_foralls(&ctx, ceffect)
                     },
-                    &CEffect::ForallIdx(ref _a, ref _sort, ref _prop, ref ceffect) => {
-                        // TODO**: extend context with _x, etc.
-                        strip_foralls(ctx, ceffect)
+                    &CEffect::ForallIdx(ref a, ref g, ref p, ref ceffect) => {
+                        let ctx = ctx.ivar(a.clone(),g.clone());
+                        let ctx = ctx.prop(p.clone());
+                        strip_foralls(&ctx, ceffect)
                     },
                     &CEffect::Cons(_, _) => { (ctx.clone(), ceffect.clone()) }
                     &CEffect::NoParse(_) => { (ctx.clone(), ceffect.clone()) }

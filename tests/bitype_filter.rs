@@ -122,7 +122,7 @@ fn bitype_filter2() {
                     label (is_empty)
                     if {{force is_empty}[X2][({WS_Seq_SR} X1)] sl} {
                         ret sr
-                    } else {if {{force is_empty}[X2][({WS_Seq_SR} X1)] sr} {
+                    } else {if {{force is_empty}[X3][({WS_Seq_SR} X1)] sr} {
                         ret sl
                     } else {
                         label (pack)
@@ -134,11 +134,11 @@ fn bitype_filter2() {
                     }}
                 }
             }
-        }    
-
-        let pred : (Thk[0] 0 Nat -> 0 F Bool) = {ret thunk #x. unimplemented}
-        let nums_out = {{force filter} pred nums}
-        ret (nums, nums_out)
+        }
+        //let pred : (Thk[0] 0 Nat -> 0 F Bool) = {ret thunk #x. unimplemented}
+        //let nums_out = {{force filter} pred nums}
+        //ret (nums, nums_out)
+        ret 0
     ];
     write_bundle("target/bitype_filter.fgb", &bundle);
 }
