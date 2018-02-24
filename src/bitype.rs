@@ -168,6 +168,10 @@ impl<Rule:HasClas+debug::DerRule> Der<Rule> {
 pub struct DerVis {
     /// Term family name, for HFI
     pub tmfam:String,
+    /// `true` for _local_ errors that should be visually indicated at
+    /// the given AST/derivation node, and `false` for both non-local
+    /// errors and `Ok` nodes.
+    pub local_err:bool,
 }
 
 
@@ -426,7 +430,6 @@ impl fmt::Display for TypeError {
             TypeError::NoSynthRule => format!("no synth rule found, try an annotation"),
             TypeError::NoCheckRule => format!("no check rule found"),
             TypeError::InvalidPtr => format!("invalid pointer"),
-            // 0 based parameter numbers
             TypeError::ParamMism(num) => format!("parameter {} type incorrect",num),
             TypeError::ParamNoSynth(num) => format!("parameter {} unknown type",num),
             TypeError::ParamNoCheck(num) => format!("parameter {} type mismatch ",num),
@@ -439,13 +442,9 @@ impl fmt::Display for TypeError {
             TypeError::DSLiteral => format!("data structure literals not allowed"),
             TypeError::EmptyDT => format!("ambiguous empty data type"),
             TypeError::Unimplemented => format!("Internal Error: type-checking unimplemented"),
-            // 
-            //TypeError::CheckFailType(ref t) => format!("check fail for type {:?}",t),
-            //TypeError::CheckFailCEffect(ref ce) => format!("check fail for ceffect {:?}",ce),
-            TypeError::CheckFailType(ref _t) => format!("check fail for type ..."),
+            TypeError::CheckFailType(ref t) => format!("check fail for type {:?}",t),
             TypeError::CheckFailCEffect(ref _ce) => format!("check fail for ceffect ..."),
             TypeError::SynthFailVal(ref v) => format!("failed to synthesize type for value {:?}",v),
-            //TypeError::TypeMismatch(ref t1, ref t2) => format!("failed to equate types {:?} (given) and {:?} (expected)", t1, t2),
             TypeError::UnexpectedCEffect(ref ce) => format!("unexpected effect type: {:?}", ce),
             TypeError::UnexpectedType(ref t) => format!("unexpected type: {:?}", t),
             TypeError::LaterError => format!("error in a later line of code"),
@@ -456,11 +455,52 @@ impl fmt::Display for TypeError {
     }
 }
 
+fn error_is_local(err:&TypeError) -> bool {
+    match *err {
+        TypeError::VarNotInScope(ref s) => true,
+        TypeError::IdentNotInScope(ref i) => true,
+        TypeError::NoParse(ref s) => true,
+        TypeError::AnnoMism => true,
+        TypeError::NoSynthRule => true,
+        TypeError::NoCheckRule => true,
+        TypeError::InvalidPtr => true,
+        TypeError::ProjNotProd => true,
+        TypeError::ValNotArrow => true,
+        TypeError::AppNotArrow => true,
+        TypeError::GetNotRef => true,
+        TypeError::ExpNotCons => true,
+        TypeError::BadCheck => true,
+        TypeError::DSLiteral => true,
+        TypeError::EmptyDT => true,
+        TypeError::Unimplemented => true,
+        TypeError::ParamMism(num) => false,
+        TypeError::ParamNoSynth(num) => false,
+        TypeError::ParamNoCheck(num) => false,
+        TypeError::CheckFailType(ref t) => false,
+        TypeError::CheckFailCEffect(ref _ce) => false,
+        TypeError::SynthFailVal(ref v) => false,
+        TypeError::UnexpectedCEffect(ref ce) => true,
+        TypeError::UnexpectedType(ref t) => true,
+        TypeError::LaterError => false,
+        TypeError::Subder     => false,
+        TypeError::Mismatch   => true,
+    }
+}
+
+fn result_is_local_error<X>(x:&Result<X,TypeError>) -> bool {
+    match *x {
+        Ok(_) => false,
+        Err(ref e) => error_is_local(e),
+    }
+}
+
 fn failure<R:HasClas+debug::DerRule>
     (dir:Dir<R>, last_label:Option<&str>,
      ctx:&Ctx, n:R, err:TypeError) -> Der<R>
 {
     if let Some(lbl) = last_label {print!("After {}, ", lbl)}
+    let is_local_err = error_is_local(&err);
+    
     println!("Failed to {} {} {}, error: {}", dir.short(), R::term_desc(), n.short(), err);
     Der{
         ctx: ctx.clone(),
@@ -469,6 +509,7 @@ fn failure<R:HasClas+debug::DerRule>
         clas: Err(err),
         vis:DerVis{
             tmfam:R::tm_fam(),
+            local_err:is_local_err,
         }
     }
 }
@@ -484,6 +525,7 @@ fn success<R:HasClas+debug::DerRule>
         clas: Ok(clas),
         vis:DerVis{
             tmfam:R::tm_fam(),
+            local_err:false,
         }
     }
 }
@@ -499,6 +541,7 @@ fn propagate<R:HasClas+debug::DerRule>
         clas: result,
         vis:DerVis{
             tmfam:R::tm_fam(),
+            local_err:false,
         }
     }
 }
@@ -1082,8 +1125,12 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ:&Type) -> ValD
                 Some(x_typ) => {
                     let x_typ = normal_type(ctx, &x_typ);
                     // TODO: Type equality may be more complex than this test (e.g. alpha equivalent types should be equal)
+                    // XXX -- TODO-next
                     if x_typ == *typ { succ(td, x_typ) }
-                    else { fail(td, TypeError::AnnoMism) }
+                    else {
+                        println!("**\n{:?} \n (NOT-EQUAL-TO)\n{:?}\n", x_typ, typ);
+                        fail(td, TypeError::AnnoMism)
+                    }
                 }
             }
         },
@@ -1204,7 +1251,7 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ:&Type) -> ValD
             } else { fail(ValRule::Pack(
                 synth_idxtm(last_label, ctx, i),
                 synth_val(last_label, ctx, v)
-            ), TypeError::AnnoMism) }
+            ), TypeError::CheckFailType(typ.clone())) }
         },
         &Val::ThunkAnon(ref e) => {
             if let Type::Thk(ref _idx, ref ce) = *typ {
@@ -1266,6 +1313,7 @@ pub fn synth_items(last_label:Option<&str>, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule
     fn der_of(ctx:Ctx, rule:DeclRule,
               res:Result<DeclClas,TypeError>) -> DeclDer
     {
+        let is_local_err = result_is_local_error(&res);
         Der{
             ctx:ctx,
             dir:Dir::Synth,
@@ -1273,6 +1321,7 @@ pub fn synth_items(last_label:Option<&str>, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule
             clas:res,
             vis:DerVis{
                 tmfam:"Module".to_string(),
+                local_err:is_local_err,
             }
         }
     };

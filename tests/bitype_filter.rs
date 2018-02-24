@@ -69,10 +69,14 @@ fn bitype_filter2() {
                     )
             );                
 
-            idxtm    Seq_SR  = ( #x:Nm.   ({x,@1})%({x,@2}));
-            idxtm WS_Seq_SR  = ( #x:NmSet.(Seq_SR) x       );
-            idxtm WS_Seq_SR1 = ( #x:NmSet.x * {@1}         );
-            idxtm WS_Seq_SR2 = ( #x:NmSet.x * {@2}         );
+            /// Pointers written for each name in a structural recursion (-`_SR`) over a sequence:
+            idxtm Seq_SR = ( #x:Nm.({x,@1})%({x,@2}) );
+            /// ... prefixed with the current write scope (`WS`-) (TODO)
+            idxtm WS_Seq_SR  = ( #x:NmSet.(Seq_SR) x );
+            /// ... same, but just the first recursive call
+            idxtm WS_Seq_SR1 = ( #x:NmSet.x * {@1} );
+            /// ... second recursive call
+            idxtm WS_Seq_SR2 = ( #x:NmSet.x * {@2} );
 
             fn is_empty:(
                 Thk[0] foralli (X,Y):NmSet.
@@ -86,7 +90,7 @@ fn bitype_filter2() {
                 0 Seq[X][Y] ->
                 0 (Thk[0] 0 Nat -> 0 F Bool) ->
             { (WS_Seq_SR) X; Y }
-            F Seq[X][X]
+            F Seq[X][(WS_Seq_SR) X]
         ) = {
             ret thunk fix filter. #seq. #f. unroll match seq {
                 opnat => {
@@ -122,10 +126,11 @@ fn bitype_filter2() {
                         ret sl
                     } else {
                         label (pack)
-                        ret pack (X1, X2, X3,
-                                  {WS_Seq_SR1} X1, {WS_Seq_SR} X2,
-                                  {WS_Seq_SR2} X1, {WS_Seq_SR} X3)
-                            roll inj2 (n,lev,rsl,rsr)
+                        ret roll inj2 pack (
+                            X1, X2, X3,
+                            {WS_Seq_SR1} X1, {WS_Seq_SR} X2,
+                            {WS_Seq_SR2} X1, {WS_Seq_SR} X3
+                        )(n,lev,rsl,rsr)
                     }}
                 }
             }
