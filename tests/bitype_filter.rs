@@ -55,7 +55,6 @@ fn bitype_filter2() {
         //   ws_seq_sr2 := #x:NmSet.(@!)(x * {(@2)})
         //
 
-        label(decls)
         decls {
             type Lev = ( Nat )
             type Seq = (
@@ -84,7 +83,6 @@ fn bitype_filter2() {
             ) = { unimplemented }
         }
 
-        label(filter)        
         let filter:(
             Thk[0] foralli (X,Y):NmSet.
                 0 Seq[X][Y] ->
@@ -112,20 +110,15 @@ fn bitype_filter2() {
                     }
                 }
                 bin => {
-                    label (bin case)
                     unpack (X1,X2,X3,Y1,Y2,Y3,Y4) bin = bin
                     let (n,lev,l,r) = {ret bin}
-                    label (rec 1)
                     let (rsl, sl) = { memo{n,(@1)}{ {force filter}[X2][Y2]{!l} f } }
-                    label (rec 2)
                     let (rsr, sr) = { memo{n,(@2)}{ {force filter}[X3][Y4]{!r} f } }
-                    label (is_empty)
                     if {{force is_empty}[X2][({WS_Seq_SR} X1)] sl} {
                         ret sr
                     } else {if {{force is_empty}[X3][({WS_Seq_SR} X1)] sr} {
                         ret sl
                     } else {
-                        label (pack)
                         ret roll inj2 pack (
                             X1, X2, X3,
                             {WS_Seq_SR1} X1, {WS_Seq_SR} X2,
