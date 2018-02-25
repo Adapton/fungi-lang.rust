@@ -17,6 +17,7 @@ pub mod ast;
 #[doc(hidden)]
 #[macro_use]
 pub mod parse;
+pub mod normal;
 pub mod subst;
 pub mod bitype;
 pub mod decide;

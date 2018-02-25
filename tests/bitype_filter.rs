@@ -76,6 +76,7 @@ fn bitype_filter2() {
             idxtm WS_Seq_SR1 = ( #x:NmSet.x * {@1} );
             /// ... second recursive call
             idxtm WS_Seq_SR2 = ( #x:NmSet.x * {@2} );
+            
 
             fn is_empty:(
                 Thk[0] foralli (X,Y):NmSet.
@@ -123,7 +124,7 @@ fn bitype_filter2() {
                             X1, X2, X3,
                             {WS_Seq_SR1} X1, {WS_Seq_SR} X2,
                             {WS_Seq_SR2} X1, {WS_Seq_SR} X3
-                        )(n,lev,rsl,rsr)
+                         )(n,lev,rsl,rsr)
                     }}
                 }
             }

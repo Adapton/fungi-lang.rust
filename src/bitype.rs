@@ -4,6 +4,7 @@ use ast::*;
 use std::fmt;
 use std::rc::Rc;
 
+use normal;
 use subst;
 
 /// Typing context
@@ -550,166 +551,6 @@ fn propagate<R:HasClas+debug::DerRule>
     }
 }
 
-
-/// Normalize types (expand definitions and reduce applications).
-///
-/// To normalize types, we generally need to **expand definitions** of
-/// user-defined types, and **apply them** to type or index arguments.
-///
-/// ### Example:
-///
-/// Suppose the user defines `NmOp := foralli X:NmSet. 1 + Nm[X]` in
-/// the context.  Then, `NmOp [{@1}]` normalizes to `1 + Nm[{@1}]`, by
-/// using the body of the definition of `NmOp`, and reducing the
-/// type-index application.
-///
-/// ### Reducible forms (not head normal form)
-///
-/// The following type forms are **reducible**:
-///
-///   1. `user(_)` / `Ident(_)`   -- user-defined identifiers (each reduces to its definition)
-///   2. `(foralli a:g. A) [i]`   -- type-index application
-///   3. `(forallt a:K. A) B`     -- type-type application
-///
-/// ### Normal forms (irreducible forms)
-///
-/// The following forms are "normal" (irreducible); they each have
-/// intro/elim forms in the core language's program syntax:
-///
-///  1. Base types, sums, products
-///  3. `Ref`, `Thk`, `Nm`, `(Nm->Nm)[_]`,
-///  4. `exists`
-///  5. `forallt`, `foralli`
-///  6. `rec`
-///  7. type variables, as introduced by `forallt` and `rec` (note: not the same as user-defined type names, which each have a known definition)
-///  8. type applications in head normal form.
-/// 
-pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
-    match typ {
-        // normal forms:
-        &Type::Unit         |
-        &Type::Var(_)       |
-        &Type::Sum(_, _)    |
-        &Type::Prod(_, _)   |
-        &Type::Thk(_, _)    |
-        &Type::Ref(_, _)    |
-        &Type::Rec(_, _)    |
-        &Type::Nm(_)        |
-        &Type::NmFn(_)      |
-        &Type::TypeFn(_,_,_)|
-        &Type::IdxFn(_,_,_) |
-        &Type::NoParse(_)   |
-        &Type::Exists(_,_,_,_)
-            =>
-            typ.clone(),
-
-        &Type::Ident(ref ident) => { match ident.as_str() {
-            // Built-in primitives are normal; they lack a definition in the context:
-            "Nat" | "Bool" | "String"
-                => { typ.clone() }
-            
-            // all other identifiers are for defined types; look up the definition
-            _ => { match ctx.lookup_type_def(ident) {
-                Some(a) => normal_type(ctx, &a),
-                _ => {
-                    println!("undefined type: {} in\n{:?}", ident, ctx);
-                    // Give up:
-                    typ.clone()
-                }
-            }}
-        }}
-        &Type::TypeApp(ref a, ref b) => {
-            let a = normal_type(ctx, a);
-            let a = match a {
-                Type::Rec(_,_) => unroll_type(&a),
-                _ => a,
-            };
-            let b = normal_type(ctx, b);
-            match a {
-                Type::TypeFn(ref x, ref _k, ref body) => {
-                    let body = subst::subst_type_type(b,x,(**body).clone());
-                    normal_type(ctx, &body)
-                },
-                a => {
-                    panic!("sort error: expected TypeFn, not {:?}", a);
-                    typ.clone()
-                }
-            }
-        }
-        &Type::IdxApp(ref a, ref i) => {
-            let a = normal_type(ctx, a);
-            let a = match a {
-                Type::Rec(_,_) => unroll_type(&a),
-                _ => a,
-            };
-            match a {
-                Type::IdxFn(ref x, ref _g, ref body) => {
-                    let body = subst::subst_idxtm_type(i.clone(),x,(**body).clone());
-                    normal_type(ctx, &body)
-                },
-                a => {
-                    panic!("sort error: expected TypeFn, not {:?}", a);
-                    typ.clone()
-                }
-            }
-        }
-    }
-}
-
-/*
-
-Not head normal:
-(#a. (#b. b) 3) 4
--->
-(#a. 3) 4
--->
-3 4
--/->
-
-Not in normal form: (#b.b) 3) --> 3
-(#x. ((#b.b) 3))
-
-Is head normal (with lambda as outside thing)
-(#x. ((#b.b) 3))
-
-Head normal (with application as outside thing)
-x 1 2 3
-^
-| variable here
-
-*/
-
-/// Unroll a `rec` type, exposing its recursive body's type structure.
-///
-/// ### Example 1:  
-///
-/// `unroll_type(rec a. 1 + a)`  
-///  = `1 + (rec a. 1 + (rec a. 1 + a))`
-///
-/// ### Example 2:
-///
-/// `unroll_type(rec a. (+ 1 + a + (x a x a)))`  
-///  = `(+ 1`  
-///      `+ (rec a. 1 + a + (x a x a))`  
-///      `+ (x (rec a. 1 + a + (x a x a)) x (rec a. 1 + a + (x a x a)))`  
-///     `)`  
-///
-///
-pub fn unroll_type(typ:&Type) -> Type {
-    match typ {
-        // case: rec x.A =>
-        &Type::Rec(ref x, ref a) => {
-            // [(rec x.A)/x]A
-            subst::subst_type_type(typ.clone(), x, (**a).clone())
-        }
-        // error
-        _ => {
-            //println!("error: not a recursive type; did not unroll it: {:?}", typ);
-            typ.clone()
-        }
-    }
-}
-
 /// synthesize sort for index term
 pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer {
     let fail = |td:IdxTmRule, err :TypeError| { failure(Dir::Synth, last_label, ctx, td, err)  };
@@ -1120,14 +961,14 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ:&Type) -> ValD
     let fail = |td:ValRule, err :TypeError| { failure(Dir::Check(typ.clone()), last_label, ctx, td, err)  };
     let succ = |td:ValRule, typ :Type     | { success(Dir::Check(typ.clone()), last_label, ctx, td, typ) };
     // Normalize the type
-    let typ = &(normal_type(ctx, typ));
+    let typ = &(normal::normal_type(ctx, typ));
     match val {
         &Val::Var(ref x) => {
             let td = ValRule::Var(x.clone());
             match ctx.lookup_var(x) {
                 None => fail(td, TypeError::VarNotInScope(x.clone())),
                 Some(x_typ) => {
-                    let x_typ = normal_type(ctx, &x_typ);
+                    let x_typ = normal::normal_type(ctx, &x_typ);
                     // TODO: Type equality may be more complex than this test (e.g. alpha equivalent types should be equal)
                     // XXX -- TODO-next
                     if x_typ == *typ { succ(td, x_typ) }
@@ -1919,8 +1760,8 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
                          TypeError::SynthFailVal(v.clone()))
                 }
                 Ok(v_ty) => {
-                    let v_ty = normal_type(ctx, &v_ty);
-                    let v_ty = unroll_type(&v_ty);
+                    let v_ty = normal::normal_type(ctx, &v_ty);
+                    let v_ty = normal::unroll_type(&v_ty);
                     let new_ctx = ctx.var(x.clone(), v_ty);
                     let td0 = check_exp(last_label, &new_ctx, e, ceffect);
                     let td0_typ = td0.clas.clone();
@@ -1940,7 +1781,7 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
         //
         &Exp::Unpack(ref a1, ref x, ref v, ref e) => {
             let v_td = synth_val(last_label, ctx, v);
-            let v_ty = v_td.clone().clas.map(|a| normal_type(ctx, &a));
+            let v_ty = v_td.clone().clas.map(|a| normal::normal_type(ctx, &a));
             match v_ty.clone() {
                 Ok(Type::Exists(ref a2, ref g, ref p, ref aa)) => {
                     let p  = subst::subst_term_prop(Term::IdxTm(IdxTm::Var(a1.clone())), a2, p.clone());
@@ -1968,7 +1809,7 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
         },
         &Exp::Case(ref v, ref x1, ref e1, ref x2, ref e2) => {
             let v_td = synth_val(last_label, ctx, v);
-            let v_ty = v_td.clone().clas.map(|a| normal_type(ctx, &a));
+            let v_ty = v_td.clone().clas.map(|a| normal::normal_type(ctx, &a));
             match v_ty {
                 Ok(Type::Sum(ty1, ty2)) => {
                     let new_ctx1 = ctx.var(x1.clone(), (*ty1).clone());
@@ -2048,7 +1889,7 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
         },
         &Exp::Split(ref v, ref x1, ref x2, ref e) => {
             let td0 = synth_val(last_label, ctx, v);
-            let v_ty = td0.clone().clas.map(|a| normal_type(ctx, &a));
+            let v_ty = td0.clone().clas.map(|a| normal::normal_type(ctx, &a));
             match v_ty.clone() {
                 Err(_) => fail(ExpRule::Split(
                     td0, x1.clone(), x2.clone(),
@@ -2077,7 +1918,7 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
             let td0 = synth_val(last_label, ctx, v);
             let td1 = check_exp(last_label, ctx, e1, ceffect);
             let td2 = check_exp(last_label, ctx, e2, ceffect);
-            let v_ty = td0.clas.clone().map(|a| normal_type(ctx, &a));
+            let v_ty = td0.clas.clone().map(|a| normal::normal_type(ctx, &a));
             let (t0,t1,t2) = (td0.clas.clone(),td1.clas.clone(),td2.clas.clone());
             let td = ExpRule::IfThenElse(td0,td1,td2);
             match (v_ty,t1,t2) {
