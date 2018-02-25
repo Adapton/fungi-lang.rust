@@ -12,8 +12,10 @@ pub type Var2 = (Var, Var);
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum RelCtx {
     Empty,
-    /// Define a name variable's sort
-    NVar(RelCtxRec,Var,Var,Sort),
+    /// Assume a name variable equivalence, at a common sort
+    NVarEquiv(RelCtxRec,Var,Var,Sort),
+    /// Assume a name variable apartness, at a common sort
+    NVarApart(RelCtxRec,Var,Var,Sort),
     /// Define an index variable's sort
     IVar(RelCtxRec,Var,Var,Sort),
     /// Define a type variable's kind
@@ -26,6 +28,30 @@ pub enum RelCtx {
     PropTrue(RelCtxRec,Prop),
 }
 pub type RelCtxRec = Rc<RelCtx>;
+
+impl RelCtx {
+    pub fn rest(&self) -> Option<RelCtxRec> {
+        match self {
+            &RelCtx::Empty => None,
+            &RelCtx::NVarEquiv(ref c,_,_,_) |
+            &RelCtx::NVarApart(ref c,_,_,_) |
+            &RelCtx::IVar(ref c,_,_,_) |
+            &RelCtx::TVar(ref c,_,_,_) |
+            &RelCtx::Equiv(ref c,_,_,_) |
+            &RelCtx::Apart(ref c,_,_,_) |
+            &RelCtx::PropTrue(ref c,_) => { Some(c.clone()) }
+        }
+    }
+    pub fn lookup_nvareq(&self, x1:&Var, x2:&Var) -> Option<Sort> {
+        match self {
+            &RelCtx::NVarEquiv(ref c, ref v1, ref v2, ref s) => {
+                if (x1 == v1) & (x2 == v2) { Some(s.clone()) }
+                else { c.lookup_nvareq(x1,x2) }
+            }
+            c => c.rest().and_then(|c|c.lookup_nvareq(x1,x2))
+        }
+    }
+}
 
 /// Convert the context into the corresponding relational context
 pub fn relctx_of_ctx(c: &Ctx) -> RelCtx {
@@ -47,6 +73,7 @@ pub fn ctx_of_relctx(c: &RelCtx, hs:HandSide) -> Ctx {
 pub enum DecError {
     /// Type/sort/kind error during the decision procedure
     TypeError(TypeError),
+    NotEquiv,
 }
 
 /// Derivation for a decision procedure, expressed as deductive inference rules
@@ -149,23 +176,51 @@ pub mod equiv {
 
     /// Decide if two name terms are equivalent under the given context
     pub fn decide_nmtm_equiv(ctx: &RelCtx, n:&NameTm, m:&NameTm, g:&Sort) -> NmTmDec {
-        if n == m {
+        let succ = |r:NmTmRule| {
             return Dec{
                 ctx:ctx.clone(),
-                rule:Rc::new(NmTmRule::Refl(n.clone())),
+                rule:Rc::new(r),
                 clas:g.clone(),
                 res:Ok(true),
             }
-        }
-        else {        
-            // TODO: the types are not identical, but could still be equivalent.
-            // TODO: Use structural/deductive equiv rules.
+        };
+        let fail = |r:NmTmRule,e:DecError| {
+            return Dec{
+                ctx:ctx.clone(),
+                rule:Rc::new(r),
+                clas:g.clone(),
+                res:Err(e),
+            }
+        };
+        match (n,m) {
+            (n,m) if n == m => { succ(NmTmRule::Refl(n.clone())) }
+            // TODO: all struct cases
+            (&NameTm::Var(ref v1),&NameTm::Var(ref v2)) => {
+                if let Some(s) = ctx.lookup_nvareq(v1,v2) {
+                    // TODO: check sort equivalence
+                    succ(NmTmRule::Var((v1.clone(),v2.clone())))
+                // sym case
+                } else if let Some(s) = ctx.lookup_nvareq(v2,v1) {
+                    // TODO: check sort equivalence
+                    succ(NmTmRule::Var((v2.clone(),v1.clone())))
+                } else {
+                    // TODO: look up each var and check again?
+                    fail(
+                        NmTmRule::Var((v1.clone(),v2.clone())),
+                        DecError::NotEquiv,
+                    )
+                }
+            }
+            (n,m) => {
+                // TODO: the types are not identical, but could still be equivalent.
+                // TODO: Use structural/deductive equiv rules.
 
-            // NOTE #1: This is a priority to the extent that it is
-            // used by name and index term _apartness_ checks, which
-            // are likely to be the most important in many common
-            // examples.
-            unimplemented!()
+                // NOTE #1: This is a priority to the extent that it is
+                // used by name and index term _apartness_ checks, which
+                // are likely to be the most important in many common
+                // examples.
+                unimplemented!()
+            }
         }
     }
 
