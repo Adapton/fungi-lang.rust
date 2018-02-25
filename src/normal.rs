@@ -16,6 +16,65 @@ pub fn normal_nmtm(ctx:&Ctx, n:&NameTm) -> NameTm {
 }
 
 
+/// Representation for "apart-normal" name set terms.
+///
+/// A _name set term_ is either a singleton name term `M`, or a
+/// (disjoint) subset of the full set, represented by an index term
+/// `i`.
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum NmSetTm {
+    /// singleton name term `M`
+    Single(NameTm),
+    /// (disjoint) subset of the full set, represented by an index
+    /// term `i`
+    Subset(IdxTm),
+}
+pub type NmSetTms = Vec<NmSetTm>;
+
+/// Index term "values", which _may_ be symbolic (viz., `Var` case).
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum IdxVal {
+    /// Variables in values are not generally problematic, unless we
+    /// need to use that value in an elimination form
+    Var(Var),
+    /// Compared with general index terms, name set terms consist of a more structured representation
+    NmSet(NmSetTm),
+    /// (Unique) unit value
+    Unit,
+    /// Pairs: both components are index term values
+    Pair(IdxValRec, IdxValRec),
+    /// Lambdas: same as general term form
+    Lam(Var, Sort, IdxTmRec),
+    /// No parse
+    NoParse(String),
+}
+pub type IdxValRec = Rc<IdxVal>;
+
+
+/// Index evaluation errors
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum IdxEvalErr {
+    /// In some situations, the value to be eliminated (pair, function
+    /// or set) is abstract/unknown, and thus, the elimination form
+    /// cannot reduce.
+    AbsIntroForm(Var),
+    /// When the elimination form and intro forms do not agree on sort
+    SortError,
+}
+
+/// Convert the (more restrictive) index term _value_ syntax back into
+/// the (less restrictive) index term syntax.
+pub fn idxtm_of_idxval(i:&IdxVal) -> IdxTm {
+    panic!("XXX");    
+}
+
+/// If the term evaluates, result is an `IdxVal`; otherwise, the
+/// result gives the (general) reason that evaluation cannot proceed.
+pub fn idxtm_eval(ctx:&Ctx, i:IdxTm) -> Result<IdxVal,IdxEvalErr> {
+    panic!("XXX");
+}
+
+
 /// Normalize index terms, by expanding definitions and reducing
 /// function applications where possible.
 ///
@@ -68,8 +127,40 @@ pub fn normal_nmtm(ctx:&Ctx, n:&NameTm) -> NameTm {
 /// implement the effect-checking logic of the `let` checking rule.)
 ///
 pub fn normal_idxtm(ctx:&Ctx, i:&IdxTm) -> IdxTm {
+    //let tms = nmsettms_of_idxtm(ctx, i);
+    //return idxtm_of_nmsettms(ctx, &tms);
+    panic!("TODO")
+}
+
+/// Convert the highly-structured, vectorized name set representation
+/// into a less structured, AST representation.
+pub fn idxtm_of_nmsettms(tms:&NmSetTms) -> IdxTm {
+    let mut i : IdxTm = IdxTm::Empty;
+    for t in tms.iter() {
+        i = IdxTm::Apart(Rc::new(
+            {
+                match (*t).clone() {
+                    NmSetTm::Single(m) => IdxTm::Sing(m),
+                    NmSetTm::Subset(i) => i.clone()
+                }
+            }),
+                         Rc::new(i)
+        );        
+    }
+    return i
+}
+
+/// Normalize the index term with respect to name set apartness;
+/// decomposes the index term across disjoint set unions.
+pub fn nmsettms_of_idxtm(ctx:&Ctx, i:&IdxTm) -> NmSetTms {
+    // Helper function
+    fn nmsettms_rec(ctx:&Ctx, i:&IdxTm, out:&mut NmSetTms) {
+        // XXX/TODO
+    };    
     /// XXX/TODO
-    return i.clone()
+    let mut out = vec![];
+    nmsettms_rec(ctx, i, &mut out);
+    return out
 }
 
 
