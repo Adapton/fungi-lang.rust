@@ -49,6 +49,15 @@ impl RelCtx {
             c => c.rest().map_or(false,|c|c.lookup_nvareq(x1,x2,g))
         }
     }
+    // pub fn lookup_nvareq_sort(&self, x1:&Var, x2:&Var) -> Option<Sort> {
+    //     match self {
+    //         &RelCtx::NVarEquiv(ref c, ref v1, ref v2, ref s) => {
+    //             if (x1 == v1) & (x2 == v2) { Some(s.clone()) }
+    //             else { c.lookup_nvareq_sort(x1,x2) }
+    //         }
+    //         c => c.rest().and_then(|c|c.lookup_nvareq_sort(x1,x2))
+    //     }
+    // }
 }
 
 /// Convert the context into the corresponding relational context
@@ -176,7 +185,7 @@ pub mod equiv {
     /// Decide if two name terms are equivalent under the given context
     pub fn decide_nmtm_equiv(ctx: &RelCtx, n:&NameTm, m:&NameTm, g:&Sort) -> NmTmDec {
         let succ = |r:NmTmRule| {
-            return Dec{
+            Dec{
                 ctx:ctx.clone(),
                 rule:Rc::new(r),
                 clas:g.clone(),
@@ -184,7 +193,7 @@ pub mod equiv {
             }
         };
         let fail = |r:NmTmRule| {
-            return Dec{
+            Dec{
                 ctx:ctx.clone(),
                 rule:Rc::new(r),
                 clas:g.clone(),
@@ -192,7 +201,7 @@ pub mod equiv {
             }
         };
         let err = |r:NmTmRule,e:DecError| {
-            return Dec{
+            Dec{
                 ctx:ctx.clone(),
                 rule:Rc::new(r),
                 clas:g.clone(),
@@ -224,7 +233,7 @@ pub mod equiv {
             (&NameTm::Lam(ref a,ref asort,ref m),&NameTm::Lam(ref b,_,ref n)) => {
                 // Assume lam vars have same type
                 if let &Sort::NmArrow(ref g1,ref g2) = g {
-                    let bodys = decide_nmtm_equiv(&ctx.nt_eq(a,b,g1),m,n,&*g2);
+                    let bodys = decide_nmtm_equiv(&ctx.nt_eq(a,b,g1),m,n,g2);
                     let res = bodys.res.clone();
                     let der = NmTmRule::Lam((a.clone(),b.clone()),asort.clone(),bodys);
                     match res {
@@ -238,9 +247,13 @@ pub mod equiv {
                     ), DecError::NameLamNotLam
                 )}
             }
+            (&NameTm::App(ref m1,ref m2),&NameTm::App(ref n1,ref n2)) => {
+                // TODO: generate sort of m1 and m2
+                unimplemented!("decide_nmtm_equiv app")
+            }
             (n,m) => {
                 // TODO: Non-structural cases
-                unimplemented!()
+                unimplemented!("decide_nmtm_equiv non-struct")
             }
         }
     }
