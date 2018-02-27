@@ -16,14 +16,10 @@ pub enum RelCtx {
     NVarEquiv(RelCtxRec,Var,Var,Sort),
     /// Assume a name variable apartness, at a common sort
     NVarApart(RelCtxRec,Var,Var,Sort),
-    /// Define an index variable's sort
-    IVar(RelCtxRec,Var,Var,Sort),
-    /// Define a type variable's kind
-    TVar(RelCtxRec,Var,Var,Kind),
-    /// Assume an index term equivalence, at a common sort
-    Equiv(RelCtxRec,IdxTm,IdxTm,Sort),
-    /// Assume an index term apartness, at a common sort
-    Apart(RelCtxRec,IdxTm,IdxTm,Sort),
+    /// Assume an index variable equivalence, at a common sort
+    IVarEquiv(RelCtxRec,Var,Var,Sort),
+    /// Assume an index variable apartness, at a common sort
+    IVarApart(RelCtxRec,Var,Var,Sort),
     /// Assume a proposition is true
     PropTrue(RelCtxRec,Prop),
 }
@@ -35,10 +31,8 @@ impl RelCtx {
             &RelCtx::Empty => None,
             &RelCtx::NVarEquiv(ref c,_,_,_) |
             &RelCtx::NVarApart(ref c,_,_,_) |
-            &RelCtx::IVar(ref c,_,_,_) |
-            &RelCtx::TVar(ref c,_,_,_) |
-            &RelCtx::Equiv(ref c,_,_,_) |
-            &RelCtx::Apart(ref c,_,_,_) |
+            &RelCtx::IVarEquiv(ref c,_,_,_) |
+            &RelCtx::IVarApart(ref c,_,_,_) |
             &RelCtx::PropTrue(ref c,_) => { Some(c.clone()) }
         }
     }
