@@ -26,6 +26,9 @@ pub enum RelCtx {
 pub type RelCtxRec = Rc<RelCtx>;
 
 impl RelCtx {
+    pub fn nt_eq(&self,n1:&Var,n2:&Var,g:&Sort) -> Self {
+        RelCtx::NVarEquiv(Rc::new(self.clone()),n1.clone(),n2.clone(),g.clone())
+    }
     pub fn rest(&self) -> Option<RelCtxRec> {
         match self {
             &RelCtx::Empty => None,
@@ -69,6 +72,7 @@ pub enum DecError {
     /// Type/sort/kind error during the decision procedure
     TypeError(TypeError),
     InSubDec,
+    NameLamNotLam,
 }
 
 /// Derivation for a decision procedure, expressed as deductive inference rules
@@ -216,6 +220,23 @@ pub mod equiv {
                     (Ok(_),Ok(_)) => fail(der),
                     (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
                 }
+            }
+            (&NameTm::Lam(ref a,ref asort,ref m),&NameTm::Lam(ref b,_,ref n)) => {
+                // Assume lam vars have same type
+                if let &Sort::NmArrow(ref g1,ref g2) = g {
+                    let bodys = decide_nmtm_equiv(&ctx.nt_eq(a,b,g1),m,n,&*g2);
+                    let res = bodys.res.clone();
+                    let der = NmTmRule::Lam((a.clone(),b.clone()),asort.clone(),bodys);
+                    match res {
+                        Ok(true) => succ(der),
+                        Ok(false) => fail(der),
+                        Err(_) => err(der, DecError::InSubDec)
+                    }
+                } else {err(
+                    NmTmRule::Lam((a.clone(),b.clone()),asort.clone(),
+                        decide_nmtm_equiv(ctx,m,n,g)
+                    ), DecError::NameLamNotLam
+                )}
             }
             (n,m) => {
                 // TODO: Non-structural cases
