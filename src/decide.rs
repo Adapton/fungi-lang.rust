@@ -68,7 +68,7 @@ pub fn ctx_of_relctx(c: &RelCtx, hs:HandSide) -> Ctx {
 pub enum DecError {
     /// Type/sort/kind error during the decision procedure
     TypeError(TypeError),
-    NotEquiv,
+    InSubDec,
 }
 
 /// Derivation for a decision procedure, expressed as deductive inference rules
@@ -179,7 +179,15 @@ pub mod equiv {
                 res:Ok(true),
             }
         };
-        let fail = |r:NmTmRule,e:DecError| {
+        let fail = |r:NmTmRule| {
+            return Dec{
+                ctx:ctx.clone(),
+                rule:Rc::new(r),
+                clas:g.clone(),
+                res:Ok(false),
+            }
+        };
+        let err = |r:NmTmRule,e:DecError| {
             return Dec{
                 ctx:ctx.clone(),
                 rule:Rc::new(r),
@@ -194,20 +202,23 @@ pub mod equiv {
                 if ctx.lookup_nvareq(v1,v2,g) {
                     succ(NmTmRule::Var((v1.clone(),v2.clone())))
                 } else {
-                    fail(
-                        NmTmRule::Var((v1.clone(),v2.clone())),
-                        DecError::NotEquiv,
-                    )
+                    fail(NmTmRule::Var((v1.clone(),v2.clone())))
+                }
+            }
+            (&NameTm::Bin(ref m1,ref m2),&NameTm::Bin(ref n1,ref n2)) => {
+                // Assume sort Nm (they're bins)
+                let left = decide_nmtm_equiv(ctx,m1,n1,g);
+                let right = decide_nmtm_equiv(ctx,m2,n2,g);
+                let (r1,r2) = (left.res.clone(),right.res.clone());
+                let der = NmTmRule::Bin(left,right);
+                match (r1,r2) {
+                    (Ok(true),Ok(true)) => succ(der),
+                    (Ok(_),Ok(_)) => fail(der),
+                    (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
                 }
             }
             (n,m) => {
-                // TODO: the types are not identical, but could still be equivalent.
-                // TODO: Use structural/deductive equiv rules.
-
-                // NOTE #1: This is a priority to the extent that it is
-                // used by name and index term _apartness_ checks, which
-                // are likely to be the most important in many common
-                // examples.
+                // TODO: Non-structural cases
                 unimplemented!()
             }
         }
