@@ -36,13 +36,14 @@ impl RelCtx {
             &RelCtx::PropTrue(ref c,_) => { Some(c.clone()) }
         }
     }
-    pub fn lookup_nvareq(&self, x1:&Var, x2:&Var) -> Option<Sort> {
+    pub fn lookup_nvareq(&self, x1:&Var, x2:&Var, g:&Sort) -> bool {
         match self {
             &RelCtx::NVarEquiv(ref c, ref v1, ref v2, ref s) => {
-                if (x1 == v1) & (x2 == v2) { Some(s.clone()) }
-                else { c.lookup_nvareq(x1,x2) }
+                // TODO: sort compatibility?
+                if (x1 == v1) & (x2 == v2) & (g == s) { true }
+                else { c.lookup_nvareq(x1,x2,g) }
             }
-            c => c.rest().and_then(|c|c.lookup_nvareq(x1,x2))
+            c => c.rest().map_or(false,|c|c.lookup_nvareq(x1,x2,g))
         }
     }
 }
@@ -190,15 +191,9 @@ pub mod equiv {
             (n,m) if n == m => { succ(NmTmRule::Refl(n.clone())) }
             // TODO: all struct cases
             (&NameTm::Var(ref v1),&NameTm::Var(ref v2)) => {
-                if let Some(s) = ctx.lookup_nvareq(v1,v2) {
-                    // TODO: check sort equivalence
+                if ctx.lookup_nvareq(v1,v2,g) {
                     succ(NmTmRule::Var((v1.clone(),v2.clone())))
-                // sym case
-                } else if let Some(s) = ctx.lookup_nvareq(v2,v1) {
-                    // TODO: check sort equivalence
-                    succ(NmTmRule::Var((v2.clone(),v1.clone())))
                 } else {
-                    // TODO: look up each var and check again?
                     fail(
                         NmTmRule::Var((v1.clone(),v2.clone())),
                         DecError::NotEquiv,
