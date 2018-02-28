@@ -64,8 +64,9 @@ pub enum NameTm {
     Name(Name),
     Bin(NameTmRec, NameTmRec),
     Lam(Var, Sort, NameTmRec),
-    ScopeFn,
     App(NameTmRec, NameTmRec),
+    /// @@ : Nm -> Nm
+    WriteScope,
     NoParse(String),
 }
 pub type NameTmRec = Rc<NameTm>;
@@ -109,6 +110,8 @@ pub enum IdxTm {
     Pair(IdxTmRec, IdxTmRec),
     Proj1(IdxTmRec),
     Proj2(IdxTmRec),
+    /// @! : NmSet -> NmSet
+    WriteScope,
     Lam(Var, Sort, IdxTmRec),
     App(IdxTmRec, IdxTmRec),
     Map(NameTmRec, IdxTmRec),

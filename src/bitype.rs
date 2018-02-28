@@ -187,7 +187,7 @@ pub enum NmTmRule {
     Name(Name),
     Bin(NmTmDer, NmTmDer),
     Lam(Var,Sort,NmTmDer),
-    ScopeFn,
+    WriteScope,
     App(NmTmDer, NmTmDer),
     NoParse(String),
 }
@@ -210,6 +210,7 @@ pub enum IdxTmRule {
     Proj1(IdxTmDer),
     Proj2(IdxTmDer),
     Lam(Var, Sort, IdxTmDer),
+    WriteScope,
     App(IdxTmDer, IdxTmDer),
     Map(NmTmDer, IdxTmDer),
     FlatMap(IdxTmDer, IdxTmDer),
@@ -674,6 +675,12 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
                 )),
             }
         },
+        &IdxTm::WriteScope => {
+            succ(IdxTmRule::WriteScope, Sort::IdxArrow(
+                Rc::new(Sort::NmSet),
+                Rc::new(Sort::NmSet)
+            ))                        
+        }
         &IdxTm::App(ref idx0, ref idx1) => {
             let td0 = synth_idxtm(last_label,ctx,idx0);
             let td1 = synth_idxtm(last_label,ctx,idx1);
@@ -810,7 +817,7 @@ pub fn synth_nmtm(last_label:Option<&str>, ctx:&Ctx, nmtm:&NameTm) -> NmTmDer {
                 )),
             }
         },
-        &NameTm::ScopeFn => { succ(NmTmRule::ScopeFn, Sort::NmArrow(
+        &NameTm::WriteScope => { succ(NmTmRule::WriteScope, Sort::NmArrow(
             Rc::new(Sort::Nm), Rc::new(Sort::Nm)
         ))}
         &NameTm::App(ref nt0, ref nt1) => {
@@ -2029,7 +2036,7 @@ mod debug {
                 NmTmRule::Name(_) => "Name",
                 NmTmRule::Bin(_, _) => "Bin",
                 NmTmRule::Lam(_,_,_) => "Lam",
-                NmTmRule::ScopeFn => "ScopeFn",
+                NmTmRule::WriteScope => "WriteScope",
                 NmTmRule::App(_, _) => "App",
                 NmTmRule::NoParse(_) => "NoParse",
             }
@@ -2050,6 +2057,7 @@ mod debug {
                 IdxTmRule::Proj1(_) => "Proj1",
                 IdxTmRule::Proj2(_) => "Proj2",
                 IdxTmRule::Lam(_, _, _) => "Lam",
+                IdxTmRule::WriteScope => "WriteScope",
                 IdxTmRule::App(_, _) => "App",
                 IdxTmRule::Map(_, _) => "Map",
                 IdxTmRule::FlatMap(_, _) => "FlatMap",

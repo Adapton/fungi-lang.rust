@@ -48,7 +48,6 @@ use eval;
 ///     fromast ast_expr    (inject ast nodes)
 ///     []                  (leaf)
 ///     n * n * ...         (extended bin)
-///     @@                  (scope name)
 ///     @@str               (symbol)
 ///     @123                (number)
 /// ```
@@ -62,8 +61,6 @@ macro_rules! fgi_name {
     { name:tt * $($names:tt)+ } => {
         Name::Bin(Rc::new(fgi_name![$name]),Rc::new(fgi_name![$($names)+]))
     };
-    // @@     (scope name)
-    { @@ } => { Name::ScopeId };
     // @@str (symbol)
     { @@$($s:tt)+ } => { Name::Sym(stringify![$($s)+].to_string())};
     // @123 (number)
@@ -78,7 +75,7 @@ macro_rules! fgi_name {
 /// M,N ::=
 ///     fromast ast_expr    (inject ast nodes)
 ///     [N]                 (parens)
-///     @!                  (scope mapping function - `#x:NmSet. [@@] x`)
+///     @@                  (write scope; sort Nm -> Nm)
 ///     #a:g.M              (abstraction)
 ///     [M] N ...           (curried application)
 ///     a                   (Variable)
@@ -92,7 +89,7 @@ macro_rules! fgi_nametm {
     //     [N]                 (parens)
     { [$($nmtm:tt)+] } => { fgi_nametm![$($nmtm)+] };
     //
-    { @! } => { NameTm::ScopeFn };
+    { @@ } => { NameTm::WriteScope };
     //     @n                  (literal name)
     { @$($nm:tt)+ } => { NameTm::Name(fgi_name![@$($nm)+]) };
     //     #a:g.M                (abstraction)
@@ -145,6 +142,7 @@ macro_rules! parse_fgi_name_bin {
 /// ```text
 /// i,j,X,Y ::=
 ///     fromast ast (inject ast nodes)
+///     @!          (write scope function, lifted to name sets)
 ///     (i)         (parens)
 ///     {N}         (singleton name set)
 ///     0           (empty set)
@@ -170,6 +168,8 @@ macro_rules! fgi_index {
     { ($($i:tt)+) } => { fgi_index![$($i)+] };
     //     {N}         (singleton name set)
     { {$($nmtm:tt)+} } => { IdxTm::Sing(fgi_nametm![$($nmtm)+])};
+    //     @!          (write scope function, lifted to name sets)
+    { @! } => { IdxTm::WriteScope };
     //     0           (empty set)
     { 0 } => { IdxTm::Empty };
     //     X * Y       (pair-wise name combination of two sets)

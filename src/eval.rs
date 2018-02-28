@@ -158,7 +158,7 @@ pub fn nametm_subst_rec(nmtm:Rc<NameTm>, x:&Var, v:&NameTm) -> Rc<NameTm> {
 pub fn nametm_subst(nmtm:NameTm, x:&Var, v:&NameTm) -> NameTm {
     match nmtm {
         NameTm::Name(n) => NameTm::Name(n),
-        NameTm::ScopeFn => unimplemented!("subst scope fn"),
+        NameTm::WriteScope => NameTm::WriteScope,
         NameTm::Bin(nt1, nt2) => {
             NameTm::Bin(nametm_subst_rec(nt1, x, v),
                         nametm_subst_rec(nt2, x, v))
@@ -187,7 +187,7 @@ pub fn nametm_eval(nmtm:NameTm) -> NameTmVal {
         NameTm::Var(x) => { panic!("dynamic type error (open term, with free var {})", x) }
         NameTm::Name(n) => NameTmVal::Name(n),
         NameTm::Lam(x, _, nt) => NameTmVal::Lam(x, (*nt).clone()),
-        NameTm::ScopeFn => unimplemented!("eval scope fn"),
+        NameTm::WriteScope => unimplemented!("write scope"),
         NameTm::Bin(nt1, nt2) => {
             let nt1 = nametm_eval_rec(nt1);
             let nt2 = nametm_eval_rec(nt2);

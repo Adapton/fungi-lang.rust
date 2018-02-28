@@ -217,6 +217,7 @@ pub fn subst_term_idxtm(t:Term, x:&String, i:IdxTm) -> IdxTm {
     if term_is_type(&t) { i.clone() } else { match i {
         // Variables and identifiers are lexically distinct
         IdxTm::Ident(y) => IdxTm::Ident(y),
+        IdxTm::WriteScope => IdxTm::WriteScope,
         IdxTm::Var(y) => {
             if term_is_idxtm(&t) && x == &y {
                 match t {
@@ -294,5 +295,16 @@ pub fn subst_term_nmtm(t:Term, x:&String, m:NameTm) -> NameTm {
     if ! term_is_nmtm(&t) { m.clone() } else { match m {
         _ => unimplemented!("{:?}", m)
     }}
+}
+
+
+/// Substitute name terms into name terms
+pub fn subst_nmtm(t:NameTm, x:&String, m:NameTm) -> NameTm {
+    unimplemented!()
+}
+
+/// Substitute name terms into name terms
+pub fn subst_nmtm_rec(t:NameTm, x:&String, m:Rc<NameTm>) -> Rc<NameTm> {
+    unimplemented!()
 }
 

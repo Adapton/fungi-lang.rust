@@ -8,11 +8,74 @@ use ast::*;
 use subst;   
 use bitype::{Ctx,Term};
 
+pub fn is_normal_nmtm(ctx:&Ctx, n:&NameTm) -> bool {
+    match *n {
+        //
+        // Forms that are normal; no reduction rules apply
+        //
+        NameTm::Var(_)     |
+        NameTm::Name(_)    |
+        NameTm::Lam(_,_,_) => true,
+        //
+        // Forms that are not normal
+        //
+        NameTm::Bin(_,_) |
+        NameTm::App(_,_) => false,
+        //
+        // Other forms that we dont really need to consider:
+        //
+        NameTm::NoParse(_) => false,
+        NameTm::WriteScope => false,
+    }
+}
+
 /// XXX
 /// Normalize name terms (expand definitions and reduce applications).
-pub fn normal_nmtm(ctx:&Ctx, n:&NameTm) -> NameTm {
-    /// XXX/TODO
-    return n.clone()
+pub fn normal_nmtm(ctx:&Ctx, n:NameTm) -> NameTm {
+    if is_normal_nmtm(ctx, &n) {
+        n.clone()
+    } else {
+        let n_err = n.clone();
+        match n {
+            NameTm::Bin(n1,n2) => {
+                let n1 = normal_nmtm_rec(ctx, n1);
+                let n2 = normal_nmtm_rec(ctx, n2);
+                match ((*n1).clone(),(*n2).clone()) {
+                    (NameTm::Name(n1),
+                     NameTm::Name(n2)) => {
+                        // Normal form of `n`:
+                        NameTm::Name(
+                            Name::Bin(Rc::new(n1),
+                                      Rc::new(n2)))
+                    },
+                    _ => {
+                        // Fail: do nothing to `n`:
+                        n_err
+                    }
+                }
+            },
+            NameTm::App(n1,n2) => {
+                let n1 = normal_nmtm_rec(ctx, n1);
+                let n2 = normal_nmtm_rec(ctx, n2);
+                match ((*n1).clone(), (*n2).clone()) {
+                    (NameTm::Lam(x,xg,n11), n2) => {
+                        let n12 = subst::subst_nmtm_rec(n2, &x, n11);
+                        normal_nmtm(ctx, (*n12).clone())
+                    },
+                    _ => {
+                        // Fail: do nothing to `n`:
+                        n_err
+                    }
+                }
+            },
+            // In all other cases (NoParse, etc), do nothing:
+            n => n_err
+        }
+    }
+}
+
+pub fn normal_nmtm_rec(ctx:&Ctx, n:Rc<NameTm>) -> Rc<NameTm> {
+    Rc::new(normal_nmtm(ctx, (*n).clone()))
 }
 
 
