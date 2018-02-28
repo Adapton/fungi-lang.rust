@@ -374,30 +374,17 @@ pub fn normal_nmtm_rec(ctx:&Ctx, n:Rc<NameTm>) -> Rc<NameTm> {
 pub fn idxtm_of_nmsettms(tms:&NmSetTms) -> IdxTm {
     let mut i : IdxTm = IdxTm::Empty;
     for t in tms.iter() {
-        i = IdxTm::Apart(Rc::new(
-            {
+        i = IdxTm::Apart(
+            Rc::new({
                 match (*t).clone() {
                     NmSetTm::Single(m) => IdxTm::Sing(m),
                     NmSetTm::Subset(i) => i.clone()
                 }
             }),
-                         Rc::new(i)
-        );        
+            Rc::new(i)
+        );
     }
     return i
-}
-
-/// Normalize the index term with respect to name set apartness;
-/// decomposes the index term across disjoint set unions.
-pub fn nmsettms_of_idxtm(ctx:&Ctx, i:&IdxTm) -> NmSetTms {
-    // Helper function
-    fn nmsettms_rec(ctx:&Ctx, i:&IdxTm, out:&mut NmSetTms) {
-        // XXX/TODO
-    };    
-    /// XXX/TODO
-    let mut out = vec![];
-    nmsettms_rec(ctx, i, &mut out);
-    return out
 }
 
 
