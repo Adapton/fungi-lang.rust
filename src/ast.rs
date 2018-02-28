@@ -40,6 +40,7 @@ use std::fmt::{Debug,Formatter};
 use std::hash::{Hash,Hasher};
 
 use eval;
+use normal;
 
 pub type Var = String;
 // type of identifiers
@@ -112,6 +113,11 @@ pub enum IdxTm {
     Proj2(IdxTmRec),
     /// @! : NmSet -> NmSet
     WriteScope,
+    /// A normalized form for union/apart name sub-sets; never written
+    /// directly by the programmer.  This form is used by the `normal`
+    /// module for distributing set-level functions over a sets'
+    /// constructors, for a uniform choice of type `NmSetCons`.
+    NmSet(normal::NmSet),
     Lam(Var, Sort, IdxTmRec),
     App(IdxTmRec, IdxTmRec),
     Map(NameTmRec, IdxTmRec),

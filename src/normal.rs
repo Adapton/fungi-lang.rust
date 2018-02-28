@@ -4,10 +4,42 @@ use std::fmt;
 use std::rc::Rc;
 
 use ast::*;
-
-use subst;   
 use bitype::{Ctx,Term};
+use subst;   
+use normal;   
 
+/// Representation for "apart/union-normal" name set terms.
+///
+/// A _name set term_ is either a singleton name term `M`, or a
+/// (disjoint) subset of the full set, represented by an index term
+/// `i`.  The purpose of this form is to expose the union/apart
+/// connectives as forming a list/vector of subsets, over which we can
+/// distribute set-level functions.
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum NmSetTm {
+    /// singleton name term `M`
+    Single(NameTm),
+    /// subset of the full set, represented by an index term `i`
+    Subset(IdxTm),
+}
+pub type NmSetTms = Vec<NmSetTm>;
+
+/// Name set constructor (either uniformly apart, or uniformly union)
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum NmSetCons {
+    Union,
+    Apart,
+}
+/// Canonical form (normal form) for a name set
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub struct NmSet {
+    /// None means that the term list is a singleton or empty; for sets with two or more sub-terms, this constructor gives the (uniform) way the terms are connected.
+    pub cons: Option<NmSetCons>,
+    /// terms connected via the given constructor, if any
+    pub terms: Vec<NmSetTm>
+}
+
+/// True when the name term is normal
 pub fn is_normal_nmtm(ctx:&Ctx, n:&NameTm) -> bool {
     match *n {
         //
@@ -17,10 +49,10 @@ pub fn is_normal_nmtm(ctx:&Ctx, n:&NameTm) -> bool {
         NameTm::Name(_)    |
         NameTm::Lam(_,_,_) => true,
         //
-        // Forms that are not normal
+        // Forms that are not normal (there are reduction rules)
         //
-        NameTm::Bin(_,_) |
-        NameTm::App(_,_) => false,
+        NameTm::Bin(_,_)   |
+        NameTm::App(_,_)  => false,
         //
         // Other forms that we dont really need to consider:
         //
@@ -29,112 +61,43 @@ pub fn is_normal_nmtm(ctx:&Ctx, n:&NameTm) -> bool {
     }
 }
 
-/// XXX
-/// Normalize name terms (expand definitions and reduce applications).
-pub fn normal_nmtm(ctx:&Ctx, n:NameTm) -> NameTm {
-    if is_normal_nmtm(ctx, &n) {
-        n.clone()
-    } else {
-        let n_err = n.clone();
-        match n {
-            NameTm::Bin(n1,n2) => {
-                let n1 = normal_nmtm_rec(ctx, n1);
-                let n2 = normal_nmtm_rec(ctx, n2);
-                match ((*n1).clone(),(*n2).clone()) {
-                    (NameTm::Name(n1),
-                     NameTm::Name(n2)) => {
-                        // Normal form of `n`:
-                        NameTm::Name(
-                            Name::Bin(Rc::new(n1),
-                                      Rc::new(n2)))
-                    },
-                    _ => {
-                        // Fail: do nothing to `n`:
-                        n_err
-                    }
-                }
-            },
-            NameTm::App(n1,n2) => {
-                let n1 = normal_nmtm_rec(ctx, n1);
-                let n2 = normal_nmtm_rec(ctx, n2);
-                match ((*n1).clone(), (*n2).clone()) {
-                    (NameTm::Lam(x,xg,n11), n2) => {
-                        let n12 = subst::subst_nmtm_rec(n2, &x, n11);
-                        normal_nmtm(ctx, (*n12).clone())
-                    },
-                    _ => {
-                        // Fail: do nothing to `n`:
-                        n_err
-                    }
-                }
-            },
-            // In all other cases (NoParse, etc), do nothing:
-            n => n_err
-        }
+/// True when the index term is normal
+pub fn is_normal_idxtm(ctx:&Ctx, i:&IdxTm) -> bool {
+    match *i {
+        // identifiers are not normal
+        IdxTm::Ident(_)   => false,
+        // variables and unit have no reduction rule; ditto for functions
+        IdxTm::Var(_)     => true,
+        IdxTm::Unit       => true,
+        IdxTm::NmSet(_)   => true,
+        IdxTm::WriteScope => true,
+        IdxTm::Lam(_,_,_) => true,
+        // Unions and pairs are normal if their sub-terms are normal
+        IdxTm::Pair(ref i, ref j) |
+        IdxTm::Union(ref i, ref j) => {
+                    is_normal_idxtm(ctx, i) && is_normal_idxtm(ctx, i)
+        },
+        // projections are not normal
+        IdxTm::Proj1(_) => false,
+        IdxTm::Proj2(_) => false,
+        // these name set forms are not normal; we have a special
+        // (normal) form for (apart) name sub-sets
+        IdxTm::Empty | 
+        IdxTm::Sing(_) |
+        IdxTm::Apart(_, _) |
+        // Function application forms are not normal
+        IdxTm::App(_, _) |
+        IdxTm::Bin(_, _) |
+        IdxTm::Map(_, _) |
+        IdxTm::FlatMap(_, _) |
+        IdxTm::Star(_, _) |
+        IdxTm::NoParse(_) => false
     }
 }
 
-pub fn normal_nmtm_rec(ctx:&Ctx, n:Rc<NameTm>) -> Rc<NameTm> {
-    Rc::new(normal_nmtm(ctx, (*n).clone()))
-}
-
-
-/// Representation for "apart-normal" name set terms.
-///
-/// A _name set term_ is either a singleton name term `M`, or a
-/// (disjoint) subset of the full set, represented by an index term
-/// `i`.
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
-pub enum NmSetTm {
-    /// singleton name term `M`
-    Single(NameTm),
-    /// (disjoint) subset of the full set, represented by an index
-    /// term `i`
-    Subset(IdxTm),
-}
-pub type NmSetTms = Vec<NmSetTm>;
-
-/// Index term "values", which _may_ be symbolic (viz., `Var` case).
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
-pub enum IdxVal {
-    /// Variables in values are not generally problematic, unless we
-    /// need to use that value in an elimination form
-    Var(Var),
-    /// Compared with general index terms, name set terms consist of a more structured representation
-    NmSet(NmSetTm),
-    /// (Unique) unit value
-    Unit,
-    /// Pairs: both components are index term values
-    Pair(IdxValRec, IdxValRec),
-    /// Lambdas: same as general term form
-    Lam(Var, Sort, IdxTmRec),
-    /// No parse
-    NoParse(String),
-}
-pub type IdxValRec = Rc<IdxVal>;
-
-
-/// Index evaluation errors
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
-pub enum IdxEvalErr {
-    /// In some situations, the value to be eliminated (pair, function
-    /// or set) is abstract/unknown, and thus, the elimination form
-    /// cannot reduce.
-    AbsIntroForm(Var),
-    /// When the elimination form and intro forms do not agree on sort
-    SortError,
-}
-
-/// Convert the (more restrictive) index term _value_ syntax back into
-/// the (less restrictive) index term syntax.
-pub fn idxtm_of_idxval(i:&IdxVal) -> IdxTm {
-    panic!("XXX");    
-}
-
-/// If the term evaluates, result is an `IdxVal`; otherwise, the
-/// result gives the (general) reason that evaluation cannot proceed.
-pub fn idxtm_eval(ctx:&Ctx, i:IdxTm) -> Result<IdxVal,IdxEvalErr> {
-    panic!("XXX");
+/// Compute normal form for index term
+pub fn normal_idxtm_rec(ctx:&Ctx, i:Rc<IdxTm>) -> Rc<IdxTm> {
+    Rc::new(normal_idxtm(ctx, (*i).clone()))
 }
 
 
@@ -189,11 +152,136 @@ pub fn idxtm_eval(ctx:&Ctx, i:IdxTm) -> Result<IdxVal,IdxEvalErr> {
 /// final normalized structure ???  (It seems that's what we need to
 /// implement the effect-checking logic of the `let` checking rule.)
 ///
-pub fn normal_idxtm(ctx:&Ctx, i:&IdxTm) -> IdxTm {
-    //let tms = nmsettms_of_idxtm(ctx, i);
-    //return idxtm_of_nmsettms(ctx, &tms);
-    panic!("TODO")
+pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
+    if is_normal_idxtm(ctx, &i) { 
+        return i
+    } else {
+        let i_clone = i.clone();
+        match i {
+            IdxTm::Empty => {
+                IdxTm::NmSet(NmSet{cons:None, terms:vec![]})
+            }
+            IdxTm::Sing(n) => {
+                let n = normal_nmtm(ctx, n);
+                IdxTm::NmSet(NmSet{cons:None, terms:vec![
+                    NmSetTm::Single( n )                        
+                ]})
+            }
+            IdxTm::Apart(i1, i2) => {
+                let i1 = normal_idxtm_rec(ctx, i1);
+                let i2 = normal_idxtm_rec(ctx, i2);
+                match ((*i1).clone(), (*i2).clone()) {
+                    (IdxTm::NmSet(ns1),
+                     IdxTm::NmSet(ns2)) => {
+                        match (ns1.cons, ns2.cons) {
+                            (None, None) |
+                            (None, Some(NmSetCons::Apart)) |
+                            (Some(NmSetCons::Apart), None) |
+                            (Some(NmSetCons::Apart), Some(NmSetCons::Apart)) => {
+                                let mut terms1 = ns1.terms;
+                                let mut terms2 = ns2.terms;
+                                terms1.append(&mut terms2);
+                                IdxTm::NmSet(NmSet{
+                                    cons:Some(NmSetCons::Apart),
+                                    terms:terms1
+                                })
+                            },
+                            _ => i_clone
+                        }}
+                    _ => i_clone
+                }
+            }
+            IdxTm::Union(i1, i2) => {
+                let i1 = normal_idxtm_rec(ctx, i1);
+                let i2 = normal_idxtm_rec(ctx, i2);
+                // TODO
+                unimplemented!()
+            }            
+            IdxTm::Bin(i1, i2) => {
+                let i1 = normal_idxtm_rec(ctx, i1);
+                let i2 = normal_idxtm_rec(ctx, i2);
+                // TODO
+                unimplemented!()
+            }
+            IdxTm::App(i1, i2) => {
+                let i1 = normal_idxtm_rec(ctx, i1);
+                let i2 = normal_idxtm_rec(ctx, i2);
+                // TODO
+                unimplemented!()
+            }
+            IdxTm::Map(n1, i2) => {
+                let n1 = normal_nmtm_rec(ctx, n1);
+                let i2 = normal_idxtm_rec(ctx, i2);
+                // TODO
+                unimplemented!()
+            }
+            IdxTm::FlatMap(i1, i2) => {
+                let i1 = normal_idxtm_rec(ctx, i1);
+                let i2 = normal_idxtm_rec(ctx, i2);
+                // TODO
+                unimplemented!()
+            }
+            IdxTm::Star(i1, i2) => {
+                let i1 = normal_idxtm_rec(ctx, i1);
+                let i2 = normal_idxtm_rec(ctx, i2);
+                // TODO
+                unimplemented!()
+            }
+            _ => {
+                i_clone
+            }
+        }
+    }
 }
+
+/// Compute normal form for name term (expand definitions and reduce applications).
+pub fn normal_nmtm(ctx:&Ctx, n:NameTm) -> NameTm {
+    if is_normal_nmtm(ctx, &n) {
+        return n
+    } else {
+        let n_clone = n.clone();
+        match n {
+            NameTm::Bin(n1,n2) => {
+                let n1 = normal_nmtm_rec(ctx, n1);
+                let n2 = normal_nmtm_rec(ctx, n2);
+                match ((*n1).clone(),(*n2).clone()) {
+                    (NameTm::Name(n1),
+                     NameTm::Name(n2)) => {
+                        // Normal form of `n`:
+                        NameTm::Name(
+                            Name::Bin(Rc::new(n1),
+                                      Rc::new(n2)))
+                    },
+                    _ => {
+                        // Fail: do nothing to `n`:
+                        n_clone
+                    }
+                }
+            },
+            NameTm::App(n1,n2) => {
+                let n1 = normal_nmtm_rec(ctx, n1);
+                let n2 = normal_nmtm_rec(ctx, n2);
+                match ((*n1).clone(), (*n2).clone()) {
+                    (NameTm::Lam(x,xg,n11), n2) => {
+                        let n12 = subst::subst_nmtm_rec(n2, &x, n11);
+                        normal_nmtm(ctx, (*n12).clone())
+                    },
+                    _ => {
+                        // Fail: do nothing to `n`:
+                        n_clone
+                    }
+                }
+            },
+            // In all other cases (NoParse, etc), do nothing:
+            n => n_clone
+        }
+    }
+}
+
+pub fn normal_nmtm_rec(ctx:&Ctx, n:Rc<NameTm>) -> Rc<NameTm> {
+    Rc::new(normal_nmtm(ctx, (*n).clone()))
+}
+
 
 /// Convert the highly-structured, vectorized name set representation
 /// into a less structured, AST representation.

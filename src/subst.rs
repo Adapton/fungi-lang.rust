@@ -3,6 +3,7 @@
 use std::fmt;
 use std::rc::Rc;
 
+use normal;
 use ast::*;
 use bitype::{Term};
 
@@ -234,6 +235,21 @@ pub fn subst_term_idxtm(t:Term, x:&String, i:IdxTm) -> IdxTm {
         },
         IdxTm::Unit  => IdxTm::Unit,
         IdxTm::Empty => IdxTm::Empty,
+        IdxTm::NmSet(s) => {
+            let mut terms = vec![];
+            for tm in s.terms {
+                let tm = match tm {
+                    normal::NmSetTm::Single(n) => {
+                        normal::NmSetTm::Single(subst_term_nmtm(t.clone(),x,n))
+                    },
+                    normal::NmSetTm::Subset(i) => {
+                        normal::NmSetTm::Subset(subst_term_idxtm(t.clone(),x,i))
+                    }
+                };
+                terms.push(tm)
+            }
+            IdxTm::NmSet(normal::NmSet{cons:s.cons, terms:terms})
+        }
         IdxTm::Apart(i, j) => {
             IdxTm::Apart(subst_term_idxtm_rec(t.clone(),x,i),
                         subst_term_idxtm_rec(t,x,j))

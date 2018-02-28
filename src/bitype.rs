@@ -742,9 +742,13 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
                 (Ok(_),_) => fail(td, TypeError::ParamMism(0)),
             }
         },
+        &IdxTm::NmSet(ref s) => {
+            // This form is never written by the programmer; hence, we never have to derive a type for it
+            unreachable!()
+        }
         &IdxTm::NoParse(ref s) => {
             fail(IdxTmRule::NoParse(s.clone()),TypeError::NoParse(s.clone()))
-        },
+        },        
     }
 }
 
