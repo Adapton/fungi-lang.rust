@@ -194,42 +194,82 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
             IdxTm::Union(i1, i2) => {
                 let i1 = normal_idxtm_rec(ctx, i1);
                 let i2 = normal_idxtm_rec(ctx, i2);
-                // TODO
-                unimplemented!()
+                match ((*i1).clone(), (*i2).clone()) {
+                    (IdxTm::NmSet(ns1),
+                     IdxTm::NmSet(ns2)) => {
+                        match (ns1.cons, ns2.cons) {
+                            (None, None) |
+                            (None, Some(NmSetCons::Union)) |
+                            (Some(NmSetCons::Union), None) |
+                            (Some(NmSetCons::Union), Some(NmSetCons::Union)) => {
+                                let mut terms1 = ns1.terms;
+                                let mut terms2 = ns2.terms;
+                                terms1.append(&mut terms2);
+                                IdxTm::NmSet(NmSet{
+                                    cons:Some(NmSetCons::Union),
+                                    terms:terms1
+                                })
+                            },
+                            _ => i_clone
+                        }}
+                    _ => i_clone
+                }
             }            
             IdxTm::Bin(i1, i2) => {
                 let i1 = normal_idxtm_rec(ctx, i1);
                 let i2 = normal_idxtm_rec(ctx, i2);
-                // TODO
-                unimplemented!()
+                match ((*i1).clone(), (*i2).clone()) {
+                    (IdxTm::NmSet(ns1),
+                     IdxTm::NmSet(ns2)) => {
+                        // TODO: double for-loop over the terms
+                        unimplemented!()
+                    }
+                    _ => i_clone
+                } 
             }
             IdxTm::App(i1, i2) => {
                 let i1 = normal_idxtm_rec(ctx, i1);
                 let i2 = normal_idxtm_rec(ctx, i2);
-                // TODO
-                unimplemented!()
+                match (*i1).clone() {
+                    IdxTm::Lam(x,gx,i11) => {
+                        let i11 = subst::subst_term_idxtm(Term::IdxTm((*i2).clone()), &x, (*i11).clone());
+                        normal_idxtm(ctx, i11)
+                    }
+                    _ => i_clone
+                }
             }
             IdxTm::Map(n1, i2) => {
                 let n1 = normal_nmtm_rec(ctx, n1);
                 let i2 = normal_idxtm_rec(ctx, i2);
-                // TODO
-                unimplemented!()
+                match (*n1).clone() {
+                    NameTm::Lam(x,gx,n11) => {
+                        // TODO: loop over the terms
+                        unimplemented!()
+                    }
+                    _ => i_clone
+                }
             }
             IdxTm::FlatMap(i1, i2) => {
                 let i1 = normal_idxtm_rec(ctx, i1);
                 let i2 = normal_idxtm_rec(ctx, i2);
-                // TODO
-                unimplemented!()
+                match (*i1).clone() {
+                    IdxTm::Lam(x,gx,i11) => {
+                        // TODO: loop over the terms
+                        unimplemented!()
+                    }
+                    _ => i_clone
+                }
             }
+            
             IdxTm::Star(i1, i2) => {
+                // Do _not_ unroll the kleene star; there's no way to
+                // know how much is the right amount
                 let i1 = normal_idxtm_rec(ctx, i1);
                 let i2 = normal_idxtm_rec(ctx, i2);
-                // TODO
-                unimplemented!()
+                IdxTm::Star(i1, i2)
             }
-            _ => {
-                i_clone
-            }
+            // In all other cases, do nothing:
+            _ => i_clone
         }
     }
 }
