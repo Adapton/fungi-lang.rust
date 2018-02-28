@@ -203,8 +203,33 @@ pub fn subst_term_type(t:Term, x:&String, a:Type) -> Type {
 
 /// Substitute terms into propositions
 pub fn subst_term_prop(t:Term, x:&String, p:Prop) -> Prop {
-    // XXX/TODO
-    p
+    match p {
+        Prop::Tt => Prop::Tt,
+        Prop::Equiv(i, j, g) => {
+            Prop::Equiv(
+                subst_term_idxtm(t.clone(), x, i),
+                subst_term_idxtm(t        , x, j),
+                g)
+        },
+        Prop::Apart(i, j, g) => {
+            Prop::Apart(
+                subst_term_idxtm(t.clone(), x, i),
+                subst_term_idxtm(t        , x, j),
+                g)
+        },
+        Prop::Conj(p1, p2) => {
+            Prop::Conj(
+                subst_term_prop_rec(t.clone(), x, p1),
+                subst_term_prop_rec(t        , x, p2),
+            )
+        }
+        Prop::NoParse(s) => Prop::NoParse(s)
+    }
+}
+
+/// Substitute terms into propositions
+pub fn subst_term_prop_rec(t:Term, x:&String, p:Rc<Prop>) -> Rc<Prop> {
+    Rc::new(subst_term_prop(t,x,(*p).clone()))
 }
 
 /// Substitute terms into index terms
