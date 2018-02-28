@@ -8,7 +8,7 @@ use bitype::{Ctx,Term};
 use subst;   
 use normal;   
 
-/// Representation for "apart/union-normal" name set terms.
+/// Name set term. Representation for "apart/union-normal" name set terms.
 ///
 /// A _name set term_ is either a singleton name term `M`, or a
 /// (disjoint) subset of the full set, represented by an index term
@@ -24,7 +24,7 @@ pub enum NmSetTm {
 }
 pub type NmSetTms = Vec<NmSetTm>;
 
-/// Name set constructor (either uniformly apart, or uniformly union)
+/// Name set constructor; the subsets of a `NmSet` are (uniformly) combined as "apart" or "union"
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum NmSetCons {
     Union,
