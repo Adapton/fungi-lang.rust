@@ -364,6 +364,7 @@ pub fn normal_nmtm(ctx:&Ctx, n:NameTm) -> NameTm {
     }
 }
 
+/// Compute normal form for name term (expand definitions and reduce applications).
 pub fn normal_nmtm_rec(ctx:&Ctx, n:Rc<NameTm>) -> Rc<NameTm> {
     Rc::new(normal_nmtm(ctx, (*n).clone()))
 }
