@@ -309,7 +309,40 @@ pub fn subst_term_nmtm_rec(t:Term, x:&String, m:Rc<NameTm>) -> Rc<NameTm> {
 /// Substitute name terms into name terms
 pub fn subst_term_nmtm(t:Term, x:&String, m:NameTm) -> NameTm {
     if ! term_is_nmtm(&t) { m.clone() } else { match m {
-        _ => unimplemented!("{:?}", m)
+        NameTm::Var(y) => {
+            if term_is_nmtm(&t) && x == &y {
+                match t {
+                    Term::NmTm(n) => n,
+                    _ => unreachable!(),
+                }
+            } else {
+                NameTm::Var(y)
+            }
+        }
+        NameTm::WriteScope => NameTm::WriteScope,
+        NameTm::NoParse(s) => NameTm::NoParse(s),
+        NameTm::Name(n) => NameTm::Name(n),
+        NameTm::App(n1, n2) => {
+            NameTm::App(
+                subst_term_nmtm_rec(t.clone(), x, n1),
+                subst_term_nmtm_rec(t        , x, n2),
+            )                
+        }
+        NameTm::Bin(n1, n2) => {
+            NameTm::Bin(
+                subst_term_nmtm_rec(t.clone(), x, n1),
+                subst_term_nmtm_rec(t        , x, n2),
+            )                
+        }
+        NameTm::Lam(y,yg,m1) => {
+            if term_is_nmtm(&t) && x == &y {
+                NameTm::Lam(y,yg,m1)
+            }
+            else {
+                NameTm::Lam(y,yg,
+                            subst_term_nmtm_rec(t,x,m1))
+            }
+        }
     }}
 }
 
