@@ -221,8 +221,24 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                 match ((*i1).clone(), (*i2).clone()) {
                     (IdxTm::NmSet(ns1),
                      IdxTm::NmSet(ns2)) => {
-                        // TODO: double for-loop over the terms
-                        unimplemented!()
+                        assert_eq!(ns1.cons, ns2.cons);
+                        let mut terms = vec![];
+                        for tm1 in ns1.terms.iter() {
+                            for tm2 in ns2.terms.iter() {
+                                use self::NmSetTm::*;
+                                let bin_tm = match (tm1.clone(), tm2.clone()) {
+                                    (Single(n), Single(m)) => Single(NameTm::Bin(Rc::new(n), Rc::new(m))),
+                                    (Subset(i), Subset(j)) => Subset(IdxTm::Bin(Rc::new(i), Rc::new(j))),
+                                    (Subset(i), Single(m)) => Subset(IdxTm::Bin(Rc::new(i), Rc::new(IdxTm::Sing(m)))),
+                                    (Single(n), Subset(j)) => Subset(IdxTm::Bin(Rc::new(IdxTm::Sing(n)), Rc::new(j)))
+                                };               
+                                terms.push(bin_tm)
+                            }
+                        }
+                        IdxTm::NmSet(NmSet{
+                            cons:ns1.cons,
+                            terms:terms
+                        })                        
                     }
                     _ => i_clone
                 } 
