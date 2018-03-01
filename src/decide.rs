@@ -242,7 +242,7 @@ pub mod equiv {
                 }
             }
             (&NameTm::Lam(ref a,ref asort,ref m),&NameTm::Lam(ref b,_,ref n)) => {
-                // Assume lam vars have same type
+                // Assume lam vars have same sort
                 if let &Sort::NmArrow(ref g1,ref g2) = g {
                     let bodys = decide_nmtm_equiv(&ctx.nt_eq(a,b,g1),m,n,g2);
                     let res = bodys.res.clone();
@@ -324,7 +324,7 @@ pub mod equiv {
                 }
             }
             (&IdxTm::Lam(ref a,ref asort,ref i),&IdxTm::Lam(ref b,_,ref j)) => {
-                // Assume lam vars have same type
+                // Assume lam vars have same sort
                 if let &Sort::IdxArrow(ref g1,ref g2) = g {
                     let bodys = decide_idxtm_equiv(&ctx.nt_eq(a,b,g1),i,j,g2);
                     let res = bodys.res.clone();
@@ -339,6 +339,46 @@ pub mod equiv {
                         decide_idxtm_equiv(ctx,i,j,g)
                     ), DecError::LamNotArrow
                 )}
+            }
+            (&IdxTm::Empty,&IdxTm::Empty) => {
+                // Assume sort NmSet
+                succ(IdxTmRule::Empty)
+            }
+            (&IdxTm::Sing(ref m),&IdxTm::Sing(ref n)) => {
+                // Assume sort NmSet
+                let nder = decide_nmtm_equiv(ctx,m,n,&Sort::Nm);
+                let res = nder.res.clone();
+                let der = IdxTmRule::Sing(nder);
+                match res {
+                    Ok(true) => succ(der),
+                    Ok(false) => fail(der),
+                    Err(_) => err(der, DecError::InSubDec)
+                }
+            }
+            (&IdxTm::Apart(ref x1,ref y1),&IdxTm::Apart(ref x2,ref y2)) => {
+                // Assume sort NmSet
+                let left = decide_idxtm_equiv(ctx,x1,x2,&Sort::NmSet);
+                let right = decide_idxtm_equiv(ctx,y1,y2,&Sort::NmSet);
+                let (l,r) = (left.res.clone(),right.res.clone());
+                let der = IdxTmRule::Apart(left,right);
+                match (l,r) {
+                    (Ok(true),Ok(true)) => succ(der),
+                    (Ok(_),Ok(_)) => fail(der),
+                    (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
+                }
+            }
+            (&IdxTm::Map(ref m,ref x),&IdxTm::Map(ref n,ref y)) => {
+                // Assume sort NmSet
+                let nmarrow = Sort::NmArrow(Rc::new(Sort::Nm),Rc::new(Sort::Nm));
+                let left = decide_nmtm_equiv(ctx,m,n,&nmarrow);
+                let right = decide_idxtm_equiv(ctx,x,y,&Sort::NmSet);
+                let (l,r) = (left.res.clone(),right.res.clone());
+                let der = IdxTmRule::Map(left,right);
+                match (l,r) {
+                    (Ok(true),Ok(true)) => succ(der),
+                    (Ok(_),Ok(_)) => fail(der),
+                    (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
+                }
             }
             (i,j) => {
                 // TODO: Non-structural cases
