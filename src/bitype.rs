@@ -975,23 +975,29 @@ pub fn synth_val(last_label:Option<&str>, ctx:&Ctx, val:&Val) -> ValDer {
 }
 
 /// check sort against value term
-pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ:&Type) -> ValDer {
-    let fail = |td:ValRule, err :TypeError| { failure(Dir::Check(typ.clone()), last_label, ctx, td, err)  };
-    let succ = |td:ValRule, typ :Type     | { success(Dir::Check(typ.clone()), last_label, ctx, td, typ) };
+pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
+    let fail = |td:ValRule, err :TypeError| { failure(Dir::Check(typ_raw.clone()), last_label, ctx, td, err)  };
+    let succ = |td:ValRule, typ :Type     | { success(Dir::Check(typ_raw.clone()), last_label, ctx, td, typ) };
     // Normalize the type
-    let typ = &(normal::normal_type(ctx, typ));
+    let typ = &(normal::normal_type(ctx, typ_raw));
     match val {
         &Val::Var(ref x) => {
             let td = ValRule::Var(x.clone());
             match ctx.lookup_var(x) {
                 None => fail(td, TypeError::VarNotInScope(x.clone())),
-                Some(x_typ) => {
-                    let x_typ = normal::normal_type(ctx, &x_typ);
+                Some(x_typ_raw) => {
+                    let x_typ = normal::normal_type(ctx, &x_typ_raw);
                     // TODO: Type equality may be more complex than this test (e.g. alpha equivalent types should be equal)
                     // XXX -- TODO-next
                     if x_typ == *typ { succ(td, x_typ) }
+                    else if x_typ_raw == *typ_raw { succ(td, x_typ_raw) }
                     else {
-                        println!("** Variable {}'s type:\n{:?} \n\n NOT-EQUAL-TO checking type\n{:?}\n", x, x_typ, typ);
+                        // Print info to help us figure out what's needed from the type-equiv reasoning
+                        println!("==================================================================================");
+                        println!("Detailed errors for checking type of variable {}:", x);
+                        println!("** Variable {}'s normal type:\n{:?} \n\n NOT-EQUAL-TO checking normal type\n{:?}\n", x, x_typ, typ);
+                        println!(".. Variable {}'s raw type:\n{:?} \n\n NOT-EQUAL-TO checking raw type\n{:?}\n", x, x_typ_raw, typ_raw);
+                        println!("- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ");
                         fail(td, TypeError::AnnoMism)
                     }
                 }
