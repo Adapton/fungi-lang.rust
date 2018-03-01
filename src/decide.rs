@@ -58,6 +58,16 @@ impl RelCtx {
     //         c => c.rest().and_then(|c|c.lookup_nvareq_sort(x1,x2))
     //     }
     // }
+    pub fn lookup_ivareq(&self, x1:&Var, x2:&Var, g:&Sort) -> bool {
+        match self {
+            &RelCtx::NVarEquiv(ref c, ref v1, ref v2, ref s) => {
+                // TODO: sort compatibility?
+                if (x1 == v1) & (x2 == v2) & (g == s) { true }
+                else { c.lookup_ivareq(x1,x2,g) }
+            }
+            c => c.rest().map_or(false,|c|c.lookup_ivareq(x1,x2,g))
+        }
+    }
 }
 
 /// Convert the context into the corresponding relational context
@@ -81,7 +91,8 @@ pub enum DecError {
     /// Type/sort/kind error during the decision procedure
     TypeError(TypeError),
     InSubDec,
-    NameLamNotLam,
+    LamNotArrow,
+    PairNotProd,
 }
 
 /// Derivation for a decision procedure, expressed as deductive inference rules
@@ -184,7 +195,7 @@ pub mod equiv {
 
     /// Decide if two name terms are equivalent under the given context
     pub fn decide_nmtm_equiv(ctx: &RelCtx, n:&NameTm, m:&NameTm, g:&Sort) -> NmTmDec {
-        let succ = |r:NmTmRule| {
+        let succ = |r| {
             Dec{
                 ctx:ctx.clone(),
                 rule:Rc::new(r),
@@ -192,7 +203,7 @@ pub mod equiv {
                 res:Ok(true),
             }
         };
-        let fail = |r:NmTmRule| {
+        let fail = |r| {
             Dec{
                 ctx:ctx.clone(),
                 rule:Rc::new(r),
@@ -200,7 +211,7 @@ pub mod equiv {
                 res:Ok(false),
             }
         };
-        let err = |r:NmTmRule,e:DecError| {
+        let err = |r,e| {
             Dec{
                 ctx:ctx.clone(),
                 rule:Rc::new(r),
@@ -231,7 +242,7 @@ pub mod equiv {
                 }
             }
             (&NameTm::Lam(ref a,ref asort,ref m),&NameTm::Lam(ref b,_,ref n)) => {
-                // Assume lam vars have same type
+                // Assume lam vars have same sort
                 if let &Sort::NmArrow(ref g1,ref g2) = g {
                     let bodys = decide_nmtm_equiv(&ctx.nt_eq(a,b,g1),m,n,g2);
                     let res = bodys.res.clone();
@@ -244,7 +255,7 @@ pub mod equiv {
                 } else {err(
                     NmTmRule::Lam((a.clone(),b.clone()),asort.clone(),
                         decide_nmtm_equiv(ctx,m,n,g)
-                    ), DecError::NameLamNotLam
+                    ), DecError::LamNotArrow
                 )}
             }
             (&NameTm::App(ref m1,ref m2),&NameTm::App(ref n1,ref n2)) => {
@@ -260,23 +271,119 @@ pub mod equiv {
 
     /// Decide if two index terms are equivalent under the given context
     pub fn decide_idxtm_equiv(ctx: &RelCtx, i:&IdxTm, j:&IdxTm, g:&Sort) -> IdxTmDec {
-        if i == j {
-            return Dec{
+        let succ = |r| {
+            Dec{
                 ctx:ctx.clone(),
-                rule:Rc::new(IdxTmRule::Refl(i.clone())),
+                rule:Rc::new(r),
                 clas:g.clone(),
                 res:Ok(true),
             }
-        }
-        else {        
-            // TODO: the types are not identical, but could still be equivalent.
-            // TODO: Use structural/deductive equiv rules.
-
-            // NOTE #1: This is a priority to the extent that it is
-            // used by name and index term _apartness_ checks, which
-            // are likely to be the most important in many common
-            // examples.
-            unimplemented!()
+        };
+        let fail = |r| {
+            Dec{
+                ctx:ctx.clone(),
+                rule:Rc::new(r),
+                clas:g.clone(),
+                res:Ok(false),
+            }
+        };
+        let err = |r,e| {
+            Dec{
+                ctx:ctx.clone(),
+                rule:Rc::new(r),
+                clas:g.clone(),
+                res:Err(e),
+            }
+        };
+        match (i,j) {
+            (i,j) if i == j => { succ(IdxTmRule::Refl(i.clone())) }
+            // TODO: all struct cases
+            (&IdxTm::Var(ref v1),&IdxTm::Var(ref v2)) => {
+                if ctx.lookup_ivareq(v1,v2,g) {
+                    succ(IdxTmRule::Var((v1.clone(),v2.clone())))
+                } else {
+                    fail(IdxTmRule::Var((v1.clone(),v2.clone())))
+                }
+            }
+            (&IdxTm::Pair(ref i1,ref i2),&IdxTm::Pair(ref j1,ref j2)) => {
+                if let &Sort::Prod(ref g1,ref g2) = g {
+                    let left = decide_idxtm_equiv(ctx,i1,j1,g1);
+                    let right = decide_idxtm_equiv(ctx,i2,j2,g2);
+                    let (r1,r2) = (left.res.clone(),right.res.clone());
+                    let der = IdxTmRule::Pair(left,right);
+                    match (r1,r2) {
+                        (Ok(true),Ok(true)) => succ(der),
+                        (Ok(_),Ok(_)) => fail(der),
+                        (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
+                    }
+                } else {
+                    err(IdxTmRule::Pair(
+                        decide_idxtm_equiv(ctx,i1,j1,g),
+                        decide_idxtm_equiv(ctx,i2,j2,g),
+                    ), DecError::PairNotProd)
+                }
+            }
+            (&IdxTm::Lam(ref a,ref asort,ref i),&IdxTm::Lam(ref b,_,ref j)) => {
+                // Assume lam vars have same sort
+                if let &Sort::IdxArrow(ref g1,ref g2) = g {
+                    let bodys = decide_idxtm_equiv(&ctx.nt_eq(a,b,g1),i,j,g2);
+                    let res = bodys.res.clone();
+                    let der = IdxTmRule::Lam((a.clone(),b.clone()),asort.clone(),bodys);
+                    match res {
+                        Ok(true) => succ(der),
+                        Ok(false) => fail(der),
+                        Err(_) => err(der, DecError::InSubDec)
+                    }
+                } else { err(
+                    IdxTmRule::Lam((a.clone(),b.clone()),asort.clone(),
+                        decide_idxtm_equiv(ctx,i,j,g)
+                    ), DecError::LamNotArrow
+                )}
+            }
+            (&IdxTm::Empty,&IdxTm::Empty) => {
+                // Assume sort NmSet
+                succ(IdxTmRule::Empty)
+            }
+            (&IdxTm::Sing(ref m),&IdxTm::Sing(ref n)) => {
+                // Assume sort NmSet
+                let nder = decide_nmtm_equiv(ctx,m,n,&Sort::Nm);
+                let res = nder.res.clone();
+                let der = IdxTmRule::Sing(nder);
+                match res {
+                    Ok(true) => succ(der),
+                    Ok(false) => fail(der),
+                    Err(_) => err(der, DecError::InSubDec)
+                }
+            }
+            (&IdxTm::Apart(ref x1,ref y1),&IdxTm::Apart(ref x2,ref y2)) => {
+                // Assume sort NmSet
+                let left = decide_idxtm_equiv(ctx,x1,x2,&Sort::NmSet);
+                let right = decide_idxtm_equiv(ctx,y1,y2,&Sort::NmSet);
+                let (l,r) = (left.res.clone(),right.res.clone());
+                let der = IdxTmRule::Apart(left,right);
+                match (l,r) {
+                    (Ok(true),Ok(true)) => succ(der),
+                    (Ok(_),Ok(_)) => fail(der),
+                    (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
+                }
+            }
+            (&IdxTm::Map(ref m,ref x),&IdxTm::Map(ref n,ref y)) => {
+                // Assume sort NmSet
+                let nmarrow = Sort::NmArrow(Rc::new(Sort::Nm),Rc::new(Sort::Nm));
+                let left = decide_nmtm_equiv(ctx,m,n,&nmarrow);
+                let right = decide_idxtm_equiv(ctx,x,y,&Sort::NmSet);
+                let (l,r) = (left.res.clone(),right.res.clone());
+                let der = IdxTmRule::Map(left,right);
+                match (l,r) {
+                    (Ok(true),Ok(true)) => succ(der),
+                    (Ok(_),Ok(_)) => fail(der),
+                    (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
+                }
+            }
+            (i,j) => {
+                // TODO: Non-structural cases
+                unimplemented!()
+            }
         }
     }
 
