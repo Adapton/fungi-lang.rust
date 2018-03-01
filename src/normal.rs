@@ -15,7 +15,7 @@ use normal;
 /// `i`.  The purpose of this form is to expose the union/apart
 /// connectives as forming a list/vector of subsets, over which we can
 /// distribute set-level functions.
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,PartialOrd,Ord)]
 pub enum NmSetTm {
     /// singleton name term `M`
     Single(NameTm),
@@ -24,14 +24,20 @@ pub enum NmSetTm {
 }
 pub type NmSetTms = Vec<NmSetTm>;
 
+// impl PartialOrd for NmSetTm {
+//     fn partial_cmp {
+//         panic!("")
+//     }
+// }
+
 /// Name set constructor; the subsets of a `NmSet` are (uniformly) combined as "apart" or "union"
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,PartialOrd,Ord)]
 pub enum NmSetCons {
     Union,
     Apart,
 }
 /// Canonical form (normal form) for a name set
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,PartialOrd,Ord)]
 pub struct NmSet {
     /// None means that the term list is a singleton or empty; for sets with two or more sub-terms, this constructor gives the (uniform) way the terms are connected.
     pub cons: Option<NmSetCons>,
@@ -171,6 +177,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                 let i1 = normal_idxtm_rec(ctx, i1);
                 let i2 = normal_idxtm_rec(ctx, i2);
                 match ((*i1).clone(), (*i2).clone()) {
+                    // Case: Two name set terms lists.  Append them.
                     (IdxTm::NmSet(ns1),
                      IdxTm::NmSet(ns2)) => {
                         match (ns1.cons, ns2.cons) {
@@ -188,7 +195,24 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                             },
                             _ => i_clone
                         }}
-                    _ => i_clone
+                    // Case: Either LHS or RHS has a name set term
+                    // list.  Push the non-name-set term onto the
+                    // name-set term list:
+                    (i, IdxTm::NmSet(mut ns))  |
+                    (IdxTm::NmSet(mut ns), i) => {
+                        ns.terms.push(NmSetTm::Subset(i));
+                        IdxTm::NmSet(ns)
+                    }
+                    // Case: no existing `NmSet` term ==> No other way
+                    // to combine these subsets' representations (),
+                    // so introduce a new `NmSet` term, with two entries:
+                    _ => {
+                        IdxTm::NmSet(NmSet{
+                            cons:Some(NmSetCons::Apart),
+                            terms:vec![NmSetTm::Subset((*i1).clone()),
+                                       NmSetTm::Subset((*i2).clone())],
+                        })
+                    }
                 }
             }
             IdxTm::Union(i1, i2) => {
@@ -284,19 +308,32 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                 let i1 = normal_idxtm_rec(ctx, i1);
                 let i2 = normal_idxtm_rec(ctx, i2);
                 match ((*i1).clone(), (*i2).clone()) {
-                    (IdxTm::Lam(_x,_gx,_n11), IdxTm::NmSet(ns2)) => {
+                    (IdxTm::Lam(x,_gx,i11), IdxTm::NmSet(ns2)) => {
                         let mut terms = vec![];
                         for tm2 in ns2.terms.iter() {
                             use self::NmSetTm::*;
-                            let mapped_tm = match tm2.clone() {
+                            match tm2.clone() {
                                 Single(n) => {
-                                    Subset(normal_idxtm(ctx, IdxTm::App(i1.clone(), Rc::new(IdxTm::Sing(n.clone())))))
+                                    let i12 = subst::subst_term_idxtm(Term::NmTm(n.clone()), &x, (*i11).clone());
+                                    match normal_idxtm(ctx, i12) {
+                                        IdxTm::NmSet(mut ns) => {
+                                            if ns.cons == None || ns.cons == Some(NmSetCons::Apart) {
+                                                // Flatten!
+                                                terms.append(&mut ns.terms)
+                                            } else {
+                                                // Union-based name set; Do not flatten.
+                                                terms.push(Subset(IdxTm::NmSet(ns)))
+                                            }
+                                        }
+                                        i13 => {
+                                            terms.push(Subset(i13))
+                                        }
+                                    }
                                 }
                                 Subset(i) => {
-                                    Subset(IdxTm::FlatMap(i1.clone(), Rc::new(i)))
+                                    terms.push(Subset(IdxTm::FlatMap(i1.clone(), Rc::new(i))))
                                 }
                             };
-                            terms.push(mapped_tm)
                         }
                         IdxTm::NmSet(NmSet{
                             cons:ns2.cons,
@@ -348,7 +385,7 @@ pub fn normal_nmtm(ctx:&Ctx, n:NameTm) -> NameTm {
                 let n1 = normal_nmtm_rec(ctx, n1);
                 let n2 = normal_nmtm_rec(ctx, n2);
                 match ((*n1).clone(), (*n2).clone()) {
-                    (NameTm::Lam(x,xg,n11), n2) => {
+                    (NameTm::Lam(x, _xg, n11), n2) => {
                         let n12 = subst::subst_nmtm_rec(n2, &x, n11);
                         normal_nmtm(ctx, (*n12).clone())
                     },

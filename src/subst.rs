@@ -374,11 +374,11 @@ pub fn subst_term_nmtm(t:Term, x:&String, m:NameTm) -> NameTm {
 
 /// Substitute name terms into name terms
 pub fn subst_nmtm(t:NameTm, x:&String, m:NameTm) -> NameTm {
-    unimplemented!()
+    subst_term_nmtm(Term::NmTm(t), x, m)
 }
 
 /// Substitute name terms into name terms
 pub fn subst_nmtm_rec(t:NameTm, x:&String, m:Rc<NameTm>) -> Rc<NameTm> {
-    unimplemented!()
+    Rc::new(subst_term_nmtm(Term::NmTm(t), x, (*m).clone()))
 }
 

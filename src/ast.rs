@@ -47,7 +47,7 @@ pub type Var = String;
 pub type Ident = String;
 
 /// Name Literals
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,PartialOrd,Ord)]
 pub enum Name {
     ScopeId,
     Leaf,
@@ -59,7 +59,7 @@ pub enum Name {
 pub type NameRec = Rc<Name>;
 
 /// Name Terms
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,PartialOrd,Ord)]
 pub enum NameTm {
     Var(Var),
     Name(Name),
@@ -73,7 +73,7 @@ pub enum NameTm {
 pub type NameTmRec = Rc<NameTm>;
 
 /// Index terms
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,PartialOrd,Ord)]
 pub enum IdxTm {
     Var(Var),
     Ident(Ident),
@@ -128,7 +128,7 @@ pub enum IdxTm {
 pub type IdxTmRec = Rc<IdxTm>;
 
 /// Sorts (classify name and index terms)
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,PartialOrd,Ord)]
 pub enum Sort {
     Nm,
     NmSet,
