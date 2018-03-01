@@ -425,6 +425,7 @@ pub enum TypeError {
     // error in subderivation; for tree-shaped AST nodes e.g. `App`, and value forms.
     Subder,
     Mismatch,
+    MismatchSort(Sort,Sort),
 }
 impl fmt::Display for TypeError {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
@@ -456,6 +457,7 @@ impl fmt::Display for TypeError {
             TypeError::LaterError => format!("error in a later line of code"),
             TypeError::Subder     => format!("error in a subderivation"),
             TypeError::Mismatch   => format!("type mismatch"),
+            TypeError::MismatchSort(ref g1, ref g2) => format!("sort mismatch: found {:?}, but expected {:?}", g1, g2),
         };
         write!(f,"{}",s)
     }
@@ -490,6 +492,7 @@ fn error_is_local(err:&TypeError) -> bool {
         TypeError::LaterError => false,
         TypeError::Subder     => false,
         TypeError::Mismatch   => true,
+        TypeError::MismatchSort(_,_)  => true,
     }
 }
 
@@ -690,7 +693,11 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
                 (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
                 (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
                 (Ok(Sort::IdxArrow(ref t0,ref t1)),Ok(ref t2)) if **t0 == *t2 => succ(td, (**t1).clone()),
-                (Ok(Sort::IdxArrow(_,_)),_) => fail(td, TypeError::ParamMism(1)),
+                (Ok(Sort::IdxArrow(ref t0,_)),Ok(ref t2)) => {
+                    // error reporting order: found sort, then expected sort
+                    println!("index app term: {:?} {:?}", idx0, idx1);
+                    fail(td, TypeError::MismatchSort( (*t2).clone(), (**t0).clone() ))
+                },                    
                 _ => fail(td, TypeError::AppNotArrow),
             }
         },
@@ -984,7 +991,7 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ:&Type) -> ValD
                     // XXX -- TODO-next
                     if x_typ == *typ { succ(td, x_typ) }
                     else {
-                        println!("**\n{:?} \n (NOT-EQUAL-TO)\n{:?}\n", x_typ, typ);
+                        println!("** Variable {}'s type:\n{:?} \n (NOT-EQUAL-TO) checking type\n{:?}\n", x, x_typ, typ);
                         fail(td, TypeError::AnnoMism)
                     }
                 }

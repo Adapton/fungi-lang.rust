@@ -88,8 +88,8 @@ fn bitype_filter2() {
             Thk[0] foralli (X,Y):NmSet.
                 0 Seq[X][Y] ->
                 0 (Thk[0] 0 Nat -> 0 F Bool) ->
-            { (WS_Seq_SR) X; Y }
-            F Seq[X][(WS_Seq_SR) X]
+            { {WS_Seq_SR} X; Y }
+            F Seq[X][{WS_Seq_SR} X]
         ) = {
             ret thunk fix filter. #seq. #f. unroll match seq {
                 opnat => {
