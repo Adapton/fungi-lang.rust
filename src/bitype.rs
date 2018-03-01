@@ -695,7 +695,7 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
                 (Ok(Sort::IdxArrow(ref t0,ref t1)),Ok(ref t2)) if **t0 == *t2 => succ(td, (**t1).clone()),
                 (Ok(Sort::IdxArrow(ref t0,_)),Ok(ref t2)) => {
                     // error reporting order: found sort, then expected sort
-                    println!("index app term: {:?} {:?}", idx0, idx1);
+                    //println!("index app term: {:?} {:?}", idx0, idx1);
                     fail(td, TypeError::MismatchSort( (*t2).clone(), (**t0).clone() ))
                 },                    
                 _ => fail(td, TypeError::AppNotArrow),
@@ -991,7 +991,7 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ:&Type) -> ValD
                     // XXX -- TODO-next
                     if x_typ == *typ { succ(td, x_typ) }
                     else {
-                        println!("** Variable {}'s type:\n{:?} \n (NOT-EQUAL-TO) checking type\n{:?}\n", x, x_typ, typ);
+                        println!("** Variable {}'s type:\n{:?} \n\n NOT-EQUAL-TO checking type\n{:?}\n", x, x_typ, typ);
                         fail(td, TypeError::AnnoMism)
                     }
                 }

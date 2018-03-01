@@ -162,6 +162,13 @@ pub fn subst_term_type(t:Term, x:&String, a:Type) -> Type {
         Type::NmFn(n) => {
             Type::NmFn(subst_term_nmtm(t, x, n))
         }
+        Type::Rec(y, a1) => {
+            if term_is_type(&t) && x == &y {
+                Type::Rec(y, a1)
+            } else {
+                Type::Rec(y, subst_term_type_rec(t, x, a1))
+            }            
+        }
         Type::TypeFn(y, k, a1) => {
             if term_is_type(&t) && x == &y {
                 Type::TypeFn(y, k, a1)
@@ -171,25 +178,27 @@ pub fn subst_term_type(t:Term, x:&String, a:Type) -> Type {
         }
         Type::IdxFn(y, g, a1) => {
             if term_is_idxtm(&t) && x == &y {
-                // no change
                 Type::IdxFn(y, g, a1)
             } else {
+                // TODO: When FV(t) contains var `y`, we need to
+                // alpha-vary `y` before substituting.
+                //
                 Type::IdxFn(y, g, subst_term_type_rec(t, x, a1))
             }
         }
-        Type::Rec(y, a1) => {
-            if term_is_idxtm(&t) && x == &y {
-                // no change
-                Type::Rec(y, a1)
-            } else {
-                Type::Rec(y, subst_term_type_rec(t, x, a1))
-            }            
-        }
+        //  [i/b] (exists a:g |      p.      A)
+        //     == (exists a:g | [i/b]p. [i/b]A)
+        //
+        //  TODO: But when FV(i) contains var `a`, we need to
+        //  alpha-vary `a` before substituting.
+        //
         Type::Exists(y, g, p, a1) => {
             if term_is_idxtm(&t) && x == &y {
-                // no change
                 Type::Exists(y, g, p, a1)
             } else {
+                // TODO: When FV(t) contains var `y`, we need to
+                // alpha-vary `y` before substituting.
+                //
                 Type::Exists(
                     y, g,
                     subst_term_prop(t.clone(), x, p),
