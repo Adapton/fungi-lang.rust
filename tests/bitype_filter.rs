@@ -115,9 +115,9 @@ fn bitype_filter2() {
                     let (n,lev,l,r) = {ret bin}
                     let (rsl, sl) = { memo{n,(@1)}{ {force filter}[X2][Y2]{!l} f } }
                     let (rsr, sr) = { memo{n,(@2)}{ {force filter}[X3][Y4]{!r} f } }
-                    if {{force is_empty}[X2][({WS_Seq_SR} X1)] sl} {
+                    if {{force is_empty}[X2][({WS_Seq_SR} X2)] sl} {
                         ret sr
-                    } else {if {{force is_empty}[X3][({WS_Seq_SR} X1)] sr} {
+                    } else {if {{force is_empty}[X3][({WS_Seq_SR} X3)] sr} {
                         ret sl
                     } else {
                         ret roll inj2 pack (
