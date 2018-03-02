@@ -49,7 +49,6 @@ pub type Ident = String;
 /// Name Literals
 #[derive(Clone,Debug,Eq,PartialEq,Hash,PartialOrd,Ord)]
 pub enum Name {
-    ScopeId,
     Leaf,
     Sym(String),
     Num(usize),

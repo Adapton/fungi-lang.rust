@@ -411,17 +411,21 @@ pub mod equiv {
 }
 
 
-
-mod subset {
+/// Decide subset relationships over name sets, index terms and types
+pub mod subset {
     use ast::*;
     use bitype::{Ctx,HasClas,TypeError};
     use std::fmt;
     use std::rc::Rc;
     use super::*;
 
+    /// Decide name set subset relation.
+    ///
     /// Return true iff name set `a` is a subset of, or equal to, name set `b`
     pub fn decide_idxtm_subset(ctx: &RelCtx, a:IdxTm, b:IdxTm) -> bool {
-        panic!("TODO");
+        if a == b { true } else {
+            panic!("TODO");
+        }
         //
         // 1a. normalize term `a` under left projection of ctx.
         //
@@ -440,10 +444,13 @@ mod subset {
         //    (equivalent) term in `b`'s decomposition.  Each match in
         //    `b` may be used at most once.
     }
-    
+
+    /// Decide type subset relation
     pub fn decide_type_subset_rec(ctx: &RelCtx, a:Rc<Type>, b:Rc<Type>) -> bool {
         decide_type_subset(ctx, (*a).clone(), (*b).clone())
     }
+    
+    /// Decide type subset relation
     pub fn decide_type_subset(ctx: &RelCtx, a:Type, b:Type) -> bool {
         if a == b { true } else {
             match (a,b) {
@@ -510,6 +517,7 @@ mod subset {
         }        
     }
 
+    /// Decide computation type subset relation
     pub fn decide_ctype_subset(ctx: &RelCtx, ct1:CType, ct2:CType) -> bool {
         match (ct1, ct2) {
             (CType::Lift(a), CType::Lift(b)) => {
@@ -524,6 +532,7 @@ mod subset {
         }
     }
 
+    /// Decide computation effect subset relation    
     pub fn decide_ceffect_subset(ctx: &RelCtx, ce1:CEffect, ce2:CEffect) -> bool {
         match (ce1, ce2) {
             (CEffect::Cons(ct1, eff1), CEffect::Cons(ct2, eff2)) => {
@@ -540,12 +549,14 @@ mod subset {
             }
             _ => false
         }
-        
     }
+    
+    /// Decide computation effect subset relation
     pub fn decide_ceffect_subset_rec(ctx: &RelCtx, ce1:Rc<CEffect>, ce2:Rc<CEffect>) -> bool {
         decide_ceffect_subset(ctx, (*ce1).clone(), (*ce2).clone())
     }
     
+    /// Decide effect subset relation
     pub fn decide_effect_subset(ctx: &RelCtx, eff1:Effect, eff2:Effect) -> bool {
         match (eff1, eff2) {
             (Effect::WR(w1,r1),Effect::WR(w2,r2)) => {
