@@ -24,12 +24,6 @@ pub enum NmSetTm {
 }
 pub type NmSetTms = Vec<NmSetTm>;
 
-// impl PartialOrd for NmSetTm {
-//     fn partial_cmp {
-//         panic!("")
-//     }
-// }
-
 /// Name set constructor; the subsets of a `NmSet` are (uniformly) combined as "apart" or "union"
 #[derive(Clone,Debug,Eq,PartialEq,Hash,PartialOrd,Ord)]
 pub enum NmSetCons {

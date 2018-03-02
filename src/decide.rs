@@ -408,7 +408,153 @@ pub mod equiv {
             unimplemented!()
         }
     }
+}
 
+
+
+mod subset {
+    use ast::*;
+    use bitype::{Ctx,HasClas,TypeError};
+    use std::fmt;
+    use std::rc::Rc;
+    use super::*;
+
+    /// Return true iff name set `a` is a subset of, or equal to, name set `b`
+    pub fn decide_idxtm_subset(ctx: &RelCtx, a:IdxTm, b:IdxTm) -> bool {
+        panic!("TODO");
+        //
+        // 1a. normalize term `a` under left projection of ctx.
+        //
+        // 2a. normalize term `b` under right projection of ctx.
+        //
+        // 1b. If it is possible to subdivide term `a` using
+        //     equivalences, then do so. (If there are multiple ways to
+        //     do this, then try every option, with backtracking to
+        //     try others.)
+        //
+        // 2b. If it is possible to subdivide term `b` using
+        //     equivalences, then do so. Try + backtracking.
+        //
+        // 3. These terms should each be a NmSet.  For each term in
+        //    `a`'s decomposition, attempt to find a matching
+        //    (equivalent) term in `b`'s decomposition.  Each match in
+        //    `b` may be used at most once.
+    }
+    
+    pub fn decide_type_subset_rec(ctx: &RelCtx, a:Rc<Type>, b:Rc<Type>) -> bool {
+        decide_type_subset(ctx, (*a).clone(), (*b).clone())
+    }
+    pub fn decide_type_subset(ctx: &RelCtx, a:Type, b:Type) -> bool {
+        if a == b { true } else {
+            match (a,b) {
+                (Type::Var(x), Type::Var(y)) => {
+                    unimplemented!()
+                }
+                (Type::Unit, Type::Unit) => true,
+                (Type::Sum(a1, a2), Type::Sum(b1, b2)) => {
+                    decide_type_subset_rec(ctx, a1, b1) &&
+                        decide_type_subset_rec(ctx, a2, b2)
+                }
+                (Type::Prod(a1,a2), Type::Prod(b1, b2)) => {
+                    decide_type_subset_rec(ctx, a1, b1) &&
+                        decide_type_subset_rec(ctx, a2, b2)
+                }
+                (Type::Ref(i, a), Type::Ref(j, b)) => {
+                    decide_idxtm_subset(ctx, i, j) &&
+                        decide_type_subset_rec(ctx, a, b)
+                }
+                (Type::Thk(i, ce1), Type::Thk(j, ce2)) => {
+                    decide_idxtm_subset(ctx, i, j) &&
+                        decide_ceffect_subset_rec(ctx, ce1, ce2)
+                }
+                (Type::IdxApp(a, i), Type::IdxApp(b, j)) => {
+                    decide_type_subset_rec(ctx, a, b) &&
+                        decide_idxtm_subset(ctx, i, j)
+                }
+                (Type::TypeApp(a1, b1), Type::TypeApp(a2, b2)) => {
+                    decide_type_subset_rec(ctx, a1, a2) &&
+                        decide_type_subset_rec(ctx, b1, b2)
+                }
+                (Type::Nm(i), Type::Nm(j)) => {
+                    decide_idxtm_subset(ctx, i, j)
+                }
+                (Type::NmFn(m), Type::NmFn(n)) => {
+                    let nmarrow = fgi_sort![ Nm -> Nm ];
+                    super::equiv::decide_nmtm_equiv(ctx, &m, &n, &nmarrow).res
+                        == Ok(true)
+                }
+                (Type::TypeFn(x1, k1, a1), Type::TypeFn(x2, _k2, a2)) => {
+                    // TODO: extend ctx with x1 <= x2 : (k1 = k2)
+                    decide_type_subset_rec(ctx, a1, a2)
+                }
+                (Type::IdxFn(x1, g1, a1), Type::IdxFn(x2, _g2, a2)) => {
+                    // TODO: extend ctx with x1 <= x2 : (g1 = g2)
+                    decide_type_subset_rec(ctx, a1, a2)
+                }
+                // Exists for index-level variables; they are classified by sorts
+                (Type::Exists(x1, g1, p1, a1), Type::Exists(x2, g2, p2, a2)) => {
+                    // TODO: extend ctx with x1 <= x2 : (g1 = g2)
+                    //
+                    // TODO: Prove: p1 ==> p2.  So, extend context
+                    // with p1, to prove p2, and to show that a1 <=
+                    // a2.
+                    decide_type_subset_rec(ctx, a1, a2)
+                }
+                (Type::Rec(x1, a1), Type::Rec(x2, a2)) => {
+                    // TODO: extend ctx with x1 <= x2 : (g1 = g2)
+                    // show that a1 <= a2
+                    decide_type_subset_rec(ctx, a1, a2)
+                }                
+                (_,_) => false,
+            }
+        }        
+    }
+
+    pub fn decide_ctype_subset(ctx: &RelCtx, ct1:CType, ct2:CType) -> bool {
+        match (ct1, ct2) {
+            (CType::Lift(a), CType::Lift(b)) => {
+                decide_type_subset(ctx, a, b)
+            }
+            (CType::Arrow(a,ce1), CType::Arrow(b,ce2)) => {
+                // Arrow's first type parameter is contra-variant
+                decide_type_subset(ctx, b, a) &&
+                    decide_ceffect_subset_rec(ctx, ce1, ce2)
+            }
+            _ => false
+        }
+    }
+
+    pub fn decide_ceffect_subset(ctx: &RelCtx, ce1:CEffect, ce2:CEffect) -> bool {
+        match (ce1, ce2) {
+            (CEffect::Cons(ct1, eff1), CEffect::Cons(ct2, eff2)) => {
+                decide_ctype_subset(ctx, ct1, ct2) &&
+                    decide_effect_subset(ctx, eff1, eff2)
+            }
+            (CEffect::ForallType(x1,k1,ce1), CEffect::ForallType(x2,k2,ce2)) => {
+                // TODO
+                unimplemented!()
+            }
+            (CEffect::ForallIdx(x1,g1,p1,ce1), CEffect::ForallIdx(x2,g2,p2,ce2)) => {
+                // TODO
+                unimplemented!()
+            }
+            _ => false
+        }
+        
+    }
+    pub fn decide_ceffect_subset_rec(ctx: &RelCtx, ce1:Rc<CEffect>, ce2:Rc<CEffect>) -> bool {
+        decide_ceffect_subset(ctx, (*ce1).clone(), (*ce2).clone())
+    }
+    
+    pub fn decide_effect_subset(ctx: &RelCtx, eff1:Effect, eff2:Effect) -> bool {
+        match (eff1, eff2) {
+            (Effect::WR(w1,r1),Effect::WR(w2,r2)) => {
+                decide_idxtm_subset(ctx, w1, w2) &&
+                    decide_idxtm_subset(ctx, r1, r2)
+            },
+            _ => false
+        }        
+    }
 
 }
 
