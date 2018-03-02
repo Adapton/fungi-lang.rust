@@ -7,6 +7,44 @@ use normal;
 use ast::*;
 use bitype::{Term};
 
+pub fn fv_of_nmtm(n:&NameTm, bound:Vec<Term>, out:&mut Vec<Term>) {
+    use ast::NameTm::*;
+    match n {
+        &Var(_) => {
+            let x = Term::NmTm(n.clone());
+            if let Some(_) = bound.iter().position(|y| &x == y) { /* x is bound. */ }
+            else { /* x is free */ out.push(x) }
+        },
+        &Name(_) => {},
+        &Bin(ref n, ref m) |
+        &App(ref n, ref m) => {
+            fv_of_nmtm(n, bound.clone(), out);
+            fv_of_nmtm(m, bound,         out);
+        }
+        &Lam(ref x, _, ref m) => {
+            let mut bound = bound;
+            bound.push(Term::NmTm(NameTm::Var(x.clone())))
+        }
+        &WriteScope => { },
+        &NoParse(_) => { },
+    }
+}
+pub fn fv_of_idxtm(i:&IdxTm, bound:Vec<Term>, out:&mut Vec<Term>) {
+    unimplemented!()
+}
+pub fn fv_of_type(t:&Type, bound:Vec<Term>, out:&mut Vec<Term>) {
+    unimplemented!()
+}
+pub fn fv_of_ctype(ct:&CType, bound:Vec<Term>, out:&mut Vec<Term>) {
+    unimplemented!()
+}
+pub fn fv_of_ceffect(ct:&CEffect, bound:Vec<Term>, out:&mut Vec<Term>) {
+    unimplemented!()
+}
+pub fn fv_of_effect(ct:&Effect, bound:Vec<Term>, out:&mut Vec<Term>) {
+    unimplemented!()
+}
+
 /// Substitute a type for a type variable in another type
 pub fn subst_type_type(a:Type, x:&String, b:Type) -> Type {
     subst_term_type(Term::Type(a), x, b)

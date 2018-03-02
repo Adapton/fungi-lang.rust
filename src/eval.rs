@@ -219,7 +219,6 @@ pub fn nametm_eval(nmtm:NameTm) -> NameTmVal {
 /// library) name.
 pub fn engine_name_of_ast_name(n:Name) -> engine::Name {
     match n {
-        Name::ScopeId => unimplemented!("scope name"),
         Name::Leaf   => engine::name_unit(),
         Name::Sym(s) => engine::name_of_string(s),
         Name::Num(n) => engine::name_of_usize(n),
