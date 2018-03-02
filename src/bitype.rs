@@ -710,7 +710,7 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
                 (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
                 (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
                 (Ok(Sort::NmArrow(n0,n1)),Ok(Sort::NmSet)) => {
-                    if (*n0 == Sort::Nm) & (*n1 == Sort::Nm) { succ(td, Sort::NmSet) }
+                    if (*n0 == Sort::Nm) && (*n1 == Sort::Nm) { succ(td, Sort::NmSet) }
                     else { fail(td, TypeError::ParamMism(0)) }
                 },
                 (Ok(Sort::NmArrow(_,_)),_) => fail(td, TypeError::ParamMism(1)),
@@ -726,8 +726,16 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
                 (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
                 (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
                 (Ok(Sort::IdxArrow(n0,n1)),Ok(Sort::NmSet)) => {
-                    if (*n0 == Sort::Nm) & (*n1 == Sort::NmSet) { succ(td, Sort::NmSet) }
-                    else { fail(td, TypeError::ParamMism(0)) }
+                    if (*n0 != Sort::Nm) {
+                        fail(td, TypeError::MismatchSort( (*n0).clone(), Sort::Nm ))
+                    } else if (*n1 != Sort::NmSet) {
+                        fail(td, TypeError::MismatchSort( (*n1).clone(), Sort::NmSet ))
+                    }
+                    else {
+                        assert_eq!(*n0, Sort::Nm);
+                        assert_eq!(*n1, Sort::NmSet);
+                        succ(td, Sort::NmSet)
+                    }
                 },
                 (Ok(Sort::IdxArrow(_,_)),_) => fail(td, TypeError::ParamMism(1)),
                 (Ok(_),_) => fail(td, TypeError::ParamMism(0)),
@@ -742,7 +750,7 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
                 (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
                 (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
                 (Ok(Sort::IdxArrow(n0,n1)),Ok(Sort::NmSet)) => {
-                    if (*n0 == Sort::Nm) & (*n1 == Sort::NmSet) { succ(td,Sort::NmSet) }
+                    if (*n0 == Sort::Nm) && (*n1 == Sort::NmSet) { succ(td,Sort::NmSet) }
                     else { fail(td, TypeError::ParamMism(0)) }
                 },
                 (Ok(Sort::IdxArrow(_,_)),_) => fail(td, TypeError::ParamMism(1)),
@@ -934,7 +942,7 @@ pub fn synth_val(last_label:Option<&str>, ctx:&Ctx, val:&Val) -> ValDer {
             match typ0 {
                 Err(_) => fail(td, TypeError::ParamNoSynth(0)),
                 Ok(Sort::NmArrow(n0,n1)) => {
-                    if (*n0 == Sort::Nm) & (*n1 == Sort::Nm) {
+                    if (*n0 == Sort::Nm) && (*n1 == Sort::Nm) {
                         succ(td, Type::NmFn(nmtm.clone()))
                     } else { fail(td, TypeError::ParamMism(0)) }
                 },
@@ -1592,7 +1600,7 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
                 (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
                 (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
                 (Ok(Type::Ident(ref n0)), Ok(Type::Ident(ref n1)))
-                if (n0 == "Nat") & (n1 == "Nat") => {
+                if (n0 == "Nat") && (n1 == "Nat") => {
                     let ce = CEffect::Cons(
                         CType::Lift(Type::Ident("Bool".to_string())),
                         Effect::WR(IdxTm::Empty, IdxTm::Empty),
