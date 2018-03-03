@@ -92,6 +92,7 @@ pub enum DecError {
     TypeError(TypeError),
     InSubDec,
     LamNotArrow,
+    AppNotArrow,
     PairNotProd,
 }
 
@@ -222,8 +223,8 @@ pub mod equiv {
                 res:Err(e),
             }
         };
-        match (&*n.rule,&*m.rule) {
-            (nr,mr) if nr == mr => { succ(NmTmRule::Refl(n.clone())) }
+        match (&*m.rule,&*n.rule) {
+            (mr,nr) if nr == mr => { succ(NmTmRule::Refl(n.clone())) }
             // TODO: all struct cases
             (&BiNmTm::Var(ref v1),&BiNmTm::Var(ref v2)) => {
                 if ctx.lookup_nvareq(v1,v2,g) {
@@ -262,10 +263,38 @@ pub mod equiv {
                 )}
             }
             (&BiNmTm::App(ref m1,ref m2),&BiNmTm::App(ref n1,ref n2)) => {
-                // TODO: generate sort of m1 and m2
-                unimplemented!("decide_nmtm_equiv app")
+                // find sort of m1 and n1, assume matching arrows
+                let g1 = match (&m1.clas,&n1.clas) {
+                    (&Ok(ref g),&Ok(_)) => g,
+                    _ => {
+                        // error out, using bad types for the recursive decisions
+                        let der1 = decide_nmtm_equiv(ctx,m1,n1,g);
+                        let der2 = decide_nmtm_equiv(ctx,m2,n2,g);
+                        return err(NmTmRule::App(der1, der2),DecError::AppNotArrow)
+                    }
+                };
+                // find sort of m2 and n2, assume matching types
+                let g2 = match (&m2.clas,&n2.clas) {
+                    (&Ok(ref g),&Ok(_)) => g,
+                    _ => {
+                        // fail, using bad types for the recursive decisions
+                        let der1 = decide_nmtm_equiv(ctx,m1,n1,g1);
+                        let der2 = decide_nmtm_equiv(ctx,m2,n2,g);
+                        return err(NmTmRule::App(der1, der2),DecError::InSubDec)
+                    }
+                };
+                // assume appropriate types
+                let app = decide_nmtm_equiv(ctx,m1,n1,g1);
+                let par = decide_nmtm_equiv(ctx,m2,n2,g2);
+                let (r1,r2) = (app.res.clone(),par.res.clone());
+                let der = NmTmRule::Bin(app,par);
+                match (r1,r2) {
+                    (Ok(true),Ok(true)) => succ(der),
+                    (Ok(_),Ok(_)) => fail(der),
+                    (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
+                }
             }
-            (nr,mr) => {
+            (mr,nr) => {
                 // TODO: Non-structural cases
                 unimplemented!("decide_nmtm_equiv non-struct")
             }
