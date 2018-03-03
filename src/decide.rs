@@ -43,7 +43,7 @@ impl RelCtx {
         match self {
             &RelCtx::NVarEquiv(ref c, ref v1, ref v2, ref s) => {
                 // TODO: sort compatibility?
-                if (x1 == v1) & (x2 == v2) & (g == s) { true }
+                if (x1 == v1) && (x2 == v2) && (g == s) { true }
                 else { c.lookup_nvareq(x1,x2,g) }
             }
             c => c.rest().map_or(false,|c|c.lookup_nvareq(x1,x2,g))
@@ -52,7 +52,7 @@ impl RelCtx {
     // pub fn lookup_nvareq_sort(&self, x1:&Var, x2:&Var) -> Option<Sort> {
     //     match self {
     //         &RelCtx::NVarEquiv(ref c, ref v1, ref v2, ref s) => {
-    //             if (x1 == v1) & (x2 == v2) { Some(s.clone()) }
+    //             if (x1 == v1) && (x2 == v2) { Some(s.clone()) }
     //             else { c.lookup_nvareq_sort(x1,x2) }
     //         }
     //         c => c.rest().and_then(|c|c.lookup_nvareq_sort(x1,x2))
@@ -62,7 +62,7 @@ impl RelCtx {
         match self {
             &RelCtx::NVarEquiv(ref c, ref v1, ref v2, ref s) => {
                 // TODO: sort compatibility?
-                if (x1 == v1) & (x2 == v2) & (g == s) { true }
+                if (x1 == v1) && (x2 == v2) && (g == s) { true }
                 else { c.lookup_ivareq(x1,x2,g) }
             }
             c => c.rest().map_or(false,|c|c.lookup_ivareq(x1,x2,g))
@@ -108,7 +108,10 @@ pub struct Dec<Rule:HasClas> {
 /// Decide equivalence of two terms (types, indices, name terms)
 pub mod equiv {
     use ast::*;
-    use bitype::{Ctx,HasClas,TypeError};
+    use bitype::{self,Ctx,HasClas,TypeError};
+    use bitype::{NmTmDer,IdxTmDer};
+    use bitype::NmTmRule as BiNmTm;
+    use bitype::IdxTmRule as BiIdxTm;
     use std::fmt;
     use std::rc::Rc;
     use super::*;
@@ -116,7 +119,7 @@ pub mod equiv {
     /// Name term equivalence rules
     #[derive(Clone,Debug,Eq,PartialEq,Hash)]
     pub enum NmTmRule {
-        Refl(NameTm),
+        Refl(NmTmDer),
         Var(Var2),
         Bin(NmTmDec, NmTmDec),
         Lam(Var2,Sort,NmTmDec),
@@ -133,7 +136,7 @@ pub mod equiv {
     #[derive(Clone,Debug,Eq,PartialEq,Hash)]
     pub enum IdxTmRule {
         Var(Var2),
-        Refl(IdxTm),
+        Refl(IdxTmDer),
         Sing(NmTmDec),
         Empty,
         Apart(IdxTmDec, IdxTmDec),
@@ -194,7 +197,7 @@ pub mod equiv {
 
 
     /// Decide if two name terms are equivalent under the given context
-    pub fn decide_nmtm_equiv(ctx: &RelCtx, n:&NameTm, m:&NameTm, g:&Sort) -> NmTmDec {
+    pub fn decide_nmtm_equiv(ctx: &RelCtx, n:&NmTmDer, m:&NmTmDer, g:&Sort) -> NmTmDec {
         let succ = |r| {
             Dec{
                 ctx:ctx.clone(),
@@ -219,17 +222,17 @@ pub mod equiv {
                 res:Err(e),
             }
         };
-        match (n,m) {
-            (n,m) if n == m => { succ(NmTmRule::Refl(n.clone())) }
+        match (&*n.rule,&*m.rule) {
+            (nr,mr) if nr == mr => { succ(NmTmRule::Refl(n.clone())) }
             // TODO: all struct cases
-            (&NameTm::Var(ref v1),&NameTm::Var(ref v2)) => {
+            (&BiNmTm::Var(ref v1),&BiNmTm::Var(ref v2)) => {
                 if ctx.lookup_nvareq(v1,v2,g) {
                     succ(NmTmRule::Var((v1.clone(),v2.clone())))
                 } else {
                     fail(NmTmRule::Var((v1.clone(),v2.clone())))
                 }
             }
-            (&NameTm::Bin(ref m1,ref m2),&NameTm::Bin(ref n1,ref n2)) => {
+            (&BiNmTm::Bin(ref m1,ref m2),&BiNmTm::Bin(ref n1,ref n2)) => {
                 // Assume sort Nm (they're bins)
                 let left = decide_nmtm_equiv(ctx,m1,n1,g);
                 let right = decide_nmtm_equiv(ctx,m2,n2,g);
@@ -241,7 +244,7 @@ pub mod equiv {
                     (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
                 }
             }
-            (&NameTm::Lam(ref a,ref asort,ref m),&NameTm::Lam(ref b,_,ref n)) => {
+            (&BiNmTm::Lam(ref a,ref asort,ref m),&BiNmTm::Lam(ref b,_,ref n)) => {
                 // Assume lam vars have same sort
                 if let &Sort::NmArrow(ref g1,ref g2) = g {
                     let bodys = decide_nmtm_equiv(&ctx.nt_eq(a,b,g1),m,n,g2);
@@ -258,11 +261,11 @@ pub mod equiv {
                     ), DecError::LamNotArrow
                 )}
             }
-            (&NameTm::App(ref m1,ref m2),&NameTm::App(ref n1,ref n2)) => {
+            (&BiNmTm::App(ref m1,ref m2),&BiNmTm::App(ref n1,ref n2)) => {
                 // TODO: generate sort of m1 and m2
                 unimplemented!("decide_nmtm_equiv app")
             }
-            (n,m) => {
+            (nr,mr) => {
                 // TODO: Non-structural cases
                 unimplemented!("decide_nmtm_equiv non-struct")
             }
@@ -270,7 +273,7 @@ pub mod equiv {
     }
 
     /// Decide if two index terms are equivalent under the given context
-    pub fn decide_idxtm_equiv(ctx: &RelCtx, i:&IdxTm, j:&IdxTm, g:&Sort) -> IdxTmDec {
+    pub fn decide_idxtm_equiv(ctx: &RelCtx, i:&IdxTmDer, j:&IdxTmDer, g:&Sort) -> IdxTmDec {
         let succ = |r| {
             Dec{
                 ctx:ctx.clone(),
@@ -295,17 +298,17 @@ pub mod equiv {
                 res:Err(e),
             }
         };
-        match (i,j) {
-            (i,j) if i == j => { succ(IdxTmRule::Refl(i.clone())) }
+        match (&*i.rule,&*j.rule) {
+            (ir,jr) if i == j => { succ(IdxTmRule::Refl(i.clone())) }
             // TODO: all struct cases
-            (&IdxTm::Var(ref v1),&IdxTm::Var(ref v2)) => {
+            (&BiIdxTm::Var(ref v1),&BiIdxTm::Var(ref v2)) => {
                 if ctx.lookup_ivareq(v1,v2,g) {
                     succ(IdxTmRule::Var((v1.clone(),v2.clone())))
                 } else {
                     fail(IdxTmRule::Var((v1.clone(),v2.clone())))
                 }
             }
-            (&IdxTm::Pair(ref i1,ref i2),&IdxTm::Pair(ref j1,ref j2)) => {
+            (&BiIdxTm::Pair(ref i1,ref i2),&BiIdxTm::Pair(ref j1,ref j2)) => {
                 if let &Sort::Prod(ref g1,ref g2) = g {
                     let left = decide_idxtm_equiv(ctx,i1,j1,g1);
                     let right = decide_idxtm_equiv(ctx,i2,j2,g2);
@@ -323,7 +326,7 @@ pub mod equiv {
                     ), DecError::PairNotProd)
                 }
             }
-            (&IdxTm::Lam(ref a,ref asort,ref i),&IdxTm::Lam(ref b,_,ref j)) => {
+            (&BiIdxTm::Lam(ref a,ref asort,ref i),&BiIdxTm::Lam(ref b,_,ref j)) => {
                 // Assume lam vars have same sort
                 if let &Sort::IdxArrow(ref g1,ref g2) = g {
                     let bodys = decide_idxtm_equiv(&ctx.nt_eq(a,b,g1),i,j,g2);
@@ -340,11 +343,11 @@ pub mod equiv {
                     ), DecError::LamNotArrow
                 )}
             }
-            (&IdxTm::Empty,&IdxTm::Empty) => {
+            (&BiIdxTm::Empty,&BiIdxTm::Empty) => {
                 // Assume sort NmSet
                 succ(IdxTmRule::Empty)
             }
-            (&IdxTm::Sing(ref m),&IdxTm::Sing(ref n)) => {
+            (&BiIdxTm::Sing(ref m),&BiIdxTm::Sing(ref n)) => {
                 // Assume sort NmSet
                 let nder = decide_nmtm_equiv(ctx,m,n,&Sort::Nm);
                 let res = nder.res.clone();
@@ -355,7 +358,7 @@ pub mod equiv {
                     Err(_) => err(der, DecError::InSubDec)
                 }
             }
-            (&IdxTm::Apart(ref x1,ref y1),&IdxTm::Apart(ref x2,ref y2)) => {
+            (&BiIdxTm::Apart(ref x1,ref y1),&BiIdxTm::Apart(ref x2,ref y2)) => {
                 // Assume sort NmSet
                 let left = decide_idxtm_equiv(ctx,x1,x2,&Sort::NmSet);
                 let right = decide_idxtm_equiv(ctx,y1,y2,&Sort::NmSet);
@@ -367,7 +370,7 @@ pub mod equiv {
                     (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
                 }
             }
-            (&IdxTm::Map(ref m,ref x),&IdxTm::Map(ref n,ref y)) => {
+            (&BiIdxTm::Map(ref m,ref x),&BiIdxTm::Map(ref n,ref y)) => {
                 // Assume sort NmSet
                 let nmarrow = Sort::NmArrow(Rc::new(Sort::Nm),Rc::new(Sort::Nm));
                 let left = decide_nmtm_equiv(ctx,m,n,&nmarrow);
@@ -380,7 +383,7 @@ pub mod equiv {
                     (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
                 }
             }
-            (i,j) => {
+            (ir,jr) => {
                 // TODO: Non-structural cases
                 unimplemented!()
             }
@@ -562,8 +565,10 @@ mod subset {
 /// Decide apartness of two terms (indices, name terms)
 pub mod apart {
     use ast::*;
-    use bitype::{Ctx,HasClas,TypeError};
-    use bitype;
+    use bitype::{self,Ctx,HasClas,TypeError};
+    use bitype::{NmTmDer,IdxTmDer};
+    use bitype::NmTmRule as BiNmTm;
+    use bitype::IdxTmRule as BiIdxTm;
     use std::fmt;
     use std::rc::Rc;
     use super::*;
@@ -586,7 +591,7 @@ pub mod apart {
         BinEq2(equiv::NmTmDec),
         Lam(Var2,Sort,NmTmDec),
         App(NmTmDec, NmTmDec),
-        Beta(bitype::NmTmDer, bitype::NmTmDer, NmTmDec),
+        Beta(NmTmDer, NmTmDer, NmTmDec),
         NoParse(String),
     }
     pub type NmTmDec  = Dec<NmTmRule>;
@@ -607,7 +612,7 @@ pub mod apart {
         Proj2(IdxTmDec),
         Lam(Var2, Sort, IdxTmDec),
         App(IdxTmDec, equiv::IdxTmDec),
-        Beta(IdxTmDec, bitype::IdxTmDer, bitype::IdxTmDer),
+        Beta(IdxTmDec, IdxTmDer, IdxTmDer),
         Empty(NmTmDec),
         Single(IdxTmDec),
         Apart(IdxTmDec, IdxTmDec),
@@ -623,14 +628,14 @@ pub mod apart {
     }
 
     /// Decide if two name terms are apart under the given context
-    pub fn decide_nmtm_apart(ctx: &RelCtx, n:&NameTm, m:&NameTm, g:&Sort) -> NmTmDec {
+    pub fn decide_nmtm_apart(ctx: &RelCtx, n:&NmTmDer, m:&NmTmDer, g:&Sort) -> NmTmDec {
         // TODO: Use structural/deductive apartness rules.  Also, do
         // normalization of the name term (aka, beta reduction).
         unimplemented!()
     }
 
     /// Decide if two index terms are apart under the given context
-    pub fn decide_idxtm_apart(ctx: &RelCtx, i:&IdxTm, j:&IdxTm, g:&Sort) -> IdxTmDec {
+    pub fn decide_idxtm_apart(ctx: &RelCtx, i:&IdxTmDer, j:&IdxTmDer, g:&Sort) -> IdxTmDec {
         // TODO: Use structural/deductive apartness rules. Also, do
         // normalization of the index term (aka, beta reduction).
         // Need to be careful not to expand Kleene star indefintely,
