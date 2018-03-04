@@ -156,13 +156,28 @@ pub trait HasClas {
 }
 
 /// Typing derivation: A context (`ctx`), a direction (`dir`), a classifier (type, sort, etc) and a rule (`rule`).
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,Hash)]
 pub struct Der<Rule:HasClas+debug::DerRule> {
     pub ctx:Ctx,
     pub dir:Dir<Rule>,
     pub rule:Rc<Rule>,
     pub clas:Result<Rule::Clas,TypeError>,
     pub vis:DerVis,
+}
+impl<Rule:HasClas+debug::DerRule> PartialEq for Der<Rule> where
+    Rule: PartialEq,
+    Rule::Clas: PartialEq
+{
+    // we only check rule and class for equality
+    fn eq(&self, other:&Self) -> bool {
+        self.rule == other.rule &&
+        match (&self.clas,&other.clas) {
+            (&Ok(ref s),&Ok(ref o)) => s == o,
+            // treat all errors as equal, they depend on context
+            (&Err(_),&Err(_)) => true,
+            _ => false,
+        }
+    }
 }
 impl<Rule:HasClas+debug::DerRule> Der<Rule> {
     pub fn is_err(&self) -> bool { self.clas.is_err() }
@@ -736,6 +751,10 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
                         assert_eq!(*n1, Sort::NmSet);
                         succ(td, Sort::NmSet)
                     }
+/*
+                    if (*n0 == Sort::Nm) && (*n1 == Sort::NmSet) { succ(td, Sort::NmSet) }
+                    else { fail(td, TypeError::ParamMism(0)) }
+*/
                 },
                 (Ok(Sort::IdxArrow(_,_)),_) => fail(td, TypeError::ParamMism(1)),
                 (Ok(_),_) => fail(td, TypeError::ParamMism(0)),
