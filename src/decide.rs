@@ -426,6 +426,7 @@ pub mod subset {
         if a == b { true } else {
             panic!("TODO");
         }
+        // XXX
         //
         // 1a. normalize term `a` under left projection of ctx.
         //

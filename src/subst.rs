@@ -7,6 +7,43 @@ use normal;
 use ast::*;
 use bitype::{Term};
 
+// TODO-Someday: Use Rc-based lists instead vectors to represent the
+// bound variable list, for cheaper O(1) clones.
+
+
+/// Simplistic policy to create a "primed" version of `x`
+pub fn alpha_vary(x:&String) -> String {
+    format!("{}~",x)
+}    
+
+/// Test if a variable term appears in a vector of variable terms
+pub fn fv_contains(fv:&Vec<Term>, x:&Term) -> bool {
+    for y in fv.iter() {
+        if y == x { return true }
+    };
+    return false
+}
+
+/// Test if an index term variable appears in a vector of variable terms
+pub fn fv_contains_idxtm(fv:&Vec<Term>, x:&String) -> bool {
+    let x = &Term::IdxTm(IdxTm::Var(x.clone()));
+    fv_contains(fv, x)
+}
+
+
+/// Compute a list of variables (as terms) that appear free in the given term
+pub fn fv_of_term(t:&Term) -> Vec<Term> {
+    let mut out : Vec<Term> = vec![];
+    let bound   : Vec<Term> = vec![];
+    match t {
+        &Term::NmTm (ref n) => fv_of_nmtm (n, vec![], &mut out),
+        &Term::IdxTm(ref i) => fv_of_idxtm(i, vec![], &mut out),
+        &Term::Type (ref t) => fv_of_type (t, vec![], &mut out),        
+    }
+    return out
+}
+
+/// Compute the free variables of a name term
 pub fn fv_of_nmtm(n:&NameTm, bound:Vec<Term>, out:&mut Vec<Term>) {
     use ast::NameTm::*;
     match n {
@@ -23,17 +60,69 @@ pub fn fv_of_nmtm(n:&NameTm, bound:Vec<Term>, out:&mut Vec<Term>) {
         }
         &Lam(ref x, _, ref m) => {
             let mut bound = bound;
-            bound.push(Term::NmTm(NameTm::Var(x.clone())))
+            bound.push(Term::NmTm(NameTm::Var(x.clone())));
+            fv_of_nmtm(m, bound, out);
         }
         &WriteScope => { },
         &NoParse(_) => { },
     }
 }
+
+/// Compute the free variables of an index term
 pub fn fv_of_idxtm(i:&IdxTm, bound:Vec<Term>, out:&mut Vec<Term>) {
-    unimplemented!()
+    use ast::IdxTm::*;
+    match i {
+        &Var(ref x) => {
+            let x = Term::IdxTm(i.clone());
+            if let Some(_) = bound.iter().position(|y| &x == y) { /* x is bound. */ }
+            else { /* x is free */ out.push(x) }
+        }
+        &Lam(ref x, ref _g, ref i) => {
+            let mut bound = bound;
+            bound.push(Term::IdxTm(IdxTm::Var(x.clone())));
+            fv_of_idxtm(i, bound, out);
+        }
+        &Ident(_)   |
+        &NoParse(_) |
+        &Unit       |
+        &Empty      |
+        &WriteScope => {}
+        &Sing(ref n) => {
+            fv_of_nmtm(n, bound, out)
+        }
+        &Map(ref n, ref i) => {
+            fv_of_nmtm(n, bound.clone(), out);
+            fv_of_idxtm(i, bound,        out);
+        }
+        &Proj1(ref i) |
+        &Proj2(ref i) => {
+            fv_of_idxtm(i, bound, out);
+        }
+        &NmSet(ref nms) => {
+            use normal::NmSetTm::*;
+            for t in nms.terms.iter() {
+                match t {
+                    &Single(ref n) => { fv_of_nmtm(n, bound.clone(), out)  }
+                    &Subset(ref i) => { fv_of_idxtm(i, bound.clone(), out) }
+                };
+            }
+        }
+        &Apart(ref i, ref j)   |
+        &Union(ref i, ref j)   |
+        &Bin(ref i, ref j)     |
+        &Pair(ref i, ref j)    |
+        &App(ref i, ref j)     |
+        &FlatMap(ref i, ref j) |
+        &Star(ref i, ref j)    => {
+            fv_of_idxtm(i, bound.clone(), out);
+            fv_of_idxtm(j, bound        , out);
+        }
+    }
 }
 pub fn fv_of_type(t:&Type, bound:Vec<Term>, out:&mut Vec<Term>) {
-    unimplemented!()
+    // XXX
+    //unimplemented!()
+    // TODO!
 }
 pub fn fv_of_ctype(ct:&CType, bound:Vec<Term>, out:&mut Vec<Term>) {
     unimplemented!()
@@ -44,6 +133,9 @@ pub fn fv_of_ceffect(ct:&CEffect, bound:Vec<Term>, out:&mut Vec<Term>) {
 pub fn fv_of_effect(ct:&Effect, bound:Vec<Term>, out:&mut Vec<Term>) {
     unimplemented!()
 }
+
+
+
 
 /// Substitute a type for a type variable in another type
 pub fn subst_type_type(a:Type, x:&String, b:Type) -> Type {
@@ -218,30 +310,46 @@ pub fn subst_term_type(t:Term, x:&String, a:Type) -> Type {
             if term_is_idxtm(&t) && x == &y {
                 Type::IdxFn(y, g, a1)
             } else {
-                // TODO: When FV(t) contains var `y`, we need to
-                // alpha-vary `y` before substituting.
-                //
-                Type::IdxFn(y, g, subst_term_type_rec(t, x, a1))
+                let fv = fv_of_term(&t);
+                if fv_contains_idxtm(&fv, &y) {
+                    // When free variables of `t` contains var `y`, we
+                    // need to alpha-vary `y` before substituting into `a1`.
+                    let y_ = alpha_vary(&y);
+                    assert!(!fv_contains_idxtm(&fv, &y_));
+                    let t_y_ = Term::IdxTm(IdxTm::Var(y_.clone()));
+                    let a1 = subst_term_type_rec(t_y_, &y, a1);
+                    Type::IdxFn(y_, g, subst_term_type_rec(t, x, a1))
+                        
+                } else {
+                    Type::IdxFn(y, g, subst_term_type_rec(t, x, a1))
+                }
             }
         }
         //  [i/b] (exists a:g |      p.      A)
         //     == (exists a:g | [i/b]p. [i/b]A)
         //
-        //  TODO: But when FV(i) contains var `a`, we need to
-        //  alpha-vary `a` before substituting.
-        //
         Type::Exists(y, g, p, a1) => {
             if term_is_idxtm(&t) && x == &y {
                 Type::Exists(y, g, p, a1)
             } else {
-                // TODO: When FV(t) contains var `y`, we need to
-                // alpha-vary `y` before substituting.
-                //
-                Type::Exists(
-                    y, g,
-                    subst_term_prop(t.clone(), x, p),
-                    subst_term_type_rec(t, x, a1),
-                )
+                let fv = fv_of_term(&t);
+                if fv_contains_idxtm(&fv, &y) {
+                    let y_ = alpha_vary(&y);
+                    assert!(!fv_contains_idxtm(&fv, &y_));
+                    let t_y_ = Term::IdxTm(IdxTm::Var(y_.clone()));
+                    let a1 = subst_term_type_rec(t_y_, &y, a1);
+                    Type::Exists(
+                        y_, g,
+                        subst_term_prop(t.clone(), x, p),
+                        subst_term_type_rec(t, x, a1),
+                    )
+                } else {
+                    Type::Exists(
+                        y, g,
+                        subst_term_prop(t.clone(), x, p),
+                        subst_term_type_rec(t, x, a1),
+                    )
+                }
             }
         }
         Type::NoParse(s) => Type::NoParse(s)
