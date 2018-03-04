@@ -520,8 +520,10 @@ pub mod subset {
                 }
                 (Type::NmFn(m), Type::NmFn(n)) => {
                     let nmarrow = fgi_sort![ Nm -> Nm ];
-                    super::equiv::decide_nmtm_equiv(ctx, &m, &n, &nmarrow).res
-                        == Ok(true)
+                    // XXX/TODO
+                    //super::equiv::decide_nmtm_equiv(ctx, &m, &n, &nmarrow).res
+                    //== Ok(true)
+                    false
                 }
                 (Type::TypeFn(x1, k1, a1), Type::TypeFn(x2, _k2, a2)) => {
                     // TODO: extend ctx with x1 <= x2 : (k1 = k2)
