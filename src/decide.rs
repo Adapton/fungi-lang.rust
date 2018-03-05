@@ -2,6 +2,7 @@
 
 use ast::*;
 use bitype::{Ctx,HasClas,TypeError};
+use normal;
 use std::fmt;
 use std::rc::Rc;
 
@@ -22,10 +23,15 @@ pub enum RelCtx {
     IVarApart(RelCtxRec,Var,Var,Sort),
     /// Assume a proposition is true
     PropTrue(RelCtxRec,Prop),
+    /// Type variables are related
+    TVarRelated(RelCtxRec,Var,Var)
 }
 pub type RelCtxRec = Rc<RelCtx>;
 
 impl RelCtx {
+    pub fn tvar(&self,a:Var,b:Var) -> Self {
+        RelCtx::TVarRelated(Rc::new(self.clone()),a,b)
+    }    
     pub fn nt_eq(&self,n1:&Var,n2:&Var,g:&Sort) -> Self {
         RelCtx::NVarEquiv(Rc::new(self.clone()),n1.clone(),n2.clone(),g.clone())
     }
@@ -36,7 +42,17 @@ impl RelCtx {
             &RelCtx::NVarApart(ref c,_,_,_) |
             &RelCtx::IVarEquiv(ref c,_,_,_) |
             &RelCtx::IVarApart(ref c,_,_,_) |
+            &RelCtx::TVarRelated(ref c,_,_) |
             &RelCtx::PropTrue(ref c,_) => { Some(c.clone()) }
+        }
+    }
+    pub fn lookup_tvars(&self, x1:&Var, x2:&Var) -> bool {
+        match self {
+            &RelCtx::TVarRelated(ref c, ref v1, ref v2) => {
+                if (x1 == v1) && (x2 == v2) { true }
+                else { c.lookup_tvars(x1,x2) }
+            }
+            c => c.rest().map_or(false,|c|c.lookup_tvars(x1,x2))
         }
     }
     pub fn lookup_nvareq(&self, x1:&Var, x2:&Var, g:&Sort) -> bool {
@@ -80,9 +96,36 @@ pub fn relctx_of_ctx(c: &Ctx) -> RelCtx {
 pub enum HandSide { L, R }
 
 /// Convert the context into the corresponding relational context
-pub fn ctx_of_relctx(c: &RelCtx, hs:HandSide) -> Ctx {
-    // TODO
-    unimplemented!()
+pub fn ctxs_of_relctx(c: RelCtx) -> (Ctx,Ctx) {
+    match c {
+        RelCtx::Empty => {
+            (Ctx::Empty, Ctx::Empty)
+        }
+        RelCtx::NVarEquiv(ctx,x,y,g) |
+        RelCtx::NVarApart(ctx,x,y,g) |
+        RelCtx::IVarApart(ctx,x,y,g) |
+        RelCtx::IVarEquiv(ctx,x,y,g) => {
+            let (ctx1,ctx2) = ctxs_of_relctx_rec(ctx);
+            (ctx1.ivar(x,g.clone()),ctx2.ivar(y,g))
+        }
+        RelCtx::PropTrue(ctx,p) => {
+            // TODO: Should we have two props?
+            // Or should we continue to mirror the prop on both LH and RH sides?
+            let (ctx1,ctx2) = ctxs_of_relctx_rec(ctx);
+            (ctx1.prop(p.clone()), ctx2.prop(p))
+        }
+        RelCtx::TVarRelated(ctx,x,y) => {
+            let (ctx1,ctx2) = ctxs_of_relctx_rec(ctx);
+            // TODO: These kinds are generally wrong; fix them!
+            (ctx1.tvar(x,Kind::Type),ctx2.tvar(y,Kind::Type))
+        }
+    }
+}
+
+/// Convert the context into the corresponding relational context
+pub fn ctxs_of_relctx_rec(c: Rc<RelCtx>) -> (Rc<Ctx>, Rc<Ctx>) {
+    let (c1,c2) = ctxs_of_relctx((*c).clone());
+    (Rc::new(c1), Rc::new(c2))
 }
 
 /// Decision-related error
@@ -442,7 +485,6 @@ pub mod equiv {
     }
 }
 
-
 /// Decide subset relationships over name sets, index terms and types
 pub mod subset {
     use ast::*;
@@ -451,31 +493,60 @@ pub mod subset {
     use std::rc::Rc;
     use super::*;
 
+
+    //TODO: Return a Vec<_>; try each possible decomposition.
+    fn find_defs_for_idxtm_var(ctx:&Ctx, x:&Var) -> Option<IdxTm> {
+        match ctx {
+            &Ctx::Empty => None,
+            &Ctx::PropTrue(_, Prop::Equiv(IdxTm::Var(ref x_), ref i,_)) if x == x_ => Some(i.clone()),
+            &Ctx::PropTrue(_, Prop::Equiv(ref i, IdxTm::Var(ref x_),_)) if x == x_ => Some(i.clone()),
+            _ => find_defs_for_idxtm_var(&*(ctx.rest().unwrap()), x)
+        }
+    }
+    
     /// Decide name set subset relation.
     ///
     /// Return true iff name set `a` is a subset of, or equal to, name set `b`
     pub fn decide_idxtm_subset(ctx: &RelCtx, a:IdxTm, b:IdxTm) -> bool {
-        if a == b { true } else {
-            panic!("TODO");
-        }
-        // XXX
-        //
-        // 1a. normalize term `a` under left projection of ctx.
-        //
-        // 2a. normalize term `b` under right projection of ctx.
-        //
-        // 1b. If it is possible to subdivide term `a` using
-        //     equivalences, then do so. (If there are multiple ways to
-        //     do this, then try every option, with backtracking to
-        //     try others.)
-        //
-        // 2b. If it is possible to subdivide term `b` using
-        //     equivalences, then do so. Try + backtracking.
-        //
-        // 3. These terms should each be a NmSet.  For each term in
-        //    `a`'s decomposition, attempt to find a matching
-        //    (equivalent) term in `b`'s decomposition.  Each match in
-        //    `b` may be used at most once.
+        if a == b { return true } else {
+            // 1a. normalize term `a` under left projection of ctx.
+            // 2a. normalize term `b` under right projection of ctx.
+            let (ctx1, ctx2) = ctxs_of_relctx((*ctx).clone());
+            let a = normal::normal_idxtm(&ctx1, a);
+            let b = normal::normal_idxtm(&ctx2, b);
+            if a == b { return true } else { match b {
+                IdxTm::Var(x) => {
+                    // If it is possible to subdivide term `b` using
+                    // equivalences, then do so. TODO: Return a
+                    // Vec<_>; try each possible decomposition.
+                    let xdef : Option<IdxTm> = find_defs_for_idxtm_var(&ctx2, &x);
+                    match xdef {
+                        // Not enough info.
+                        None       => false,
+                        // Use def to try to reason further; TODO:
+                        // backtrack if we fail and try next def.
+                        Some(xdef) => decide_idxtm_subset(ctx, a, xdef)
+                    }
+                },
+                IdxTm::NmSet(b_ns) => {
+                    match a {
+                        IdxTm::Var(_y) => false,
+                        IdxTm::NmSet(a_ns) => {
+                            // If the terms are not variables, then by
+                            // canonical forms, both should each be
+                            // NmSets.  For each term in `a`'s
+                            // decomposition, attempt to find a
+                            // matching (equivalent) term in `b`'s
+                            // decomposition.  Each match in `b` may
+                            // be used at most once.
+                            unimplemented!()
+                        }
+                        _ => unreachable!()
+                    }
+                },
+                _ => unreachable!()
+            }}
+        }                                
     }
 
     /// Decide type subset relation
@@ -485,10 +556,11 @@ pub mod subset {
     
     /// Decide type subset relation
     pub fn decide_type_subset(ctx: &RelCtx, a:Type, b:Type) -> bool {
+        let (ctx1, ctx2) = ctxs_of_relctx((*ctx).clone());
         if a == b { true } else {
             match (a,b) {
                 (Type::Var(x), Type::Var(y)) => {
-                    unimplemented!()
+                    ctx.lookup_tvars(&x, &y)
                 }
                 (Type::Unit, Type::Unit) => true,
                 (Type::Sum(a1, a2), Type::Sum(b1, b2)) => {
@@ -499,7 +571,7 @@ pub mod subset {
                     decide_type_subset_rec(ctx, a1, b1) &&
                         decide_type_subset_rec(ctx, a2, b2)
                 }
-                (Type::Ref(i, a), Type::Ref(j, b)) => {
+                (Type::Ref(i, a), Type::Ref(j, b)) => {                    
                     decide_idxtm_subset(ctx, i, j) &&
                         decide_type_subset_rec(ctx, a, b)
                 }
@@ -519,6 +591,8 @@ pub mod subset {
                     decide_idxtm_subset(ctx, i, j)
                 }
                 (Type::NmFn(m), Type::NmFn(n)) => {
+                    let n = normal::normal_nmtm(&ctx1, n);
+                    let m = normal::normal_nmtm(&ctx2, m);
                     let nmarrow = fgi_sort![ Nm -> Nm ];
                     // XXX/TODO
                     //super::equiv::decide_nmtm_equiv(ctx, &m, &n, &nmarrow).res
@@ -543,7 +617,7 @@ pub mod subset {
                     decide_type_subset_rec(ctx, a1, a2)
                 }
                 (Type::Rec(x1, a1), Type::Rec(x2, a2)) => {
-                    // TODO: extend ctx with x1 <= x2 : (g1 = g2)
+                    // TODO: extend ctx with x1 <= x2 ??????
                     // show that a1 <= a2
                     decide_type_subset_rec(ctx, a1, a2)
                 }                
