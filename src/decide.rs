@@ -12,7 +12,10 @@ pub type Var2 = (Var, Var);
 /// Relational typing context: Relates pairs of variables, terms, etc
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum RelCtx {
+    /// Basecase 1: empty context
     Empty,
+    /// Basecase 2: Non-relational typing context
+    Ctx(Ctx),
     /// Assume a name variable equivalence, at a common sort
     NVarEquiv(RelCtxRec,Var,Var,Sort),
     /// Assume a name variable apartness, at a common sort
@@ -23,21 +26,31 @@ pub enum RelCtx {
     IVarApart(RelCtxRec,Var,Var,Sort),
     /// Assume a proposition is true
     PropTrue(RelCtxRec,Prop),
-    /// Type variables are related
+    /// Type variables are related: TODO: Kinds?
     TVarRelated(RelCtxRec,Var,Var)
 }
 pub type RelCtxRec = Rc<RelCtx>;
 
 impl RelCtx {
-    pub fn tvar(&self,a:Var,b:Var) -> Self {
-        RelCtx::TVarRelated(Rc::new(self.clone()),a,b)
+    pub fn prop_true(&self, p:Prop) -> Self {
+        RelCtx::PropTrue(Rc::new(self.clone()), p)
     }    
+    pub fn add_tvars(&self, a:Var, b:Var) -> Self {
+        RelCtx::TVarRelated(Rc::new(self.clone()),a,b)
+    }
+    pub fn add_ivars(&self, a:Var, b:Var, g:Sort) -> Self {
+        // TODO(?): Related ivars same as "equivalent" ivars?
+        RelCtx::IVarEquiv(Rc::new(self.clone()), a, b, g)
+    }
+    pub fn ivar(&self, a:Var, b:Var, g:Sort) -> Self { self.add_ivars(a,b,g) }
+
     pub fn nt_eq(&self,n1:&Var,n2:&Var,g:&Sort) -> Self {
         RelCtx::NVarEquiv(Rc::new(self.clone()),n1.clone(),n2.clone(),g.clone())
     }
     pub fn rest(&self) -> Option<RelCtxRec> {
         match self {
             &RelCtx::Empty => None,
+            &RelCtx::Ctx(ref c) => None,
             &RelCtx::NVarEquiv(ref c,_,_,_) |
             &RelCtx::NVarApart(ref c,_,_,_) |
             &RelCtx::IVarEquiv(ref c,_,_,_) |
@@ -88,8 +101,7 @@ impl RelCtx {
 
 /// Convert the context into the corresponding relational context
 pub fn relctx_of_ctx(c: &Ctx) -> RelCtx {
-    // TODO
-    unimplemented!()
+    RelCtx::Ctx(c.clone())
 }
 
 /// Each relation has two sides, which we refer to as `L` and `R`
@@ -100,6 +112,9 @@ pub fn ctxs_of_relctx(c: RelCtx) -> (Ctx,Ctx) {
     match c {
         RelCtx::Empty => {
             (Ctx::Empty, Ctx::Empty)
+        }
+        RelCtx::Ctx(ctx) => {
+            (ctx.clone(), ctx)
         }
         RelCtx::NVarEquiv(ctx,x,y,g) |
         RelCtx::NVarApart(ctx,x,y,g) |
@@ -116,7 +131,6 @@ pub fn ctxs_of_relctx(c: RelCtx) -> (Ctx,Ctx) {
         }
         RelCtx::TVarRelated(ctx,x,y) => {
             let (ctx1,ctx2) = ctxs_of_relctx_rec(ctx);
-            // TODO: These kinds are generally wrong; fix them!
             (ctx1.tvar(x,Kind::Type),ctx2.tvar(y,Kind::Type))
         }
     }
@@ -503,18 +517,32 @@ pub mod subset {
             _ => find_defs_for_idxtm_var(&*(ctx.rest().unwrap()), x)
         }
     }
+
+    /// Decide if a proposition is true under the given context
+    pub fn decide_prop(ctx: &RelCtx, p:Prop) -> bool {
+        unimplemented!("{:?}", p)
+    }
     
     /// Decide name set subset relation.
     ///
     /// Return true iff name set `a` is a subset of, or equal to, name set `b`
     pub fn decide_idxtm_subset(ctx: &RelCtx, a:IdxTm, b:IdxTm) -> bool {
-        if a == b { return true } else {
+        if a == b {
+            println!("decide_idxtm_subset:\n  {:?}\n  {:?}\nTRUE(1)!", a, b);           
+            return true
+        } else {
             // 1a. normalize term `a` under left projection of ctx.
             // 2a. normalize term `b` under right projection of ctx.
             let (ctx1, ctx2) = ctxs_of_relctx((*ctx).clone());
             let a = normal::normal_idxtm(&ctx1, a);
             let b = normal::normal_idxtm(&ctx2, b);
-            if a == b { return true } else { match b {
+
+            println!("decide_idxtm_subset:\n  {:?}\n  {:?}\n", a, b);
+
+            if a == b {
+                println!("decide_idxtm_subset:\n  {:?}\n  {:?}\nTRUE(2)!", a, b);
+                return true
+            } else { match b {
                 IdxTm::Var(x) => {
                     // If it is possible to subdivide term `b` using
                     // equivalences, then do so. TODO: Return a
@@ -529,8 +557,16 @@ pub mod subset {
                     }
                 },
                 IdxTm::NmSet(b_ns) => {
-                    match a {
-                        IdxTm::Var(_y) => false,
+                    match a {                        
+                        IdxTm::Var(_) => {
+                            // Look for the variable in the name set `b_ns`
+                            let a_ns_tm = normal::NmSetTm::Subset(a);
+                            for b_ns_tm in b_ns.terms.iter() {
+                                if b_ns_tm == &a_ns_tm { return true }
+                                else { continue }
+                            }
+                            return false
+                        },
                         IdxTm::NmSet(a_ns) => {
                             // If the terms are not variables, then by
                             // canonical forms, both should each be
@@ -597,29 +633,40 @@ pub mod subset {
                     // XXX/TODO
                     //super::equiv::decide_nmtm_equiv(ctx, &m, &n, &nmarrow).res
                     //== Ok(true)
-                    false
+                    m == n
                 }
                 (Type::TypeFn(x1, k1, a1), Type::TypeFn(x2, _k2, a2)) => {
-                    // TODO: extend ctx with x1 <= x2 : (k1 = k2)
-                    decide_type_subset_rec(ctx, a1, a2)
+                    decide_type_subset_rec(
+                        &ctx.add_tvars(x1,x2),
+                        a1, a2
+                    )
                 }
-                (Type::IdxFn(x1, g1, a1), Type::IdxFn(x2, _g2, a2)) => {
-                    // TODO: extend ctx with x1 <= x2 : (g1 = g2)
-                    decide_type_subset_rec(ctx, a1, a2)
+                (Type::IdxFn(x1, g1, a1), Type::IdxFn(x2, g2, a2)) => {
+                    assert_eq!(g1, g2);
+                    decide_type_subset_rec(
+                        &ctx.add_ivars(x1,x2,g1),
+                        a1, a2
+                    )
                 }
                 // Exists for index-level variables; they are classified by sorts
                 (Type::Exists(x1, g1, p1, a1), Type::Exists(x2, g2, p2, a2)) => {
-                    // TODO: extend ctx with x1 <= x2 : (g1 = g2)
-                    //
-                    // TODO: Prove: p1 ==> p2.  So, extend context
-                    // with p1, to prove p2, and to show that a1 <=
-                    // a2.
-                    decide_type_subset_rec(ctx, a1, a2)
+                    // extend ctx with x1 ~~ x2.  Prove: p1 ==> p2 by
+                    // extending context with p1, to prove p2. Show
+                    // that a1 <= a2.
+                    if g1 == g2 {
+                        decide_prop(&ctx.prop_true(p1), p2)
+                            &&
+                            decide_type_subset_rec(&ctx.add_ivars(x1, x2, (*g1).clone()),
+                                                   a1, a2)
+                    } else {
+                        false
+                            
+                    }
                 }
                 (Type::Rec(x1, a1), Type::Rec(x2, a2)) => {
-                    // TODO: extend ctx with x1 <= x2 ??????
-                    // show that a1 <= a2
-                    decide_type_subset_rec(ctx, a1, a2)
+                    decide_type_subset_rec(
+                        &ctx.add_tvars(x1, x2),
+                        a1, a2)
                 }                
                 (_,_) => false,
             }

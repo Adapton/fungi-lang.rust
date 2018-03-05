@@ -5,6 +5,7 @@ use std::fmt;
 use std::rc::Rc;
 
 use normal;
+use decide;
 use subst;
 
 /// Typing context
@@ -1019,11 +1020,17 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ_raw:&Type) -> 
                     if x_typ == *typ { succ(td, x_typ) }
                     else if x_typ_raw == *typ_raw { succ(td, x_typ_raw) }
                     else {
+                        let subset_flag = decide::subset::decide_type_subset(
+                            &decide::relctx_of_ctx(&ctx),
+                            x_typ_raw.clone(), typ_raw.clone()
+                        );                        
                         // Print info to help us figure out what's needed from the type-equiv reasoning
                         println!("==================================================================================");
                         println!("Detailed errors for checking type of variable {}:", x);
                         println!("** Variable {}'s normal type:\n{:?} \n\n NOT-EQUAL-TO checking normal type\n{:?}\n", x, x_typ, typ);
                         println!(".. Variable {}'s raw type:\n{:?} \n\n NOT-EQUAL-TO checking raw type\n{:?}\n", x, x_typ_raw, typ_raw);
+                        println!("");
+                        println!(".. subset holds: {}\n", subset_flag);
                         println!("- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ");
                         fail(td, TypeError::AnnoMism)
                     }
