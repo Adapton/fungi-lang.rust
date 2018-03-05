@@ -1,12 +1,12 @@
 /*! Static (typing-time) term reduction/normalization. */
 
-use std::fmt;
+//use std::fmt;
 use std::rc::Rc;
 
 use ast::*;
 use bitype::{Ctx,Term};
 use subst;   
-use normal;   
+//use normal;   
 
 /// Name set term. Representation for "apart/union-normal" name set terms.
 ///
@@ -40,7 +40,7 @@ pub struct NmSet {
 }
 
 /// True when the name term is normal
-pub fn is_normal_nmtm(ctx:&Ctx, n:&NameTm) -> bool {
+pub fn is_normal_nmtm(_ctx:&Ctx, n:&NameTm) -> bool {
     match *n {
         //
         // Forms that are normal; no reduction rules apply
@@ -75,7 +75,7 @@ pub fn is_normal_idxtm(ctx:&Ctx, i:&IdxTm) -> bool {
         // Unions and pairs are normal if their sub-terms are normal
         IdxTm::Pair(ref i, ref j) |
         IdxTm::Union(ref i, ref j) => {
-                    is_normal_idxtm(ctx, i) && is_normal_idxtm(ctx, i)
+                    is_normal_idxtm(ctx, i) && is_normal_idxtm(ctx, j)
         },
         // projections are not normal
         IdxTm::Proj1(_) => false,
@@ -265,7 +265,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                 let i1 = normal_idxtm_rec(ctx, i1);
                 let i2 = normal_idxtm_rec(ctx, i2);
                 match (*i1).clone() {
-                    IdxTm::Lam(x,gx,i11) => {
+                    IdxTm::Lam(x,_gx,i11) => {
                         let i11 = subst::subst_term_idxtm(Term::IdxTm((*i2).clone()), &x, (*i11).clone());
                         normal_idxtm(ctx, i11)
                     }
@@ -390,7 +390,7 @@ pub fn normal_nmtm(ctx:&Ctx, n:NameTm) -> NameTm {
                 }
             },
             // In all other cases (NoParse, etc), do nothing:
-            n => n_clone
+            _n => n_clone
         }
     }
 }
@@ -501,7 +501,7 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
                 },
                 a => {
                     panic!("sort error: expected TypeFn, not {:?}", a);
-                    typ.clone()
+                    //typ.clone()
                 }
             }
         }
@@ -518,7 +518,7 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
                 },
                 a => {
                     panic!("sort error: expected TypeFn, not {:?}", a);
-                    typ.clone()
+                    //typ.clone()
                 }
             }
         }

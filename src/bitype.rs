@@ -481,9 +481,9 @@ impl fmt::Display for TypeError {
 
 fn error_is_local(err:&TypeError) -> bool {
     match *err {
-        TypeError::VarNotInScope(ref s) => true,
-        TypeError::IdentNotInScope(ref i) => true,
-        TypeError::NoParse(ref s) => true,
+        TypeError::VarNotInScope(_) => true,
+        TypeError::IdentNotInScope(_) => true,
+        TypeError::NoParse(_) => true,
         TypeError::AnnoMism => true,
         TypeError::NoSynthRule => true,
         TypeError::NoCheckRule => true,
@@ -497,14 +497,14 @@ fn error_is_local(err:&TypeError) -> bool {
         TypeError::DSLiteral => true,
         TypeError::EmptyDT => true,
         TypeError::Unimplemented => true,
-        TypeError::ParamMism(num) => false,
-        TypeError::ParamNoSynth(num) => false,
-        TypeError::ParamNoCheck(num) => false,
-        TypeError::CheckFailType(ref t) => false,
-        TypeError::CheckFailCEffect(ref _ce) => false,
-        TypeError::SynthFailVal(ref v) => false,
-        TypeError::UnexpectedCEffect(ref ce) => true,
-        TypeError::UnexpectedType(ref t) => true,
+        TypeError::ParamMism(_) => false,
+        TypeError::ParamNoSynth(_) => false,
+        TypeError::ParamNoCheck(_) => false,
+        TypeError::CheckFailType(_) => false,
+        TypeError::CheckFailCEffect(_) => false,
+        TypeError::SynthFailVal(_) => false,
+        TypeError::UnexpectedCEffect(_) => true,
+        TypeError::UnexpectedType(_) => true,
         TypeError::LaterError => false,
         TypeError::Subder     => false,
         TypeError::Mismatch   => true,
@@ -742,9 +742,9 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
                 (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
                 (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
                 (Ok(Sort::IdxArrow(n0,n1)),Ok(Sort::NmSet)) => {
-                    if (*n0 != Sort::Nm) {
+                    if *n0 != Sort::Nm {
                         fail(td, TypeError::MismatchSort( (*n0).clone(), Sort::Nm ))
-                    } else if (*n1 != Sort::NmSet) {
+                    } else if *n1 != Sort::NmSet {
                         fail(td, TypeError::MismatchSort( (*n1).clone(), Sort::NmSet ))
                     }
                     else {
@@ -777,7 +777,7 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
                 (Ok(_),_) => fail(td, TypeError::ParamMism(0)),
             }
         },
-        &IdxTm::NmSet(ref s) => {
+        &IdxTm::NmSet(ref _s) => {
             // This form is never written by the programmer; hence, we never have to derive a type for it
             unreachable!()
         }
@@ -1142,6 +1142,7 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ_raw:&Type) -> 
                 let td0  = check_idxtm(last_label, ctx, i, &g);
                 let pi   = subst::subst_term_prop(Term::IdxTm(i.clone()), &a, p);
                 // TODO: check that pi = p[i/a] is true
+                drop(pi);
                 let aai  = subst::subst_term_type(Term::IdxTm(i.clone()), &a, (*aa).clone());
                 let td1 = check_val(last_label, ctx, v, &aai);
                 let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
@@ -1483,10 +1484,10 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
         &Exp::IdxApp(ref e, ref i) => {
             let ed = synth_exp(last_label,ctx,e);
             let id = synth_idxtm(last_label,ctx,i);
-            let edt = ed.clas.clone();
+            //let edt = ed.clas.clone();
             match (ed.clas.clone(), id.clas.clone())  {
-                (Ok(ec), Ok(is)) => { match ec {
-                    CEffect::ForallIdx(x, g, p, ce) => {
+                (Ok(ec), Ok(_is)) => { match ec {
+                    CEffect::ForallIdx(x, _g, p, ce) => {
                         let _p = subst::subst_term_prop(Term::IdxTm(i.clone()), &x, p);
                         let ce = subst::subst_term_ceffect(Term::IdxTm(i.clone()), &x, (*ce).clone());
                         // TODO need to prove (decide) that p is true
@@ -1651,7 +1652,7 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let typ2 = td2.clas.clone();
             let td = ExpRule::DebugLabel(n.clone(),s.clone(),td2);
             match typ2 {
-                Err(err) => fail(td, TypeError::LaterError),
+                Err(_err) => fail(td, TypeError::LaterError),
                 Ok(ty) => succ(td, ty),
             }
         },
@@ -1977,7 +1978,7 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
             let td1 = check_exp(last_label, ctx, e1, ceffect);
             let td2 = check_exp(last_label, ctx, e2, ceffect);
             let v_ty = td0.clas.clone().map(|a| normal::normal_type(ctx, &a));
-            let (t0,t1,t2) = (td0.clas.clone(),td1.clas.clone(),td2.clas.clone());
+            let (_t0,t1,t2) = (td0.clas.clone(),td1.clas.clone(),td2.clas.clone());
             let td = ExpRule::IfThenElse(td0,td1,td2);
             match (v_ty,t1,t2) {
                 (Err(_),_,_) => fail(td, TypeError::ParamNoSynth(0)),
@@ -1994,7 +1995,7 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
             // TODO: Handle scope
             if let &CEffect::Cons(
                 CType::Lift(Type::Thk(ref idx,ref ce)),
-                Effect::WR(ref w,ref _r)
+                Effect::WR(ref _w,ref _r)
             ) = ceffect {
                 // TODO: use this once effects are properly implemented
                 // if (*w,r) != (*idx,IdxTm::Empty) {

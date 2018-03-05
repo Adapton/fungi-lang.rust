@@ -3,7 +3,7 @@
 use ast::*;
 use bitype::{Ctx,HasClas,TypeError};
 use normal;
-use std::fmt;
+//use std::fmt;
 use std::rc::Rc;
 
 /// Pair of related variables
@@ -50,7 +50,7 @@ impl RelCtx {
     pub fn rest(&self) -> Option<RelCtxRec> {
         match self {
             &RelCtx::Empty => None,
-            &RelCtx::Ctx(ref c) => None,
+            &RelCtx::Ctx(ref _c) => None,
             &RelCtx::NVarEquiv(ref c,_,_,_) |
             &RelCtx::NVarApart(ref c,_,_,_) |
             &RelCtx::IVarEquiv(ref c,_,_,_) |
@@ -166,11 +166,11 @@ pub struct Dec<Rule:HasClas> {
 /// Decide equivalence of two terms (types, indices, name terms)
 pub mod equiv {
     use ast::*;
-    use bitype::{self,Ctx,HasClas,TypeError};
+    use bitype::{HasClas};
     use bitype::{NmTmDer,IdxTmDer};
     use bitype::NmTmRule as BiNmTm;
     use bitype::IdxTmRule as BiIdxTm;
-    use std::fmt;
+    //use std::fmt;
     use std::rc::Rc;
     use super::*;
 
@@ -351,7 +351,7 @@ pub mod equiv {
                     (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
                 }
             }
-            (mr,nr) => {
+            (_mr, _nr) => {
                 // TODO: Non-structural cases
                 unimplemented!("decide_nmtm_equiv non-struct")
             }
@@ -385,7 +385,7 @@ pub mod equiv {
             }
         };
         match (&*i.rule,&*j.rule) {
-            (ir,jr) if i == j => { succ(IdxTmRule::Refl(i.clone())) }
+            (_ir, _jr) if i == j => { succ(IdxTmRule::Refl(i.clone())) }
             // TODO: all struct cases
             (&BiIdxTm::Var(ref v1),&BiIdxTm::Var(ref v2)) => {
                 if ctx.lookup_ivareq(v1,v2,g) {
@@ -469,7 +469,7 @@ pub mod equiv {
                     (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
                 }
             }
-            (ir,jr) => {
+            (_ir, _jr) => {
                 // TODO: Non-structural cases
                 unimplemented!()
             }
@@ -502,8 +502,8 @@ pub mod equiv {
 /// Decide subset relationships over name sets, index terms and types
 pub mod subset {
     use ast::*;
-    use bitype::{Ctx,HasClas,TypeError};
-    use std::fmt;
+    use bitype::{Ctx};
+    //use std::fmt;
     use std::rc::Rc;
     use super::*;
 
@@ -519,7 +519,7 @@ pub mod subset {
     }
 
     /// Decide if a proposition is true under the given context
-    pub fn decide_prop(ctx: &RelCtx, p:Prop) -> bool {
+    pub fn decide_prop(_ctx: &RelCtx, p:Prop) -> bool {
         unimplemented!("{:?}", p)
     }
     
@@ -567,7 +567,7 @@ pub mod subset {
                             }
                             return false
                         },
-                        IdxTm::NmSet(a_ns) => {
+                        IdxTm::NmSet(_a_ns) => {
                             // If the terms are not variables, then by
                             // canonical forms, both should each be
                             // NmSets.  For each term in `a`'s
@@ -629,13 +629,13 @@ pub mod subset {
                 (Type::NmFn(m), Type::NmFn(n)) => {
                     let n = normal::normal_nmtm(&ctx1, n);
                     let m = normal::normal_nmtm(&ctx2, m);
-                    let nmarrow = fgi_sort![ Nm -> Nm ];
+                    let _nmarrow = fgi_sort![ Nm -> Nm ];
                     // XXX/TODO
                     //super::equiv::decide_nmtm_equiv(ctx, &m, &n, &nmarrow).res
                     //== Ok(true)
                     m == n
                 }
-                (Type::TypeFn(x1, k1, a1), Type::TypeFn(x2, _k2, a2)) => {
+                (Type::TypeFn(x1, _k1, a1), Type::TypeFn(x2, _k2, a2)) => {
                     decide_type_subset_rec(
                         &ctx.add_tvars(x1,x2),
                         a1, a2
@@ -695,11 +695,11 @@ pub mod subset {
                 decide_ctype_subset(ctx, ct1, ct2) &&
                     decide_effect_subset(ctx, eff1, eff2)
             }
-            (CEffect::ForallType(x1,k1,ce1), CEffect::ForallType(x2,k2,ce2)) => {
+            (CEffect::ForallType(_x1,_k1,_ce1), CEffect::ForallType(_x2,_k2,_ce2)) => {
                 // TODO
                 unimplemented!()
             }
-            (CEffect::ForallIdx(x1,g1,p1,ce1), CEffect::ForallIdx(x2,g2,p2,ce2)) => {
+            (CEffect::ForallIdx(_x1,_g1,_p1,_ce1), CEffect::ForallIdx(_x2,_g2,_p2,_ce2)) => {
                 // TODO
                 unimplemented!()
             }
@@ -728,13 +728,13 @@ pub mod subset {
 
 /// Decide apartness of two terms (indices, name terms)
 pub mod apart {
-    use ast::*;
-    use bitype::{self,Ctx,HasClas,TypeError};
+    //use ast::*;
+    use bitype::{HasClas};
     use bitype::{NmTmDer,IdxTmDer};
-    use bitype::NmTmRule as BiNmTm;
-    use bitype::IdxTmRule as BiIdxTm;
-    use std::fmt;
-    use std::rc::Rc;
+    //use bitype::NmTmRule as BiNmTm;
+    //use bitype::IdxTmRule as BiIdxTm;
+    //use std::fmt;
+    //use std::rc::Rc;
     use super::*;
 
     /// Name term apartness rules
@@ -792,14 +792,14 @@ pub mod apart {
     }
 
     /// Decide if two name terms are apart under the given context
-    pub fn decide_nmtm_apart(ctx: &RelCtx, n:&NmTmDer, m:&NmTmDer, g:&Sort) -> NmTmDec {
+    pub fn decide_nmtm_apart(_ctx: &RelCtx, _n:&NmTmDer, _m:&NmTmDer, _g:&Sort) -> NmTmDec {
         // TODO: Use structural/deductive apartness rules.  Also, do
         // normalization of the name term (aka, beta reduction).
         unimplemented!()
     }
 
     /// Decide if two index terms are apart under the given context
-    pub fn decide_idxtm_apart(ctx: &RelCtx, i:&IdxTmDer, j:&IdxTmDer, g:&Sort) -> IdxTmDec {
+    pub fn decide_idxtm_apart(_ctx: &RelCtx, _i:&IdxTmDer, _j:&IdxTmDer, _g:&Sort) -> IdxTmDec {
         // TODO: Use structural/deductive apartness rules. Also, do
         // normalization of the index term (aka, beta reduction).
         // Need to be careful not to expand Kleene star indefintely,

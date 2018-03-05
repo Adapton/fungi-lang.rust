@@ -440,7 +440,7 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
                 term => eval_type_error(EvalTyErr::AppNonLam(term), env, e)
             }
         }
-        Exp::IdxApp(e1, i) => { unimplemented!("Index application") }
+        Exp::IdxApp(_e1, _i) => { unimplemented!("Index application") }
         Exp::Split(v, x, y, e1) => {
             match close_val(&env, &v) {
                 RtVal::Pair(v1, v2) => {

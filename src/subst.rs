@@ -1,6 +1,6 @@
 /*! Static (typing-time) substitutions. */
 
-use std::fmt;
+//use std::fmt;
 use std::rc::Rc;
 
 use normal;
@@ -34,7 +34,6 @@ pub fn fv_contains_idxtm(fv:&Vec<Term>, x:&String) -> bool {
 /// Compute a list of variables (as terms) that appear free in the given term
 pub fn fv_of_term(t:&Term) -> Vec<Term> {
     let mut out : Vec<Term> = vec![];
-    let bound   : Vec<Term> = vec![];
     match t {
         &Term::NmTm (ref n) => fv_of_nmtm (n, vec![], &mut out),
         &Term::IdxTm(ref i) => fv_of_idxtm(i, vec![], &mut out),
@@ -72,7 +71,7 @@ pub fn fv_of_nmtm(n:&NameTm, bound:Vec<Term>, out:&mut Vec<Term>) {
 pub fn fv_of_idxtm(i:&IdxTm, bound:Vec<Term>, out:&mut Vec<Term>) {
     use ast::IdxTm::*;
     match i {
-        &Var(ref x) => {
+        &Var(ref _x) => {
             let x = Term::IdxTm(i.clone());
             if let Some(_) = bound.iter().position(|y| &x == y) { /* x is bound. */ }
             else { /* x is free */ out.push(x) }
@@ -119,18 +118,18 @@ pub fn fv_of_idxtm(i:&IdxTm, bound:Vec<Term>, out:&mut Vec<Term>) {
         }
     }
 }
-pub fn fv_of_type(t:&Type, bound:Vec<Term>, out:&mut Vec<Term>) {
+pub fn fv_of_type(_t:&Type, _bound:Vec<Term>, _out:&mut Vec<Term>) {
     // XXX
     //unimplemented!()
     // TODO!
 }
-pub fn fv_of_ctype(ct:&CType, bound:Vec<Term>, out:&mut Vec<Term>) {
+pub fn fv_of_ctype(_ct:&CType, _bound:Vec<Term>, _out:&mut Vec<Term>) {
     unimplemented!()
 }
-pub fn fv_of_ceffect(ct:&CEffect, bound:Vec<Term>, out:&mut Vec<Term>) {
+pub fn fv_of_ceffect(_ct:&CEffect, _bound:Vec<Term>, _out:&mut Vec<Term>) {
     unimplemented!()
 }
-pub fn fv_of_effect(ct:&Effect, bound:Vec<Term>, out:&mut Vec<Term>) {
+pub fn fv_of_effect(_ct:&Effect, _bound:Vec<Term>, _out:&mut Vec<Term>) {
     unimplemented!()
 }
 

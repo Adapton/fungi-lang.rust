@@ -33,13 +33,13 @@
 //!                               [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Sort.html).  
 //!
 
-use std::rc::Rc;
-use std::fmt;
-use std::fmt::{Debug,Formatter};
+//use std::rc::Rc;
+//use std::fmt;
+//use std::fmt::{Debug,Formatter};
 //use std::fmt::{Debug,Result};
-use std::hash::{Hash,Hasher};
+//use std::hash::{Hash};
 
-use eval;
+//use eval;
 
 /// Parser for Name Literals
 ///
@@ -1328,9 +1328,10 @@ macro_rules! fgi_mod {
         use std::rc::Rc;
         use ast::*;
         pub fn fgi_module () -> Rc<Module> {
-            let complete_parse_marker = ();
+            //let complete_parse_marker = ();
             Rc::new( fgi_module![ $($decls)+
-                                  ^^ complete_parse_marker ] )
+                                  //^^ complete_parse_marker ] )
+                                  ] )
         }
     };
 }
