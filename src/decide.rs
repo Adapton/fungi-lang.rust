@@ -449,6 +449,38 @@ pub mod equiv {
                     ), DecError::LamNotArrow
                 )}
             }
+            (&BiIdxTm::App(ref i1, ref i2),&BiIdxTm::App(ref j1, ref j2)) => {
+                // find sort of i1 and j1, assume matching arrows
+                let g1 = match (&i1.clas,&j1.clas) {
+                    (&Ok(ref g),&Ok(_)) => g,
+                    _ => {
+                        // error out, using bad types for the recursive decisions
+                        let der1 = decide_idxtm_equiv(ctx,i1,j1,g);
+                        let der2 = decide_idxtm_equiv(ctx,i2,j2,g);
+                        return err(IdxTmRule::App(der1, der2),DecError::AppNotArrow)
+                    }
+                };
+                // find sort of i2 and j2, assume matching types
+                let g2 = match (&i2.clas,&j2.clas) {
+                    (&Ok(ref g),&Ok(_)) => g,
+                    _ => {
+                        // fail, using bad types for the recursive decisions
+                        let der1 = decide_idxtm_equiv(ctx,i1,j1,g1);
+                        let der2 = decide_idxtm_equiv(ctx,i2,j2,g);
+                        return err(IdxTmRule::App(der1, der2),DecError::InSubDec)
+                    }
+                };
+                // assume appropriate types
+                let app = decide_idxtm_equiv(ctx,i1,j1,g1);
+                let par = decide_idxtm_equiv(ctx,i2,j2,g2);
+                let (r1,r2) = (app.res.clone(),par.res.clone());
+                let der = IdxTmRule::App(app,par);
+                match (r1,r2) {
+                    (Ok(true),Ok(true)) => succ(der),
+                    (Ok(_),Ok(_)) => fail(der),
+                    (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
+                }
+            }
             (&BiIdxTm::Empty,&BiIdxTm::Empty) => {
                 // Assume sort NmSet
                 succ(IdxTmRule::Empty)
@@ -984,6 +1016,38 @@ pub mod apart {
                         decide_idxtm_apart(ctx,i,j,g)
                     ), DecError::LamNotArrow
                 )}
+            }
+            (&BiIdxTm::App(ref i1,ref i2),&BiIdxTm::App(ref j1,ref j2)) => {
+                // find sort of i1 and j1, assume matching arrows
+                let g1 = match (&i1.clas,&j1.clas) {
+                    (&Ok(ref g),&Ok(_)) => g,
+                    _ => {
+                        // error out, using bad types for the recursive decisions
+                        let der1 = decide_idxtm_apart(ctx,i1,j1,g);
+                        let der2 = equiv::decide_idxtm_equiv(ctx,i2,j2,g);
+                        return err(IdxTmRule::App(der1, der2),DecError::AppNotArrow)
+                    }
+                };
+                // find sort of i2 and j2, assume matching types
+                let g2 = match (&i2.clas,&j2.clas) {
+                    (&Ok(ref g),&Ok(_)) => g,
+                    _ => {
+                        // fail, using bad types for the recursive decisions
+                        let der1 = decide_idxtm_apart(ctx,i1,j1,g1);
+                        let der2 = equiv::decide_idxtm_equiv(ctx,i2,j2,g);
+                        return err(IdxTmRule::App(der1, der2),DecError::InSubDec)
+                    }
+                };
+                // assume appropriate types
+                let app = decide_idxtm_apart(ctx,i1,j1,g1);
+                let par = equiv::decide_idxtm_equiv(ctx,i2,j2,g2);
+                let (r1,r2) = (app.res.clone(),par.res.clone());
+                let der = IdxTmRule::App(app,par);
+                match (r1,r2) {
+                    (Ok(true),Ok(true)) => succ(der),
+                    (Ok(_),Ok(_)) => fail(der),
+                    (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
+                }
             }
             (&BiIdxTm::Empty,_jr) => {
                 // TODO: How does this work?
