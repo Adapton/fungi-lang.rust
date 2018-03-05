@@ -107,6 +107,16 @@ impl RelCtx {
             c => c.rest().map_or(false,|c|c.lookup_nvarapart(x1,x2,g))
         }
     }
+    pub fn lookup_ivarapart(&self, x1:&Var, x2:&Var, g:&Sort) -> bool {
+        match self {
+            &RelCtx::IVarApart(ref c, ref v1, ref v2, ref s) => {
+                // TODO: sort compatibility?
+                if (x1 == v1) && (x2 == v2) && (g == s) { true }
+                else { c.lookup_ivarapart(x1,x2,g) }
+            }
+            c => c.rest().map_or(false,|c|c.lookup_ivarapart(x1,x2,g))
+        }
+    }
 }
 
 /// Convert the context into the corresponding relational context
@@ -742,7 +752,7 @@ pub mod apart {
     use bitype::{HasClas};
     use bitype::{NmTmDer,IdxTmDer};
     use bitype::NmTmRule as BiNmTm;
-    //use bitype::IdxTmRule as BiIdxTm;
+    use bitype::IdxTmRule as BiIdxTm;
     //use std::fmt;
     //use std::rc::Rc;
     use super::*;
@@ -788,9 +798,9 @@ pub mod apart {
         App(IdxTmDec, equiv::IdxTmDec),
         Beta(IdxTmDec, IdxTmDer, IdxTmDer),
         Empty(NmTmDec),
-        Single(IdxTmDec),
+        Sing(NmTmDec),
         Apart(IdxTmDec, IdxTmDec),
-        Map(NmTmDec, IdxTmDec),
+        Map(NmTmDec, equiv::IdxTmDec),
         FlatMap(IdxTmDec, IdxTmDec),
         Star(IdxTmDec, equiv::IdxTmDec),
         NoParse(String),
@@ -907,12 +917,119 @@ pub mod apart {
     }
 
     /// Decide if two index terms are apart under the given context
-    pub fn decide_idxtm_apart(_ctx: &RelCtx, _i:&IdxTmDer, _j:&IdxTmDer, _g:&Sort) -> IdxTmDec {
-        // TODO: Use structural/deductive apartness rules. Also, do
-        // normalization of the index term (aka, beta reduction).
-        // Need to be careful not to expand Kleene star indefintely,
-        // though. :)
-        unimplemented!()
+    pub fn decide_idxtm_apart(ctx: &RelCtx, i:&IdxTmDer, j:&IdxTmDer, g:&Sort) -> IdxTmDec {
+        let succ = |r| {
+            Dec{
+                ctx:ctx.clone(),
+                rule:Rc::new(r),
+                clas:g.clone(),
+                res:Ok(true),
+            }
+        };
+        let fail = |r| {
+            Dec{
+                ctx:ctx.clone(),
+                rule:Rc::new(r),
+                clas:g.clone(),
+                res:Ok(false),
+            }
+        };
+        let err = |r,e| {
+            Dec{
+                ctx:ctx.clone(),
+                rule:Rc::new(r),
+                clas:g.clone(),
+                res:Err(e),
+            }
+        };
+        match (&*i.rule,&*j.rule) {
+            // TODO: Use structural/deductive apartness rules. Also, do
+            // normalization of the index term (aka, beta reduction).
+            // Need to be careful not to expand Kleene star indefintely,
+            // though. :)
+            (&BiIdxTm::Var(ref v1),&BiIdxTm::Var(ref v2)) => {
+                if ctx.lookup_ivarapart(v1,v2,g) {
+                    succ(IdxTmRule::Var((v1.clone(),v2.clone())))
+                } else {
+                    fail(IdxTmRule::Var((v1.clone(),v2.clone())))
+                }
+            }
+            (&BiIdxTm::Pair(ref i1,ref i2),&BiIdxTm::Pair(ref j1,ref j2)) => {
+                if let &Sort::Prod(ref g1,ref g2) = g {
+                    let left = decide_idxtm_apart(ctx,i1,j1,g1);
+                    if Ok(true) == left.res { return succ(IdxTmRule::Proj1(left)) }
+                    let right = decide_idxtm_apart(ctx,i2,j2,g2);
+                    if Ok(true) == right.res { return succ(IdxTmRule::Proj2(right)) }
+                    // TODO: check for and return errors?
+                    fail(IdxTmRule::Proj1(left))
+                } else {
+                    err(IdxTmRule::Proj1(
+                        decide_idxtm_apart(ctx,i1,j1,g),
+                    ), DecError::PairNotProd)
+                }
+            }
+            (&BiIdxTm::Lam(ref a,ref asort,ref i),&BiIdxTm::Lam(ref b,_,ref j)) => {
+                // Assume lam vars have same sort
+                if let &Sort::IdxArrow(ref g1,ref g2) = g {
+                    let bodies = decide_idxtm_apart(&ctx.nt_eq(a,b,g1),i,j,g2);
+                    let res = bodies.res.clone();
+                    let der = IdxTmRule::Lam((a.clone(),b.clone()),asort.clone(),bodies);
+                    match res {
+                        Ok(true) => succ(der),
+                        Ok(false) => fail(der),
+                        Err(_) => err(der, DecError::InSubDec)
+                    }
+                } else { err(
+                    IdxTmRule::Lam((a.clone(),b.clone()),asort.clone(),
+                        decide_idxtm_apart(ctx,i,j,g)
+                    ), DecError::LamNotArrow
+                )}
+            }
+            (&BiIdxTm::Empty,_jr) => {
+                // TODO: How does this work?
+                unimplemented!("decide_idxtm_apart empty")
+            }
+            (&BiIdxTm::Sing(ref m),&BiIdxTm::Sing(ref n)) => {
+                // Assume sort NmSet
+                let nder = decide_nmtm_apart(ctx,m,n,&Sort::Nm);
+                let res = nder.res.clone();
+                let der = IdxTmRule::Sing(nder);
+                match res {
+                    Ok(true) => succ(der),
+                    Ok(false) => fail(der),
+                    Err(_) => err(der, DecError::InSubDec)
+                }
+            }
+            (&BiIdxTm::Apart(ref x1,ref x2),_) => {
+                // Assume sort NmSet
+                let left = decide_idxtm_apart(ctx,x1,j,&Sort::NmSet);
+                let right = decide_idxtm_apart(ctx,x2,j,&Sort::NmSet);
+                let (l,r) = (left.res.clone(),right.res.clone());
+                let der = IdxTmRule::Apart(left,right);
+                match (l,r) {
+                    (Ok(true),Ok(true)) => succ(der),
+                    (Ok(_),Ok(_)) => fail(der),
+                    (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
+                }
+            }
+            (&BiIdxTm::Map(ref m,ref x),&BiIdxTm::Map(ref n,ref y)) => {
+                // Assume sort NmSet
+                let nmarrow = Sort::NmArrow(Rc::new(Sort::Nm),Rc::new(Sort::Nm));
+                let left = decide_nmtm_apart(ctx,m,n,&nmarrow);
+                let right = equiv::decide_idxtm_equiv(ctx,x,y,&Sort::NmSet);
+                let (l,r) = (left.res.clone(),right.res.clone());
+                let der = IdxTmRule::Map(left,right);
+                match (l,r) {
+                    (Ok(true),Ok(true)) => succ(der),
+                    (Ok(_),Ok(_)) => fail(der),
+                    (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
+                }
+            }
+            (_ir, _jr) => {
+                // TODO: Non-structural cases
+                unimplemented!("decide_idxtm_apart non-struct")
+            }
+        }
     }
 
 }
