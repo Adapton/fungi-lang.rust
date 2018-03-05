@@ -535,8 +535,123 @@ pub mod subset {
         fn tm_fam () -> String { "IdxTm".to_string() }
     }
 
-   
-
+    /// Decide if two index terms are congruent under the given context
+    fn decide_idxtm_congr(ctx: &RelCtx, i:&IdxTmDer, j:&IdxTmDer, g:&Sort) -> IdxTmDec {
+        let succ = |r| {
+            Dec{
+                ctx:ctx.clone(),
+                rule:Rc::new(r),
+                clas:g.clone(),
+                res:Ok(true),
+            }
+        };
+        let fail = |r| {
+            Dec{
+                ctx:ctx.clone(),
+                rule:Rc::new(r),
+                clas:g.clone(),
+                res:Ok(false),
+            }
+        };
+        let err = |r,e| {
+            Dec{
+                ctx:ctx.clone(),
+                rule:Rc::new(r),
+                clas:g.clone(),
+                res:Err(e),
+            }
+        };
+        match (&*i.rule,&*j.rule) {
+            (_ir, _jr) if i == j => { succ(IdxTmRule::Refl(i.clone())) }
+            // TODO: all struct cases
+            (&BiIdxTm::Var(ref v1),&BiIdxTm::Var(ref v2)) => {
+                if ctx.lookup_ivareq(v1,v2,g) {
+                    succ(IdxTmRule::Var((v1.clone(),v2.clone())))
+                } else {
+                    fail(IdxTmRule::Var((v1.clone(),v2.clone())))
+                }
+            }
+            (&BiIdxTm::Pair(ref i1,ref i2),&BiIdxTm::Pair(ref j1,ref j2)) => {
+                if let &Sort::Prod(ref g1,ref g2) = g {
+                    let left = decide_idxtm_equiv(ctx,i1,j1,g1);
+                    let right = decide_idxtm_equiv(ctx,i2,j2,g2);
+                    let (r1,r2) = (left.res.clone(),right.res.clone());
+                    let der = IdxTmRule::Pair(left,right);
+                    match (r1,r2) {
+                        (Ok(true),Ok(true)) => succ(der),
+                        (Ok(_),Ok(_)) => fail(der),
+                        (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
+                    }
+                } else {
+                    err(IdxTmRule::Pair(
+                        decide_idxtm_equiv(ctx,i1,j1,g),
+                        decide_idxtm_equiv(ctx,i2,j2,g),
+                    ), DecError::PairNotProd)
+                }
+            }
+            (&BiIdxTm::Lam(ref a,ref asort,ref i),&BiIdxTm::Lam(ref b,_,ref j)) => {
+                // Assume lam vars have same sort
+                if let &Sort::IdxArrow(ref g1,ref g2) = g {
+                    let bodys = decide_idxtm_equiv(&ctx.nt_eq(a,b,g1),i,j,g2);
+                    let res = bodys.res.clone();
+                    let der = IdxTmRule::Lam((a.clone(),b.clone()),asort.clone(),bodys);
+                    match res {
+                        Ok(true) => succ(der),
+                        Ok(false) => fail(der),
+                        Err(_) => err(der, DecError::InSubDec)
+                    }
+                } else { err(
+                    IdxTmRule::Lam((a.clone(),b.clone()),asort.clone(),
+                        decide_idxtm_equiv(ctx,i,j,g)
+                    ), DecError::LamNotArrow
+                )}
+            }
+            (&BiIdxTm::Empty,&BiIdxTm::Empty) => {
+                // Assume sort NmSet
+                succ(IdxTmRule::Empty)
+            }
+            (&BiIdxTm::Sing(ref m),&BiIdxTm::Sing(ref n)) => {
+                // Assume sort NmSet
+                let nder = decide_nmtm_equiv(ctx,m,n,&Sort::Nm);
+                let res = nder.res.clone();
+                let der = IdxTmRule::Sing(nder);
+                match res {
+                    Ok(true) => succ(der),
+                    Ok(false) => fail(der),
+                    Err(_) => err(der, DecError::InSubDec)
+                }
+            }
+            (&BiIdxTm::Apart(ref x1,ref y1),&BiIdxTm::Apart(ref x2,ref y2)) => {
+                // Assume sort NmSet
+                let left = decide_idxtm_equiv(ctx,x1,x2,&Sort::NmSet);
+                let right = decide_idxtm_equiv(ctx,y1,y2,&Sort::NmSet);
+                let (l,r) = (left.res.clone(),right.res.clone());
+                let der = IdxTmRule::Apart(left,right);
+                match (l,r) {
+                    (Ok(true),Ok(true)) => succ(der),
+                    (Ok(_),Ok(_)) => fail(der),
+                    (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
+                }
+            }
+            (&BiIdxTm::Map(ref m,ref x),&BiIdxTm::Map(ref n,ref y)) => {
+                // Assume sort NmSet
+                let nmarrow = Sort::NmArrow(Rc::new(Sort::Nm),Rc::new(Sort::Nm));
+                let left = decide_nmtm_equiv(ctx,m,n,&nmarrow);
+                let right = decide_idxtm_equiv(ctx,x,y,&Sort::NmSet);
+                let (l,r) = (left.res.clone(),right.res.clone());
+                let der = IdxTmRule::Map(left,right);
+                match (l,r) {
+                    (Ok(true),Ok(true)) => succ(der),
+                    (Ok(_),Ok(_)) => fail(der),
+                    (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
+                }
+            }
+            (_ir, _jr) => {
+                // TODO: Non-structural cases
+                unimplemented!()
+            }
+        }
+    }
 
     // -------------------------------------------------------------
     
