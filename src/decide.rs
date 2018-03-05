@@ -97,6 +97,16 @@ impl RelCtx {
             c => c.rest().map_or(false,|c|c.lookup_ivareq(x1,x2,g))
         }
     }
+    pub fn lookup_nvarapart(&self, x1:&Var, x2:&Var, g:&Sort) -> bool {
+        match self {
+            &RelCtx::NVarApart(ref c, ref v1, ref v2, ref s) => {
+                // TODO: sort compatibility?
+                if (x1 == v1) && (x2 == v2) && (g == s) { true }
+                else { c.lookup_nvarapart(x1,x2,g) }
+            }
+            c => c.rest().map_or(false,|c|c.lookup_nvarapart(x1,x2,g))
+        }
+    }
 }
 
 /// Convert the context into the corresponding relational context
@@ -305,9 +315,9 @@ pub mod equiv {
             (&BiNmTm::Lam(ref a,ref asort,ref m),&BiNmTm::Lam(ref b,_,ref n)) => {
                 // Assume lam vars have same sort
                 if let &Sort::NmArrow(ref g1,ref g2) = g {
-                    let bodys = decide_nmtm_equiv(&ctx.nt_eq(a,b,g1),m,n,g2);
-                    let res = bodys.res.clone();
-                    let der = NmTmRule::Lam((a.clone(),b.clone()),asort.clone(),bodys);
+                    let bodies = decide_nmtm_equiv(&ctx.nt_eq(a,b,g1),m,n,g2);
+                    let res = bodies.res.clone();
+                    let der = NmTmRule::Lam((a.clone(),b.clone()),asort.clone(),bodies);
                     match res {
                         Ok(true) => succ(der),
                         Ok(false) => fail(der),
@@ -344,7 +354,7 @@ pub mod equiv {
                 let app = decide_nmtm_equiv(ctx,m1,n1,g1);
                 let par = decide_nmtm_equiv(ctx,m2,n2,g2);
                 let (r1,r2) = (app.res.clone(),par.res.clone());
-                let der = NmTmRule::Bin(app,par);
+                let der = NmTmRule::App(app,par);
                 match (r1,r2) {
                     (Ok(true),Ok(true)) => succ(der),
                     (Ok(_),Ok(_)) => fail(der),
@@ -415,9 +425,9 @@ pub mod equiv {
             (&BiIdxTm::Lam(ref a,ref asort,ref i),&BiIdxTm::Lam(ref b,_,ref j)) => {
                 // Assume lam vars have same sort
                 if let &Sort::IdxArrow(ref g1,ref g2) = g {
-                    let bodys = decide_idxtm_equiv(&ctx.nt_eq(a,b,g1),i,j,g2);
-                    let res = bodys.res.clone();
-                    let der = IdxTmRule::Lam((a.clone(),b.clone()),asort.clone(),bodys);
+                    let bodies = decide_idxtm_equiv(&ctx.nt_eq(a,b,g1),i,j,g2);
+                    let res = bodies.res.clone();
+                    let der = IdxTmRule::Lam((a.clone(),b.clone()),asort.clone(),bodies);
                     match res {
                         Ok(true) => succ(der),
                         Ok(false) => fail(der),
@@ -731,7 +741,7 @@ pub mod apart {
     //use ast::*;
     use bitype::{HasClas};
     use bitype::{NmTmDer,IdxTmDer};
-    //use bitype::NmTmRule as BiNmTm;
+    use bitype::NmTmRule as BiNmTm;
     //use bitype::IdxTmRule as BiIdxTm;
     //use std::fmt;
     //use std::rc::Rc;
@@ -754,7 +764,7 @@ pub mod apart {
         BinEq1(equiv::NmTmDec),
         BinEq2(equiv::NmTmDec),
         Lam(Var2,Sort,NmTmDec),
-        App(NmTmDec, NmTmDec),
+        App(NmTmDec, equiv::NmTmDec),
         Beta(NmTmDer, NmTmDer, NmTmDec),
         NoParse(String),
     }
@@ -792,10 +802,108 @@ pub mod apart {
     }
 
     /// Decide if two name terms are apart under the given context
-    pub fn decide_nmtm_apart(_ctx: &RelCtx, _n:&NmTmDer, _m:&NmTmDer, _g:&Sort) -> NmTmDec {
-        // TODO: Use structural/deductive apartness rules.  Also, do
-        // normalization of the name term (aka, beta reduction).
-        unimplemented!()
+    pub fn decide_nmtm_apart(ctx: &RelCtx, n:&NmTmDer, m:&NmTmDer, g:&Sort) -> NmTmDec {
+        let succ = |r| {
+            Dec{
+                ctx:ctx.clone(),
+                rule:Rc::new(r),
+                clas:g.clone(),
+                res:Ok(true),
+            }
+        };
+        let fail = |r| {
+            Dec{
+                ctx:ctx.clone(),
+                rule:Rc::new(r),
+                clas:g.clone(),
+                res:Ok(false),
+            }
+        };
+        let err = |r,e| {
+            Dec{
+                ctx:ctx.clone(),
+                rule:Rc::new(r),
+                clas:g.clone(),
+                res:Err(e),
+            }
+        };
+        match (&*m.rule,&*n.rule) {
+            // TODO: Use structural/deductive apartness rules.  Also, do
+            // normalization of the name term (aka, beta reduction).
+            (&BiNmTm::Var(ref v1),&BiNmTm::Var(ref v2)) => {
+                if ctx.lookup_nvarapart(v1,v2,g) {
+                    succ(NmTmRule::Var((v1.clone(),v2.clone())))
+                } else {
+                    fail(NmTmRule::Var((v1.clone(),v2.clone())))
+                }
+            }
+            (&BiNmTm::Bin(ref m1, ref m2),nr) => {
+                // TODO: check and report error cases?
+                let t1_der = equiv::decide_nmtm_equiv(ctx, m1, n, &Sort::Nm);
+                if Ok(true) == t1_der.res { return succ(NmTmRule::BinEq1(t1_der)) };
+                let t2_der = equiv::decide_nmtm_equiv(ctx, m2, n, &Sort::Nm);
+                if Ok(true) == t2_der.res { return succ(NmTmRule::BinEq2(t2_der)) };
+                if let &BiNmTm::Bin(ref n1, ref n2) = nr {
+                    let b1_der = decide_nmtm_apart(ctx, m1, n1, &Sort::Nm);
+                    if Ok(true) == b1_der.res { return succ(NmTmRule::Bin1(b1_der)) };
+                    let b2_der = decide_nmtm_apart(ctx, m2, n2, &Sort::Nm);
+                    if Ok(true) == b2_der.res { return succ(NmTmRule::Bin1(b2_der)) };
+                    fail(NmTmRule::Bin1(b1_der))
+                } else {
+                    fail(NmTmRule::BinEq1(t1_der))
+                }
+            }
+            (&BiNmTm::Lam(ref a,ref asort,ref m),&BiNmTm::Lam(ref b,_,ref n)) => {
+                // Assume lam vars have same sort
+                if let &Sort::NmArrow(ref g1,ref g2) = g {
+                    let bodies = decide_nmtm_apart(&ctx.nt_eq(a,b,g1),m,n,g2);
+                    let res = bodies.res.clone();
+                    let der = NmTmRule::Lam((a.clone(),b.clone()),asort.clone(),bodies);
+                    match res {
+                        Ok(true) => succ(der),
+                        Ok(false) => fail(der),
+                        Err(_) => err(der, DecError::InSubDec)
+                    }
+                } else {err(
+                    NmTmRule::Lam((a.clone(),b.clone()),asort.clone(),
+                        decide_nmtm_apart(ctx,m,n,g)
+                    ), DecError::LamNotArrow
+                )}
+            }
+            (&BiNmTm::App(ref m1,ref m2),&BiNmTm::App(ref n1,ref n2)) => {
+                // find sort of m1 and n1, assume matching arrows
+                let g1 = match (&m1.clas,&n1.clas) {
+                    (&Ok(ref g),&Ok(_)) => g,
+                    _ => {
+                        // error out, using bad types for the recursive decisions
+                        let der1 = decide_nmtm_apart(ctx,m1,n1,g);
+                        let der2 = equiv::decide_nmtm_equiv(ctx,m2,n2,g);
+                        return err(NmTmRule::App(der1, der2),DecError::AppNotArrow)
+                    }
+                };
+                // find sort of m2 and n2, assume matching types
+                let g2 = match (&m2.clas,&n2.clas) {
+                    (&Ok(ref g),&Ok(_)) => g,
+                    _ => {
+                        // fail, using bad types for the recursive decisions
+                        let der1 = decide_nmtm_apart(ctx,m1,n1,g1);
+                        let der2 = equiv::decide_nmtm_equiv(ctx,m2,n2,g);
+                        return err(NmTmRule::App(der1, der2),DecError::InSubDec)
+                    }
+                };
+                // assume appropriate types
+                let app = decide_nmtm_apart(ctx,m1,n1,g1);
+                let par = equiv::decide_nmtm_equiv(ctx,m2,n2,g2);
+                let (r1,r2) = (app.res.clone(),par.res.clone());
+                let der = NmTmRule::App(app,par);
+                match (r1,r2) {
+                    (Ok(true),Ok(true)) => succ(der),
+                    (Ok(_),Ok(_)) => fail(der),
+                    (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
+                }
+            }
+            _ => { unimplemented!("decide_nmtm_apart non-struct") }
+        }
     }
 
     /// Decide if two index terms are apart under the given context
