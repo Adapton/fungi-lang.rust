@@ -167,6 +167,16 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                     NmSetTm::Single( n )                        
                 ]})
             }
+            IdxTm::Ident(ref ident) => {
+                match ctx.lookup_idxtm_def(ident) {
+                    Some(i) => normal_idxtm(ctx, i),
+                    _ => {
+                        println!("undefined idxtm: {} in\n{:?}", ident, ctx);
+                        // Give up:
+                        i.clone()
+                    }
+                }
+            }
             IdxTm::Apart(i1, i2) => {
                 let i1 = normal_idxtm_rec(ctx, i1);
                 let i2 = normal_idxtm_rec(ctx, i2);
@@ -269,7 +279,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                         let i11 = subst::subst_term_idxtm(Term::IdxTm((*i2).clone()), &x, (*i11).clone());
                         normal_idxtm(ctx, i11)
                     }
-                    _ => i_clone
+                    _ => IdxTm::App(i1, i2)
                 }
             }
             IdxTm::Map(n1, i2) => {
@@ -333,7 +343,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                             cons:ns2.cons,
                             terms:terms
                         })
-                    },                            
+                    },
                     _ => i_clone
                 }
             }

@@ -504,10 +504,42 @@ pub mod subset {
     use ast::*;
     use bitype::{Ctx};
     //use std::fmt;
+    use bitype::{IdxTmDer};
     use std::rc::Rc;
     use super::*;
 
+    // XXX
+    /// Index term equivalence rules
+    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+    pub enum IdxTmRule {
+        Var(Var2),
+        Refl(IdxTmDer),
+        Sing(equiv::NmTmDec),
+        Empty,
+        Apart(IdxTmDec, IdxTmDec),
+        Union(IdxTmDec, IdxTmDec),
+        Unit,
+        Pair(IdxTmDec, IdxTmDec),
+        Proj1(IdxTmDec),
+        Proj2(IdxTmDec),
+        Lam(Var2, Sort, IdxTmDec),
+        App(IdxTmDec, IdxTmDec),
+        Map(equiv::NmTmDec, IdxTmDec),
+        FlatMap(IdxTmDec, IdxTmDec),
+        Star(IdxTmDec, IdxTmDec),
+        NoParse(String),
+    }
+    pub type IdxTmDec  = Dec<IdxTmRule>;
+    impl HasClas for IdxTmRule {
+        type Clas = Sort;
+        fn tm_fam () -> String { "IdxTm".to_string() }
+    }
 
+   
+
+
+    // -------------------------------------------------------------
+    
     //TODO: Return a Vec<_>; try each possible decomposition.
     fn find_defs_for_idxtm_var(ctx:&Ctx, x:&Var) -> Option<IdxTm> {
         match ctx {
@@ -550,7 +582,7 @@ pub mod subset {
                     let xdef : Option<IdxTm> = find_defs_for_idxtm_var(&ctx2, &x);
                     match xdef {
                         // Not enough info.
-                        None       => false,
+                        None => false,
                         // Use def to try to reason further; TODO:
                         // backtrack if we fail and try next def.
                         Some(xdef) => decide_idxtm_subset(ctx, a, xdef)
@@ -562,13 +594,17 @@ pub mod subset {
                             // Look for the variable in the name set `b_ns`
                             let a_ns_tm = normal::NmSetTm::Subset(a);
                             for b_ns_tm in b_ns.terms.iter() {
-                                if b_ns_tm == &a_ns_tm { return true }
+                                if b_ns_tm == &a_ns_tm {
+                                    println!("decide_idxtm_subset:\n  {:?}\n  {:?}\nTRUE(3)!",
+                                             b_ns_tm, a_ns_tm);
+                                    return true
+                                }
                                 else { continue }
                             }
                             return false
                         },
                         IdxTm::NmSet(_a_ns) => {
-                            // If the terms are not variables, then by
+                            // If the terms normalize, then by
                             // canonical forms, both should each be
                             // NmSets.  For each term in `a`'s
                             // decomposition, attempt to find a
@@ -577,10 +613,10 @@ pub mod subset {
                             // be used at most once.
                             unimplemented!()
                         }
-                        _ => unreachable!()
+                        a => panic!("{:?}", a)
                     }
                 },
-                _ => unreachable!()
+                b => panic!("==================\n {:?}\n ===============\n {:?}", ctx, b)
             }}
         }                                
     }
