@@ -571,6 +571,10 @@ fn propagate<R:HasClas+debug::DerRule>
     }
 }
 
+pub fn idxtm_of_idxtmder(i:IdxTmDer) -> IdxTm {
+    unimplemented!()
+}
+
 /// synthesize sort for index term
 pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer {
     let fail = |td:IdxTmRule, err :TypeError| { failure(Dir::Synth, last_label, ctx, td, err)  };

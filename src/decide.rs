@@ -502,13 +502,15 @@ pub mod equiv {
 /// Decide subset relationships over name sets, index terms and types
 pub mod subset {
     use ast::*;
+    use bitype;
     use bitype::{Ctx};
     //use std::fmt;
     use bitype::{IdxTmDer};
     use std::rc::Rc;
     use super::*;
+    use super::equiv::{decide_nmtm_equiv};
+    use bitype::IdxTmRule as BiIdxTm;
 
-    // XXX
     /// Index term equivalence rules
     #[derive(Clone,Debug,Eq,PartialEq,Hash)]
     pub enum IdxTmRule {
@@ -527,6 +529,7 @@ pub mod subset {
         Map(equiv::NmTmDec, IdxTmDec),
         FlatMap(IdxTmDec, IdxTmDec),
         Star(IdxTmDec, IdxTmDec),
+        SubsetHacks,
         NoParse(String),
     }
     pub type IdxTmDec  = Dec<IdxTmRule>;
@@ -534,9 +537,107 @@ pub mod subset {
         type Clas = Sort;
         fn tm_fam () -> String { "IdxTm".to_string() }
     }
+    
+    //TODO: Return a Vec<_>; try each possible decomposition.
+    fn find_defs_for_idxtm_var(ctx:&Ctx, x:&Var) -> Option<IdxTm> {
+        match ctx {
+            &Ctx::Empty => None,
+            &Ctx::PropTrue(_, Prop::Equiv(IdxTm::Var(ref x_), ref i,_)) if x == x_ => Some(i.clone()),
+            &Ctx::PropTrue(_, Prop::Equiv(ref i, IdxTm::Var(ref x_),_)) if x == x_ => Some(i.clone()),
+            _ => find_defs_for_idxtm_var(&*(ctx.rest().unwrap()), x)
+        }
+    }
 
+    /// Decide if a proposition is true under the given context
+    pub fn decide_prop(_ctx: &RelCtx, p:Prop) -> bool {
+        unimplemented!("{:?}", p)
+    }
+
+    // -------------------------------------------------------------
+    /// Decide name set subset relation.
+    ///
+    /// Return true iff name set `a` is a subset of, or equal to, name
+    /// set `b`.  Does not test any congruence cases.
+    pub fn decide_idxtm_subset(ctx: &RelCtx, i:&IdxTmDer, j:&IdxTmDer, g:&Sort) -> IdxTmDec
+    {
+        let (ctx1, ctx2) = ctxs_of_relctx((*ctx).clone());
+        let a = normal::normal_idxtm(&ctx1, bitype::idxtm_of_idxtmder(i.clone()));
+        let b = normal::normal_idxtm(&ctx2, bitype::idxtm_of_idxtmder(j.clone()));
+        println!("decide_idxtm_subset:\n  {:?}\n  {:?}\n", a, b);
+        if a == b {
+            println!("decide_idxtm_subset:\n  {:?}\n  {:?}\nTRUE(2)!", a, b);
+            let b = bitype::synth_idxtm(None, &ctx2, &b);
+            return Dec{
+                ctx:ctx.clone(),
+                rule:Rc::new(IdxTmRule::Refl(b)),
+                clas:g.clone(),
+                res:Ok(true)
+            }
+        } else { match b {
+                IdxTm::Var(x) => {
+                    // If it is possible to subdivide term `b` using
+                    // equivalences, then do so. TODO: Return a
+                    // Vec<_>; try each possible decomposition.
+                    let xdef : Option<IdxTm> = find_defs_for_idxtm_var(&ctx2, &x);
+                    match xdef {
+                        // Not enough info.
+                        None => panic!(""),
+                        // Use def to try to reason further; TODO:
+                        // backtrack if we fail and try next def.
+                        Some(xdef) => {
+                            let xdef = bitype::synth_idxtm(None, &ctx2, &xdef);
+                            decide_idxtm_subset(ctx, a, xdef)
+                        }
+                    }
+                },
+                IdxTm::NmSet(b_ns) => {
+                    match a {                        
+                        IdxTm::Var(_) => {
+                            // Look for the variable in the name set `b_ns`
+                            let a_ns_tm = normal::NmSetTm::Subset(a);
+                            for b_ns_tm in b_ns.terms.iter() {
+                                if b_ns_tm == &a_ns_tm {
+                                    println!("decide_idxtm_subset:\n  {:?}\n  {:?}\nTRUE(3)!",
+                                             b_ns_tm, a_ns_tm);
+                                    return true
+                                }
+                                else { continue }
+                            }
+                            return false
+                        },
+                        IdxTm::NmSet(_a_ns) => {
+                            // If the terms normalize, then by
+                            // canonical forms, both should each be
+                            // NmSets.  For each term in `a`'s
+                            // decomposition, attempt to find a
+                            // matching (equivalent) term in `b`'s
+                            // decomposition.  Each match in `b` may
+                            // be used at most once.
+                            unimplemented!()
+                        }
+                        a => panic!("{:?}", a)
+                    }
+                },
+                _ => {
+                    // TODO: Avoid switching back and forth between typed and untyped ASTs
+                    let (ctx1, ctx2) = ctxs_of_relctx(ctx);
+                    let a = bitype::synth_idxtm(ctx1, a);
+                    let b = bitype::synth_idxtm(ctx2, b);
+                    decide_idxtm_subset_congr(ctx, &a, &b, a.clas.unwrap()).res
+                        == Ok(true)
+
+                }
+            }
+        }                            
+    }
+
+    /// Decide type subset relation
+    pub fn decide_type_subset_rec(ctx: &RelCtx, a:Rc<Type>, b:Rc<Type>) -> bool {
+        decide_type_subset(ctx, (*a).clone(), (*b).clone())
+    }
+    
     /// Decide if two index terms are congruent under the given context
-    fn decide_idxtm_congr(ctx: &RelCtx, i:&IdxTmDer, j:&IdxTmDer, g:&Sort) -> IdxTmDec {
+    fn decide_idxtm_subset_congr(ctx: &RelCtx, i:&IdxTmDer, j:&IdxTmDer, g:&Sort) -> IdxTmDec {
         let succ = |r| {
             Dec{
                 ctx:ctx.clone(),
@@ -573,8 +674,8 @@ pub mod subset {
             }
             (&BiIdxTm::Pair(ref i1,ref i2),&BiIdxTm::Pair(ref j1,ref j2)) => {
                 if let &Sort::Prod(ref g1,ref g2) = g {
-                    let left = decide_idxtm_equiv(ctx,i1,j1,g1);
-                    let right = decide_idxtm_equiv(ctx,i2,j2,g2);
+                    let left = decide_idxtm_subset(ctx,i1,j1,g1);
+                    let right = decide_idxtm_subset(ctx,i2,j2,g2);
                     let (r1,r2) = (left.res.clone(),right.res.clone());
                     let der = IdxTmRule::Pair(left,right);
                     match (r1,r2) {
@@ -584,15 +685,15 @@ pub mod subset {
                     }
                 } else {
                     err(IdxTmRule::Pair(
-                        decide_idxtm_equiv(ctx,i1,j1,g),
-                        decide_idxtm_equiv(ctx,i2,j2,g),
+                        decide_idxtm_subset(ctx,i1,j1,g),
+                        decide_idxtm_subset(ctx,i2,j2,g),
                     ), DecError::PairNotProd)
                 }
             }
             (&BiIdxTm::Lam(ref a,ref asort,ref i),&BiIdxTm::Lam(ref b,_,ref j)) => {
                 // Assume lam vars have same sort
                 if let &Sort::IdxArrow(ref g1,ref g2) = g {
-                    let bodys = decide_idxtm_equiv(&ctx.nt_eq(a,b,g1),i,j,g2);
+                    let bodys = decide_idxtm_subset(&ctx.nt_eq(a,b,g1),i,j,g2);
                     let res = bodys.res.clone();
                     let der = IdxTmRule::Lam((a.clone(),b.clone()),asort.clone(),bodys);
                     match res {
@@ -602,7 +703,7 @@ pub mod subset {
                     }
                 } else { err(
                     IdxTmRule::Lam((a.clone(),b.clone()),asort.clone(),
-                        decide_idxtm_equiv(ctx,i,j,g)
+                        decide_idxtm_subset(ctx,i,j,g)
                     ), DecError::LamNotArrow
                 )}
             }
@@ -623,8 +724,8 @@ pub mod subset {
             }
             (&BiIdxTm::Apart(ref x1,ref y1),&BiIdxTm::Apart(ref x2,ref y2)) => {
                 // Assume sort NmSet
-                let left = decide_idxtm_equiv(ctx,x1,x2,&Sort::NmSet);
-                let right = decide_idxtm_equiv(ctx,y1,y2,&Sort::NmSet);
+                let left = decide_idxtm_subset(ctx,x1,x2,&Sort::NmSet);
+                let right = decide_idxtm_subset(ctx,y1,y2,&Sort::NmSet);
                 let (l,r) = (left.res.clone(),right.res.clone());
                 let der = IdxTmRule::Apart(left,right);
                 match (l,r) {
@@ -637,7 +738,7 @@ pub mod subset {
                 // Assume sort NmSet
                 let nmarrow = Sort::NmArrow(Rc::new(Sort::Nm),Rc::new(Sort::Nm));
                 let left = decide_nmtm_equiv(ctx,m,n,&nmarrow);
-                let right = decide_idxtm_equiv(ctx,x,y,&Sort::NmSet);
+                let right = decide_idxtm_subset(ctx,x,y,&Sort::NmSet);
                 let (l,r) = (left.res.clone(),right.res.clone());
                 let der = IdxTmRule::Map(left,right);
                 match (l,r) {
@@ -651,94 +752,6 @@ pub mod subset {
                 unimplemented!()
             }
         }
-    }
-
-    // -------------------------------------------------------------
-    
-    //TODO: Return a Vec<_>; try each possible decomposition.
-    fn find_defs_for_idxtm_var(ctx:&Ctx, x:&Var) -> Option<IdxTm> {
-        match ctx {
-            &Ctx::Empty => None,
-            &Ctx::PropTrue(_, Prop::Equiv(IdxTm::Var(ref x_), ref i,_)) if x == x_ => Some(i.clone()),
-            &Ctx::PropTrue(_, Prop::Equiv(ref i, IdxTm::Var(ref x_),_)) if x == x_ => Some(i.clone()),
-            _ => find_defs_for_idxtm_var(&*(ctx.rest().unwrap()), x)
-        }
-    }
-
-    /// Decide if a proposition is true under the given context
-    pub fn decide_prop(_ctx: &RelCtx, p:Prop) -> bool {
-        unimplemented!("{:?}", p)
-    }
-    
-    /// Decide name set subset relation.
-    ///
-    /// Return true iff name set `a` is a subset of, or equal to, name set `b`
-    pub fn decide_idxtm_subset(ctx: &RelCtx, a:IdxTm, b:IdxTm) -> bool {
-        if a == b {
-            println!("decide_idxtm_subset:\n  {:?}\n  {:?}\nTRUE(1)!", a, b);           
-            return true
-        } else {
-            // 1a. normalize term `a` under left projection of ctx.
-            // 2a. normalize term `b` under right projection of ctx.
-            let (ctx1, ctx2) = ctxs_of_relctx((*ctx).clone());
-            let a = normal::normal_idxtm(&ctx1, a);
-            let b = normal::normal_idxtm(&ctx2, b);
-
-            println!("decide_idxtm_subset:\n  {:?}\n  {:?}\n", a, b);
-
-            if a == b {
-                println!("decide_idxtm_subset:\n  {:?}\n  {:?}\nTRUE(2)!", a, b);
-                return true
-            } else { match b {
-                IdxTm::Var(x) => {
-                    // If it is possible to subdivide term `b` using
-                    // equivalences, then do so. TODO: Return a
-                    // Vec<_>; try each possible decomposition.
-                    let xdef : Option<IdxTm> = find_defs_for_idxtm_var(&ctx2, &x);
-                    match xdef {
-                        // Not enough info.
-                        None => false,
-                        // Use def to try to reason further; TODO:
-                        // backtrack if we fail and try next def.
-                        Some(xdef) => decide_idxtm_subset(ctx, a, xdef)
-                    }
-                },
-                IdxTm::NmSet(b_ns) => {
-                    match a {                        
-                        IdxTm::Var(_) => {
-                            // Look for the variable in the name set `b_ns`
-                            let a_ns_tm = normal::NmSetTm::Subset(a);
-                            for b_ns_tm in b_ns.terms.iter() {
-                                if b_ns_tm == &a_ns_tm {
-                                    println!("decide_idxtm_subset:\n  {:?}\n  {:?}\nTRUE(3)!",
-                                             b_ns_tm, a_ns_tm);
-                                    return true
-                                }
-                                else { continue }
-                            }
-                            return false
-                        },
-                        IdxTm::NmSet(_a_ns) => {
-                            // If the terms normalize, then by
-                            // canonical forms, both should each be
-                            // NmSets.  For each term in `a`'s
-                            // decomposition, attempt to find a
-                            // matching (equivalent) term in `b`'s
-                            // decomposition.  Each match in `b` may
-                            // be used at most once.
-                            unimplemented!()
-                        }
-                        a => panic!("{:?}", a)
-                    }
-                },
-                b => panic!("==================\n {:?}\n ===============\n {:?}", ctx, b)
-            }}
-        }                                
-    }
-
-    /// Decide type subset relation
-    pub fn decide_type_subset_rec(ctx: &RelCtx, a:Rc<Type>, b:Rc<Type>) -> bool {
-        decide_type_subset(ctx, (*a).clone(), (*b).clone())
     }
     
     /// Decide type subset relation
@@ -824,6 +837,15 @@ pub mod subset {
         }        
     }
 
+    pub fn decide_ceffect_subset_rec(ctx: &RelCtx, ce1:CEffect, ce2:CEffect) -> bool {
+        unimplemented!()
+    }
+
+    pub fn decide_ceffect_subset(ctx: &RelCtx, ce1:CEffect, ce2:CEffect) -> bool {
+        unimplemented!()
+    }
+    
+/*
     /// Decide computation type subset relation
     pub fn decide_ctype_subset(ctx: &RelCtx, ct1:CType, ct2:CType) -> bool {
         match (ct1, ct2) {
@@ -873,6 +895,7 @@ pub mod subset {
             _ => false
         }        
     }
+*/
 
 }
 
