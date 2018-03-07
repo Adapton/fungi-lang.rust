@@ -1451,7 +1451,7 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
             match typ0 {
                 Err(_) => fail(td, TypeError::ParamNoSynth(0)),
                 Ok(Type::Thk(ref _idx,ref ce)) => {
-                    // TODO: Compose effects
+                    // TODO-Next: Compose effects
                     succ(td, (**ce).clone())
                 }
                 Ok(t) => fail(td, TypeError::UnexpectedType(t.clone())),
@@ -1484,7 +1484,7 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
                     match ty1 {
                         Err(_) => fail(td, TypeError::ParamMism(1)),
                         Ok(_) => {
-                            // TODO: compose effects
+                            // TODO-Next: compose effects
                             succ(td, (**ce).clone())
                         }
                     }
@@ -1566,7 +1566,7 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
                     match typ2 {
                         Err(_) => fail(td, TypeError::LaterError),
                         Ok(CEffect::Cons(ty2,eff2)) => {
-                            // TODO: combine effects
+                            // TODO-Next: combine effects
                             succ(td, CEffect::Cons(ty2, eff2))
                         },
                         _ => fail(td, TypeError::ParamMism(2)),
@@ -1586,25 +1586,12 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
                 (Err(_),_) => fail(td,TypeError::ParamNoSynth(0)),
                 (_,Err(_)) => fail(td,TypeError::ParamNoSynth(1)),
                 (Ok(Type::Nm(n1)),Ok(Type::Nm(n2))) => {
-                    // ?TODO: unnessecary special case?
-                    // if let (&Val::Name(ref nm0),&Val::Name(ref nm1)) = (v0,v1) {
-                    //     succ(td, CEffect::Cons(
-                    //         CType::Lift(Type::Nm(
-                    //             IdxTm::Sing(NameTm::Name(Name::Bin(
-                    //                 Rc::new(nm0.clone()),
-                    //                 Rc::new(nm1.clone()),
-                    //             )))
-                    //         )),
-                    //         Effect::WR(IdxTm::Empty, IdxTm::Empty))
-                    //     )
-                    // } else {
                     succ(td, CEffect::Cons(
                         CType::Lift(Type::Nm(
                             IdxTm::Bin(Rc::new(n1),Rc::new(n2))
                         )),
                         Effect::WR(IdxTm::Empty, IdxTm::Empty))
                     )
-                    //}
                 },
                 (Ok(Type::Nm(_)),_) => fail(td,TypeError::ParamMism(1)),
                 _ => fail(td, TypeError::ParamMism(0))
@@ -1619,7 +1606,7 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
                 Ok(Type::Thk(idx,ce)) => {
                     match *ce {
                         CEffect::Cons(CType::Lift(ref typ),ref eff) => {
-                            // TODO: compose write effect above with a read effect
+                            // TODO-Next: compose write effect above with a read effect
                             succ(td, CEffect::Cons(CType::Lift(
                                 Type::Prod(
                                     Rc::new(Type::Ref(idx,Rc::new(typ.clone()))),
