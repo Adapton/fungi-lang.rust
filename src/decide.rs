@@ -729,8 +729,9 @@ pub mod subset {
             }
         };
         match (&*i.rule,&*j.rule) {
-            (_ir, _jr) if i == j => { succ(IdxTmRule::Refl(i.clone())) }
-            // TODO: all struct cases
+            (_ir, _jr) if i == j => {
+                succ(IdxTmRule::Refl(i.clone()))
+            }
             (&BiIdxTm::Var(ref v1),&BiIdxTm::Var(ref v2)) => {
                 if ctx.lookup_ivareq(v1,v2,g) {
                     succ(IdxTmRule::Var((v1.clone(),v2.clone())))
@@ -759,9 +760,9 @@ pub mod subset {
             (&BiIdxTm::Lam(ref a,ref asort,ref i),&BiIdxTm::Lam(ref b,_,ref j)) => {
                 // Assume lam vars have same sort
                 if let &Sort::IdxArrow(ref g1,ref g2) = g {
-                    let bodys = decide_idxtm_subset_congr(&ctx.nt_eq(a,b,g1),i,j,g2);
-                    let res = bodys.res.clone();
-                    let der = IdxTmRule::Lam((a.clone(),b.clone()),asort.clone(),bodys);
+                    let bodies = decide_idxtm_subset_congr(&ctx.nt_eq(a,b,g1),i,j,g2);
+                    let res = bodies.res.clone();
+                    let der = IdxTmRule::Lam((a.clone(),b.clone()),asort.clone(),bodies);
                     match res {
                         Ok(true) => succ(der),
                         Ok(false) => fail(der),
@@ -772,6 +773,38 @@ pub mod subset {
                         decide_idxtm_subset_congr(ctx,i,j,g)
                     ), DecError::LamNotArrow
                 )}
+            }
+            (&BiIdxTm::App(ref i1, ref i2),&BiIdxTm::App(ref j1, ref j2)) => {
+                // find sort of i1 and j1, assume matching arrows
+                let g1 = match (&i1.clas,&j1.clas) {
+                    (&Ok(ref g),&Ok(_)) => g,
+                    _ => {
+                        // error out, using bad types for the recursive decisions
+                        let der1 = decide_idxtm_subset_congr(ctx,i1,j1,g);
+                        let der2 = decide_idxtm_subset_congr(ctx,i2,j2,g);
+                        return err(IdxTmRule::App(der1, der2),DecError::AppNotArrow)
+                    }
+                };
+                // find sort of i2 and j2, assume matching types
+                let g2 = match (&i2.clas,&j2.clas) {
+                    (&Ok(ref g),&Ok(_)) => g,
+                    _ => {
+                        // fail, using bad types for the recursive decisions
+                        let der1 = decide_idxtm_subset_congr(ctx,i1,j1,g1);
+                        let der2 = decide_idxtm_subset_congr(ctx,i2,j2,g);
+                        return err(IdxTmRule::App(der1, der2),DecError::InSubDec)
+                    }
+                };
+                // assume appropriate types
+                let app = decide_idxtm_subset_congr(ctx,i1,j1,g1);
+                let par = decide_idxtm_subset_congr(ctx,i2,j2,g2);
+                let (r1,r2) = (app.res.clone(),par.res.clone());
+                let der = IdxTmRule::App(app,par);
+                match (r1,r2) {
+                    (Ok(true),Ok(true)) => succ(der),
+                    (Ok(_),Ok(_)) => fail(der),
+                    (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
+                }
             }
             (&BiIdxTm::Empty,&BiIdxTm::Empty) => {
                 // Assume sort NmSet
@@ -813,8 +846,9 @@ pub mod subset {
                     (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
                 }
             }
-            (_ir, _jr) => {
-                // TODO: Non-structural cases
+            (ir, jr) => {
+                use bitype::debug::DerRule;                
+                println!("{:?} {:?}", ir.short(), jr.short());
                 unimplemented!()
             }
         }

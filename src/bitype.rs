@@ -2072,7 +2072,7 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
 
 
 /// Stringification for debugging derivation rules
-mod debug {
+pub mod debug {
     use super::*;
     // rule instance in a derivation tree
     pub trait DerRule {
