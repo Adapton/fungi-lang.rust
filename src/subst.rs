@@ -336,7 +336,8 @@ pub fn subst_term_type(t:Term, x:&String, a:Type) -> Type {
                     let y_ = alpha_vary(&y);
                     assert!(!fv_contains_idxtm(&fv, &y_));
                     let t_y_ = Term::IdxTm(IdxTm::Var(y_.clone()));
-                    let a1 = subst_term_type_rec(t_y_, &y, a1);
+                    let a1 = subst_term_type_rec(t_y_.clone(), &y, a1);
+                    let p  = subst_term_prop(t_y_, &y, p);
                     Type::Exists(
                         y_, g,
                         subst_term_prop(t.clone(), x, p),
