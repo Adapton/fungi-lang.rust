@@ -662,7 +662,7 @@ pub mod subset {
                 let xdef : Option<IdxTm> = find_defs_for_idxtm_var(&ctx2, &x);
                 match xdef {
                     // Not enough info.
-                    None => panic!(""),
+                    None => panic!("No defs:\t\n{:?}\t\n{:?}", &a, x),
                     // Use def to try to reason further; TODO:
                     // backtrack if we fail and try next def.
                     Some(xdef) => {
@@ -915,12 +915,17 @@ pub mod subset {
     }
     
     /// Decide type subset relation
-    pub fn decide_type_subset(ctx: &RelCtx, a:Type, b:Type) -> bool {
+    pub fn decide_type_subset_norm(ctx: &RelCtx, a:Type, b:Type) -> bool {
         //println!("decide_type_subset: {:?}", a);
         // XXX-TODO: Make this cheaper
         let (ctx1, ctx2) = ctxs_of_relctx((*ctx).clone());
         let a = normal::normal_type(&ctx1, &a);
         let b = normal::normal_type(&ctx2, &b);
+        decide_type_subset(ctx, a, b)
+    }
+
+    /// Decide type subset relation
+    pub fn decide_type_subset(ctx: &RelCtx, a:Type, b:Type) -> bool {
         if a == b { true } else {
             match (a,b) {
                 (Type::Ident(x), b) => {
@@ -964,13 +969,17 @@ pub mod subset {
                     decide_idxtm_subset_simple(ctx, &i, &j)
                 }
                 (Type::NmFn(m), Type::NmFn(n)) => {
-                    let n = normal::normal_nmtm(&ctx1, n);
-                    let m = normal::normal_nmtm(&ctx2, m);
-                    let _nmarrow = fgi_sort![ Nm -> Nm ];
-                    // XXX/TODO
-                    //super::equiv::decide_nmtm_equiv(ctx, &m, &n, &nmarrow).res
-                    //== Ok(true)
-                    m == n
+                    if m == n { true }
+                    else {
+                        let (ctx1, ctx2) = ctxs_of_relctx(ctx.clone());
+                        let n = normal::normal_nmtm(&ctx1, n);
+                        let m = normal::normal_nmtm(&ctx2, m);
+                        let _nmarrow = fgi_sort![ Nm -> Nm ];
+                        // XXX/TODO
+                        //super::equiv::decide_nmtm_equiv(ctx, &m, &n, &nmarrow).res
+                        //== Ok(true)
+                        m == n
+                    }
                 }
                 (Type::TypeFn(x1, _k1, a1), Type::TypeFn(x2, _k2, a2)) => {
                     decide_type_subset_rec(

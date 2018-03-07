@@ -1027,7 +1027,7 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ_raw:&Type) -> 
             match ctx.lookup_var(x) {
                 None => fail(td, TypeError::VarNotInScope(x.clone())),
                 Some(x_typ_raw) => {
-                    let subset_flag = decide::subset::decide_type_subset(
+                    let subset_flag = decide::subset::decide_type_subset_norm(
                             &decide::relctx_of_ctx(&ctx),
                             x_typ_raw.clone(), typ_raw.clone()
                     );                    
