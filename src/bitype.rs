@@ -819,7 +819,6 @@ pub fn check_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm, sort:&Sort) 
             let mut td = synth_idxtm(last_label,ctx,tm);
             let ty = td.clas.clone();
             if let Ok(ty) = ty {
-                // TODO: Type equality may be more complex than this test (e.g. alpha equivalent types should be equal)
                 if ty == *sort { td }
                 else {
                     td.clas = Err(TypeError::AnnoMism);
@@ -910,7 +909,6 @@ pub fn check_nmtm(last_label:Option<&str>, ctx:&Ctx, nmtm:&NameTm, sort:&Sort) -
             let mut td = synth_nmtm(last_label,ctx,tm);
             let ty = td.clas.clone();
             if let Ok(ty) = ty {
-                // TODO: Type equality may be more complex than this test (e.g. alpha equivalent types should be equal)
                 if ty == *sort { td }
                 else {
                     td.clas = Err(TypeError::AnnoMism);
@@ -1111,7 +1109,7 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ_raw:&Type) -> 
             if let Type::Nm(ref _idx) = *typ {
                 match n { 
                     &Name::NoParse(ref s) => fail(td, TypeError::NoParse(s.clone())),
-                    // TODO: check that n is a member of idx
+                    // TODO-Next: check that n is a member of idx
                     _ => succ(td, typ.clone())
                 }
             } else { fail(td, TypeError::AnnoMism) }
@@ -1125,7 +1123,7 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ_raw:&Type) -> 
                 let td = ValRule::NameFn(td0);
                 match typ0 {
                     Err(_) => fail(td, TypeError::ParamNoCheck(0)),
-                    // TODO: check equivalence of nmtm and nt
+                    // TODO-Next: check equivalence of nmtm and nt
                     Ok(_) => succ(td, typ.clone())
                 }
             } else { fail(ValRule::NameFn(
@@ -1178,7 +1176,7 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ_raw:&Type) -> 
                 let td0 = check_exp(last_label, ctx, &*e, &*ce);
                 let typ0 = td0.clas.clone();
                 let td = ValRule::ThunkAnon(td0);
-                // TODO: use this once effects are implemented
+                // TODO-Next: use this once effects are implemented
                 // if IdxTm::Empty != *idx {
                 //     return fail(td, TypeError::InvalidPtr)
                 // }

@@ -253,20 +253,8 @@ pub mod equiv {
     #[derive(Clone,Debug,Eq,PartialEq,Hash)]
     pub enum TypeRule {
         Refl(Type),
-        Var(Var2),
-        Sum(TypeDec, TypeDec),
-        Prod(TypeDec, TypeDec),
-        Ref(IdxTm, TypeDec),
-        Thk(IdxTm, CEffectDec),
-        IdxApp(TypeDec, IdxTmDec),
-        TypeApp(TypeDec, TypeDec),
-        Nm(IdxTm),
-        NmFn(NameTm),
-        TypeFn(Var2, Kind, TypeDec),
-        IdxFn(Var2, Sort, TypeDec),
-        Rec(Var2, TypeDec),
-        Exists(Var2, SortRec, Prop, TypeDec),
-        NoParse(String),
+        SubsetNorm(Type,Type),
+        Fail,
     }
     pub type TypeDec  = Dec<TypeRule>;
     impl HasClas for TypeRule {
@@ -317,7 +305,6 @@ pub mod equiv {
         };
         match (&*m.rule,&*n.rule) {
             (mr,nr) if nr == mr => { succ(NmTmRule::Refl(n.clone())) }
-            // TODO: all struct cases
             (&BiNmTm::Var(ref v1),&BiNmTm::Var(ref v2)) => {
                 if ctx.lookup_nvareq(v1,v2,g) {
                     succ(NmTmRule::Var((v1.clone(),v2.clone())))
@@ -421,7 +408,6 @@ pub mod equiv {
         };
         match (&*i.rule,&*j.rule) {
             (_ir, _jr) if i == j => { succ(IdxTmRule::Refl(i.clone())) }
-            // TODO: all struct cases
             (&BiIdxTm::Var(ref v1),&BiIdxTm::Var(ref v2)) => {
                 if ctx.lookup_ivareq(v1,v2,g) {
                     succ(IdxTmRule::Var((v1.clone(),v2.clone())))
@@ -545,6 +531,7 @@ pub mod equiv {
 
     /// Decide if two type terms are equivalent under the given context
     pub fn decide_type_equiv(ctx: &RelCtx, a:&Type, b:&Type, k:&Kind) -> TypeDec {
+        // Subcase: "On the nose" equal:
         if a == b {
             return Dec{
                 ctx:ctx.clone(),
@@ -553,15 +540,29 @@ pub mod equiv {
                 res:Ok(true),
             }
         }
-        else {        
-            // TODO: the types are not identical, but could still be
-            // equivalent.  TODO: Use structural/deductive equiv
-            // rules.
-
-            // NOTE #2: This is a low priority over name and index
-            // term _apartness_ checks, which are likely to be the
-            // most important in many common examples.
-            unimplemented!()
+        else {
+            // Subcase: Otherwise, they aren't "on the nose equal",
+            // but perhaps we can normalize them, use alpha-reasoning,
+            // or use the context somehow to identify them; So, here
+            // we reuse the subset reasoning logic, in each direction:
+            if subset::decide_type_subset_norm(ctx, a, b) &&
+                subset::decide_type_subset_norm(ctx, b, a)
+            {
+                return Dec{
+                    ctx:ctx.clone(),
+                    rule:Rc::new(TypeRule::SubsetNorm(a.clone(), b.clone())),
+                    clas:k.clone(),
+                    res:Ok(true),
+                }
+            }
+            else {
+                return Dec{
+                    ctx:ctx.clone(),
+                    rule:Rc::new(TypeRule::Fail),
+                    clas:k.clone(),
+                    res:Ok(false),
+                }
+            }
         }
     }
 }
@@ -598,8 +599,6 @@ pub mod subset {
         FlatMap(IdxTmDec, IdxTmDec),
         Star(IdxTmDec, IdxTmDec),
         // - - - - - - - - - - - - - - - - -
-        SubsetHacks(Option<Rc<IdxTmDec>>),
-        SubsetCongr(normal::NmSet,normal::NmSet),
         SubsetRefl(normal::NmSetTm),
         NoParse(String),
         Fail,
@@ -649,10 +648,11 @@ pub mod subset {
 
         let b     = normal::normal_idxtm(&ctx2, j.clone());
         let b_bit = bitype::synth_idxtm(None, &ctx2, &b);
-        
-        //println!("decide_idxtm_subset:\n  {:?}\n  {:?}\n", a, b);
+
+        // Basecase: "On the nose" equality.
+        //
+        // TODO: Use equiv module instead, to relate alpha-equiv terms.
         if a == b {
-            //println!("decide_idxtm_subset:\n  {:?}\n  {:?}\nTRUE(2)!", a, b);
             return Dec{
                 ctx:ctx.clone(),
                 rule:Rc::new(IdxTmRule::Refl(b_bit)),
@@ -660,20 +660,39 @@ pub mod subset {
                 res:Ok(true)
             }
         } else { match b {
+            // Else: The terms are not equal, but perhaps they are:
+            //
+            // 1.  Related as propositions of the form `(x = x1%x2)
+            //     true` in the _unary context_, where each of `x1` and
+            //     `x2` is related to `x` by the equation.
+            //
+            // 2.  Related by assumed equivalences of the form `x1 == x2 :
+            //     NmSet` in the _relational context_.
+            //
+            // 3.  Related by the "larger" set being a caonical form name set
+            //     (`normal::NmSet`), with the smaller set as one of
+            //     its subterms.
+            //
+            // 4.  Each sets in caonical form, as name sets
+            //     (`normal::NmSet`), with the smaller set as a subset of
+            //     the larger set.
+            //
+            // 5.  Related in some other way (?)
+            //
+            //
+            // TODO-Someday: Create IdxTmDec rules for the different cases above.
+            //
             IdxTm::Var(x) => {
-                // Subcase: The other term is not a variable, or it
-                // is, but they are related directly in `ctx`.
-                //
-                // So, if it is possible to subdivide term `b` using
-                // equivalences, then do so. TODO: Return a Vec<_>;
-                // try each possible decomposition.
+                // Subcase 1: subdivide term for `x` using
+                // propositions.  For each, try to find a subset
+                // relationship.  TODO: Return a Vec<_>; try each
+                // possible decomposition.
                 fn simple_solver(ctx:&RelCtx,ctx2:&Ctx,a:IdxTm,x:&String) -> IdxTmDec {
                     let xdef : Option<IdxTm> = find_defs_for_idxtm_var(&ctx2, &x);
                     match xdef {
                         // Not enough info.
                         None => {
                             println!("No defs for {}, looking for subset:\t\n{:?}", x, &a);
-                            //simple_solver(&ctx,&ctx2,a,&x)
                             panic!("TODO: {:?}", ctx)
                         }
                         // Use def to try to reason further; TODO:
@@ -685,8 +704,8 @@ pub mod subset {
                 };
                 if let IdxTm::Var(y) = a.clone() {
                     if ctx.lookup_ivareq(&y, &x, &Sort::NmSet) {
-                        // Subcase: The other term is a variable, and they
-                        // are related in the relational `ctx`.
+                        // Subcase 2: Both terms are variables, and
+                        // they are related in the relational `ctx`.
                         return Dec{
                             ctx:ctx.clone(),
                             rule:Rc::new(IdxTmRule::Var((x, y))),
@@ -696,6 +715,9 @@ pub mod subset {
                     } else { simple_solver(&ctx,&ctx2,a,&x) }
                 } else { simple_solver(&ctx,&ctx2,a,&x) }
             },
+            // Subcase 3:  The "larger" set is a caonical form name
+            // set (`normal::NmSet`), with the smaller set as a
+            // subterm.
             IdxTm::NmSet(b_ns) => {
                 match a {                        
                     IdxTm::Var(_) => {
@@ -721,15 +743,19 @@ pub mod subset {
                             res:Err(DecError::SubsetSearchFailure)
                         }
                     },
-                    IdxTm::NmSet(_a_ns) => {
-                        // If the terms normalize, then by canonical
-                        // forms, both should each be NmSets.  For
-                        // each term in `a`'s decomposition, attempt
-                        // to find a matching (equivalent) term in
-                        // `b`'s decomposition.  Each match in `b` may
-                        // be used at most once.
+                    IdxTm::NmSet(_a_ns) => {                        
+                        // Subcase 4: Check subset relationship, at
+                        // the "term" level: If the terms normalize,
+                        // then by canonical forms, both should each
+                        // be NmSets.
+                        //
+                        // For each term in `a`'s decomposition,
+                        // attempt to find a matching (equivalent)
+                        // term in `b`'s decomposition.  Each match in
+                        // `b` may be used at most once.
                         unimplemented!()
                     }
+                    // Subcase 5: "Other"
                     a => panic!("{:?}", a)
                 }
             },
@@ -940,10 +966,9 @@ pub mod subset {
         }
     }
     
-    /// Decide type subset relation
+    /// Decide type subset relation on normalized versions of the given terms.
     pub fn decide_type_subset_norm(ctx: &RelCtx, a:Type, b:Type) -> bool {
-        //println!("decide_type_subset: {:?}", a);
-        // XXX-TODO: Make this cheaper
+        // TODO-someday: Make this operation cheaper somehow (use traits in a clever way?)
         let (ctx1, ctx2) = ctxs_of_relctx((*ctx).clone());
         let a = normal::normal_type(&ctx1, &a);
         let b = normal::normal_type(&ctx2, &b);
@@ -1124,9 +1149,6 @@ pub mod apart {
     ///
     /// Fig. 24 of https://arxiv.org/abs/1610.00097v5
     ///
-    /// Note: Removed D-Proj1 and D-Proj2, which are stale and should
-    /// not be there in the rules.
-    ///
     #[derive(Clone,Debug,Eq,PartialEq,Hash)]
     pub enum NmTmRule {
         Var(Var2),
@@ -1148,7 +1170,7 @@ pub mod apart {
         fn tm_fam() -> String { "NmTm".to_string() }
     }
     
-    /// One side of an index term apartness
+    /// Index term apartness rules
     ///
     /// Fig. 29 of https://arxiv.org/abs/1610.00097v5
     ///
@@ -1203,8 +1225,6 @@ pub mod apart {
             }
         };
         match (&*m.rule,&*n.rule) {
-            // TODO: Use structural/deductive apartness rules.  Also, do
-            // normalization of the name term (aka, beta reduction).
             (&BiNmTm::Var(ref v1),&BiNmTm::Var(ref v2)) => {
                 if ctx.lookup_nvarapart(v1,v2,g) {
                     succ(NmTmRule::Var((v1.clone(),v2.clone())))
@@ -1308,10 +1328,6 @@ pub mod apart {
             }
         };
         match (&*i.rule,&*j.rule) {
-            // TODO: Use structural/deductive apartness rules. Also, do
-            // normalization of the index term (aka, beta reduction).
-            // Need to be careful not to expand Kleene star indefintely,
-            // though. :)
             (&BiIdxTm::Var(ref v1),&BiIdxTm::Var(ref v2)) => {
                 if ctx.lookup_ivarapart(v1,v2,g) {
                     succ(IdxTmRule::Var((v1.clone(),v2.clone())))
@@ -1423,7 +1439,6 @@ pub mod apart {
                 }
             }
             (_ir, _jr) => {
-                // TODO: Non-structural cases
                 unimplemented!("decide_idxtm_apart non-struct")
             }
         }
