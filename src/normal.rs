@@ -489,7 +489,11 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
             
             // all other identifiers are for defined types; look up the definition
             _ => { match ctx.lookup_type_def(ident) {
-                Some(a) => normal_type(ctx, &a),
+                Some(a) => {
+                    // If the definition is itself an identifier, it's a user type label
+                    if let Type::Ident(_) = a { a.clone() }
+                    else { normal_type(ctx, &a) }
+                },
                 _ => {
                     println!("undefined type: {} in\n{:?}", ident, ctx);
                     // Give up:
