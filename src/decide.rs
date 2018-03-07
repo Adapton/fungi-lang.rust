@@ -92,7 +92,7 @@ impl RelCtx {
     // }
     pub fn lookup_ivareq(&self, x1:&Var, x2:&Var, g:&Sort) -> bool {
         match self {
-            &RelCtx::NVarEquiv(ref c, ref v1, ref v2, ref s) => {
+            &RelCtx::IVarEquiv(ref c, ref v1, ref v2, ref s) => {
                 // TODO: sort compatibility?
                 if (x1 == v1) && (x2 == v2) && (g == s) { true }
                 else { c.lookup_ivareq(x1,x2,g) }
@@ -617,6 +617,11 @@ pub mod subset {
             &Ctx::Empty => None,
             &Ctx::PropTrue(_, Prop::Equiv(IdxTm::Var(ref x_), ref i,_)) if x == x_ => Some(i.clone()),
             &Ctx::PropTrue(_, Prop::Equiv(ref i, IdxTm::Var(ref x_),_)) if x == x_ => Some(i.clone()),
+            &Ctx::PropTrue(_, Prop::Equiv(ref i, ref j, ref g)) => {
+                // This is the not the prop that we are looking for; but perhaps print it.
+                //println!("PropTrue: {:?} == {:?} : {:?}", i, j, g);
+                find_defs_for_idxtm_var(&*(ctx.rest().unwrap()), x)
+            },
             _ => find_defs_for_idxtm_var(&*(ctx.rest().unwrap()), x)
         }
     }
@@ -656,19 +661,40 @@ pub mod subset {
             }
         } else { match b {
             IdxTm::Var(x) => {
-                // If it is possible to subdivide term `b` using
-                // equivalences, then do so. TODO: Return a
-                // Vec<_>; try each possible decomposition.
-                let xdef : Option<IdxTm> = find_defs_for_idxtm_var(&ctx2, &x);
-                match xdef {
-                    // Not enough info.
-                    None => panic!("No defs:\t\n{:?}\t\n{:?}", &a, x),
-                    // Use def to try to reason further; TODO:
-                    // backtrack if we fail and try next def.
-                    Some(xdef) => {
-                        decide_idxtm_subset(ctx, &a, &xdef)
+                // Subcase: The other term is not a variable, or it
+                // is, but they are related directly in `ctx`.
+                //
+                // So, if it is possible to subdivide term `b` using
+                // equivalences, then do so. TODO: Return a Vec<_>;
+                // try each possible decomposition.
+                fn simple_solver(ctx:&RelCtx,ctx2:&Ctx,a:IdxTm,x:&String) -> IdxTmDec {
+                    let xdef : Option<IdxTm> = find_defs_for_idxtm_var(&ctx2, &x);
+                    match xdef {
+                        // Not enough info.
+                        None => {
+                            println!("No defs for {}, looking for subset:\t\n{:?}", x, &a);
+                            //simple_solver(&ctx,&ctx2,a,&x)
+                            panic!("TODO: {:?}", ctx)
+                        }
+                        // Use def to try to reason further; TODO:
+                        // backtrack if we fail and try next def.
+                        Some(xdef) => {
+                            decide_idxtm_subset(ctx, &a, &xdef)
+                        }
                     }
-                }
+                };
+                if let IdxTm::Var(y) = a.clone() {
+                    if ctx.lookup_ivareq(&y, &x, &Sort::NmSet) {
+                        // Subcase: The other term is a variable, and they
+                        // are related in the relational `ctx`.
+                        return Dec{
+                            ctx:ctx.clone(),
+                            rule:Rc::new(IdxTmRule::Var((x, y))),
+                            clas:Sort::NmSet,
+                            res:Ok(true),
+                        }
+                    } else { simple_solver(&ctx,&ctx2,a,&x) }
+                } else { simple_solver(&ctx,&ctx2,a,&x) }
             },
             IdxTm::NmSet(b_ns) => {
                 match a {                        

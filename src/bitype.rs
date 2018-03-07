@@ -148,7 +148,16 @@ impl Ctx {
             },
             ref c => c.rest().unwrap().lookup_idxtm_def(x)
         }        
-    }    
+    }
+    //TODO: Return a Vec<_>; try each possible decomposition.
+    pub fn find_defs_for_idxtm_var(&self, x:&Var) -> Option<IdxTm> {
+        match self {
+            &Ctx::Empty => None,
+            &Ctx::PropTrue(_, Prop::Equiv(IdxTm::Var(ref x_), ref i,_)) if x == x_ => Some(i.clone()),
+            &Ctx::PropTrue(_, Prop::Equiv(ref i, IdxTm::Var(ref x_),_)) if x == x_ => Some(i.clone()),
+            _ => self.rest().unwrap().find_defs_for_idxtm_var(x)
+        }
+    }
 }
 
 pub trait HasClas {
