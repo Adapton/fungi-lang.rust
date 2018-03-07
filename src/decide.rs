@@ -623,7 +623,10 @@ pub mod subset {
 
     /// Decide if a proposition is true under the given context
     pub fn decide_prop(_ctx: &RelCtx, p:Prop) -> bool {
-        unimplemented!("{:?}", p)
+        match p {
+            Prop::Tt => true,
+            _ => { println!("{:?}", p); false }
+        }
     }
    
     // -------------------------------------------------------------
