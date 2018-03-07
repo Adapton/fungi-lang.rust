@@ -8,7 +8,7 @@ mod fungi_stdlib_examples {
         use fungi_lang::ast::*;
         use fungi_lang::bitype::*;
         use fungi_lang::vis::*;
-        use fungi_lang::eval::*;
+        //use fungi_lang::eval::*;
         use fungi_lang::stdlib::seq::{seq_nat};
         
         let bundle : Bundle = fgi_bundle![            
@@ -44,7 +44,7 @@ fn bitype2() {
     use fungi_lang::ast::*;
     use fungi_lang::bitype::*;
     use fungi_lang::vis::*;
-    use fungi_lang::eval::*;
+    //use fungi_lang::eval::*;
 
     let bundle : Bundle = fgi_bundle![
 

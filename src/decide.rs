@@ -206,8 +206,9 @@ pub mod equiv {
         App(NmTmDec, NmTmDec),
         NoParse(String),
     }
-    pub type NmTmDec  = Dec<NmTmRule>;
+    pub type NmTmDec  = Dec<NmTmRule>;    
     impl HasClas for NmTmRule {
+        type Term = NameTm;
         type Clas = Sort;
         fn tm_fam() -> String { "NmTm".to_string() }
     }
@@ -234,6 +235,7 @@ pub mod equiv {
     }
     pub type IdxTmDec  = Dec<IdxTmRule>;
     impl HasClas for IdxTmRule {
+        type Term = IdxTm;
         type Clas = Sort;
         fn tm_fam () -> String { "IdxTm".to_string() }
     }
@@ -259,6 +261,7 @@ pub mod equiv {
     }
     pub type TypeDec  = Dec<TypeRule>;
     impl HasClas for TypeRule {
+        type Term = Type;
         type Clas = Kind;
         fn tm_fam() -> String { "Type".to_string() }
     }    
@@ -269,8 +272,9 @@ pub mod equiv {
         /// Every term is equal to itself
         Refl(CEffect),
     }
-    pub type CEffectDec  = Dec<CEffectRule>;
+    pub type CEffectDec  = Dec<CEffectRule>;    
     impl HasClas for CEffectRule {
+        type Term = CEffect;
         type Clas = Kind;
         fn tm_fam() -> String { "CEffect".to_string() }
     }    
@@ -592,6 +596,7 @@ pub mod subset {
     }
     pub type IdxTmDec  = Dec<IdxTmRule>;
     impl HasClas for IdxTmRule {
+        type Term = IdxTm;
         type Clas = Sort;
         fn tm_fam () -> String { "IdxTm".to_string() }
     }
@@ -837,7 +842,7 @@ pub mod subset {
                 // Assume sort NmSet
                 let nmarrow = Sort::NmArrow(Rc::new(Sort::Nm),Rc::new(Sort::Nm));
                 let left = decide_nmtm_equiv(ctx,m,n,&nmarrow);
-                let right = decide_idxtm_subset_congr(ctx,x,y,&Sort::NmSet);
+                let right = decide_idxtm_subset(ctx, &*x.term, &*y.term);
                 let (l,r) = (left.res.clone(),right.res.clone());
                 let der = IdxTmRule::Map(left,right);
                 match (l,r) {
@@ -846,9 +851,24 @@ pub mod subset {
                     (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
                 }
             }
-            (ir, jr) => {
-                use bitype::debug::DerRule;                
-                println!("{:?} {:?}", ir.short(), jr.short());
+            (&BiIdxTm::FlatMap(ref i1, ref j1),&BiIdxTm::FlatMap(ref i2, ref j2)) => {
+                let nmsetarrow = Sort::NmArrow(Rc::new(Sort::NmSet),Rc::new(Sort::NmSet));
+                let left = decide_idxtm_subset_congr(ctx,i1,i2,&nmsetarrow);
+                let right = decide_idxtm_subset(ctx, &*j1.term, &*j2.term);
+                let (l,r) = (left.res.clone(),right.res.clone());
+                let der = IdxTmRule::FlatMap(left,right);
+                match (l,r) {
+                    (Ok(true),Ok(true)) => succ(der),
+                    (Ok(_),Ok(_)) => fail(der),
+                    (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
+                }
+            }
+            (&BiIdxTm::Star(ref _i1, ref _j1),&BiIdxTm::Star(ref _i2, ref _j2)) => {
+                unimplemented!()
+            }
+            (_, _) => {
+                //use bitype::debug::DerRule;
+                println!("{:?} {:?}", i.term, j.term);
                 unimplemented!()
             }
         }
@@ -1044,6 +1064,7 @@ pub mod apart {
     }
     pub type NmTmDec  = Dec<NmTmRule>;
     impl HasClas for NmTmRule {
+        type Term = NameTm;
         type Clas = Sort;
         fn tm_fam() -> String { "NmTm".to_string() }
     }
@@ -1071,6 +1092,7 @@ pub mod apart {
     }
     pub type IdxTmDec  = Dec<IdxTmRule>;
     impl HasClas for IdxTmRule {
+        type Term = IdxTm;
         type Clas = Sort;
         fn tm_fam () -> String { "IdxTm".to_string() }
     }

@@ -152,7 +152,8 @@ impl Ctx {
 }
 
 pub trait HasClas {
-    type Clas;
+    type Term;
+    type Clas;    
     fn tm_fam() -> String;
 }
 
@@ -161,8 +162,9 @@ pub trait HasClas {
 pub struct Der<Rule:HasClas+debug::DerRule> {
     pub ctx:Ctx,
     pub dir:Dir<Rule>,
-    pub rule:Rc<Rule>,
+    pub term:Rc<Rule::Term>,
     pub clas:Result<Rule::Clas,TypeError>,
+    pub rule:Rc<Rule>,
     pub vis:DerVis,
 }
 impl<Rule:HasClas+debug::DerRule> PartialEq for Der<Rule> where
@@ -209,6 +211,7 @@ pub enum NmTmRule {
 }
 pub type NmTmDer = Der<NmTmRule>;
 impl HasClas for NmTmRule {
+    type Term = NameTm;
     type Clas = Sort;
     fn tm_fam() -> String { "NmTm".to_string() }
 }
@@ -237,6 +240,7 @@ pub enum IdxTmRule {
 }
 pub type IdxTmDer = Der<IdxTmRule>;
 impl HasClas for IdxTmRule {
+    type Term = IdxTm;
     type Clas = Sort;
     fn tm_fam () -> String { "IdxTm".to_string() }
 }
@@ -262,6 +266,7 @@ pub enum ValRule {
 }
 pub type ValDer = Der<ValRule>;
 impl HasClas for ValRule {
+    type Term = Val;
     type Clas = Type;
     fn tm_fam () -> String { "Val".to_string() }
 }
@@ -338,6 +343,7 @@ pub enum DeclClas {
 /// Module declaration typing derivation
 pub type DeclDer = Der<DeclRule>;
 impl HasClas for DeclRule {
+    type Term = ();
     type Clas = DeclClas;
     fn tm_fam () -> String { "Decl".to_string() }
 }
@@ -375,6 +381,7 @@ pub enum ExpRule {
 }
 pub type ExpDer = Der<ExpRule>;
 impl HasClas for ExpRule {
+    type Term = Exp;
     type Clas = CEffect;
     fn tm_fam () -> String { "Exp".to_string() }
 }
@@ -523,7 +530,7 @@ fn result_is_local_error<X>(x:&Result<X,TypeError>) -> bool {
 
 fn failure<R:HasClas+debug::DerRule>
     (dir:Dir<R>, last_label:Option<&str>,
-     ctx:&Ctx, n:R, err:TypeError) -> Der<R>
+     ctx:&Ctx, tm:R::Term, n:R, err:TypeError) -> Der<R>
 {
     if let Some(lbl) = last_label {print!("After {}, ", lbl)}
     let is_local_err = error_is_local(&err);
@@ -531,6 +538,7 @@ fn failure<R:HasClas+debug::DerRule>
     println!("Failed to {} {} {}, error: {}", dir.short(), R::term_desc(), n.short(), err);
     Der{
         ctx: ctx.clone(),
+        term: Rc::new(tm),
         rule: Rc::new(n),
         dir: dir,
         clas: Err(err),
@@ -543,10 +551,11 @@ fn failure<R:HasClas+debug::DerRule>
 
 fn success<R:HasClas+debug::DerRule>
     (dir:Dir<R>, _last_label:Option<&str>,
-     ctx:&Ctx, rule:R, clas:R::Clas) -> Der<R>
+     ctx:&Ctx, tm:R::Term, rule:R, clas:R::Clas) -> Der<R>
 {
     Der{
         ctx: ctx.clone(),
+        term: Rc::new(tm),
         rule: Rc::new(rule),
         dir: dir,
         clas: Ok(clas),
@@ -559,10 +568,11 @@ fn success<R:HasClas+debug::DerRule>
 
 fn propagate<R:HasClas+debug::DerRule>
     (dir:Dir<R>, _last_label:Option<&str>,
-     ctx:&Ctx, rule:R, result:Result<R::Clas,TypeError>) -> Der<R>
+     ctx:&Ctx, tm:R::Term, rule:R, result:Result<R::Clas,TypeError>) -> Der<R>
 {
     Der{
         ctx: ctx.clone(),
+        term: Rc::new(tm),
         rule: Rc::new(rule),
         dir: dir,
         clas: result,
@@ -575,8 +585,8 @@ fn propagate<R:HasClas+debug::DerRule>
 
 /// synthesize sort for index term
 pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer {
-    let fail = |td:IdxTmRule, err :TypeError| { failure(Dir::Synth, last_label, ctx, td, err)  };
-    let succ = |td:IdxTmRule, sort:Sort     | { success(Dir::Synth, last_label, ctx, td, sort) };
+    let fail = |r:IdxTmRule, err :TypeError| { failure(Dir::Synth, last_label, ctx, idxtm.clone(), r, err)  };
+    let succ = |r:IdxTmRule, sort:Sort     | { success(Dir::Synth, last_label, ctx, idxtm.clone(), r, sort) };
     match idxtm {
         &IdxTm::Ident(ref x) => {
             let rule = IdxTmRule::Var(x.clone());
@@ -812,8 +822,8 @@ pub fn check_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm, sort:&Sort) 
 
 /// synthesize sort for name term
 pub fn synth_nmtm(last_label:Option<&str>, ctx:&Ctx, nmtm:&NameTm) -> NmTmDer {
-    let fail = |td:NmTmRule, err :TypeError| { failure(Dir::Synth, last_label, ctx, td, err)  };
-    let succ = |td:NmTmRule, sort:Sort     | { success(Dir::Synth, last_label, ctx, td, sort) };
+    let fail = |td:NmTmRule, err :TypeError| { failure(Dir::Synth, last_label, ctx, nmtm.clone(), td, err)  };
+    let succ = |td:NmTmRule, sort:Sort     | { success(Dir::Synth, last_label, ctx, nmtm.clone(), td, sort) };
     match nmtm {
         &NameTm::Var(ref x) => {
             let td = NmTmRule::Var(x.clone());
@@ -903,8 +913,8 @@ pub fn check_nmtm(last_label:Option<&str>, ctx:&Ctx, nmtm:&NameTm, sort:&Sort) -
 
 /// synthesize sort for value term
 pub fn synth_val(last_label:Option<&str>, ctx:&Ctx, val:&Val) -> ValDer {
-    let fail = |td:ValRule, err :TypeError| { failure(Dir::Synth, last_label, ctx, td, err)  };
-    let succ = |td:ValRule, typ :Type     | { success(Dir::Synth, last_label, ctx, td, typ) };
+    let fail = |td:ValRule, err :TypeError| { failure(Dir::Synth, last_label, ctx, val.clone(), td, err)  };
+    let succ = |td:ValRule, typ :Type     | { success(Dir::Synth, last_label, ctx, val.clone(), td, typ) };
     match val {
         &Val::Var(ref x) => {
             let td = ValRule::Var(x.clone());
@@ -1006,8 +1016,8 @@ pub fn synth_val(last_label:Option<&str>, ctx:&Ctx, val:&Val) -> ValDer {
 
 /// check sort against value term
 pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
-    let fail = |td:ValRule, err :TypeError| { failure(Dir::Check(typ_raw.clone()), last_label, ctx, td, err)  };
-    let succ = |td:ValRule, typ :Type     | { success(Dir::Check(typ_raw.clone()), last_label, ctx, td, typ) };
+    let fail = |td:ValRule, err :TypeError| { failure(Dir::Check(typ_raw.clone()), last_label, ctx, val.clone(), td, err)  };
+    let succ = |td:ValRule, typ :Type     | { success(Dir::Check(typ_raw.clone()), last_label, ctx, val.clone(), td, typ) };
     // Normalize the type
     let typ = &(normal::normal_type(ctx, typ_raw));
     match val {
@@ -1016,20 +1026,16 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ_raw:&Type) -> 
             match ctx.lookup_var(x) {
                 None => fail(td, TypeError::VarNotInScope(x.clone())),
                 Some(x_typ_raw) => {
-                    let x_typ = normal::normal_type(ctx, &x_typ_raw);
-                    // TODO: Type equality may be more complex than this test (e.g. alpha equivalent types should be equal)
-                    // XXX -- TODO-next
-                    if x_typ == *typ { succ(td, x_typ) }
-                    else if x_typ_raw == *typ_raw { succ(td, x_typ_raw) }
-                    else {
-                        let subset_flag = decide::subset::decide_type_subset(
+                    let subset_flag = decide::subset::decide_type_subset(
                             &decide::relctx_of_ctx(&ctx),
                             x_typ_raw.clone(), typ_raw.clone()
-                        );                        
+                    );                    
+                    if subset_flag { succ(td, x_typ_raw) }
+                    else {
                         // Print info to help us figure out what's needed from the type-equiv reasoning
                         println!("==================================================================================");
                         println!("Detailed errors for checking type of variable {}:", x);
-                        println!("** Variable {}'s normal type:\n{:?} \n\n NOT-EQUAL-TO checking normal type\n{:?}\n", x, x_typ, typ);
+                        //println!("** Variable {}'s normal type:\n{:?} \n\n NOT-EQUAL-TO checking normal type\n{:?}\n", x, x_typ, typ);
                         println!(".. Variable {}'s raw type:\n{:?} \n\n NOT-EQUAL-TO checking raw type\n{:?}\n", x, x_typ_raw, typ_raw);
                         println!("");
                         println!(".. subset holds: {}\n", subset_flag);
@@ -1090,7 +1096,7 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ_raw:&Type) -> 
             let vd = check_val(last_label, ctx, v, typ);
             let vt = vd.clas.clone();
             propagate(Dir::Check(typ.clone()), last_label,
-                      ctx, ValRule::Roll(vd), vt)
+                      ctx, val.clone(), ValRule::Roll(vd), vt)
         },
         &Val::Name(ref n) => {
             let td = ValRule::Name(n.clone());
@@ -1222,6 +1228,7 @@ pub fn synth_items(last_label:Option<&str>, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule
         let is_local_err = result_is_local_error(&res);
         Der{
             ctx:ctx,
+            term:Rc::new(()),
             dir:Dir::Synth,
             rule:Rc::new(rule),
             clas:res,
@@ -1360,10 +1367,10 @@ pub fn synth_module(last_label:Option<&str>, m:&Rc<Module>) -> ModuleDer {
 
 /// Synthesize a type and effect for a program expression
 pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
-    let fail = |r:ExpRule, err :TypeError| { failure(Dir::Synth, last_label, ctx, r, err) };
-    let succ = |r:ExpRule, typ :CEffect  | { success(Dir::Synth, last_label, ctx, r, typ) };
+    let fail = |r:ExpRule, err :TypeError| { failure(Dir::Synth, last_label, ctx, exp.clone(), r, err) };
+    let succ = |r:ExpRule, typ :CEffect  | { success(Dir::Synth, last_label, ctx, exp.clone(), r, typ) };
     let prop = |r:ExpRule, res:Result<CEffect,TypeError> | {
-        propagate(Dir::Synth, last_label, ctx, r, res)
+        propagate(Dir::Synth, last_label, ctx, exp.clone(), r, res)
     };
     match exp {
         &Exp::Decls(ref decls, ref exp) => {
@@ -1765,8 +1772,8 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
 
 /// Check a type and effect against a program expression
 pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
-    let fail = |td:ExpRule, err :TypeError| { failure(Dir::Check(ceffect.clone()), last_label, ctx, td, err) };
-    let succ = |td:ExpRule, typ :CEffect  | { success(Dir::Check(ceffect.clone()), last_label, ctx, td, typ) };
+    let fail = |td:ExpRule, err :TypeError| { failure(Dir::Check(ceffect.clone()), last_label, ctx, exp.clone(), td, err) };
+    let succ = |td:ExpRule, typ :CEffect  | { success(Dir::Check(ceffect.clone()), last_label, ctx, exp.clone(), td, typ) };
     match exp {
         &Exp::Fix(ref x,ref e) => {            
             let new_ctx = ctx.var(x.clone(), Type::Thk(IdxTm::Empty, Rc::new(ceffect.clone())));
