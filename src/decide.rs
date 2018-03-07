@@ -645,9 +645,9 @@ pub mod subset {
         let b     = normal::normal_idxtm(&ctx2, j.clone());
         let b_bit = bitype::synth_idxtm(None, &ctx2, &b);
         
-        println!("decide_idxtm_subset:\n  {:?}\n  {:?}\n", a, b);
+        //println!("decide_idxtm_subset:\n  {:?}\n  {:?}\n", a, b);
         if a == b {
-            println!("decide_idxtm_subset:\n  {:?}\n  {:?}\nTRUE(2)!", a, b);
+            //println!("decide_idxtm_subset:\n  {:?}\n  {:?}\nTRUE(2)!", a, b);
             return Dec{
                 ctx:ctx.clone(),
                 rule:Rc::new(IdxTmRule::Refl(b_bit)),
@@ -677,8 +677,8 @@ pub mod subset {
                         let a_ns_tm = normal::NmSetTm::Subset(a);
                         for b_ns_tm in b_ns.terms.iter() {
                             if b_ns_tm == &a_ns_tm {
-                                println!("decide_idxtm_subset:\n  {:?}\n  {:?}\nTRUE(3)!",
-                                         b_ns_tm, a_ns_tm);
+                                //println!("decide_idxtm_subset:\n  {:?}\n  {:?}\nTRUE(3)!",
+                                //b_ns_tm, a_ns_tm);
                                 return Dec{
                                     ctx:ctx.clone(),
                                     rule:Rc::new(IdxTmRule::SubsetRefl(a_ns_tm)),
@@ -905,12 +905,22 @@ pub mod subset {
     pub fn decide_idxtm_subset_simple(ctx: &RelCtx, i:&IdxTm, j:&IdxTm) -> bool
     {
         let d = decide_idxtm_subset(ctx, &i, &j);
-        d.res == Ok(true)
+        if d.res == Ok(true) {
+            return true
+        }
+        else {
+            println!("decide_idxtm_subset: failed:\n\t{:?}\n\t{:?}", i, j);
+            return false
+        }
     }
     
     /// Decide type subset relation
     pub fn decide_type_subset(ctx: &RelCtx, a:Type, b:Type) -> bool {
+        //println!("decide_type_subset: {:?}", a);
+        // XXX-TODO: Make this cheaper
         let (ctx1, ctx2) = ctxs_of_relctx((*ctx).clone());
+        let a = normal::normal_type(&ctx1, &a);
+        let b = normal::normal_type(&ctx2, &b);
         if a == b { true } else {
             match (a,b) {
                 (Type::Ident(x), b) => {
@@ -981,10 +991,11 @@ pub mod subset {
                     // extending context with p1, to prove p2. Show
                     // that a1 <= a2.
                     if g1 == g2 {
-                        decide_prop(&ctx.prop_true(p1), p2)
-                            &&
-                            decide_type_subset_rec(&ctx.add_ivars(x1, x2, (*g1).clone()),
-                                                   a1, a2)
+                        // XXX/TODO
+                        //decide_prop(&ctx.prop_true(p1), p2)
+                        //&&
+                        decide_type_subset_rec(&ctx.add_ivars(x1, x2, (*g1).clone()),
+                                               a1, a2)
                     } else {
                         false
                             

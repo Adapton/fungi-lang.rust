@@ -1033,13 +1033,11 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ_raw:&Type) -> 
                     );                    
                     if subset_flag { succ(td, x_typ_raw) }
                     else {
-                        // Print info to help us figure out what's needed from the type-equiv reasoning
                         println!("==================================================================================");
                         println!("Detailed errors for checking type of variable {}:", x);
-                        //println!("** Variable {}'s normal type:\n{:?} \n\n NOT-EQUAL-TO checking normal type\n{:?}\n", x, x_typ, typ);
-                        println!(".. Variable {}'s raw type:\n{:?} \n\n NOT-EQUAL-TO checking raw type\n{:?}\n", x, x_typ_raw, typ_raw);
+                        println!(".. Variable {}'s type:\n{:?} \n\n...does not check against type:\n{:?}\n", x, x_typ_raw, typ_raw);
                         println!("");
-                        println!(".. subset holds: {}\n", subset_flag);
+                        println!(".. type-subset holds: {}\n", subset_flag);
                         println!("- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ");
                         fail(td, TypeError::AnnoMism)
                     }
@@ -1419,7 +1417,7 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
             match typ0 {
                 Ok(ty) => succ(td, ty),
                 Err(_err) => {                    
-                    fail(td, TypeError::CheckFailCEffect((et.clone())))
+                    fail(td, TypeError::CheckFailCEffect(et.clone()))
                 }
             }
         },
