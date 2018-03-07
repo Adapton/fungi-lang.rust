@@ -1123,7 +1123,7 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ_raw:&Type) -> 
                 let td = ValRule::NameFn(td0);
                 match typ0 {
                     Err(_) => fail(td, TypeError::ParamNoCheck(0)),
-                    // TODO-Next: check equivalence of nmtm and nt
+                    // TODO-Soon: check equivalence of nmtm and nt
                     Ok(_) => succ(td, typ.clone())
                 }
             } else { fail(ValRule::NameFn(

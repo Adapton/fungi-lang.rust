@@ -545,8 +545,8 @@ pub mod equiv {
             // but perhaps we can normalize them, use alpha-reasoning,
             // or use the context somehow to identify them; So, here
             // we reuse the subset reasoning logic, in each direction:
-            if subset::decide_type_subset_norm(ctx, a, b) &&
-                subset::decide_type_subset_norm(ctx, b, a)
+            if subset::decide_type_subset_norm(ctx, a.clone(), b.clone()) &&
+                subset::decide_type_subset_norm(ctx, b.clone(), a.clone())
             {
                 return Dec{
                     ctx:ctx.clone(),
