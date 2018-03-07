@@ -47,6 +47,9 @@ impl RelCtx {
     pub fn nt_eq(&self,n1:&Var,n2:&Var,g:&Sort) -> Self {
         RelCtx::NVarEquiv(Rc::new(self.clone()),n1.clone(),n2.clone(),g.clone())
     }
+    pub fn lookup_type_def(&self, x:&Var) -> Option<Type> {
+        self.lookup_bitype_ctx().lookup_type_def(x)
+    }    
     pub fn rest(&self) -> Option<RelCtxRec> {
         match self {
             &RelCtx::Empty => None,
@@ -107,6 +110,12 @@ impl RelCtx {
             c => c.rest().map_or(false,|c|c.lookup_nvarapart(x1,x2,g))
         }
     }
+    pub fn lookup_bitype_ctx(&self) -> Ctx {
+        match self {
+            &RelCtx::Ctx(ref c) => c.clone(),
+            c => c.rest().map_or(Ctx::Empty,|c|c.lookup_bitype_ctx())
+        }
+    }    
     pub fn lookup_ivarapart(&self, x1:&Var, x2:&Var, g:&Sort) -> bool {
         match self {
             &RelCtx::IVarApart(ref c, ref v1, ref v2, ref s) => {
@@ -889,8 +898,17 @@ pub mod subset {
         let (ctx1, ctx2) = ctxs_of_relctx((*ctx).clone());
         if a == b { true } else {
             match (a,b) {
-                (Type::Var(x), Type::Var(y)) => {
-                    ctx.lookup_tvars(&x, &y)
+                (Type::Ident(x), b) => {
+                    match ctx.lookup_type_def(&x) {
+                        None => false,
+                        Some(a) => decide_type_subset(ctx, a, b)
+                    }
+                }
+                (a, Type::Ident(y)) => {
+                    match ctx.lookup_type_def(&y) {
+                        None => false,
+                        Some(b) => decide_type_subset(ctx, a, b)
+                    }
                 }
                 (Type::Unit, Type::Unit) => true,
                 (Type::Sum(a1, a2), Type::Sum(b1, b2)) => {
