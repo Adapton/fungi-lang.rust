@@ -587,6 +587,7 @@ pub mod subset {
         Empty,
         Apart(IdxTmDec, IdxTmDec),
         Union(IdxTmDec, IdxTmDec),
+        Bin(IdxTmDec, IdxTmDec),
         Unit,
         Pair(IdxTmDec, IdxTmDec),
         Proj1(IdxTmDec),
@@ -867,6 +868,17 @@ pub mod subset {
                 let (l,r) = (left.res.clone(),right.res.clone());
                 let der = IdxTmRule::FlatMap(left,right);
                 match (l,r) {
+                    (Ok(true),Ok(true)) => succ(der),
+                    (Ok(_),Ok(_)) => fail(der),
+                    (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
+                }
+            }
+            (&BiIdxTm::Bin(ref i1,ref i2),&BiIdxTm::Bin(ref j1,ref j2)) => {
+                let left = decide_idxtm_subset(ctx,&*i1.term,&*j1.term);
+                let right = decide_idxtm_subset(ctx,&*i2.term,&*j2.term);
+                let (r1,r2) = (left.res.clone(),right.res.clone());
+                let der = IdxTmRule::Bin(left,right);
+                match (r1,r2) {
                     (Ok(true),Ok(true)) => succ(der),
                     (Ok(_),Ok(_)) => fail(der),
                     (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)

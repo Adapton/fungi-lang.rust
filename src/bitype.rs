@@ -224,6 +224,7 @@ pub enum IdxTmRule {
     Empty,
     Apart(IdxTmDer, IdxTmDer),
     Union(IdxTmDer, IdxTmDer),
+    Bin(IdxTmDer, IdxTmDer),
     Unit,
     Pair(IdxTmDer, IdxTmDer),
     Proj1(IdxTmDer),
@@ -645,7 +646,7 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
             let td0 = synth_idxtm(last_label,ctx,idx0);
             let td1 = synth_idxtm(last_label,ctx,idx1);
             let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
-            let td = IdxTmRule::Union(td0,td1);
+            let td = IdxTmRule::Bin(td0,td1);
             match (typ0,typ1) {
                 (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
                 (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
@@ -2113,6 +2114,7 @@ pub mod debug {
                 IdxTmRule::Empty => "Empty",
                 IdxTmRule::Apart(_, _) => "Apart",
                 IdxTmRule::Union(_, _) => "Union",
+                IdxTmRule::Bin(_, _) => "Bin",
                 IdxTmRule::Unit => "Unit",
                 IdxTmRule::Pair(_, _) => "Pair",
                 IdxTmRule::Proj1(_) => "Proj1",
