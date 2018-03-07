@@ -232,6 +232,8 @@ pub enum IdxTmRule {
     FlatMap(IdxTmDer, IdxTmDer),
     Star(IdxTmDer, IdxTmDer),
     NoParse(String),
+    /// For normal::NmSet index terms
+    NmSet,
 }
 pub type IdxTmDer = Der<IdxTmRule>;
 impl HasClas for IdxTmRule {
@@ -571,10 +573,6 @@ fn propagate<R:HasClas+debug::DerRule>
     }
 }
 
-pub fn idxtm_of_idxtmder(i:IdxTmDer) -> IdxTm {
-    unimplemented!()
-}
-
 /// synthesize sort for index term
 pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer {
     let fail = |td:IdxTmRule, err :TypeError| { failure(Dir::Synth, last_label, ctx, td, err)  };
@@ -782,8 +780,8 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
             }
         },
         &IdxTm::NmSet(ref _s) => {
-            // This form is never written by the programmer; hence, we never have to derive a type for it
-            unreachable!()
+            let rule = IdxTmRule::NmSet;
+            succ(rule, Sort::NmSet)
         }
         &IdxTm::NoParse(ref s) => {
             fail(IdxTmRule::NoParse(s.clone()),TypeError::NoParse(s.clone()))
@@ -2119,6 +2117,7 @@ mod debug {
                 IdxTmRule::FlatMap(_, _) => "FlatMap",
                 IdxTmRule::Star(_, _) => "Star",
                 IdxTmRule::NoParse(_) => "NoParse",
+                IdxTmRule::NmSet => "NmSet",
             }
         }
     }
