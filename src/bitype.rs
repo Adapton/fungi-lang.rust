@@ -1463,8 +1463,10 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                 (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
                 (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
                 (Ok(Type::Nm(idx)),Ok(ce)) => {
+                    // use the ambient write scope to determine the written name:
+                    let idx = IdxTm::Map(Rc::new(ext.write_scope.clone()), Rc::new(idx));
                     let typ = Type::Thk(idx.clone(),Rc::new(ce));
-                    let eff = Effect::WR(idx,IdxTm::Empty);
+                    let eff = Effect::WR(idx, IdxTm::Empty);
                     succ(td, CEffect::Cons(CType::Lift(typ),eff))
                 },
                 _ => fail(td, TypeError::ParamMism(1)),

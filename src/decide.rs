@@ -181,7 +181,9 @@ pub enum DecError {
     AppNotArrow,
     PairNotProd,
     /// search-based decision procedure fails to find proof of a subset relation
-    SubsetSearchFailure
+    SubsetSearchFailure,
+    /// Unknown case of congruence (could be a mismatch)
+    UnknownCongruence(IdxTm, IdxTm),
 }
 
 /// Derivation for a decision procedure, expressed as deductive inference rules
@@ -943,9 +945,9 @@ pub mod subset {
                 unimplemented!()
             }
             (_, _) => {
-                //use bitype::debug::DerRule;
-                println!("{:?} {:?}", i.term, j.term);
-                unimplemented!()
+                println!("Cannot decide this case:\nLeft:\n\t{:?}\nRight:\n\t{:?}", i.term, j.term);
+                println!("This case is not implemented; but, it _may_ indicate a type error.");
+                err(IdxTmRule::Fail, DecError::UnknownCongruence((*i.term).clone(), (*j.term).clone()))
             }
         }
     }
