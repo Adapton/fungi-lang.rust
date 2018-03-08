@@ -323,7 +323,8 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                         IdxTm::NmSet(mut ns) => {
                                             if ns.cons == None || ns.cons == Some(NmSetCons::Apart) {
                                                 // Flatten!
-                                                terms.append(&mut ns.terms)
+                                                terms.append(&mut ns.terms);
+                                                ns.cons = Some(NmSetCons::Apart);
                                             } else {
                                                 // Union-based name set; Do not flatten.
                                                 terms.push(Subset(IdxTm::NmSet(ns)))
