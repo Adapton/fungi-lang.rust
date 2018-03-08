@@ -408,7 +408,7 @@ pub enum ExpRule {
     IfThenElse(ValDer, ExpDer, ExpDer),
     Ref(ValDer,ValDer),
     Get(ValDer),
-    Scope(ValDer,ExpDer),
+    WriteScope(ValDer,ExpDer),
     NameFnApp(ValDer,ValDer),
     PrimApp(PrimAppRule),
     Unimp,
@@ -1734,10 +1734,10 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
         // -------- More cases (lowest priority)
         //
 
-        &Exp::Scope(ref v,ref e) => {            
+        &Exp::WriteScope(ref v,ref e) => {
             let td0 = synth_val(ext, ctx, v);
             let td1 = synth_exp(ext, ctx, e);
-            let td = ExpRule::Scope(td0,td1);
+            let td = ExpRule::WriteScope(td0,td1);
             fail(td, TypeError::NoSynthRule) // Ok, for now.
         },
         &Exp::Split(ref v, ref x1, ref x2, ref e) => {
@@ -2053,6 +2053,9 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
             ),TypeError::AnnoMism)}
         },
 
+        &Exp::WriteScope(ref v,ref e) => {
+            panic!("TODO")
+        },        
         //
         // TODO later:
         //   &Exp::Scope(ref v,ref e) => {},
@@ -2206,7 +2209,7 @@ pub mod debug {
                 ExpRule::IfThenElse(_, _, _) => "IfThenElse",
                 ExpRule::Ref(_,_) => "Ref",
                 ExpRule::Get(_) => "Get",
-                ExpRule::Scope(_,_) => "Scope",
+                ExpRule::WriteScope(_,_) => "WriteScope",
                 ExpRule::NameFnApp(_,_) => "NameFnApp",
                 ExpRule::PrimApp(ref p) => p.short(),
                 ExpRule::Unimp => "Unimp",

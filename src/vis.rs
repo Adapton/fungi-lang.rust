@@ -42,7 +42,7 @@ fn rewrite_exp(exp: &Exp, ct: &mut usize) -> Exp {
         Exp::IfThenElse(ref v, ref e1, ref e2) => Exp::IfThenElse(rewrite_val(v, ct), rewrite_exp_rec(e1, ct), rewrite_exp_rec(e2, ct)),
         Exp::Ref(ref v1, ref v2) => Exp::Ref(rewrite_val(v1, ct), rewrite_val(v2, ct)),
         Exp::Get(ref v) => Exp::Get(rewrite_val(v, ct)),
-        Exp::Scope(ref v, ref e) => Exp::Scope(rewrite_val(v, ct), rewrite_exp_rec(e, ct)),
+        Exp::WriteScope(ref v, ref e) => Exp::WriteScope(rewrite_val(v, ct), rewrite_exp_rec(e, ct)),
         Exp::NameFnApp(ref v1, ref v2) => Exp::NameFnApp(rewrite_val(v1, ct), rewrite_val(v2, ct)),
         Exp::PrimApp(ref p) => Exp::PrimApp(rewrite_prim_app(p, ct)),
         Exp::DebugLabel(ref on, ref s, ref e) => Exp::DebugLabel(on.clone(), s.clone(), rewrite_exp_rec(e, ct)),

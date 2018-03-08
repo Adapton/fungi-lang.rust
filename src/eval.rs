@@ -316,10 +316,10 @@ pub enum EvalTyErr {
     // ref case
     RefNonName(RtVal),
     GetNonRef(RtVal),
-    // scope case
-    ScopeWithoutName0,
-    ScopeWithoutName1,
-    ScopeWithoutName2,
+    // write scope case
+    WriteScopeWithoutName0,
+    WriteScopeWithoutName1,
+    WriteScopeWithoutName2,
     // name fn app
     NameFnApp0,
     NameFnApp1,
@@ -504,7 +504,7 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
                 v => eval_type_error(EvalTyErr::RefThunkNonThunk(v), env, e)
             }
         }
-        Exp::Scope(v, e1) => {
+        Exp::WriteScope(v, e1) => {
             // Names vs namespace functions: Here, v is a name
             // function value, but the current Adapton engine
             // implementation of namespaces, aka "write scopes",
@@ -519,18 +519,18 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
             match close_val(&env, &v) {
                 RtVal::NameFn(n) =>
                     match proj_namespace_name(nametm_eval(n)) {
-                        None => eval_type_error(EvalTyErr::ScopeWithoutName1, env, e),
+                        None => eval_type_error(EvalTyErr::WriteScopeWithoutName1, env, e),
                         Some(n) => {
                             match nametm_eval(n) {
                                 NameTmVal::Name(n) => {
                                     let ns_name = engine_name_of_ast_name(n);
                                     engine::ns(ns_name, ||{ eval(env, (*e1).clone()) })
                                 },                                    
-                                _ => eval_type_error(EvalTyErr::ScopeWithoutName2, env, e),
+                                _ => eval_type_error(EvalTyErr::WriteScopeWithoutName2, env, e),
                             }
                         }
                     },
-                _ => eval_type_error(EvalTyErr::ScopeWithoutName0, env, e),
+                _ => eval_type_error(EvalTyErr::WriteScopeWithoutName0, env, e),
             }
         }
         Exp::NameFnApp(v1, v2) => {

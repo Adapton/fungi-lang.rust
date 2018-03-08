@@ -901,7 +901,7 @@ macro_rules! parse_fgi_pack_multi {
 ///     e : C                           (type annotation, no effect)
 ///     e :> E                          (type annotation, with effect)
 ///     {e}                             (parens)
-///     scope v e                       (memo scope)
+///     ws v e                          (write scope)
 ///     ret v                           (lifted value)
 ///     #x.e                            (lambda)
 ///     fix x.e                         (recursive lambda)
@@ -983,8 +983,8 @@ macro_rules! fgi_exp {
     )};
     //     {e}                             (parens)
     { {$($e:tt)+} } => { fgi_exp![$($e)+] };
-    //     scope v e                       (memo scope)
-    { scope $v:tt $($e:tt)+ } => { Exp::Scope(
+    //     ws v e                          (write scope)
+    { ws $v:tt $($e:tt)+ } => { Exp::WriteScope(
         fgi_val![$v],
         Rc::new(fgi_exp![$($e)+]),
     )};

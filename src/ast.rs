@@ -358,7 +358,7 @@ pub enum Exp {
     IfThenElse(Val, ExpRec, ExpRec),
     Ref(Val,Val),
     Get(Val),
-    Scope(Val,ExpRec),
+    WriteScope(Val,ExpRec),
     NameFnApp(Val,Val),
     PrimApp(PrimApp),
     Unimp,
