@@ -58,14 +58,7 @@ fn max2() {
             /// Pointers written for each name in a structural recursion (-`_SR`) over a sequence:
             idxtm Seq_SR = ( #x:Nm.({x,@1})%({x,@2}) );
             /// ... prefixed with the current write scope (`WS`-), named `@!` below, as a nameset-level function
-            //idxtm WS_Seq_SR  = ( #x:NmSet.{@!}((Seq_SR) x) );
-            idxtm WS_Seq_SR  = ( #x:NmSet.(Seq_SR) x );
-            /// ... same, but just the first recursive call
-            //idxtm WS_Seq_SR1 = ( #x:NmSet.{@!}(x * {@1}));
-            idxtm WS_Seq_SR1 = ( #x:NmSet. x * {@1} );
-            /// ... second recursive call
-            //idxtm WS_Seq_SR2 = ( #x:NmSet.{@!}(x * {@2}));
-            idxtm WS_Seq_SR2 = ( #x:NmSet.x * {@2} );
+            idxtm WS_Seq_SR  = ( #x:NmSet.{@!}((Seq_SR) x) );
 
             fn is_empty:(
                 Thk[0] foralli (X,Y):NmSet.
