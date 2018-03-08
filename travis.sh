@@ -1,5 +1,7 @@
 cargo build --verbose
-cargo test --verbose -- --nocapture
+cargo test --verbose
+
+#cargo test --verbose -- --nocapture
 #cd eval
 #cargo run --release --example adder
 #cargo run --release --example filter

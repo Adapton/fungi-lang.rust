@@ -15,11 +15,13 @@ fn idxtm_equiv_test(tm1:IdxTm, tm2:IdxTm) {
             IdxTm::NmSet(mut ns2)) = (tm1, tm2) {
         ns1.terms.sort();
         ns2.terms.sort();
-        println!("{:?}\n =({})=\n {:?}",
-                 &ns1,
-                 &ns1 == &ns2,
-                 &ns2,
-        );
+        if false {
+            println!("{:?}\n =({})=\n {:?}",
+                     &ns1,
+                     &ns1 == &ns2,
+                     &ns2,
+            );
+        };
         assert_eq!(ns1, ns2);
     } else {
         unreachable!()
