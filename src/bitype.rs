@@ -2054,12 +2054,8 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
         },
 
         &Exp::WriteScope(ref v,ref e) => {
-            panic!("TODO")
+            panic!("TODO: synth type for v, take name function from its type, extend write scope to check e")
         },        
-        //
-        // TODO later:
-        //   &Exp::Scope(ref v,ref e) => {},
-        //
         //
         // Later and/or use synth rule:
         //   &Exp::App(ref e, ref v) => {},
