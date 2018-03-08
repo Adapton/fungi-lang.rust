@@ -87,6 +87,7 @@ macro_rules! fgi_name {
 macro_rules! fgi_nametm {
     //     fromast ast_expr    (inject ast nodes)
     { fromast $ast:expr } => { $ast };
+    { ^ $ast:expr } => { $ast };
     //     [N]                 (parens)
     { [$($nmtm:tt)+] } => { fgi_nametm![$($nmtm)+] };
     //

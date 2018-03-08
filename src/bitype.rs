@@ -471,6 +471,7 @@ pub enum TypeError {
     ProjNotProd,
     AppNotArrow,
     ValNotArrow,
+    ScopeNotNmTm,
     GetNotRef,
     ExpNotCons,
     BadCheck,
@@ -506,6 +507,7 @@ impl fmt::Display for TypeError {
             TypeError::ProjNotProd => format!("projection of non-product type"),
             TypeError::ValNotArrow => format!("this value requires an arrow type"),
             TypeError::AppNotArrow => format!("application of non-arrow type"),
+            TypeError::ScopeNotNmTm => format!("scope value was not a name term"),
             TypeError::GetNotRef => format!("get from a non-ref val"),
             TypeError::ExpNotCons => format!("annotated a expression that was not type-and-effect"),
             TypeError::BadCheck => format!("checked type inappropriate for value"),
@@ -538,6 +540,7 @@ fn error_is_local(err:&TypeError) -> bool {
         TypeError::ProjNotProd => true,
         TypeError::ValNotArrow => true,
         TypeError::AppNotArrow => true,
+        TypeError::ScopeNotNmTm => true,
         TypeError::GetNotRef => true,
         TypeError::ExpNotCons => true,
         TypeError::BadCheck => true,
@@ -1997,7 +2000,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                     let new_ctx = ctx
                         .var(x1.clone(),(*t1).clone())
                         .var(x2.clone(),(*t2).clone())
-                        ;
+                    ;
                     let td3 = check_exp(ext, &new_ctx, e, ceffect);
                     let typ3 = td3.clas.clone();
                     let td = ExpRule::Split(td0, x1.clone(), x2.clone(), td3);
@@ -2057,10 +2060,32 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 synth_exp(ext, ctx, e),
             ),TypeError::AnnoMism)}
         },
-
         &Exp::WriteScope(ref v,ref e) => {
-            // @kyleheadley
-            panic!("TODO: synth type for v, take name function from its type, extend write scope to check e")
+            if let CEffect::Cons(_,_) = *ceffect {
+                let td0 = synth_val(ext,ctx,v);
+                match td0.clas.clone() {
+                    Ok(Type::NmFn(nmlamb)) => {
+                        let new_scope = fgi_nametm![
+                            #n:Nm.[^ext.write_scope.clone()][[^nmlamb] n]
+                        ];
+                        let new_ext = Ext{write_scope:new_scope, ..ext.clone()};
+                        let td1 = check_exp(ext,ctx,e,ceffect);
+                        let typ1 = td1.clas.clone();
+                        let td = ExpRule::WriteScope(td0,td1);
+                        match typ1 {
+                            Ok(_) => succ(td, ceffect.clone()),
+                            Err(_) => fail(td, TypeError::ParamNoCheck(1)),
+                        }
+                    }
+                    _ => fail(
+                        ExpRule::WriteScope(td0, synth_exp(ext,ctx,e)),
+                        TypeError::ScopeNotNmTm
+                    ),
+                }
+            } else { fail(ExpRule::WriteScope(
+                synth_val(ext, ctx, v),
+                synth_exp(ext, ctx, e),
+            ), TypeError::AnnoMism)}
         },        
         //
         // Later and/or use synth rule:
