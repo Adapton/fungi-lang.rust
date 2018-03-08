@@ -66,6 +66,11 @@ pub enum NameTm {
     Lam(Var, Sort, NameTmRec),
     App(NameTmRec, NameTmRec),
     /// @@ : Nm -> Nm
+    ///
+    /// This is the initial/default/neutral/ambient write scope.  All
+    /// other write scopes are functions that compose with this one
+    /// (where this function is always the "last" function in the
+    /// composition).
     WriteScope,
     NoParse(String),
 }

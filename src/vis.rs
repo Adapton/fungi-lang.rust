@@ -92,7 +92,7 @@ impl Bundle {
 macro_rules! fgi_bundle {
     [$($e:tt)+] => {{
         let exp = label_exp(fgi_exp![$($e)+], &mut 0);
-        let program = synth_exp(None, &Ctx::Empty, &exp);
+        let program = synth_exp(&Ext::empty(), &Ctx::Empty, &exp);
         // let (term, traces) = capture_traces(move || eval(vec![], exp));
         Bundle {
             input: stringify!($($e)+).to_owned(),

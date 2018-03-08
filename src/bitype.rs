@@ -8,6 +8,32 @@ use normal;
 use decide;
 use subst;
 
+/// "Extra" typing information carried by the typing judgements
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub struct Ext {
+    /// The last programmer-chosen label encountered in the AST; for visualizations, error messages, etc.
+    pub last_label:Option<Rc<String>>,
+    /// Write scope, as a (sorted) name term function (of sort `Nm -> Nm`).
+    pub write_scope: NameTm,
+}
+
+impl Ext {
+    pub fn empty () -> Ext {
+        Ext {
+            // No labels yet.
+            last_label:None,
+            // The initial/default/neutral write scope is the the
+            // "ambient" write scope, denoted as `NameTm::WriteScope`.
+            //
+            // All other write scopes are functions that compose with
+            // this one (where this function is always the "last"
+            // function in the composition).
+            write_scope:NameTm::WriteScope,
+        }
+    }
+}
+
+
 /// Typing context
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Ctx {
@@ -539,10 +565,10 @@ fn result_is_local_error<X>(x:&Result<X,TypeError>) -> bool {
 }
 
 fn failure<R:HasClas+debug::DerRule>
-    (dir:Dir<R>, last_label:Option<&str>,
+    (dir:Dir<R>, ext:&Ext,
      ctx:&Ctx, tm:R::Term, n:R, err:TypeError) -> Der<R>
-{
-    if let Some(lbl) = last_label {print!("After {}, ", lbl)}
+{    
+    if let Some(lbl) = ext.last_label.clone() {print!("After {}, ", lbl)}
     let is_local_err = error_is_local(&err);
     
     println!("Failed to {} {} {}, error: {}", dir.short(), R::term_desc(), n.short(), err);
@@ -560,7 +586,7 @@ fn failure<R:HasClas+debug::DerRule>
 }
 
 fn success<R:HasClas+debug::DerRule>
-    (dir:Dir<R>, _last_label:Option<&str>,
+    (dir:Dir<R>, _ext:&Ext,
      ctx:&Ctx, tm:R::Term, rule:R, clas:R::Clas) -> Der<R>
 {
     Der{
@@ -577,7 +603,7 @@ fn success<R:HasClas+debug::DerRule>
 }
 
 fn propagate<R:HasClas+debug::DerRule>
-    (dir:Dir<R>, _last_label:Option<&str>,
+    (dir:Dir<R>, _ext:&Ext,
      ctx:&Ctx, tm:R::Term, rule:R, result:Result<R::Clas,TypeError>) -> Der<R>
 {
     Der{
@@ -594,15 +620,15 @@ fn propagate<R:HasClas+debug::DerRule>
 }
 
 /// synthesize sort for index term
-pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer {
-    let fail = |r:IdxTmRule, err :TypeError| { failure(Dir::Synth, last_label, ctx, idxtm.clone(), r, err)  };
-    let succ = |r:IdxTmRule, sort:Sort     | { success(Dir::Synth, last_label, ctx, idxtm.clone(), r, sort) };
+pub fn synth_idxtm(ext:&Ext, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer {
+    let fail = |r:IdxTmRule, err :TypeError| { failure(Dir::Synth, ext, ctx, idxtm.clone(), r, err)  };
+    let succ = |r:IdxTmRule, sort:Sort     | { success(Dir::Synth, ext, ctx, idxtm.clone(), r, sort) };
     match idxtm {
         &IdxTm::Ident(ref x) => {
             let rule = IdxTmRule::Var(x.clone());
             match ctx.lookup_idxtm_def(x) {
                 None => fail(rule, TypeError::IdentNotInScope(x.clone())),
-                Some(i) => synth_idxtm(last_label, ctx, &i)
+                Some(i) => synth_idxtm(ext, ctx, &i)
             }
         }
         &IdxTm::Var(ref x) => {
@@ -613,7 +639,7 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
             }   
         }
         &IdxTm::Sing(ref nt) => {
-            let td0 = synth_nmtm(last_label,ctx,nt);
+            let td0 = synth_nmtm(ext,ctx,nt);
             let ty0 = td0.clas.clone();
             let td = IdxTmRule::Sing(td0);
             match ty0 {
@@ -626,8 +652,8 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
             succ(IdxTmRule::Empty, Sort::NmSet)
         },
         &IdxTm::Apart(ref idx0, ref idx1) => {
-            let td0 = synth_idxtm(last_label,ctx,idx0);
-            let td1 = synth_idxtm(last_label,ctx,idx1);
+            let td0 = synth_idxtm(ext,ctx,idx0);
+            let td1 = synth_idxtm(ext,ctx,idx1);
             let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
             let td = IdxTmRule::Apart(td0,td1);
             match (typ0,typ1) {
@@ -639,8 +665,8 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
             }
         },
         &IdxTm::Union(ref idx0, ref idx1) => {
-            let td0 = synth_idxtm(last_label,ctx,idx0);
-            let td1 = synth_idxtm(last_label,ctx,idx1);
+            let td0 = synth_idxtm(ext,ctx,idx0);
+            let td1 = synth_idxtm(ext,ctx,idx1);
             let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
             let td = IdxTmRule::Union(td0,td1);
             match (typ0,typ1) {
@@ -652,8 +678,8 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
             }
         },
         &IdxTm::Bin(ref idx0, ref idx1) => {
-            let td0 = synth_idxtm(last_label,ctx,idx0);
-            let td1 = synth_idxtm(last_label,ctx,idx1);
+            let td0 = synth_idxtm(ext,ctx,idx0);
+            let td1 = synth_idxtm(ext,ctx,idx1);
             let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
             let td = IdxTmRule::Bin(td0,td1);
             match (typ0,typ1) {
@@ -668,8 +694,8 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
             succ(IdxTmRule::Unit, Sort::Unit)
         },
         &IdxTm::Pair(ref idx0, ref idx1) => {
-            let td0 = synth_idxtm(last_label,ctx,idx0);
-            let td1 = synth_idxtm(last_label,ctx,idx1);
+            let td0 = synth_idxtm(ext,ctx,idx0);
+            let td1 = synth_idxtm(ext,ctx,idx1);
             let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
             let td = IdxTmRule::Pair(td0,td1);
             match (typ0,typ1) {
@@ -681,7 +707,7 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
             }
         },
         &IdxTm::Proj1(ref idx) => {
-            let td0 = synth_idxtm(last_label,ctx,idx);
+            let td0 = synth_idxtm(ext,ctx,idx);
             let typ0 = td0.clas.clone();
             let td = IdxTmRule::Proj1(td0);
             match typ0 {
@@ -691,7 +717,7 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
             }
         },
         &IdxTm::Proj2(ref idx) => {
-            let td0 = synth_idxtm(last_label,ctx,idx);
+            let td0 = synth_idxtm(ext,ctx,idx);
             let typ0 = td0.clas.clone();
             let td = IdxTmRule::Proj2(td0);
             match typ0 {
@@ -702,7 +728,7 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
         },
         &IdxTm::Lam(ref x, ref x_sort, ref idx) => {
             let ctx_ext = ctx.ivar(x.clone(), x_sort.clone());
-            let td0 = synth_idxtm(last_label,&ctx_ext,idx);
+            let td0 = synth_idxtm(ext,&ctx_ext,idx);
             let typ0 = td0.clas.clone();
             let td = IdxTmRule::Lam(x.clone(), x_sort.clone(), td0);
             if let &Sort::NoParse(ref bad) = x_sort {
@@ -723,8 +749,8 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
             ))                        
         }
         &IdxTm::App(ref idx0, ref idx1) => {
-            let td0 = synth_idxtm(last_label,ctx,idx0);
-            let td1 = synth_idxtm(last_label,ctx,idx1);
+            let td0 = synth_idxtm(ext,ctx,idx0);
+            let td1 = synth_idxtm(ext,ctx,idx1);
             let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
             let td = IdxTmRule::App(td0,td1);
             match (typ0,typ1) {
@@ -740,8 +766,8 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
             }
         },
         &IdxTm::Map(ref nt, ref idx) => {
-            let td0 = synth_nmtm(last_label,ctx,nt);
-            let td1 = synth_idxtm(last_label,ctx,idx);
+            let td0 = synth_nmtm(ext,ctx,nt);
+            let td1 = synth_idxtm(ext,ctx,idx);
             let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
             let td = IdxTmRule::Map(td0,td1);
             match (typ0,typ1) {
@@ -756,8 +782,8 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
             }
         },
         &IdxTm::FlatMap(ref idx0, ref idx1) => {
-            let td0 = synth_idxtm(last_label,ctx,idx0);
-            let td1 = synth_idxtm(last_label,ctx,idx1);
+            let td0 = synth_idxtm(ext,ctx,idx0);
+            let td1 = synth_idxtm(ext,ctx,idx1);
             let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
             let td = IdxTmRule::FlatMap(td0,td1);
             match (typ0,typ1) {
@@ -784,8 +810,8 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
             }
         },
         &IdxTm::Star(ref idx0, ref idx1) => {
-            let td0 = synth_idxtm(last_label,ctx,idx0);
-            let td1 = synth_idxtm(last_label,ctx,idx1);
+            let td0 = synth_idxtm(ext,ctx,idx0);
+            let td1 = synth_idxtm(ext,ctx,idx1);
             let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
             let td = IdxTmRule::Star(td0,td1);
             match (typ0,typ1) {
@@ -810,13 +836,13 @@ pub fn synth_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer 
 }
 
 /// check sort against index term
-pub fn check_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm, sort:&Sort) -> IdxTmDer {
-    // let fail = |td:IdxTmRule, err :TypeError| { failure(Dir::Check, last_label, ctx, td, err)  };
-    // let succ = |td:IdxTmRule, sort:Sort     | { success(Dir::Check, last_label, ctx, td, sort) };
+pub fn check_idxtm(ext:&Ext, ctx:&Ctx, idxtm:&IdxTm, sort:&Sort) -> IdxTmDer {
+    // let fail = |td:IdxTmRule, err :TypeError| { failure(Dir::Check, ext, ctx, td, err)  };
+    // let succ = |td:IdxTmRule, sort:Sort     | { success(Dir::Check, ext, ctx, td, sort) };
     match idxtm {
         // We're exclusively using synthesis for index terms at the moment
         tm => {
-            let mut td = synth_idxtm(last_label,ctx,tm);
+            let mut td = synth_idxtm(ext,ctx,tm);
             let ty = td.clas.clone();
             if let Ok(ty) = ty {
                 if ty == *sort { td }
@@ -830,9 +856,9 @@ pub fn check_idxtm(last_label:Option<&str>, ctx:&Ctx, idxtm:&IdxTm, sort:&Sort) 
 }
 
 /// synthesize sort for name term
-pub fn synth_nmtm(last_label:Option<&str>, ctx:&Ctx, nmtm:&NameTm) -> NmTmDer {
-    let fail = |td:NmTmRule, err :TypeError| { failure(Dir::Synth, last_label, ctx, nmtm.clone(), td, err)  };
-    let succ = |td:NmTmRule, sort:Sort     | { success(Dir::Synth, last_label, ctx, nmtm.clone(), td, sort) };
+pub fn synth_nmtm(ext:&Ext, ctx:&Ctx, nmtm:&NameTm) -> NmTmDer {
+    let fail = |td:NmTmRule, err :TypeError| { failure(Dir::Synth, ext, ctx, nmtm.clone(), td, err)  };
+    let succ = |td:NmTmRule, sort:Sort     | { success(Dir::Synth, ext, ctx, nmtm.clone(), td, sort) };
     match nmtm {
         &NameTm::Var(ref x) => {
             let td = NmTmRule::Var(x.clone());
@@ -849,8 +875,8 @@ pub fn synth_nmtm(last_label:Option<&str>, ctx:&Ctx, nmtm:&NameTm) -> NmTmDer {
             succ(td, Sort::Nm)
         },
         &NameTm::Bin(ref nt0, ref nt1) => {
-            let td0 = synth_nmtm(last_label, ctx, nt0);
-            let td1 = synth_nmtm(last_label, ctx, nt1);
+            let td0 = synth_nmtm(ext, ctx, nt0);
+            let td1 = synth_nmtm(ext, ctx, nt1);
             let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
             let td = NmTmRule::Bin(td0,td1);
             match (typ0,typ1) {
@@ -863,7 +889,7 @@ pub fn synth_nmtm(last_label:Option<&str>, ctx:&Ctx, nmtm:&NameTm) -> NmTmDer {
         },
         &NameTm::Lam(ref x, ref s, ref nt) => {
             let ctx_ext = ctx.ivar(x.clone(), s.clone());
-            let td0 = synth_nmtm(last_label,&ctx_ext,nt);
+            let td0 = synth_nmtm(ext,&ctx_ext,nt);
             let typ0 = td0.clas.clone();
             let td = NmTmRule::Lam(x.clone(), s.clone(), td0);
             if let &Sort::NoParse(ref bad) = s {
@@ -881,8 +907,8 @@ pub fn synth_nmtm(last_label:Option<&str>, ctx:&Ctx, nmtm:&NameTm) -> NmTmDer {
             Rc::new(Sort::Nm), Rc::new(Sort::Nm)
         ))}
         &NameTm::App(ref nt0, ref nt1) => {
-            let td0 = synth_nmtm(last_label,ctx,nt0);
-            let td1 = synth_nmtm(last_label,ctx,nt1);
+            let td0 = synth_nmtm(ext,ctx,nt0);
+            let td1 = synth_nmtm(ext,ctx,nt1);
             let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
             let td = NmTmRule::App(td0,td1);
             match (typ0,typ1) {
@@ -900,13 +926,13 @@ pub fn synth_nmtm(last_label:Option<&str>, ctx:&Ctx, nmtm:&NameTm) -> NmTmDer {
 }
 
 /// check sort against name term
-pub fn check_nmtm(last_label:Option<&str>, ctx:&Ctx, nmtm:&NameTm, sort:&Sort) -> NmTmDer {
-    // let fail = |td:IdxTmRule, err :TypeError| { failure(Dir::Check, last_label, ctx, td, err)  };
-    // let succ = |td:IdxTmRule, sort:Sort     | { success(Dir::Check, last_label, ctx, td, sort) };
+pub fn check_nmtm(ext:&Ext, ctx:&Ctx, nmtm:&NameTm, sort:&Sort) -> NmTmDer {
+    // let fail = |td:IdxTmRule, err :TypeError| { failure(Dir::Check, ext, ctx, td, err)  };
+    // let succ = |td:IdxTmRule, sort:Sort     | { success(Dir::Check, ext, ctx, td, sort) };
     match nmtm {
         // We're exclusively using synthesis for name terms at the moment
         tm => {
-            let mut td = synth_nmtm(last_label,ctx,tm);
+            let mut td = synth_nmtm(ext,ctx,tm);
             let ty = td.clas.clone();
             if let Ok(ty) = ty {
                 if ty == *sort { td }
@@ -920,9 +946,9 @@ pub fn check_nmtm(last_label:Option<&str>, ctx:&Ctx, nmtm:&NameTm, sort:&Sort) -
 }
 
 /// synthesize sort for value term
-pub fn synth_val(last_label:Option<&str>, ctx:&Ctx, val:&Val) -> ValDer {
-    let fail = |td:ValRule, err :TypeError| { failure(Dir::Synth, last_label, ctx, val.clone(), td, err)  };
-    let succ = |td:ValRule, typ :Type     | { success(Dir::Synth, last_label, ctx, val.clone(), td, typ) };
+pub fn synth_val(ext:&Ext, ctx:&Ctx, val:&Val) -> ValDer {
+    let fail = |td:ValRule, err :TypeError| { failure(Dir::Synth, ext, ctx, val.clone(), td, err)  };
+    let succ = |td:ValRule, typ :Type     | { success(Dir::Synth, ext, ctx, val.clone(), td, typ) };
     match val {
         &Val::Var(ref x) => {
             let td = ValRule::Var(x.clone());
@@ -935,8 +961,8 @@ pub fn synth_val(last_label:Option<&str>, ctx:&Ctx, val:&Val) -> ValDer {
             succ(ValRule::Unit, Type::Unit)
         },
         &Val::Pair(ref v0, ref v1) => {
-            let td0 = synth_val(last_label, ctx, v0);
-            let td1 = synth_val(last_label, ctx, v1);
+            let td0 = synth_val(ext, ctx, v0);
+            let td1 = synth_val(ext, ctx, v1);
             let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
             let td = ValRule::Pair(td0,td1);
             match (typ0,typ1) {
@@ -948,23 +974,23 @@ pub fn synth_val(last_label:Option<&str>, ctx:&Ctx, val:&Val) -> ValDer {
             }
         },
         &Val::Inj1(ref v) => {
-            let td0 = synth_val(last_label, ctx, v);
+            let td0 = synth_val(ext, ctx, v);
             let td = ValRule::Inj1(td0);
             fail(td, TypeError::NoSynthRule)
         },
         &Val::Inj2(ref v) => {
-            let td0 = synth_val(last_label, ctx, v);
+            let td0 = synth_val(ext, ctx, v);
             let td = ValRule::Inj2(td0);
             fail(td, TypeError::NoSynthRule)
         },
         &Val::Roll(ref v) => {
-            let td0 = synth_val(last_label, ctx, v);
+            let td0 = synth_val(ext, ctx, v);
             let td = ValRule::Roll(td0);
             fail(td, TypeError::NoSynthRule)
         },
         &Val::Pack(ref i, ref v) => {
-            let td0 = synth_idxtm(last_label, ctx, i);
-            let td1 = synth_val(last_label, ctx, v);
+            let td0 = synth_idxtm(ext, ctx, i);
+            let td1 = synth_val(ext, ctx, v);
             let td = ValRule::Pack(td0, td1);
             fail(td, TypeError::NoSynthRule)
         }
@@ -976,7 +1002,7 @@ pub fn synth_val(last_label:Option<&str>, ctx:&Ctx, val:&Val) -> ValDer {
             }
         },
         &Val::NameFn(ref nmtm) => {
-            let td0 = synth_nmtm(last_label, ctx, nmtm);
+            let td0 = synth_nmtm(ext, ctx, nmtm);
             let typ0 = td0.clas.clone();
             let td = ValRule::NameFn(td0);
             match typ0 {
@@ -990,7 +1016,7 @@ pub fn synth_val(last_label:Option<&str>, ctx:&Ctx, val:&Val) -> ValDer {
             }
         },
         &Val::Anno(ref v,ref t) => {
-            let td0 = check_val(last_label, ctx, v, t);
+            let td0 = check_val(ext, ctx, v, t);
             let typ0 = td0.clas.clone();
             let td = ValRule::Anno(td0, t.clone());
             match typ0 {
@@ -999,7 +1025,7 @@ pub fn synth_val(last_label:Option<&str>, ctx:&Ctx, val:&Val) -> ValDer {
             }
         },
         &Val::ThunkAnon(ref e) => {
-            let td0 = synth_exp(last_label, ctx, e);
+            let td0 = synth_exp(ext, ctx, e);
             let typ0 = td0.clas.clone();
             let td = ValRule::ThunkAnon(td0);
             match typ0 {
@@ -1023,9 +1049,9 @@ pub fn synth_val(last_label:Option<&str>, ctx:&Ctx, val:&Val) -> ValDer {
 }
 
 /// check sort against value term
-pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
-    let fail = |td:ValRule, err :TypeError| { failure(Dir::Check(typ_raw.clone()), last_label, ctx, val.clone(), td, err)  };
-    let succ = |td:ValRule, typ :Type     | { success(Dir::Check(typ_raw.clone()), last_label, ctx, val.clone(), td, typ) };
+pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
+    let fail = |td:ValRule, err :TypeError| { failure(Dir::Check(typ_raw.clone()), ext, ctx, val.clone(), td, err)  };
+    let succ = |td:ValRule, typ :Type     | { success(Dir::Check(typ_raw.clone()), ext, ctx, val.clone(), td, typ) };
     // Normalize the type
     let typ = &(normal::normal_type(ctx, typ_raw));
     match val {
@@ -1058,8 +1084,8 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ_raw:&Type) -> 
         },
         &Val::Pair(ref v0, ref v1) => {
             if let Type::Prod(ref t0, ref t1) = *typ {
-                let td0 = check_val(last_label, ctx, v0, t0);
-                let td1 = check_val(last_label, ctx, v1, t1);
+                let td0 = check_val(ext, ctx, v0, t0);
+                let td1 = check_val(ext, ctx, v1, t1);
                 let (typ0,typ1) = (td0.clas.clone(), td1.clas.clone());
                 let td = ValRule::Pair(td0,td1);
                 match (typ0,typ1) {
@@ -1068,13 +1094,13 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ_raw:&Type) -> 
                     (Ok(_),Ok(_)) => succ(td, typ.clone()),
                 }
             } else { fail(ValRule::Pair(
-                synth_val(last_label, ctx, v0),
-                synth_val(last_label, ctx, v1),
+                synth_val(ext, ctx, v0),
+                synth_val(ext, ctx, v1),
             ), TypeError::AnnoMism) }
         },
         &Val::Inj1(ref v) => {
             if let Type::Sum(ref t1, _) = *typ {
-                let td0 = check_val(last_label, ctx, v, t1);
+                let td0 = check_val(ext, ctx, v, t1);
                 let typ0 = td0.clas.clone();
                 let td = ValRule::Inj1(td0);
                 match typ0 {
@@ -1082,12 +1108,12 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ_raw:&Type) -> 
                     Ok(_) => succ(td, typ.clone()),
                 }
             } else { fail(ValRule::Inj1(
-                synth_val(last_label,ctx, v)
+                synth_val(ext,ctx, v)
             ), TypeError::AnnoMism) }
         },
         &Val::Inj2(ref v) => {
             if let Type::Sum(_, ref t2) = *typ {
-                let td0 = check_val(last_label, ctx, v, t2);
+                let td0 = check_val(ext, ctx, v, t2);
                 let typ0 = td0.clas.clone();
                 let td = ValRule::Inj2(td0);
                 match typ0 {
@@ -1095,13 +1121,13 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ_raw:&Type) -> 
                     Ok(_) => succ(td, typ.clone()),
                 }
             } else { fail(ValRule::Inj2(
-                synth_val(last_label,ctx, v)
+                synth_val(ext,ctx, v)
             ), TypeError::AnnoMism) }
         },
         &Val::Roll(ref v) => {
-            let vd = check_val(last_label, ctx, v, typ);
+            let vd = check_val(ext, ctx, v, typ);
             let vt = vd.clas.clone();
-            propagate(Dir::Check(typ.clone()), last_label,
+            propagate(Dir::Check(typ.clone()), ext,
                       ctx, val.clone(), ValRule::Roll(vd), vt)
         },
         &Val::Name(ref n) => {
@@ -1116,7 +1142,7 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ_raw:&Type) -> 
         },
         &Val::NameFn(ref nmtm) => {
             if let Type::NmFn(ref nt) = *typ {
-                let td0 = check_nmtm(last_label, ctx, nt, &Sort::NmArrow(
+                let td0 = check_nmtm(ext, ctx, nt, &Sort::NmArrow(
                     Rc::new(Sort::Nm), Rc::new(Sort::Nm),
                 ));
                 let typ0 = td0.clas.clone();
@@ -1127,13 +1153,13 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ_raw:&Type) -> 
                     Ok(_) => succ(td, typ.clone())
                 }
             } else { fail(ValRule::NameFn(
-                synth_nmtm(last_label, ctx, nmtm)
+                synth_nmtm(ext, ctx, nmtm)
             ), TypeError::AnnoMism) }
         },
         &Val::Anno(ref v,ref t) => {
             // TODO: Type equality may be more complex than this test (e.g. alpha equivalent types should be equal)
             if *t == *typ {
-                let td0 = check_val(last_label, ctx, v, t);
+                let td0 = check_val(ext, ctx, v, t);
                 let typ0 = td0.clas.clone();
                 let td = ValRule::Anno(td0, t.clone());
                 match typ0 {
@@ -1141,7 +1167,7 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ_raw:&Type) -> 
                     Ok(typ) => succ(td, typ.clone()),
                 }
             } else { fail(ValRule::Anno(
-                synth_val(last_label, ctx, v), t.clone()
+                synth_val(ext, ctx, v), t.clone()
             ), TypeError::AnnoMism) }
         },
         //
@@ -1153,12 +1179,12 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ_raw:&Type) -> 
         //
         &Val::Pack(ref i, ref v) => {
             if let Type::Exists(a,g,p,aa) = typ.clone() {
-                let td0  = check_idxtm(last_label, ctx, i, &g);
+                let td0  = check_idxtm(ext, ctx, i, &g);
                 let pi   = subst::subst_term_prop(Term::IdxTm(i.clone()), &a, p);
                 // TODO: check that pi = p[i/a] is true
                 drop(pi);
                 let aai  = subst::subst_term_type(Term::IdxTm(i.clone()), &a, (*aa).clone());
-                let td1 = check_val(last_label, ctx, v, &aai);
+                let td1 = check_val(ext, ctx, v, &aai);
                 let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
                 let td = ValRule::Pack(td0, td1);
                 match (typ0,typ1) {
@@ -1167,13 +1193,13 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ_raw:&Type) -> 
                     _ => succ(td, typ.clone()),
                 }
             } else { fail(ValRule::Pack(
-                synth_idxtm(last_label, ctx, i),
-                synth_val(last_label, ctx, v)
+                synth_idxtm(ext, ctx, i),
+                synth_val(ext, ctx, v)
             ), TypeError::CheckFailType(typ.clone())) }
         },
         &Val::ThunkAnon(ref e) => {
             if let Type::Thk(ref _idx, ref ce) = *typ {
-                let td0 = check_exp(last_label, ctx, &*e, &*ce);
+                let td0 = check_exp(ext, ctx, &*e, &*ce);
                 let typ0 = td0.clas.clone();
                 let td = ValRule::ThunkAnon(td0);
                 // TODO-Next: use this once effects are implemented
@@ -1186,7 +1212,7 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ_raw:&Type) -> 
                     Ok(_) => succ(td, typ.clone())
                 }
             } else { fail(ValRule::ThunkAnon(
-                synth_exp(last_label, ctx, e)
+                synth_exp(ext, ctx, e)
             ), TypeError::AnnoMism) }
         },
         &Val::Bool(b) => {
@@ -1208,7 +1234,7 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ_raw:&Type) -> 
             fail(ValRule::NoParse(s.clone()), TypeError::NoParse(s.clone()))
         },
         // v => {
-        //     let mut td = synth_val(last_label,ctx,v);
+        //     let mut td = synth_val(ext,ctx,v);
         //     let ty = td.clas.clone();
         //     if let Ok(ty) = ty {
         //         if ty == *typ { td }
@@ -1222,7 +1248,7 @@ pub fn check_val(last_label:Option<&str>, ctx:&Ctx, val:&Val, typ_raw:&Type) -> 
 }
 
 /// Synthesize typing derivations for a list of declarations (e.g., from a module)
-pub fn synth_items(last_label:Option<&str>, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
+pub fn synth_items(ext:&Ext, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
    
     let mut decls = d;
     let mut tds : Vec<ItemRule> = vec![];
@@ -1257,7 +1283,7 @@ pub fn synth_items(last_label:Option<&str>, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule
                 break;
             },
             &Decls::UseAll(ref m, ref d) => {
-                let der = synth_module(last_label, &m.module);
+                let der = synth_module(ext, &m.module);
                 ctx = ctx.append(&der.ctx_out);
                 tds.push(ItemRule::UseAll(UseAllModuleDer{
                     ast:m.clone(),
@@ -1267,7 +1293,7 @@ pub fn synth_items(last_label:Option<&str>, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule
                 decls = d;
             }
             &Decls::NmTm(ref x, ref m, ref d) => {
-                let der = synth_nmtm(last_label, &ctx, m);
+                let der = synth_nmtm(ext, &ctx, m);
                 let sort = der.clas.clone();
                 let der = ItemDer{
                     doc:doc.clone(),
@@ -1283,7 +1309,7 @@ pub fn synth_items(last_label:Option<&str>, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule
                 decls = d;
             }
             &Decls::IdxTm(ref x, ref i, ref d) => {
-                let der = synth_idxtm(last_label, &ctx, i);
+                let der = synth_idxtm(ext, &ctx, i);
                 let sort = der.clas.clone();
                 let der = ItemDer{
                     doc:doc.clone(),
@@ -1315,8 +1341,8 @@ pub fn synth_items(last_label:Option<&str>, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule
             }
             &Decls::Val(ref x, ref oa, ref v, ref d) => {
                 let der = match oa {
-                    &None        => synth_val(last_label, &ctx, v   ),
-                    &Some(ref a) => check_val(last_label, &ctx, v, a),
+                    &None        => synth_val(ext, &ctx, v   ),
+                    &Some(ref a) => check_val(ext, &ctx, v, a),
                 };
                 ctx = match der.clas.clone() {
                     Err(_) => match oa {
@@ -1341,7 +1367,7 @@ pub fn synth_items(last_label:Option<&str>, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule
             &Decls::Fn(ref f, ref a, ref e, ref d) => {
                 let v : Val = fgi_val![ thunk fix ^f. ^e.clone() ];
                 let a2 = a.clone();
-                let der = check_val(last_label, &ctx, &v, a);
+                let der = check_val(ext, &ctx, &v, a);
                 let der_typ = der.clas.clone();
                 let der = ItemDer{
                     doc:doc.clone(),
@@ -1362,8 +1388,8 @@ pub fn synth_items(last_label:Option<&str>, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule
 }
 
 /// Synthesize a typing derivation for a module, given the module AST.
-pub fn synth_module(last_label:Option<&str>, m:&Rc<Module>) -> ModuleDer {
-    let (item_tds, ctx) = synth_items(last_label, &Ctx::Empty, &m.decls);
+pub fn synth_module(ext:&Ext, m:&Rc<Module>) -> ModuleDer {
+    let (item_tds, ctx) = synth_items(ext, &Ctx::Empty, &m.decls);
     ModuleDer{
         ast: m.clone(),
         tds: item_tds,
@@ -1372,26 +1398,26 @@ pub fn synth_module(last_label:Option<&str>, m:&Rc<Module>) -> ModuleDer {
 }
 
 /// Synthesize a type and effect for a program expression
-pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
-    let fail = |r:ExpRule, err :TypeError| { failure(Dir::Synth, last_label, ctx, exp.clone(), r, err) };
-    let succ = |r:ExpRule, typ :CEffect  | { success(Dir::Synth, last_label, ctx, exp.clone(), r, typ) };
+pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
+    let fail = |r:ExpRule, err :TypeError| { failure(Dir::Synth, ext, ctx, exp.clone(), r, err) };
+    let succ = |r:ExpRule, typ :CEffect  | { success(Dir::Synth, ext, ctx, exp.clone(), r, typ) };
     let prop = |r:ExpRule, res:Result<CEffect,TypeError> | {
-        propagate(Dir::Synth, last_label, ctx, exp.clone(), r, res)
+        propagate(Dir::Synth, ext, ctx, exp.clone(), r, res)
     };
     match exp {
         &Exp::Decls(ref decls, ref exp) => {
-            let (ds_der, ds_ctx) = synth_items(last_label, ctx, &decls);
+            let (ds_der, ds_ctx) = synth_items(ext, ctx, &decls);
             let ctx = &ds_ctx;
             //println!("{:?}", ctx);
-            let e_der = synth_exp(last_label, &ctx, exp);
+            let e_der = synth_exp(ext, &ctx, exp);
             let ce = e_der.clas.clone().map(|ce| ce.clone());
             prop(ExpRule::Decls(ds_der, e_der),
                  ce)
         }        
         &Exp::UseAll(ref m, ref exp) => {
-            let m_der = synth_module(last_label, &m.module);
+            let m_der = synth_module(ext, &m.module);
             let ctx = ctx.append(&m_der.ctx_out);
-            let e_der = synth_exp(last_label, &ctx, exp);
+            let e_der = synth_exp(ext, &ctx, exp);
             let ce = e_der.clas.clone().map(|ce| ce.clone());
             prop(ExpRule::UseAll(
                 UseAllModuleDer{
@@ -1404,7 +1430,7 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
             // TODO: this is a hackthat only works while we're ignoring effects,
             // we need check_exp to handle an optional effect
             let noeffect = Effect::WR(IdxTm::Empty,IdxTm::Empty);
-            let td0 = check_exp(last_label, ctx, e, &CEffect::Cons(ctyp.clone(),noeffect));
+            let td0 = check_exp(ext, ctx, e, &CEffect::Cons(ctyp.clone(),noeffect));
             let typ0 = td0.clas.clone();
             let td = ExpRule::AnnoC(td0, ctyp.clone());
             match typ0 {
@@ -1418,7 +1444,7 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
             }
         },
         &Exp::AnnoE(ref e,ref et) => {
-            let td0 = check_exp(last_label, ctx, e, et);
+            let td0 = check_exp(ext, ctx, e, et);
             let typ0 = td0.clas.clone();
             let td = ExpRule::AnnoE(td0, et.clone());
             match typ0 {
@@ -1429,8 +1455,8 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
             }
         },
         &Exp::Thunk(ref v,ref e) => {
-            let td0 = synth_val(last_label, ctx, v);
-            let td1 = synth_exp(last_label, ctx, e);
+            let td0 = synth_val(ext, ctx, v);
+            let td1 = synth_exp(ext, ctx, e);
             let (tp0,typ1) = (td0.clas.clone(),td1.clas.clone());
             let td = ExpRule::Thunk(td0,td1);
             match (tp0,typ1) {
@@ -1445,7 +1471,7 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
             }
         },
         &Exp::Force(ref v) => {
-            let td0 = synth_val(last_label, ctx, v);
+            let td0 = synth_val(ext, ctx, v);
             let typ0 = td0.clas.clone();
             let td = ExpRule::Force(td0);
             match typ0 {
@@ -1459,7 +1485,7 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
         },
         &Exp::DefType(ref x,ref t, ref e) => {
             let ctx = &ctx.def(x.clone(), Term::Type(t.clone()));
-            let td2 = synth_exp(last_label, ctx, e);
+            let td2 = synth_exp(ext, ctx, e);
             // TODO: user-type kinding??
             let typ2 = td2.clas.clone();
             let td = ExpRule::DefType(x.clone(), t.clone(), td2);
@@ -1469,16 +1495,16 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
             }
         },
         &Exp::App(ref e, ref v) => {
-            let td0 = synth_exp(last_label, ctx, e);
+            let td0 = synth_exp(ext, ctx, e);
             let typ0 = td0.clas.clone();
             match typ0 {
                 Err(_) => {
-                    let td1 = synth_val(last_label, ctx, v);
+                    let td1 = synth_val(ext, ctx, v);
                     let td = ExpRule::App(td0,td1);
                     fail(td, TypeError::SynthFailVal(v.clone()))
                 },
                 Ok(CEffect::Cons(CType::Arrow(ref ty,ref ce), ref _ef)) => {
-                    let td1 = check_val(last_label, ctx, v, ty);
+                    let td1 = check_val(ext, ctx, v, ty);
                     let ty1 = td1.clas.clone();
                     let td = ExpRule::App(td0,td1);
                     match ty1 {
@@ -1490,15 +1516,15 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
                     }
                 },
                 Ok(ce) => {
-                    let td1 = synth_val(last_label, ctx, v);
+                    let td1 = synth_val(ext, ctx, v);
                     let td = ExpRule::App(td0,td1);
                     fail(td, TypeError::UnexpectedCEffect(ce.clone()))
                 }
             }
         },
         &Exp::IdxApp(ref e, ref i) => {
-            let ed = synth_exp(last_label,ctx,e);
-            let id = synth_idxtm(last_label,ctx,i);
+            let ed = synth_exp(ext,ctx,e);
+            let id = synth_idxtm(ext,ctx,i);
             //let edt = ed.clas.clone();
             match (ed.clas.clone(), id.clas.clone())  {
                 (Ok(ec), Ok(_is)) => { match ec {
@@ -1520,7 +1546,7 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
             }
         },
         &Exp::Get(ref v) => {
-            let td0 = synth_val(last_label, ctx, v);
+            let td0 = synth_val(ext, ctx, v);
             let typ0 = td0.clas.clone();
             let td = ExpRule::Get(td0);
             match typ0 {
@@ -1533,7 +1559,7 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
             }
         },
         &Exp::Ret(ref v) => {
-            let td0 = synth_val(last_label, ctx, v);
+            let td0 = synth_val(ext, ctx, v);
             let typ0 = td0.clas.clone();
             let td = ExpRule::Ret(td0);
             match typ0 {
@@ -1553,14 +1579,14 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
         
          */
         &Exp::Let(ref x, ref e1, ref e2) => {
-            let td1 = synth_exp(last_label, ctx, e1);
+            let td1 = synth_exp(ext, ctx, e1);
             match td1.clas.clone() {
                 Err(_) => fail(ExpRule::Let(x.clone(),td1,
-                    synth_exp(last_label, ctx, e2)
+                    synth_exp(ext, ctx, e2)
                 ), TypeError::ParamNoSynth(1)),
                 Ok(CEffect::Cons(CType::Lift(ty1),_eff1)) => {
                     let new_ctx = ctx.var(x.clone(), ty1);
-                    let td2 = synth_exp(last_label, &new_ctx, e2);
+                    let td2 = synth_exp(ext, &new_ctx, e2);
                     let typ2 = td2.clas.clone();
                     let td = ExpRule::Let(x.clone(),td1,td2);
                     match typ2 {
@@ -1573,13 +1599,13 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
                     }
                 },
                 _ => fail(ExpRule::Let(x.clone(),td1,
-                    synth_exp(last_label, ctx, e2)
+                    synth_exp(ext, ctx, e2)
                 ), TypeError::ParamMism(1)),
             }
         },
         &Exp::PrimApp(PrimApp::NameBin(ref v0,ref v1)) => {
-            let td0 = synth_val(last_label, ctx, v0);
-            let td1 = synth_val(last_label, ctx, v1);
+            let td0 = synth_val(ext, ctx, v0);
+            let td1 = synth_val(ext, ctx, v1);
             let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
             let td = ExpRule::PrimApp(PrimAppRule::NameBin(td0,td1));
             match (typ0,typ1) {
@@ -1598,7 +1624,7 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
             }
         },
         &Exp::PrimApp(PrimApp::RefThunk(ref v)) => {
-            let td0 = synth_val(last_label, ctx, v);
+            let td0 = synth_val(ext, ctx, v);
             let typ0 = td0.clas.clone();
             let td = ExpRule::PrimApp(PrimAppRule::RefThunk(td0));
             match typ0 {
@@ -1621,8 +1647,8 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
             }
         },        
         &Exp::PrimApp(PrimApp::NatLt(ref v0,ref v1)) => {
-            let td0 = synth_val(last_label, ctx, v0);
-            let td1 = synth_val(last_label, ctx, v1);
+            let td0 = synth_val(ext, ctx, v0);
+            let td1 = synth_val(ext, ctx, v1);
             let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
             let td = ExpRule::PrimApp(PrimAppRule::NatLt(td0,td1));
             match (typ0,typ1) {
@@ -1648,8 +1674,12 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
         },
         &Exp::DebugLabel(ref n, ref s,ref e) => {
             let td2 = match s {
-                &None => synth_exp(last_label, ctx, e),
-                &Some(ref lbl) => synth_exp(Some(lbl), ctx, e),
+                &None => synth_exp(ext, ctx, e),                
+                &Some(ref lbl) => {
+                    let mut ext = ext.clone();
+                    ext.last_label = Some(Rc::new(lbl.to_string()));
+                    synth_exp(&ext, ctx, e)
+                }
             };
             let typ2 = td2.clas.clone();
             let td = ExpRule::DebugLabel(n.clone(),s.clone(),td2);
@@ -1670,29 +1700,29 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
         //
         
         &Exp::NameFnApp(ref v0,ref v1) => {
-            let td0 = synth_val(last_label, ctx, v0);
-            let td1 = synth_val(last_label, ctx, v1);
+            let td0 = synth_val(ext, ctx, v0);
+            let td1 = synth_val(ext, ctx, v1);
             let td = ExpRule::NameFnApp(td0,td1);
             // TODO: implement
             fail(td, TypeError::Unimplemented)
         },
         &Exp::PrimApp(PrimApp::NatEq(ref v0,ref v1)) => {
-            let td0 = synth_val(last_label, ctx, v0);
-            let td1 = synth_val(last_label, ctx, v1);
+            let td0 = synth_val(ext, ctx, v0);
+            let td1 = synth_val(ext, ctx, v1);
             let td = ExpRule::PrimApp(PrimAppRule::NatEq(td0,td1));
             // TODO: implement
             fail(td, TypeError::Unimplemented)
         },
         &Exp::PrimApp(PrimApp::NatLte(ref v0,ref v1)) => {
-            let td0 = synth_val(last_label, ctx, v0);
-            let td1 = synth_val(last_label, ctx, v1);
+            let td0 = synth_val(ext, ctx, v0);
+            let td1 = synth_val(ext, ctx, v1);
             let td = ExpRule::PrimApp(PrimAppRule::NatLte(td0,td1));
             // TODO: implement
             fail(td, TypeError::Unimplemented)
         },
         &Exp::PrimApp(PrimApp::NatPlus(ref v0,ref v1)) => {
-            let td0 = synth_val(last_label, ctx, v0);
-            let td1 = synth_val(last_label, ctx, v1);
+            let td0 = synth_val(ext, ctx, v0);
+            let td1 = synth_val(ext, ctx, v1);
             let td = ExpRule::PrimApp(PrimAppRule::NatPlus(td0,td1));
             // TODO: implement
             fail(td, TypeError::Unimplemented)
@@ -1703,34 +1733,34 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
         //
 
         &Exp::Scope(ref v,ref e) => {            
-            let td0 = synth_val(last_label, ctx, v);
-            let td1 = synth_exp(last_label, ctx, e);
+            let td0 = synth_val(ext, ctx, v);
+            let td1 = synth_exp(ext, ctx, e);
             let td = ExpRule::Scope(td0,td1);
             fail(td, TypeError::NoSynthRule) // Ok, for now.
         },
         &Exp::Split(ref v, ref x1, ref x2, ref e) => {
-            let td0 = synth_val(last_label, ctx, v);
-            let td3 = synth_exp(last_label, ctx, e);
+            let td0 = synth_val(ext, ctx, v);
+            let td3 = synth_exp(ext, ctx, e);
             let td = ExpRule::Split(td0,x1.clone(),x2.clone(),td3);
             fail(td, TypeError::NoSynthRule) // Ok, for now.
         },
         &Exp::Case(ref v, ref x1, ref e1, ref x2, ref e2) => {
-            let td0 = synth_val(last_label, ctx, v);
-            let td2 = synth_exp(last_label, ctx, e1);
-            let td4 = synth_exp(last_label, ctx, e2);
+            let td0 = synth_val(ext, ctx, v);
+            let td2 = synth_exp(ext, ctx, e1);
+            let td4 = synth_exp(ext, ctx, e2);
             let td = ExpRule::Case(td0,x1.clone(),td2,x2.clone(),td4);
             fail(td, TypeError::NoSynthRule) // Ok, for now.
         },
         &Exp::IfThenElse(ref v, ref e1, ref e2) => {
-            let td0 = synth_val(last_label, ctx, v);
-            let td1 = synth_exp(last_label, ctx, e1);
-            let td2 = synth_exp(last_label, ctx, e2);
+            let td0 = synth_val(ext, ctx, v);
+            let td1 = synth_exp(ext, ctx, e1);
+            let td2 = synth_exp(ext, ctx, e2);
             let td = ExpRule::IfThenElse(td0,td1,td2);
             fail(td, TypeError::NoSynthRule) // Ok, for now.
         },
         &Exp::Ref(ref v1,ref v2) => {
-            let td0 = synth_val(last_label, ctx, v1);
-            let td1 = synth_val(last_label, ctx, v2);
+            let td0 = synth_val(ext, ctx, v1);
+            let td1 = synth_val(ext, ctx, v2);
             let td = ExpRule::Ref(td0,td1);
             fail(td, TypeError::NoSynthRule) // Ok, for now.
         },
@@ -1739,24 +1769,24 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
         // == -- No synth rules for these forms
         // ==
         &Exp::Fix(ref x,ref e) => {
-            let td1 = synth_exp(last_label, ctx, e);
+            let td1 = synth_exp(ext, ctx, e);
             let td = ExpRule::Fix(x.clone(), td1);
             fail(td, TypeError::NoSynthRule) // Ok
         },
         &Exp::Lam(ref x, ref e) => {
-            let td1 = synth_exp(last_label, ctx, e);
+            let td1 = synth_exp(ext, ctx, e);
             let td = ExpRule::Lam(x.clone(), td1);
             fail(td, TypeError::NoSynthRule) // Ok
         },        
         &Exp::Unroll(ref v,ref x,ref e) => {
-            let td0 = synth_val(last_label, ctx, v);
-            let td2 = synth_exp(last_label, ctx, e);
+            let td0 = synth_val(ext, ctx, v);
+            let td2 = synth_exp(ext, ctx, e);
             let td = ExpRule::Unroll(td0, x.clone(), td2);
             fail(td, TypeError::NoSynthRule) // Ok
         },
         &Exp::Unpack(ref i, ref x, ref v, ref e) => {
-            let td2 = synth_val(last_label, ctx, v);
-            let td3 = synth_exp(last_label, ctx, e);
+            let td2 = synth_val(ext, ctx, v);
+            let td3 = synth_exp(ext, ctx, e);
             let td = ExpRule::Unpack(i.clone(),x.clone(),td2,td3);
             fail(td, TypeError::NoSynthRule)
         }
@@ -1764,13 +1794,13 @@ pub fn synth_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp) -> ExpDer {
 }
 
 /// Check a type and effect against a program expression
-pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
-    let fail = |td:ExpRule, err :TypeError| { failure(Dir::Check(ceffect.clone()), last_label, ctx, exp.clone(), td, err) };
-    let succ = |td:ExpRule, typ :CEffect  | { success(Dir::Check(ceffect.clone()), last_label, ctx, exp.clone(), td, typ) };
+pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
+    let fail = |td:ExpRule, err :TypeError| { failure(Dir::Check(ceffect.clone()), ext, ctx, exp.clone(), td, err) };
+    let succ = |td:ExpRule, typ :CEffect  | { success(Dir::Check(ceffect.clone()), ext, ctx, exp.clone(), td, typ) };
     match exp {
         &Exp::Fix(ref x,ref e) => {            
             let new_ctx = ctx.var(x.clone(), Type::Thk(IdxTm::Empty, Rc::new(ceffect.clone())));
-            let td = check_exp(last_label, &new_ctx, e, ceffect);
+            let td = check_exp(ext, &new_ctx, e, ceffect);
             let td_typ = td.clas.clone();
             match td_typ {
                 Err(_) => fail(ExpRule::Fix(x.clone(),td), TypeError::CheckFailCEffect((ceffect.clone()))),
@@ -1797,7 +1827,7 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
             let (ctx, ceffect) = strip_foralls(ctx, ceffect);            
             if let CEffect::Cons(CType::Arrow(ref at,ref et),ref _ef) = ceffect {
                 let new_ctx = ctx.var(x.clone(),at.clone());
-                let td1 = check_exp(last_label, &new_ctx, e, et);
+                let td1 = check_exp(ext, &new_ctx, e, et);
                 let typ1 = td1.clas.clone();
                 let td = ExpRule::Lam(x.clone(), td1);
                 // TODO: use this once effects are properly implemented
@@ -1809,14 +1839,14 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
                     Ok(_) => succ(td, ceffect.clone()),
                 }
             } else { fail(ExpRule::Lam(
-                x.clone(), synth_exp(last_label, &ctx, e)
+                x.clone(), synth_exp(ext, &ctx, e)
             ), TypeError::AnnoMism) }
         },
         &Exp::Unroll(ref v,ref x,ref e) => {
-            let v_td = synth_val(last_label, ctx, v);
+            let v_td = synth_val(ext, ctx, v);
             match v_td.clas.clone() {
                 Err(_) => {
-                    let td0 = check_exp(last_label, ctx, e, ceffect);
+                    let td0 = check_exp(ext, ctx, e, ceffect);
                     fail(ExpRule::Unroll(v_td, x.clone(), td0),
                          TypeError::SynthFailVal(v.clone()))
                 }
@@ -1824,7 +1854,7 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
                     let v_ty = normal::normal_type(ctx, &v_ty);
                     let v_ty = normal::unroll_type(&v_ty);
                     let new_ctx = ctx.var(x.clone(), v_ty);
-                    let td0 = check_exp(last_label, &new_ctx, e, ceffect);
+                    let td0 = check_exp(ext, &new_ctx, e, ceffect);
                     let td0_typ = td0.clas.clone();
                     let td = ExpRule::Unroll(v_td, x.clone(), td0);
                     match td0_typ {
@@ -1841,7 +1871,7 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
         // Gamma |- unpack(v,x.b.e) <= E                                   
         //
         &Exp::Unpack(ref a1, ref x, ref v, ref e) => {
-            let v_td = synth_val(last_label, ctx, v);
+            let v_td = synth_val(ext, ctx, v);
             let v_ty = v_td.clone().clas.map(|a| normal::normal_type(ctx, &a));
             match v_ty.clone() {
                 Ok(Type::Exists(ref a2, ref g, ref p, ref aa)) => {
@@ -1852,7 +1882,7 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
                         .prop(p.clone())
                         .var(x.clone(),aa)
                         ;
-                    let td3 = check_exp(last_label, &new_ctx, e, &ceffect);
+                    let td3 = check_exp(ext, &new_ctx, e, &ceffect);
                     let typ3 = td3.clas.clone();
                     let rule = ExpRule::Unpack(a1.clone(),x.clone(),v_td,td3);
                     match typ3 {
@@ -1861,7 +1891,7 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
                     }
                 },
                 rt => {
-                    let td3 = synth_exp(last_label, ctx, e);
+                    let td3 = synth_exp(ext, ctx, e);
                     let td = ExpRule::Unpack(a1.clone(),x.clone(),v_td,td3);
                     if let Err(_) = rt { fail(td, TypeError::ParamNoSynth(2)) }
                     else { fail(td, TypeError::ParamMism(2)) }
@@ -1869,15 +1899,15 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
             }
         },
         &Exp::Case(ref v, ref x1, ref e1, ref x2, ref e2) => {
-            let v_td = synth_val(last_label, ctx, v);
+            let v_td = synth_val(ext, ctx, v);
             let v_ty = v_td.clone().clas.map(|a| normal::normal_type(ctx, &a));
             match v_ty {
                 Ok(Type::Sum(ty1, ty2)) => {
                     let new_ctx1 = ctx.var(x1.clone(), (*ty1).clone());
                     let new_ctx2 = ctx.var(x2.clone(), (*ty2).clone());
-                    let td1 = check_exp(last_label, &new_ctx1, e1, ceffect);
+                    let td1 = check_exp(ext, &new_ctx1, e1, ceffect);
                     let td1_typ = td1.clas.clone();
-                    let td2 = check_exp(last_label, &new_ctx2, e2, ceffect);
+                    let td2 = check_exp(ext, &new_ctx2, e2, ceffect);
                     let td2_typ = td2.clas.clone();
                     let td = ExpRule::Case(v_td, x1.clone(), td1, x2.clone(), td2);
                     match (td1_typ, td2_typ) {
@@ -1886,14 +1916,14 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
                     }
                 }
                 Ok(t) => {
-                    let td1 = check_exp(last_label, ctx, e1, ceffect);
-                    let td2 = check_exp(last_label, ctx, e2, ceffect);
+                    let td1 = check_exp(ext, ctx, e1, ceffect);
+                    let td2 = check_exp(ext, ctx, e2, ceffect);
                     fail(ExpRule::Case(v_td, x1.clone(), td1, x2.clone(), td2),
                          TypeError::UnexpectedType(t))
                 }
                 _ => {
-                    let td1 = check_exp(last_label, ctx, e1, ceffect);
-                    let td2 = check_exp(last_label, ctx, e2, ceffect);
+                    let td1 = check_exp(ext, ctx, e1, ceffect);
+                    let td2 = check_exp(ext, ctx, e2, ceffect);
                     fail(ExpRule::Case(v_td, x1.clone(), td1, x2.clone(), td2),
                          TypeError::SynthFailVal(v.clone()))
                 }
@@ -1901,19 +1931,19 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
         },
         &Exp::Let(ref x,ref e1, ref e2) => {
             if let CEffect::Cons(ref ctyp,ref _eff) = *ceffect {
-                let td1 = synth_exp(last_label, ctx, e1);
+                let td1 = synth_exp(ext, ctx, e1);
                 let typ1 = td1.clas.clone();
                 match typ1 {
                     Err(_) => { fail(ExpRule::Let(
                         x.clone(), td1,
-                        synth_exp(last_label, ctx, e2)
+                        synth_exp(ext, ctx, e2)
                     ), TypeError::ParamNoSynth(1)) },
                     Ok(CEffect::Cons(CType::Lift(ref ct1),ref _eff1)) => {
                         let new_ctx = ctx.var(x.clone(),ct1.clone());
                         // TODO: compute this effect
                         let eff2 = Effect::WR(IdxTm::Empty,IdxTm::Empty);
                         let typ2 = CEffect::Cons(ctyp.clone(), eff2);
-                        let td2 = check_exp(last_label, &new_ctx, e2, &typ2);
+                        let td2 = check_exp(ext, &new_ctx, e2, &typ2);
                         let typ2res = td2.clas.clone();
                         let td = ExpRule::Let(x.clone(), td1,td2);
                         match typ2res {
@@ -1923,17 +1953,17 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
                     },
                     _ => fail(ExpRule::Let(
                         x.clone(), td1,
-                        synth_exp(last_label,ctx,e2)
+                        synth_exp(ext,ctx,e2)
                     ), TypeError::ParamMism(1)),
                 }
             } else { fail(ExpRule::Let(x.clone(),
-                synth_exp(last_label, ctx, e1),
-                synth_exp(last_label, ctx, e1),
+                synth_exp(ext, ctx, e1),
+                synth_exp(ext, ctx, e1),
             ), TypeError::AnnoMism) }
         },
         &Exp::Ret(ref v) => {
             if let CEffect::Cons(CType::Lift(ref t),ref _ef) = *ceffect {
-                let td0 = check_val(last_label, ctx, v, t);
+                let td0 = check_val(ext, ctx, v, t);
                 let typ0 = td0.clas.clone();
                 let td = ExpRule::Ret(td0);
                 // TODO: use this once effects are properly implemented
@@ -1945,23 +1975,23 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
                     Ok(_) => succ(td, ceffect.clone())
                 }
             } else { fail(ExpRule::Ret(
-                synth_val(last_label,ctx,v)
+                synth_val(ext,ctx,v)
             ), TypeError::AnnoMism) }
         },
         &Exp::Split(ref v, ref x1, ref x2, ref e) => {
-            let td0 = synth_val(last_label, ctx, v);
+            let td0 = synth_val(ext, ctx, v);
             let v_ty = td0.clone().clas.map(|a| normal::normal_type(ctx, &a));
             match v_ty.clone() {
                 Err(_) => fail(ExpRule::Split(
                     td0, x1.clone(), x2.clone(),
-                    synth_exp(last_label, ctx, e)
+                    synth_exp(ext, ctx, e)
                 ), TypeError::ParamNoSynth(0)),
                 Ok(Type::Prod(t1,t2)) => {
                     let new_ctx = ctx
                         .var(x1.clone(),(*t1).clone())
                         .var(x2.clone(),(*t2).clone())
                         ;
-                    let td3 = check_exp(last_label, &new_ctx, e, ceffect);
+                    let td3 = check_exp(ext, &new_ctx, e, ceffect);
                     let typ3 = td3.clas.clone();
                     let td = ExpRule::Split(td0, x1.clone(), x2.clone(), td3);
                     match typ3 {
@@ -1971,14 +2001,14 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
                 },
                 _ => fail(ExpRule::Split(
                     td0, x1.clone(), x2.clone(),
-                    synth_exp(last_label, ctx, e)
+                    synth_exp(ext, ctx, e)
                 ), TypeError::ParamMism(0)),
             }
         },
         &Exp::IfThenElse(ref v, ref e1, ref e2) => {
-            let td0 = synth_val(last_label, ctx, v);
-            let td1 = check_exp(last_label, ctx, e1, ceffect);
-            let td2 = check_exp(last_label, ctx, e2, ceffect);
+            let td0 = synth_val(ext, ctx, v);
+            let td1 = check_exp(ext, ctx, e1, ceffect);
+            let td2 = check_exp(ext, ctx, e2, ceffect);
             let v_ty = td0.clas.clone().map(|a| normal::normal_type(ctx, &a));
             let (_t0,t1,t2) = (td0.clas.clone(),td1.clas.clone(),td2.clas.clone());
             let td = ExpRule::IfThenElse(td0,td1,td2);
@@ -2002,12 +2032,12 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
                 // TODO: use this once effects are properly implemented
                 // if (*w,r) != (*idx,IdxTm::Empty) {
                 //     return fail(ExpRule::Thunk(
-                //         synth_val(last_label, ctx, v),
-                //         synth_exp(last_label, ctx, e),
+                //         synth_val(ext, ctx, v),
+                //         synth_exp(ext, ctx, e),
                 //     ), TypeError::InvalidPtr)
                 // }
-                let td0 = check_val(last_label,ctx,v,&Type::Nm(idx.clone()));
-                let td1 = check_exp(last_label,ctx,e,&**ce);
+                let td0 = check_val(ext,ctx,v,&Type::Nm(idx.clone()));
+                let td1 = check_exp(ext,ctx,e,&**ce);
                 let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
                 let td = ExpRule::Thunk(td0,td1);
                 match (typ0,typ1) {
@@ -2016,8 +2046,8 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
                     (Ok(_),Ok(_)) => succ(td, ceffect.clone()),
                 }
             } else { fail(ExpRule::Thunk(
-                synth_val(last_label, ctx, v),
-                synth_exp(last_label, ctx, e),
+                synth_val(ext, ctx, v),
+                synth_exp(ext, ctx, e),
             ),TypeError::AnnoMism)}
         },
 
@@ -2046,16 +2076,19 @@ pub fn check_exp(last_label:Option<&str>, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) 
         },
         &Exp::DebugLabel(ref _n, ref s, ref e) => {
             match s {
-                &None => check_exp(last_label, ctx, e, ceffect),
-                &Some(ref lbl) => check_exp(Some(lbl), ctx, e, ceffect),
-            }
-            
+                &None => check_exp(ext, ctx, e, ceffect),
+                &Some(ref lbl) => {
+                    let mut ext = ext.clone();
+                    ext.last_label = Some(Rc::new(lbl.to_string()));
+                    check_exp(&ext, ctx, e, ceffect)
+                }
+            }            
         },
         &Exp::NoParse(ref s) => {
             fail(ExpRule::NoParse(s.clone()), TypeError::NoParse(s.clone()))
         },
         e => {
-            let mut td = synth_exp(last_label,ctx,e);
+            let mut td = synth_exp(ext,ctx,e);
             let ty = td.clas.clone();
             if let Ok(ty) = ty {
                 // TODO: Type equality may be more complex than this test (e.g. alpha equivalent types should be equal)

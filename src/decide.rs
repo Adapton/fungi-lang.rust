@@ -1,7 +1,7 @@
 /*! Decision procedures for Fungi type and effect system. */
 
 use ast::*;
-use bitype::{Ctx,HasClas,TypeError};
+use bitype::{Ext,Ctx,HasClas,TypeError};
 use normal;
 //use std::fmt;
 use std::rc::Rc;
@@ -644,10 +644,10 @@ pub mod subset {
         let (ctx1, ctx2) = ctxs_of_relctx((*ctx).clone());
 
         let a     = normal::normal_idxtm(&ctx1, i.clone());
-        let a_bit = bitype::synth_idxtm(None, &ctx1, &a);
+        let a_bit = bitype::synth_idxtm(&Ext::empty(), &ctx1, &a);
 
         let b     = normal::normal_idxtm(&ctx2, j.clone());
-        let b_bit = bitype::synth_idxtm(None, &ctx2, &b);
+        let b_bit = bitype::synth_idxtm(&Ext::empty(), &ctx2, &b);
 
         // Basecase: "On the nose" equality.
         //
