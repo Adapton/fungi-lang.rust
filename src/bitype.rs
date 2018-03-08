@@ -195,6 +195,8 @@ pub trait HasClas {
 /// Typing derivation: A context (`ctx`), a direction (`dir`), a classifier (type, sort, etc) and a rule (`rule`).
 #[derive(Clone,Debug,Eq,Hash)]
 pub struct Der<Rule:HasClas+debug::DerRule> {
+    // TODO: Add this "extra info" to the derivations; may break HFI in the short term.
+    //pub ext:Ext,
     pub ctx:Ctx,
     pub dir:Dir<Rule>,
     pub term:Rc<Rule::Term>,
@@ -573,6 +575,7 @@ fn failure<R:HasClas+debug::DerRule>
     
     println!("Failed to {} {} {}, error: {}", dir.short(), R::term_desc(), n.short(), err);
     Der{
+        //ext: ext.clone(),
         ctx: ctx.clone(),
         term: Rc::new(tm),
         rule: Rc::new(n),
@@ -590,6 +593,7 @@ fn success<R:HasClas+debug::DerRule>
      ctx:&Ctx, tm:R::Term, rule:R, clas:R::Clas) -> Der<R>
 {
     Der{
+        //ext: ext.clone(),
         ctx: ctx.clone(),
         term: Rc::new(tm),
         rule: Rc::new(rule),
@@ -607,6 +611,7 @@ fn propagate<R:HasClas+debug::DerRule>
      ctx:&Ctx, tm:R::Term, rule:R, result:Result<R::Clas,TypeError>) -> Der<R>
 {
     Der{
+        //ext: ext.clone(),
         ctx: ctx.clone(),
         term: Rc::new(tm),
         rule: Rc::new(rule),
