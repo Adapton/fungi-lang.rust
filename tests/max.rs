@@ -67,7 +67,7 @@ fn max2() {
             ) = { unimplemented }
         }
 
-        // Compute the optional natural number in a sequence
+        // Compute the (optional) maximum natural number in a sequence
         let max:(
             Thk[0] foralli (X,Y):NmSet.
                 0 Seq[X][Y] -> { {WS_Seq_SR} X; Y } F OpNat
