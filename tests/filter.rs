@@ -40,15 +40,17 @@ fn filter2() {
 
             /// Pointers written for each name in a structural recursion (-`_SR`) over a sequence:
             idxtm Seq_SR = ( #x:Nm.({x,@1})%({x,@2}) );
+
             /// ... prefixed with the current write scope (`WS`-), named `@!` below, as a nameset-level function
             idxtm WS_Seq_SR  = ( #x:NmSet.{@!}((Seq_SR) x) );
-            //idxtm WS_Seq_SR  = ( #x:NmSet.(Seq_SR) x );
+
             /// ... same, but just the first recursive call
             idxtm WS_Seq_SR1 = ( #x:NmSet.[@@](x * {@1}));
-            //idxtm WS_Seq_SR1 = ( #x:NmSet. x * {@1} );
+            //idxtm WS_Seq_SR1 = ( #x:NmSet.{@!}(x * {@1})); //-- TODO: Add equations to make this work too, e.g., [@@]( i ) == {@!}( i )
+
             /// ... second recursive call
             idxtm WS_Seq_SR2 = ( #x:NmSet.[@@](x * {@2}));
-            //idxtm WS_Seq_SR2 = ( #x:NmSet.x * {@2} );
+            //idxtm WS_Seq_SR2 = ( #x:NmSet.{@!}(x * {@2})); //-- TODO: Make this work too.
 
             /// Filter an optional natural number, using a natural number predicate
             fn opnat_filter_nat:(
