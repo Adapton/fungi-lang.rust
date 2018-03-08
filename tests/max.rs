@@ -19,10 +19,10 @@ fn max2() {
 
     let bundle : Bundle = fgi_bundle![
         decls {
-            // Optional natural numbers:
+            /// Optional natural numbers:
             type OpNat = (+ Unit + Nat );
 
-            // Compute the maximum optional natural number (among a pair)
+            /// Compute the maximum optional natural number (among a pair)
             fn opnat_max:(
                 Thk[0] 0 OpNat -> 0 OpNat -> 0 F OpNat
             ) = {
@@ -39,9 +39,11 @@ fn max2() {
                 }
             }
 
-            // Sequences (balanced binary level trees), whose leaves
-            // are optional natural numbers:
+            /// Levels (as numbers), for level trees.
             type Lev = ( Nat )
+
+            /// Sequences (balanced binary level trees), whose leaves
+            /// are optional natural numbers:
             type Seq = (
                 rec seq. foralli (X,Y):NmSet.
                     (+ (+ Unit + Nat)
@@ -87,9 +89,6 @@ fn max2() {
                 }
             }
         }
-        //let pred : (Thk[0] 0 Nat -> 0 F Bool) = {ret thunk #x. unimplemented}
-        //let nums_out = {{force max} pred nums}
-        //ret (nums, nums_out)
         ret 0
     ];
     write_bundle("target/max.fgb", &bundle);

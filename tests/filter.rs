@@ -19,7 +19,14 @@ fn filter2() {
 
     let bundle : Bundle = fgi_bundle![
         decls {
+            /// Optional natural numbers:
+            type OpNat = (+ Unit + Nat );
+            
+            /// Levels (as numbers), for level trees.
             type Lev = ( Nat )
+
+            /// Sequences (balanced binary level trees), whose leaves
+            /// are optional natural numbers:
             type Seq = (
                 rec seq. foralli (X,Y):NmSet.
                     (+ (+ Unit + Nat)
@@ -42,7 +49,31 @@ fn filter2() {
             /// ... second recursive call
             //idxtm WS_Seq_SR2 = ( #x:NmSet.{@!}(x * {@2}));
             idxtm WS_Seq_SR2 = ( #x:NmSet.x * {@2} );
-            
+
+            /// Filter an optional natural number, using a natural number predicate
+            fn opnat_filter_nat:(
+                Thk[0] 0 OpNat ->
+                    0 (Thk[0] 0 Nat -> 0 F Bool) ->
+                    0 F OpNat
+            ) = {
+                #opnat.#pred.
+                match opnat {
+                    _u => {
+                        // no number to filter
+                        ret inj1 ()
+                    }
+                    n => {
+                        // apply user-supplied predicate
+                        if {{force pred} n} {
+                            // keep the number n
+                            ret inj2 n
+                        } else {
+                            // filter out the number n
+                            ret inj1 ()
+                        }
+                    }
+                }
+            }
 
             fn is_empty:(
                 Thk[0] foralli (X,Y):NmSet.
@@ -50,6 +81,7 @@ fn filter2() {
             ) = { unimplemented }
         }
 
+        // Filter a sequence (of optional natural numbers) using a predicate over natural numbers
         let filter:(
             Thk[0] foralli (X,Y):NmSet.
                 0 Seq[X][Y] ->
@@ -58,23 +90,9 @@ fn filter2() {
             F Seq[X][{WS_Seq_SR} X]
         ) = {
             ret thunk fix filter. #seq. #f. unroll match seq {
-                opnat => {
-                    match opnat {
-                        _u => {
-                            // no number to filter
-                            ret roll inj1 inj1 ()
-                        }
-                        n => {
-                            // apply user-supplied predicate
-                            if {{force f} n} {
-                                // keep the number n
-                                ret roll inj1 inj2 n
-                            } else {
-                                // filter out the number n
-                                ret roll inj1 inj1 ()
-                            }
-                        }
-                    }
+                on => {
+                    let on = {{force opnat_filter_nat} on f}
+                    ret roll inj1 on
                 }
                 bin => {
                     unpack (X1,X2,X3,Y1,Y2,Y3,Y4) bin = bin
@@ -95,9 +113,6 @@ fn filter2() {
                 }
             }
         }
-        //let pred : (Thk[0] 0 Nat -> 0 F Bool) = {ret thunk #x. unimplemented}
-        //let nums_out = {{force filter} pred nums}
-        //ret (nums, nums_out)
         ret 0
     ];
     write_bundle("target/filter.fgb", &bundle);
