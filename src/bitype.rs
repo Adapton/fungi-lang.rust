@@ -631,6 +631,22 @@ fn propagate<R:HasClas+debug::DerRule>
     }
 }
 
+//TODO: Return a Vec<_>; try each possible decomposition.
+pub fn find_defs_for_idxtm_var(ctx:&Ctx, x:&Var) -> Option<IdxTm> {
+    match ctx {
+        &Ctx::Empty => None,
+        &Ctx::PropTrue(_, Prop::Equiv(IdxTm::Var(ref x_), ref i,_)) if x == x_ => Some(i.clone()),
+        &Ctx::PropTrue(_, Prop::Equiv(ref i, IdxTm::Var(ref x_),_)) if x == x_ => Some(i.clone()),
+        &Ctx::PropTrue(_, Prop::Equiv(ref i, ref j, ref g)) => {
+            // This is the not the prop that we are looking for; but perhaps print it.
+            //println!("PropTrue: {:?} == {:?} : {:?}", i, j, g);
+            find_defs_for_idxtm_var(&*(ctx.rest().unwrap()), x)
+        },
+        _ => find_defs_for_idxtm_var(&*(ctx.rest().unwrap()), x)
+    }
+}
+
+
 /// synthesize sort for index term
 pub fn synth_idxtm(ext:&Ext, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer {
     let fail = |r:IdxTmRule, err :TypeError| { failure(Dir::Synth, ext, ctx, idxtm.clone(), r, err)  };

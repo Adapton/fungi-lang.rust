@@ -199,6 +199,7 @@ pub struct Dec<Rule:HasClas> {
 pub mod effect {
     use ast::{Var,Sort,IdxTm,Effect};
     use normal;
+    use normal::{NmSet,NmSetTm,NmSetCons};
     use bitype;
     use bitype::{Ext,Ctx};
     use super::equiv;
@@ -214,6 +215,8 @@ pub mod effect {
     pub enum Error {
         /// Cannot subtract structure from a variable with unknown structure
         CannotSubtractFromVar(Var, IdxTm),
+        /// Cannot subtract a name set term from a name set
+        CannotSubtractNmSetTmFromNmSet(normal::NmSet, normal::NmSetTm),
         /// The Archivist cannot subtract the second effect from the first
         CannotSubtract(Effect, Effect),
         /// The Archivist cannot sequence the two effects
@@ -242,6 +245,46 @@ pub mod effect {
         }
     }
 
+    pub fn decide_nmset_subtraction(ctx:&Ctx, ns1:NmSet, ns2:NmSet) -> Result<IdxTm, Error> {
+        println!("decide_nmset_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &ns1, &ns2);
+        //
+        // Step 1: Verify: Before computing subtraction, check
+        // that each term in ns1 is really in the set ns1.
+        //
+        for t2 in ns2.terms.iter() {
+            let mut t2_found = false;
+            for t1 in ns1.terms.iter() {
+                if t1 == t2 { t2_found = true; break }
+                else { continue }
+            };
+            if t2_found { } else {
+                println!("^decide_nmset_subtraction: Failure\nFrom:\n\t{:?}\nCannot subtract:\n\t{:?}", &ns1, &t2);
+                return Result::Err( Error::CannotSubtractNmSetTmFromNmSet( ns1.clone(), t2.clone() ) )
+            };                    
+        };
+        //
+        // Step 2: Calculate: OK -- All the terms in ns2 are
+        // also in ns1.  So, compute the subtraction:
+        //
+        let mut terms = vec![];
+        for t1 in ns1.terms.iter() {
+            let mut t1_found = false;
+            for t2 in ns2.terms.iter() {
+                if t1 == t2 { t1_found = true; break }
+                else { continue }                        
+            }
+            if t1_found { } else {
+                terms.push(t1.clone())
+            }
+        };
+        let i_minus_j = IdxTm::NmSet(NmSet{
+            cons:Some(NmSetCons::Apart),
+            terms:terms,
+        });
+        println!("^decide_idxtm_subtraction:\n Success:\n\t{:?}", i_minus_j);
+        Result::Ok(i_minus_j)
+    }
+    
     /// Tactic to find, and verify, an index term `j2` such that `i = j % j2`
     ///
     /// TODO: "Verify" the results using our decision procedures; return those derivations with the term that we find
@@ -251,14 +294,28 @@ pub mod effect {
         let nj = normal::normal_idxtm(ctx, j);
         println!("^decide_idxtm_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &ni, &nj);
         match (ni, nj) {
-            (IdxTm::Var(x), j) => {                
-                Result::Err( Error::CannotSubtractFromVar(x, j) )
-            },
+            (IdxTm::Var(x), j) => {
+                let xdef = bitype::find_defs_for_idxtm_var(&ctx, &x);
+                match xdef {
+                    None => {
+                        println!("^decide_idxtm_subtraction: Failure:\n From variable (with no known decomposition):\n\t{:?}\n Cannot subtract index term:\n\t{:?}", &x, &j);
+                        Result::Err( Error::CannotSubtractFromVar(x, j) )
+                    }
+                    Some(xdef) => {
+                        println!("^decide_idxtm_subtraction: Using {:?} == {:?} ...", x, xdef);
+                        decide_idxtm_subtraction(ctx, xdef, j)
+                    }
+                }
+            }
             (IdxTm::NmSet(ns1), IdxTm::NmSet(ns2)) => {
-                println!("^decide_idxtm_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &ns1, &ns2);
-                Result::Err( Error::TODO )
-            },
-            _ => {
+                decide_nmset_subtraction(ctx, ns1, ns2)
+            }
+            (IdxTm::NmSet(ns1), j) => {
+                let ns2 = normal::NmSet{cons:None,terms:vec![normal::NmSetTm::Subset(j)]};
+                decide_nmset_subtraction(ctx, ns1, ns2)
+            }
+            (i, j) => {
+                println!("^decide_idxtm_subtraction: Failure:\n From index term:\n\t{:?}\n We do not know how to subtract index term:\n\t{:?}", &i, &j);
                 Result::Err( Error::TODO )
             }
         }        
@@ -278,7 +335,11 @@ pub mod effect {
                     let wr3 = decide_idxtm_subtraction(ctx, wr1, wr2);
                     let rd3 = decide_idxtm_subtraction(ctx, rd1, rd2);
                     match (wr3, rd3) {
-                        (Ok(wr3), Ok(rd3)) => Ok(Effect::WR(wr3, rd3)),
+                        (Ok(wr3), Ok(rd3)) => {
+                            let eff3 = Effect::WR(wr3, rd3);
+                            println!("^decide_effect_subtraction:\n Success:\n\t{:?}", &eff3);
+                            Ok(eff3)
+                        },
                         (Err(err), _) => Result::Err(err),
                         (_, Err(err)) => Result::Err(err),
                     }
@@ -718,21 +779,6 @@ pub mod subset {
         fn tm_fam () -> String { "IdxTm".to_string() }
     }
     
-    //TODO: Return a Vec<_>; try each possible decomposition.
-    fn find_defs_for_idxtm_var(ctx:&Ctx, x:&Var) -> Option<IdxTm> {
-        match ctx {
-            &Ctx::Empty => None,
-            &Ctx::PropTrue(_, Prop::Equiv(IdxTm::Var(ref x_), ref i,_)) if x == x_ => Some(i.clone()),
-            &Ctx::PropTrue(_, Prop::Equiv(ref i, IdxTm::Var(ref x_),_)) if x == x_ => Some(i.clone()),
-            &Ctx::PropTrue(_, Prop::Equiv(ref i, ref j, ref g)) => {
-                // This is the not the prop that we are looking for; but perhaps print it.
-                //println!("PropTrue: {:?} == {:?} : {:?}", i, j, g);
-                find_defs_for_idxtm_var(&*(ctx.rest().unwrap()), x)
-            },
-            _ => find_defs_for_idxtm_var(&*(ctx.rest().unwrap()), x)
-        }
-    }
-
     /// Decide if a proposition is true under the given context
     pub fn decide_prop(_ctx: &RelCtx, p:Prop) -> bool {
         match p {
@@ -796,7 +842,7 @@ pub mod subset {
                 // relationship.  TODO: Return a Vec<_>; try each
                 // possible decomposition.
                 fn simple_solver(ctx:&RelCtx,ctx2:&Ctx,a:IdxTm,x:&String) -> IdxTmDec {
-                    let xdef : Option<IdxTm> = find_defs_for_idxtm_var(&ctx2, &x);
+                    let xdef : Option<IdxTm> = bitype::find_defs_for_idxtm_var(&ctx2, &x);
                     match xdef {
                         // Not enough info.
                         None => {

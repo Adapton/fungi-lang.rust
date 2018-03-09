@@ -4,6 +4,7 @@
 use std::rc::Rc;
 
 use ast::*;
+use bitype;
 use bitype::{Ctx,Term};
 use subst;   
 //use normal;   
@@ -275,6 +276,28 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                 let i1 = normal_idxtm_rec(ctx, i1);
                 let i2 = normal_idxtm_rec(ctx, i2);
                 match (*i1).clone() {
+                    IdxTm::WriteScope => {
+                        match (*i2).clone() {
+                            IdxTm::NmSet(mut ns) => {
+                                let mut terms = vec![];
+                                for t in ns.terms.iter() {
+                                    match (*t) {
+                                        NmSetTm::Single(ref n) => {
+                                            terms.push( NmSetTm::Single( NameTm::App( Rc::new(NameTm::WriteScope), Rc::new(n.clone()) ) ) )
+                                        },
+                                        NmSetTm::Subset(ref i) => {
+                                            terms.push( NmSetTm::Subset( IdxTm::App( Rc::new( IdxTm::WriteScope ), Rc::new(i.clone()) ) ) )
+                                        }
+                                    }
+                                }
+                                ns.terms = terms;
+                                IdxTm::NmSet(ns)
+                            },
+                            i2 => {
+                                IdxTm::App(i1, Rc::new(i2))
+                            }
+                        }
+                    },
                     IdxTm::Lam(x,_gx,i11) => {
                         let i11 = subst::subst_term_idxtm(Term::IdxTm((*i2).clone()), &x, (*i11).clone());
                         normal_idxtm(ctx, i11)
@@ -316,6 +339,37 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                 let i1 = normal_idxtm_rec(ctx, i1);
                 let i2 = normal_idxtm_rec(ctx, i2);
                 match ((*i1).clone(), (*i2).clone()) {
+                    (IdxTm::Lam(_,_,_), IdxTm::Var(x)) => {
+                        let xdef : Option<IdxTm> = bitype::find_defs_for_idxtm_var(&ctx, &x);
+                        match xdef {
+                            None => IdxTm::FlatMap(i1, i2),
+                            Some(xdef) => {
+                                match normal_idxtm(ctx, xdef) {
+                                    IdxTm::NmSet(ns) => {
+                                        let mut terms = vec![];
+                                        for t in ns.terms.iter() {
+                                            match t {
+                                                &NmSetTm::Single(ref n) => {
+                                                    terms.push(NmSetTm::Subset(
+                                                        IdxTm::FlatMap(i1.clone(), Rc::new(IdxTm::Sing(n.clone())))));
+                                                }
+                                                &NmSetTm::Subset(ref i) => {
+                                                    terms.push(NmSetTm::Subset(
+                                                        IdxTm::FlatMap(i1.clone(), Rc::new(i.clone()))));
+                                                }
+                                            }
+                                        };
+                                        IdxTm::NmSet(NmSet{                                            
+                                            cons:Some(NmSetCons::Apart),
+                                            terms:terms,
+                                        })
+                                    },
+                                    _ => IdxTm::FlatMap(i1, i2),
+                                }
+                            }
+                        }
+                        //panic!("TODO: {:?} {:?}", i2, xdef)
+                    }
                     (IdxTm::Lam(_,_,_), IdxTm::Var(_)) => {
                         /// The set is not exposing any structure, so do not return a canonical `NmSet` form
                         IdxTm::FlatMap(i1, i2)
@@ -347,11 +401,11 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                     terms.push(Subset(IdxTm::FlatMap(i1.clone(), Rc::new(i))))
                                 }
                             };
-                        }
+                        };
                         IdxTm::NmSet(NmSet{
                             cons:ns2.cons,
                             terms:terms
-                        })
+                        })                            
                     },
                     _ => i_clone
                 }
