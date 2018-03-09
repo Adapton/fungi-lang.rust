@@ -223,15 +223,15 @@ pub mod effect {
     }
 
     /// Decide whether a given effect is empty
-    pub fn decide_effect_empty(ext:&Ext, ctx:&Ctx, eff:Effect) -> bool {
+    pub fn decide_effect_empty(ctx:&Ctx, eff:Effect) -> bool {
         match eff {
             Effect::NoParse(_) => false,
             Effect::WR(IdxTm::Empty, IdxTm::Empty) => true,
             Effect::WR(i, j) => {
                 let rctx = super::relctx_of_ctx(ctx);
-                let ed = bitype::synth_idxtm(ext, ctx, &IdxTm::Empty);
-                let id = bitype::synth_idxtm(ext, ctx, &i);
-                let jd = bitype::synth_idxtm(ext, ctx, &j);
+                let ed = bitype::synth_idxtm(&Ext::empty(), ctx, &IdxTm::Empty);
+                let id = bitype::synth_idxtm(&Ext::empty(), ctx, &i);
+                let jd = bitype::synth_idxtm(&Ext::empty(), ctx, &j);
                 let id = equiv::decide_idxtm_equiv(&rctx, &id, &ed, &Sort::NmSet);
                 let jd = equiv::decide_idxtm_equiv(&rctx, &jd, &ed, &Sort::NmSet);
                 match (id.res, jd.res) {
@@ -245,7 +245,7 @@ pub mod effect {
     /// Tactic to find, and verify, an index term `j2` such that `i = j % j2`
     ///
     /// TODO: "Verify" the results using our decision procedures; return those derivations with the term that we find
-    pub fn decide_idxtm_subtraction(ext:&Ext, ctx:&Ctx, i:IdxTm, j:IdxTm) -> Result<IdxTm, Error> {
+    pub fn decide_idxtm_subtraction(ctx:&Ctx, i:IdxTm, j:IdxTm) -> Result<IdxTm, Error> {
         println!("decide_idxtm_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &i, &j);
         let ni = normal::normal_idxtm(ctx, i);
         let nj = normal::normal_idxtm(ctx, j);
@@ -267,16 +267,16 @@ pub mod effect {
     /// Tactic to find the result effect `eff3` such that `eff1 = eff2 then eff3`
     ///
     /// TODO: "Verify" the results using our decision procedures; return those derivations with the term that we find    
-    pub fn decide_effect_subtraction(ext:&Ext, ctx:&Ctx, r:Role, eff1:Effect, eff2:Effect) -> Result<Effect, Error> {
-        if decide_effect_empty(ext, ctx, eff2.clone()) {
+    pub fn decide_effect_subtraction(ctx:&Ctx, r:Role, eff1:Effect, eff2:Effect) -> Result<Effect, Error> {
+        if decide_effect_empty(ctx, eff2.clone()) {
             Result::Ok(eff1.clone())
         }
         else {
             println!("decide_effect_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &eff1, &eff2);
             match (eff1.clone(), eff2.clone()) {
                 (Effect::WR(wr1, rd1), Effect::WR(wr2, rd2)) => {
-                    let wr3 = decide_idxtm_subtraction(ext, ctx, wr1, wr2);
-                    let rd3 = decide_idxtm_subtraction(ext, ctx, rd1, rd2);
+                    let wr3 = decide_idxtm_subtraction(ctx, wr1, wr2);
+                    let rd3 = decide_idxtm_subtraction(ctx, rd1, rd2);
                     match (wr3, rd3) {
                         (Ok(wr3), Ok(rd3)) => Ok(Effect::WR(wr3, rd3)),
                         (Err(err), _) => Result::Err(err),
@@ -292,7 +292,7 @@ pub mod effect {
     }
 
     /// The result effect, if it exists, is `eff3` such that `eff1 then eff2 = eff3`
-    pub fn decide_effect_sequencing(ext:&Ext, ctx:&Ctx, r:Role, eff1:Effect, eff2:Effect) -> Result<Effect, Error> {
+    pub fn decide_effect_sequencing(ctx:&Ctx, r:Role, eff1:Effect, eff2:Effect) -> Result<Effect, Error> {
         Result::Err( Error::CannotSequence(eff1, eff2) )
     }
 }

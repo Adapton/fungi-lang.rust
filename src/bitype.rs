@@ -1965,7 +1965,9 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                     Ok(CEffect::Cons(CType::Lift(ref ct1), ref eff1)) => {
                         let new_ctx = ctx.var(x.clone(),ct1.clone());
                         match decide::effect::decide_effect_subtraction(
-                            ext, ctx, decide::effect::Role::Archivist,
+                            ctx,
+                            /* TODO: Get role from ext structure */
+                            decide::effect::Role::Archivist,
                             eff3.clone(), eff1.clone())
                         {
                             Ok(eff2) => {
