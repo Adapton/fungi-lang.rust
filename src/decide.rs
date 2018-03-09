@@ -192,7 +192,65 @@ pub struct Dec<Rule:HasClas> {
     pub ctx:RelCtx,
     pub rule:Rc<Rule>,
     pub clas:Rule::Clas,
-    pub res:Result<bool,DecError>
+    pub res:Result<bool,DecError>,
+}
+
+/// Decide effect relationships
+pub mod effect {
+    use ast::{Sort,IdxTm,Effect};
+    use bitype;
+    use bitype::{Ext,Ctx};
+    use super::equiv;
+
+    /// Computation role, either _Archivist_ or _Editor_.
+    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+    pub enum Role {
+        Archivist,
+        Editor,
+    }
+    /// Effect-related decision errors
+    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+    pub enum Error {
+        /// The Archivist cannot subtract the second effect from the first
+        CannotSubtract(Effect, Effect),
+        /// The Archivist cannot sequence the two effects
+        CannotSequence(Effect, Effect),
+    }
+
+    /// Decide whether a given effect is empty
+    pub fn decide_effect_empty(ext:&Ext, ctx:&Ctx, eff:Effect) -> bool {
+        match eff {
+            Effect::NoParse(_) => false,
+            Effect::WR(IdxTm::Empty, IdxTm::Empty) => true,
+            Effect::WR(i, j) => {
+                let rctx = super::relctx_of_ctx(ctx);
+                let ed = bitype::synth_idxtm(ext, ctx, &IdxTm::Empty);
+                let id = bitype::synth_idxtm(ext, ctx, &i);
+                let jd = bitype::synth_idxtm(ext, ctx, &j);
+                let id = equiv::decide_idxtm_equiv(&rctx, &id, &ed, &Sort::NmSet);
+                let jd = equiv::decide_idxtm_equiv(&rctx, &jd, &ed, &Sort::NmSet);
+                match (id.res, jd.res) {
+                    (Result::Ok(true), Result::Ok(true)) => true,
+                    _ => false
+                }
+            }
+        }
+    }
+    
+    /// The result effect, if it exists, is `eff3` such that `eff1 = eff2 then eff3`
+    pub fn decide_effect_subtraction(ext:&Ext, ctx:&Ctx, r:Role, eff1:Effect, eff2:Effect) -> Result<Effect, Error> {
+        if decide_effect_empty(ext, ctx, eff2.clone()) {
+            Result::Ok(eff1.clone())
+        }
+        else {
+            Result::Err( Error::CannotSubtract(eff1, eff2) )
+        }
+    }
+
+    /// The result effect, if it exists, is `eff3` such that `eff1 then eff2 = eff3`
+    pub fn decide_effect_sequencing(ext:&Ext, ctx:&Ctx, r:Role, eff1:Effect, eff2:Effect) -> Result<Effect, Error> {
+        Result::Err( Error::CannotSequence(eff1, eff2) )
+    }
 }
 
 

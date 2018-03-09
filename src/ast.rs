@@ -169,7 +169,7 @@ pub type PropRec = Rc<Prop>;
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Effect {
     WR(IdxTm, IdxTm),
-    Then(EffectRec, EffectRec),
+    //Then(EffectRec, EffectRec),
     NoParse(String),
 }
 pub type EffectRec = Rc<Effect>;

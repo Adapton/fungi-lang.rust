@@ -484,12 +484,14 @@ pub enum TypeError {
     SynthFailVal(Val),
     UnexpectedCEffect(CEffect),
     UnexpectedType(Type),
+    EffectError(decide::effect::Error),
+    
     // for statement-like AST nodes e.g. `Let`
     LaterError,
     // error in subderivation; for tree-shaped AST nodes e.g. `App`, and value forms.
     Subder,
     Mismatch,
-    MismatchSort(Sort,Sort),
+    MismatchSort(Sort,Sort),    
 }
 impl fmt::Display for TypeError {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
@@ -523,6 +525,7 @@ impl fmt::Display for TypeError {
             TypeError::Subder     => format!("error in a subderivation"),
             TypeError::Mismatch   => format!("type mismatch"),
             TypeError::MismatchSort(ref g1, ref g2) => format!("sort mismatch: found {:?}, but expected {:?}", g1, g2),
+            TypeError::EffectError(ref err) => format!("effect error: {:?}", err),
         };
         write!(f,"{}",s)
     }
@@ -559,6 +562,7 @@ fn error_is_local(err:&TypeError) -> bool {
         TypeError::Subder     => false,
         TypeError::Mismatch   => true,
         TypeError::MismatchSort(_,_)  => true,
+        TypeError::EffectError(_)  => true,
     }
 }
 
@@ -1580,7 +1584,8 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                 )),
             }
         },
-        /*
+        /* Synth/Let
+        
         Gamma        |- e1 ==> effect1 F A
         Gamma, x : A |- e2 ==> effect2 C
         Gamma       ||- (effect1 then effect2) = effect3
@@ -1939,8 +1944,17 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 }
             }
         },
-        &Exp::Let(ref x,ref e1, ref e2) => {
-            if let CEffect::Cons(ref ctyp,ref _eff) = *ceffect {
+        /* Check/Let
+        
+        Gamma        |- e1 ==> effect1 F A
+        Gamma, x : A |- e2 <== effect2 C
+        Gamma       ||- (effect1 then effect2) = effect3
+        --------------------------------------------------:: let
+        Gamma |- let x = e1 in e2 <== effect3 C
+        
+         */
+        &Exp::Let(ref x, ref e1, ref e2) => {
+            if let CEffect::Cons(ref ctyp, ref eff3) = *ceffect {
                 let td1 = synth_exp(ext, ctx, e1);
                 let typ1 = td1.clas.clone();
                 match typ1 {
@@ -1948,23 +1962,34 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                         x.clone(), td1,
                         synth_exp(ext, ctx, e2)
                     ), TypeError::ParamNoSynth(1)) },
-                    Ok(CEffect::Cons(CType::Lift(ref ct1),ref _eff1)) => {
+                    Ok(CEffect::Cons(CType::Lift(ref ct1), ref eff1)) => {
                         let new_ctx = ctx.var(x.clone(),ct1.clone());
-                        // TODO: compute this effect
-                        let eff2 = Effect::WR(IdxTm::Empty,IdxTm::Empty);
-                        let typ2 = CEffect::Cons(ctyp.clone(), eff2);
-                        let td2 = check_exp(ext, &new_ctx, e2, &typ2);
-                        let typ2res = td2.clas.clone();
-                        let td = ExpRule::Let(x.clone(), td1,td2);
-                        match typ2res {
-                            Err(_) => fail(td, TypeError::LaterError),
-                            Ok(_) => succ(td, ceffect.clone()),
+                        match decide::effect::decide_effect_subtraction(
+                            ext, ctx, decide::effect::Role::Archivist,
+                            eff3.clone(), eff1.clone())
+                        {
+                            Ok(eff2) => {
+                                let typ2 = CEffect::Cons(ctyp.clone(), eff2);
+                                let td2 = check_exp(ext, &new_ctx, e2, &typ2);
+                                let typ2res = td2.clas.clone();
+                                let td = ExpRule::Let(x.clone(), td1,td2);
+                                match typ2res {
+                                    Err(_) => fail(td, TypeError::LaterError),
+                                    Ok(_) => succ(td, ceffect.clone()),
+                                }
+                            }
+                            Err(err) => {
+                                fail(ExpRule::Let(
+                                    x.clone(), td1,
+                                    synth_exp(ext,ctx,e2)
+                                ), TypeError::EffectError(err))
+                            }
                         }
-                    },
+                    }
                     _ => fail(ExpRule::Let(
                         x.clone(), td1,
                         synth_exp(ext,ctx,e2)
-                    ), TypeError::ParamMism(1)),
+                    ), TypeError::ParamMism(1))
                 }
             } else { fail(ExpRule::Let(x.clone(),
                 synth_exp(ext, ctx, e1),

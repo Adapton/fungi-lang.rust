@@ -193,10 +193,10 @@ pub fn subst_term_effect(t:Term, x:&String, eff:Effect) -> Effect {
             Effect::WR(subst_term_idxtm(t.clone(), x, i),
                        subst_term_idxtm(t, x, j))
         },
-        Effect::Then(e1, e2) => {
-            Effect::Then(subst_term_effect_rec(t.clone(), x, e1),
-                         subst_term_effect_rec(t, x, e2))
-        }
+        // Effect::Then(e1, e2) => {
+        //     Effect::Then(subst_term_effect_rec(t.clone(), x, e1),
+        //                  subst_term_effect_rec(t, x, e2))
+        // }
         Effect::NoParse(s) => Effect::NoParse(s)
     }
 }
