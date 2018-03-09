@@ -286,6 +286,10 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                 let n1 = normal_nmtm_rec(ctx, n1);
                 let i2 = normal_idxtm_rec(ctx, i2);
                 match ((*n1).clone(), (*i2).clone()) {
+                    (NameTm::Lam(_,_,_), IdxTm::Var(_)) => {
+                        /// The set is not exposing any structure, so do not return a canonical `NmSet` form
+                        IdxTm::Map(n1, i2)
+                    }                    
                     (NameTm::Lam(_x,_gx,_n11), IdxTm::NmSet(ns2)) => {
                         let mut terms = vec![];
                         for tm2 in ns2.terms.iter() {
@@ -312,6 +316,10 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                 let i1 = normal_idxtm_rec(ctx, i1);
                 let i2 = normal_idxtm_rec(ctx, i2);
                 match ((*i1).clone(), (*i2).clone()) {
+                    (IdxTm::Lam(_,_,_), IdxTm::Var(_)) => {
+                        /// The set is not exposing any structure, so do not return a canonical `NmSet` form
+                        IdxTm::FlatMap(i1, i2)
+                    }                    
                     (IdxTm::Lam(x,_gx,i11), IdxTm::NmSet(ns2)) => {
                         let mut terms = vec![];
                         for tm2 in ns2.terms.iter() {

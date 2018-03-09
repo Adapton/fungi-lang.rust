@@ -197,7 +197,8 @@ pub struct Dec<Rule:HasClas> {
 
 /// Decide effect relationships
 pub mod effect {
-    use ast::{Sort,IdxTm,Effect};
+    use ast::{Var,Sort,IdxTm,Effect};
+    use normal;
     use bitype;
     use bitype::{Ext,Ctx};
     use super::equiv;
@@ -211,6 +212,8 @@ pub mod effect {
     /// Effect-related decision errors
     #[derive(Clone,Debug,Eq,PartialEq,Hash)]
     pub enum Error {
+        /// Cannot subtract structure from a variable with unknown structure
+        CannotSubtractFromVar(Var, IdxTm),
         /// The Archivist cannot subtract the second effect from the first
         CannotSubtract(Effect, Effect),
         /// The Archivist cannot sequence the two effects
@@ -236,16 +239,53 @@ pub mod effect {
             }
         }
     }
+
+    /// Tactic to find, and verify, an index term `j2` such that `i = j % j2`
+    ///
+    /// TODO: "Verify" the results using our decision procedures; return those derivations with the term that we find
+    pub fn decide_idxtm_subtraction(ext:&Ext, ctx:&Ctx, i:IdxTm, j:IdxTm) -> Result<IdxTm, Error> {
+        println!("decide_idxtm_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &i, &j);
+        let ni = normal::normal_idxtm(ctx, i);
+        let nj = normal::normal_idxtm(ctx, j);
+        println!("^decide_idxtm_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &ni, &nj);
+        match (ni, nj) {
+            (IdxTm::Var(x), j) => {                
+                Result::Err( Error::CannotSubtractFromVar(x, j) )
+            },
+            (IdxTm::NmSet(ns1), IdxTm::NmSet(ns2)) => {
+                println!("^decide_idxtm_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &ns1, &ns2);
+                panic!("TODO XXX")
+            },
+            _ => {                
+                panic!("TODO")
+            }
+        }        
+    }
     
-    /// The result effect, if it exists, is `eff3` such that `eff1 = eff2 then eff3`
+    /// Tactic to find the result effect `eff3` such that `eff1 = eff2 then eff3`
+    ///
+    /// TODO: "Verify" the results using our decision procedures; return those derivations with the term that we find    
     pub fn decide_effect_subtraction(ext:&Ext, ctx:&Ctx, r:Role, eff1:Effect, eff2:Effect) -> Result<Effect, Error> {
         if decide_effect_empty(ext, ctx, eff2.clone()) {
             Result::Ok(eff1.clone())
         }
         else {
-            println!("Decide effect subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &eff1, &eff2);
-            /* TODO: Implement the for-loop based algorithm over NmSetTm vectors */
-            Result::Err( Error::CannotSubtract(eff1, eff2) )
+            println!("decide_effect_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &eff1, &eff2);
+            match (eff1.clone(), eff2.clone()) {
+                (Effect::WR(wr1, rd1), Effect::WR(wr2, rd2)) => {
+                    let wr3 = decide_idxtm_subtraction(ext, ctx, wr1, wr2);
+                    let rd3 = decide_idxtm_subtraction(ext, ctx, rd1, rd2);
+                    match (wr3, rd3) {
+                        (Ok(wr3), Ok(rd3)) => Ok(Effect::WR(wr3, rd3)),
+                        (Err(err), _) => Result::Err(err),
+                        (_, Err(err)) => Result::Err(err),
+                    }
+                }
+                _ => {
+                    println!("^decide_effect_subtraction: Cannot subtract:\n From:\n\t{:?}\n Cannot subtract:\n\t{:?}", &eff1, &eff2);
+                    Result::Err( Error::CannotSubtract(eff1, eff2) )
+                }
+            }
         }
     }
 
@@ -587,10 +627,9 @@ pub mod equiv {
             }
             (_ir, _jr) => {
                 println!("=============================================================================== BEGIN");
-                println!("decide_idxtm_equiv: Cannot decide this case:\nLeft:\n\t{:?}\nRight:\n\t{:?}", i.term, j.term);
+                println!("decide_idxtm_equiv: Cannot decide this case:\n Left:\n\t{:?}\n Right:\n\t{:?}", i.term, j.term);
                 println!("This case is not implemented; but, it _may_ indicate a type error.");
                 println!("------------------------------------------------------------------------------- END");
-
                 err(IdxTmRule::Fail, DecError::UnknownCongruence((*i.term).clone(), (*j.term).clone()))
             }
         }
@@ -1010,8 +1049,10 @@ pub mod subset {
                 unimplemented!()
             }
             (_, _) => {
-                println!("decide_idxtm_subset: Cannot decide this case:\nLeft:\n\t{:?}\nRight:\n\t{:?}", i.term, j.term);
+                println!("=============================================================================== BEGIN");
+                println!("decide_idxtm_subset: Cannot decide this case:\n Left:\n\t{:?}\n Right:\n\t{:?}", i.term, j.term);
                 println!("This case is not implemented; but, it _may_ indicate a type error.");
+                println!("------------------------------------------------------------------------------- END");
                 err(IdxTmRule::Fail, DecError::UnknownCongruence((*i.term).clone(), (*j.term).clone()))
             }
         }
