@@ -1078,12 +1078,12 @@ pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
                     );                    
                     if subset_flag { succ(td, x_typ_raw) }
                     else {
-                        println!("==================================================================================");
+                        println!("================================================================================== BEGIN");
                         println!("Detailed errors for checking type of variable {}:", x);
                         println!(".. Variable {}'s type:\n{:?} \n\n...does not check against type:\n{:?}\n", x, x_typ_raw, typ_raw);
                         println!("");
                         println!(".. type-subset holds: {}\n", subset_flag);
-                        println!("- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ");
+                        println!("---------------------------------------------------------------------------------- END ");
                         fail(td, TypeError::AnnoMism)
                     }
                 }

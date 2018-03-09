@@ -243,6 +243,8 @@ pub mod effect {
             Result::Ok(eff1.clone())
         }
         else {
+            println!("Decide effect subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &eff1, &eff2);
+            /* TODO: Implement the for-loop based algorithm over NmSetTm vectors */
             Result::Err( Error::CannotSubtract(eff1, eff2) )
         }
     }
@@ -301,6 +303,7 @@ pub mod equiv {
         FlatMap(IdxTmDec, IdxTmDec),
         Star(IdxTmDec, IdxTmDec),
         NoParse(String),
+        Fail,
     }
     pub type IdxTmDec  = Dec<IdxTmRule>;
     impl HasClas for IdxTmRule {
@@ -583,8 +586,12 @@ pub mod equiv {
                 }
             }
             (_ir, _jr) => {
-                // TODO: Non-structural cases
-                unimplemented!()
+                println!("=============================================================================== BEGIN");
+                println!("decide_idxtm_equiv: Cannot decide this case:\nLeft:\n\t{:?}\nRight:\n\t{:?}", i.term, j.term);
+                println!("This case is not implemented; but, it _may_ indicate a type error.");
+                println!("------------------------------------------------------------------------------- END");
+
+                err(IdxTmRule::Fail, DecError::UnknownCongruence((*i.term).clone(), (*j.term).clone()))
             }
         }
     }
@@ -1003,7 +1010,7 @@ pub mod subset {
                 unimplemented!()
             }
             (_, _) => {
-                println!("Cannot decide this case:\nLeft:\n\t{:?}\nRight:\n\t{:?}", i.term, j.term);
+                println!("decide_idxtm_subset: Cannot decide this case:\nLeft:\n\t{:?}\nRight:\n\t{:?}", i.term, j.term);
                 println!("This case is not implemented; but, it _may_ indicate a type error.");
                 err(IdxTmRule::Fail, DecError::UnknownCongruence((*i.term).clone(), (*j.term).clone()))
             }
