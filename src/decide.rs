@@ -218,6 +218,8 @@ pub mod effect {
         CannotSubtract(Effect, Effect),
         /// The Archivist cannot sequence the two effects
         CannotSequence(Effect, Effect),
+        /// TODO
+        TODO
     }
 
     /// Decide whether a given effect is empty
@@ -254,10 +256,10 @@ pub mod effect {
             },
             (IdxTm::NmSet(ns1), IdxTm::NmSet(ns2)) => {
                 println!("^decide_idxtm_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &ns1, &ns2);
-                panic!("TODO XXX")
+                Result::Err( Error::TODO )
             },
-            _ => {                
-                panic!("TODO")
+            _ => {
+                Result::Err( Error::TODO )
             }
         }        
     }
