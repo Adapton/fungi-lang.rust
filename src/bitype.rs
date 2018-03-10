@@ -1564,7 +1564,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                     CEffect::ForallIdx(x, _g, p, ce) => {
                         let _p = subst::subst_term_prop(Term::IdxTm(i.clone()), &x, p);
                         let ce = subst::subst_term_ceffect(Term::IdxTm(i.clone()), &x, (*ce).clone());
-                        // TODO need to prove (decide) that p is true
+                        // XXX/TODO need to prove (decide) that p is true
                         let td = ExpRule::IdxApp(ed,id);
                         succ(td, ce)
                     }

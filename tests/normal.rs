@@ -28,7 +28,7 @@ fn idxtm_equiv_test(tm1:IdxTm, tm2:IdxTm) {
     }
 }
 
-//#[test]
+#[test]
 fn normal_test_1() {
     let (tm1, tm2) = (
         fgi_index![
@@ -40,18 +40,22 @@ fn normal_test_1() {
             % (
                 {@3 * @2}
                 % (
-                    ((#x:Nm. {x,@1} % {x,@2}) (Y))
+                    ((#x:Nm. {x,@1}) Y)
                         %  (
-                            ((#x:Nm. {x,@1} % {x,@2}) (X))
+                            ((#x:Nm. {x,@2}) Y)
                                 % (
-                                    {z,@1} % {z,@2}
-                                    %                                        
-                                        0 ))))
+                                    ((#x:Nm. {x,@1}) (X))
+                                        % (
+                                            ((#x:Nm. {x,@2}) (X))
+                                                % (
+                                                    {z,@1} % {z,@2}
+                                                    %                                        
+                                                        0 ))))))
         ]);
     idxtm_equiv_test(tm1, tm2)    
 }
 
-//#[test]
+#[test]
 fn normal_test_2() {
     let (tm1, tm2) = (
         fgi_index![
@@ -69,3 +73,24 @@ fn normal_test_2() {
         ]);
     idxtm_equiv_test(tm1, tm2)    
 }
+
+
+///////////////////////////
+
+// NmSet { cons: Some(Apart), terms: [
+//     Single(Name(Bin(Num(3), Num(1)))),
+//     Single(Name(Bin(Num(3), Num(2)))),
+//     Single(Bin(Var("z"), Name(Num(1)))),
+//     Single(Bin(Var("z"), Name(Num(2)))),
+//     Subset(FlatMap(Lam("x", Nm, Apart(Sing(Bin(Var("x"), Name(Num(1)))), Sing(Bin(Var("x"), Name(Num(2)))))), Var("X"))),
+//     Subset(FlatMap(Lam("x", Nm, Apart(Sing(Bin(Var("x"), Name(Num(1)))), Sing(Bin(Var("x"), Name(Num(2)))))), Var("Y")))] }
+
+// NmSet { cons: Some(Apart), terms: [
+//     Single(Name(Bin(Num(3), Num(1)))),
+//     Single(Name(Bin(Num(3), Num(2)))),
+//     Single(Bin(Var("z"), Name(Num(1)))),
+//     Single(Bin(Var("z"), Name(Num(2)))),
+//     Subset(Map(Lam("x", Nm, Bin(Var("x"), Name(Num(1)))), Var("X"))),
+//     Subset(Map(Lam("x", Nm, Bin(Var("x"), Name(Num(1)))), Var("Y"))),
+//     Subset(Map(Lam("x", Nm, Bin(Var("x"), Name(Num(2)))), Var("X"))),
+//     Subset(Map(Lam("x", Nm, Bin(Var("x"), Name(Num(2)))), Var("Y")))

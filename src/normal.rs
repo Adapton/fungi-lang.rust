@@ -494,7 +494,11 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                     }
                                 }
                                 Subset(i) => {
-                                    terms.push(Subset(IdxTm::FlatMap(i1.clone(), Rc::new(i))))
+                                    nmset_terms_add(
+                                        ns2.cons.clone(),
+                                        &mut terms,
+                                        NmSetTm::Subset(normal_idxtm(ctx, IdxTm::FlatMap(i1.clone(), Rc::new(i))))
+                                    );
                                 }
                             };                            
                         };

@@ -128,7 +128,7 @@ impl RelCtx {
     }
 }
 
-/// Convert the context into the corresponding relational context
+/// Convert the relational context into the corresponding non-relational context
 pub fn relctx_of_ctx(c: &Ctx) -> RelCtx {
     RelCtx::Ctx(c.clone())
 }
@@ -1274,7 +1274,7 @@ pub mod subset {
                         let n = normal::normal_nmtm(&ctx1, n);
                         let m = normal::normal_nmtm(&ctx2, m);
                         let _nmarrow = fgi_sort![ Nm -> Nm ];
-                        // XXX/TODO
+                        // TODO-Someday:
                         //super::equiv::decide_nmtm_equiv(ctx, &m, &n, &nmarrow).res
                         //== Ok(true)
                         m == n
