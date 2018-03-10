@@ -51,7 +51,7 @@ fn quickhull2() {
         let filter_line : (Thk[0] 0 Line -> 0 Pts -> 0 F Pts) = { unimplemented }
         let push : (Thk[0] 0 Pt -> 0 Hull -> 0 F Hull) = { unimplemented }
 
-        let qh1 : (Thk[0] 0 Line -> 0 Pts -> 0 Hull -> 0 F Hull) = {
+        let qh1 : (Thk[0] 0 Line -> 0 Pts -> 0 Hull -> { {@!}({@1}%{@3});0} F Hull) = {
             ret thunk fix qh1. #ln. #pts. #h.
             let (ll,lr) = { ret ln }
             let p = { {force max_pt} ln pts}
