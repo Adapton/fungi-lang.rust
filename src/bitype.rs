@@ -2192,7 +2192,10 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
             let ty = td.clas.clone();
             if let Ok(ty) = ty {
                 // TODO: Type equality may be more complex than this test (e.g. alpha equivalent types should be equal)
-                if ty == *ceffect { td }
+                let rctx = decide::relctx_of_ctx(ctx);
+                if decide::subset::decide_ceffect_subset(&rctx, ty.clone(), ceffect.clone()) {
+                    td
+                }
                 else {
                     use bitype::debug::*;
                     println!("================================================================================== BEGIN");

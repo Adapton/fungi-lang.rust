@@ -811,6 +811,7 @@ pub mod subset {
         Star(IdxTmDec, IdxTmDec),
         // - - - - - - - - - - - - - - - - -
         SubsetRefl(normal::NmSetTm),
+        Subset(normal::NmSet, normal::NmSet),
         NoParse(String),
         Fail,
     }
@@ -939,7 +940,7 @@ pub mod subset {
                             res:Err(DecError::SubsetSearchFailure)
                         }
                     },
-                    IdxTm::NmSet(_a_ns) => {                        
+                    IdxTm::NmSet(a_ns) => {                        
                         // Subcase 4: Check subset relationship, at
                         // the "term" level: If the terms normalize,
                         // then by canonical forms, both should each
@@ -949,7 +950,28 @@ pub mod subset {
                         // attempt to find a matching (equivalent)
                         // term in `b`'s decomposition.  Each match in
                         // `b` may be used at most once.
-                        unimplemented!()
+                        for tm1 in a_ns.terms.iter() {
+                            let mut found_tm1 = false;
+                            for tm2 in b_ns.terms.iter() {
+                                if tm1 == tm2 {
+                                    found_tm1 = true
+                                }
+                            }
+                            if found_tm1 { continue } else {
+                                return Dec{
+                                    ctx:ctx.clone(),
+                                    rule:Rc::new(IdxTmRule::Fail),
+                                    clas:Sort::NmSet,
+                                    res:Err(DecError::SubsetSearchFailure)
+                                }
+                            }
+                        };
+                        return Dec{
+                            ctx:ctx.clone(),
+                            rule:Rc::new(IdxTmRule::Subset(a_ns, b_ns)),
+                            clas:Sort::NmSet,
+                            res:Ok(true)
+                        }
                     }
                     // Subcase 5: "Other"
                     a => panic!("{:?}", a)
@@ -1268,16 +1290,7 @@ pub mod subset {
             }
         }        
     }
-
-    pub fn decide_ceffect_subset(_ctx: &RelCtx, _ce1:CEffect, _ce2:CEffect) -> bool {
-        unimplemented!()
-    }
-
-    pub fn decide_ceffect_subset_rec(_ctx: &RelCtx, _ce1:Rc<CEffect>, _ce2:Rc<CEffect>) -> bool {
-        unimplemented!()
-    }
     
-/*
     /// Decide computation type subset relation
     pub fn decide_ctype_subset(ctx: &RelCtx, ct1:CType, ct2:CType) -> bool {
         match (ct1, ct2) {
@@ -1320,15 +1333,17 @@ pub mod subset {
     /// Decide effect subset relation
     pub fn decide_effect_subset(ctx: &RelCtx, eff1:Effect, eff2:Effect) -> bool {
         match (eff1, eff2) {
-            (Effect::WR(w1,r1),Effect::WR(w2,r2)) => {
-                decide_idxtm_subset(ctx, w1, w2) &&
-                    decide_idxtm_subset(ctx, r1, r2)
+            (Effect::WR(ref w1, ref r1),Effect::WR(ref w2, ref r2)) => {
+                let wd = decide_idxtm_subset(ctx, w1, w2);
+                let rd = decide_idxtm_subset(ctx, r1, r2);
+                match (wd.res, rd.res) {
+                    (Ok(true),Ok(true)) => true,
+                    _ => false,
+                }
             },
             _ => false
         }        
     }
-*/
-
 }
 
 
