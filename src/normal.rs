@@ -126,7 +126,7 @@ pub fn normal_idxtm_rec(ctx:&Ctx, i:Rc<IdxTm>) -> Rc<IdxTm> {
 /// function applications where possible.
 ///
 ///
-/// # Example:
+/// ## Example 1:
 ///
 /// ```text
 /// // Unknowns:
@@ -144,35 +144,78 @@ pub fn normal_idxtm_rec(ctx:&Ctx, i:Rc<IdxTm>) -> Rc<IdxTm> {
 /// ```text
 /// {@3*@1} % {@3*@2} 
 ///   % (
-///   ((#x:Nm. {x * @1} % {x * @2}) (X))
+///   NORM[ (#x:Nm. {x * @1} % {x * @2}) (X) ]
 ///   % (
 ///   {z*@1} % {z*@2}
 ///   %  (
-///   ((#x:Nm. {x * @1} % {x * @2}) (Y))
+///   NORM[ (#x:Nm. {x * @1} % {x * @2}) (Y) ]
 ///   %
 ///   0 )))
 ///  : NmSet
 /// ```
-/// 
-/// Notice that the nested binary tree of disjoint unions (`%`) is
-/// flattened into a list, where disjoint union (`%`) plays the rule
-/// of `Cons`, and where empty set (`0`) plays the role of `Nil`.
 ///
-/// Further, the flat-mapped function (`bin`) has been applied to the
-/// set structure:
-///
-/// 1. The mapping function has been applied to the singleton sets of
-/// name constant `@3` and name variable `z`, respectively.
-///
-/// 2. Meanwhile, as the set variables `X` and `Y` stand for unknown
-/// _sets_ of names, the flat map is not reduced over these (unknown)
-/// sets, but only distributed across the disjoint union (`%`) that
-/// connects them.
-///
-/// ??? -- Do we need to implement symbolic set subtraction over this
-/// final normalized structure ???  (It seems that's what we need to
-/// implement the effect-checking logic of the `let` checking rule.)
-///
+/**
+
+Where the index-level flat-map terms (in each `NORM[ ... ]`) normalize
+further, converting into name-level maps, as follows:
+
+```text
+NORM[ (#x:Nm. {x * @1} % {x * @2}) (X) ]
+==
+[ #x:Nm. x * @1 ](X) % [ #x:Nm. x * @2 ](X)
+```
+
+*/
+/**
+
+## Example 2:
+
+The following index term:
+
+```text
+(#x:Nm. {x, @1} % {x, @2}) ({@3}%Y)%(X%{z})
+```
+
+Normalizes to the following:
+
+```text
+{@3 * @1}
+   % (
+       {@3 * @2}
+       % (
+           ((#x:Nm. {x,@1}) Y)
+               %  (
+                   ((#x:Nm. {x,@2}) Y)
+                       % (
+                           ((#x:Nm. {x,@1}) (X))
+                               % (
+                                   ((#x:Nm. {x,@2}) (X))
+                                       % (
+                                           {z,@1} % {z,@2}
+                                           %                                        
+                                               0 ))))))
+```
+
+Notice that the nested binary tree of disjoint unions (`%`) is
+flattened into a list, where disjoint union (`%`) plays the rule
+of `Cons`, and where empty set (`0`) plays the role of `Nil`.
+
+Further, the flat-mapped function (`bin`) has been applied to the
+set structure:
+
+1. The mapping function has been applied to the singleton sets of
+   name constant `@3` and name variable `z`, respectively.
+
+2. Meanwhile, as the set variables `X` and `Y` stand for unknown
+   _sets_ of names, the flat map is not reduced over these (unknown)
+   sets, but only distributed across the disjoint union (`%`) that
+   connects them.
+
+3. Finally, the flat-map term `(#x:Nm. {x * @1} % {x * @2}) (X)`
+   normalizes into two mapping terms, one for each singleton set of
+   the flat-map function's body.
+
+*/
 pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
     if is_normal_idxtm(ctx, &i) { 
         return i
