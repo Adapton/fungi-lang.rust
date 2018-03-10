@@ -491,7 +491,8 @@ pub enum TypeError {
     // error in subderivation; for tree-shaped AST nodes e.g. `App`, and value forms.
     Subder,
     Mismatch,
-    MismatchSort(Sort,Sort),    
+    MismatchSort(Sort,Sort),
+    SubsumptionFailure(CEffect,CEffect),
 }
 impl fmt::Display for TypeError {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
@@ -526,6 +527,7 @@ impl fmt::Display for TypeError {
             TypeError::Mismatch   => format!("type mismatch"),
             TypeError::MismatchSort(ref g1, ref g2) => format!("sort mismatch: found {:?}, but expected {:?}", g1, g2),
             TypeError::EffectError(ref err) => format!("effect error: {:?}", err),
+            TypeError::SubsumptionFailure(ref x, ref y) => format!("subsumption failure: {:?} =!= {:?}", x, y),
         };
         write!(f,"{}",s)
     }
@@ -563,6 +565,7 @@ fn error_is_local(err:&TypeError) -> bool {
         TypeError::Mismatch   => true,
         TypeError::MismatchSort(_,_)  => true,
         TypeError::EffectError(_)  => true,
+        TypeError::SubsumptionFailure(_,_)  => true,
     }
 }
 
@@ -2191,7 +2194,12 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 // TODO: Type equality may be more complex than this test (e.g. alpha equivalent types should be equal)
                 if ty == *ceffect { td }
                 else {
-                    td.clas = Err(TypeError::AnnoMism);
+                    use bitype::debug::*;
+                    println!("================================================================================== BEGIN");
+                    println!("Detailed errors for checking an `Exp::{}` via subsumption:", td.rule.short());
+                    println!(".. {}'s type:\n{:?} \n\n...does not check against type:\n{:?}\n", td.rule.short(), ty, ceffect);
+                    println!("---------------------------------------------------------------------------------- END ");
+                    td.clas = Err(TypeError::SubsumptionFailure(ty, ceffect.clone()));
                     td
                 }
             } else { td }

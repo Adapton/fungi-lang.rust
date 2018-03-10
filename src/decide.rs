@@ -247,7 +247,7 @@ pub mod effect {
     }
 
     pub fn decide_nmset_subtraction(ctx:&Ctx, ns1:NmSet, ns2:NmSet) -> Result<IdxTm, Error> {
-        println!("decide_nmset_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &ns1, &ns2);
+        //println!("decide_nmset_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &ns1, &ns2);
         //
         // Step 1: Verify: Before computing subtraction, check
         // that each term in ns1 is really in the set ns1.
@@ -259,7 +259,7 @@ pub mod effect {
                 else { continue }
             };
             if t2_found { } else {
-                println!("^decide_nmset_subtraction: Failure\nFrom:\n\t{:?}\nCannot subtract:\n\t{:?}", &ns1, &t2);
+                //println!("^decide_nmset_subtraction: Failure\nFrom:\n\t{:?}\nCannot subtract:\n\t{:?}", &ns1, &t2);
                 return Result::Err( Error::CannotSubtractNmSetTmFromNmSet( ns1.clone(), t2.clone() ) )
             };                    
         };
@@ -282,7 +282,7 @@ pub mod effect {
             cons:Some(NmSetCons::Apart),
             terms:terms,
         });
-        println!("^decide_idxtm_subtraction:\n Success:\n\t{:?}", i_minus_j);
+        //println!("^decide_idxtm_subtraction:\n Success:\n\t{:?}", i_minus_j);
         Result::Ok(i_minus_j)
     }
     
@@ -290,20 +290,20 @@ pub mod effect {
     ///
     /// TODO: "Verify" the results using our decision procedures; return those derivations with the term that we find
     pub fn decide_idxtm_subtraction(ctx:&Ctx, i:IdxTm, j:IdxTm) -> Result<IdxTm, Error> {
-        println!("decide_idxtm_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &i, &j);
+        //println!("decide_idxtm_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &i, &j);
         let ni = normal::normal_idxtm(ctx, i);
         let nj = normal::normal_idxtm(ctx, j);
-        println!("^decide_idxtm_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &ni, &nj);
+        //println!("^decide_idxtm_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &ni, &nj);
         match (ni, nj) {
             (IdxTm::Var(x), j) => {
                 let xdef = bitype::find_defs_for_idxtm_var(&ctx, &x);
                 match xdef {
                     None => {
-                        println!("^decide_idxtm_subtraction: Failure:\n From variable (with no known decomposition):\n\t{:?}\n Cannot subtract index term:\n\t{:?}", &x, &j);
+                        //println!("^decide_idxtm_subtraction: Failure:\n From variable (with no known decomposition):\n\t{:?}\n Cannot subtract index term:\n\t{:?}", &x, &j);
                         Result::Err( Error::CannotSubtractFromVar(x, j) )
                     }
                     Some(xdef) => {
-                        println!("^decide_idxtm_subtraction: Using {:?} == {:?} ...", x, xdef);
+                        //println!("^decide_idxtm_subtraction: Using {:?} == {:?} ...", x, xdef);
                         decide_idxtm_subtraction(ctx, xdef, j)
                     }
                 }
@@ -316,7 +316,7 @@ pub mod effect {
                 decide_nmset_subtraction(ctx, ns1, ns2)
             }
             (i, j) => {
-                println!("^decide_idxtm_subtraction: Failure:\n From index term:\n\t{:?}\n We do not know how to subtract index term:\n\t{:?}", &i, &j);
+                //println!("^decide_idxtm_subtraction: Failure:\n From index term:\n\t{:?}\n We do not know how to subtract index term:\n\t{:?}", &i, &j);
                 Result::Err( Error::TODO )
             }
         }        
@@ -330,7 +330,7 @@ pub mod effect {
             Result::Ok(eff1.clone())
         }
         else {
-            println!("decide_effect_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &eff1, &eff2);
+            //println!("decide_effect_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &eff1, &eff2);
             match (eff1.clone(), eff2.clone()) {
                 (Effect::WR(wr1, rd1), Effect::WR(wr2, rd2)) => {
                     let wr3 = decide_idxtm_subtraction(ctx, wr1, wr2);
@@ -338,14 +338,14 @@ pub mod effect {
                     match wr3 {
                         Ok(wr3) => {
                             let eff3 = Effect::WR(wr3, rd1);
-                            println!("^decide_effect_subtraction:\n Success:\n\t{:?}", &eff3);
+                            //println!("^decide_effect_subtraction:\n Success:\n\t{:?}", &eff3);
                             Ok(eff3)
                         },
                         Err(err) => Result::Err(err),
                     }
                 }
                 _ => {
-                    println!("^decide_effect_subtraction: Cannot subtract:\n From:\n\t{:?}\n Cannot subtract:\n\t{:?}", &eff1, &eff2);
+                    //println!("^decide_effect_subtraction: Cannot subtract:\n From:\n\t{:?}\n Cannot subtract:\n\t{:?}", &eff1, &eff2);
                     Result::Err( Error::CannotSubtract(eff1, eff2) )
                 }
             }
@@ -385,13 +385,13 @@ pub mod effect {
                         Result::Ok( Effect::WR(wr3, rd3) )                            
                     },
                     _ => {
-                        println!("^decide_effect_sequencing: Cannot sequence:\n Effect 1:\n\t{:?}\n Effect 2:\n\t{:?}", &eff1, &eff2);
+                        //println!("^decide_effect_sequencing: Cannot sequence:\n Effect 1:\n\t{:?}\n Effect 2:\n\t{:?}", &eff1, &eff2);
                         Result::Err( Error::CannotSequence(eff1, eff2) )
                     }
                 }
             }
             _ => {
-                println!("^decide_effect_sequencing: Cannot sequence:\n Effect 1:\n\t{:?}\n Effect 2:\n\t{:?}", &eff1, &eff2);
+                //println!("^decide_effect_sequencing: Cannot sequence:\n Effect 1:\n\t{:?}\n Effect 2:\n\t{:?}", &eff1, &eff2);
                 Result::Err( Error::CannotSequence(eff1, eff2) )
             }
         }}
@@ -729,10 +729,12 @@ pub mod equiv {
                 }
             }
             (_ir, _jr) => {
-                println!("=============================================================================== BEGIN");
-                println!("decide_idxtm_equiv: Cannot decide this case:\n Left:\n\t{:?}\n Right:\n\t{:?}", i.term, j.term);
-                println!("This case is not implemented; but, it _may_ indicate a type error.");
-                println!("------------------------------------------------------------------------------- END");
+                if false {
+                    println!("=============================================================================== BEGIN");
+                    println!("decide_idxtm_equiv: Cannot decide this case:\n Left:\n\t{:?}\n Right:\n\t{:?}", i.term, j.term);
+                    println!("This case is not implemented; but, it _may_ indicate a type error.");
+                    println!("------------------------------------------------------------------------------- END");
+                }
                 err(IdxTmRule::Fail, DecError::UnknownCongruence((*i.term).clone(), (*j.term).clone()))
             }
         }
