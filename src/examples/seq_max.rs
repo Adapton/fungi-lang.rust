@@ -1,5 +1,4 @@
-#[test] fn seq_max () { listing() }
-
+#[test]
 pub fn listing () { fgi_listing_test![
     decls {
         /// Optional natural numbers:

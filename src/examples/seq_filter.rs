@@ -1,5 +1,4 @@
-#[test] fn seq_filter() { listing() }
-
+#[test]
 pub fn listing () { fgi_listing_test![
     decls {
         /// Optional natural numbers:
