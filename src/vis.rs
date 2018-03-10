@@ -103,6 +103,42 @@ macro_rules! fgi_bundle {
     }}
 }
 
+/// Fungi program listing that we test.
+///
+/// These program listings give, e.g., tutorial examples or examples
+/// from technical reports.
+///
+/// Under the hood, this macro creates a helper function that runs in
+/// a separate thread and returns whether the given Fungi program
+/// listing parses and type checks.
+///
+#[macro_export]
+macro_rules! fgi_listing_test {
+    [$($e:tt)+] => {{
+        fn help() -> Result<(),String> {
+            use std::rc::Rc;
+            use ast::*;
+            use bitype::*;
+            use vis::*;        
+            let bundle : Bundle = fgi_bundle![
+                $($e)+
+            ];
+            match bundle.program.clas {
+                Ok(_) => Ok(()),
+                Err(err) => { Err(format!("{:?}", err)) }
+            }
+        };
+        use std::thread;
+        let child =
+            thread::Builder::new().stack_size(64 * 1024 * 1024).spawn(move || {
+                help()
+            });
+        // TODO: Write the bundle to a file that is determined by the
+        // module name of the macro expansion context.
+        assert!(child.unwrap().join().unwrap().is_ok());
+    }}
+}
+
 pub fn capture_traces<F>(f: F) -> (eval::ExpTerm, Vec<reflect::trace::Trace>)
 where F: FnOnce() -> eval::ExpTerm {
     manage::init_dcg();

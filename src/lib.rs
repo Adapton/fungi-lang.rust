@@ -22,9 +22,11 @@ pub mod subst;
 pub mod bitype;
 pub mod decide;
 pub mod eval;
+#[macro_use]
 pub mod vis;
 #[doc(hidden)]
 pub mod stdlib;
+pub mod examples;
 
 // Translation
 // ------------------
