@@ -310,7 +310,8 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                 let i2 = normal_idxtm_rec(ctx, i2);
                 match ((*n1).clone(), (*i2).clone()) {
                     (NameTm::Lam(_,_,_), IdxTm::Var(_)) => {
-                        /// The set is not exposing any structure, so do not return a canonical `NmSet` form
+                        // The set is not exposing any structure, so
+                        // do not return a canonical `NmSet` form
                         IdxTm::Map(n1, i2)
                     }                    
                     (NameTm::Lam(_x,_gx,_n11), IdxTm::NmSet(ns2)) => {
@@ -339,7 +340,8 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                 let i1 = normal_idxtm_rec(ctx, i1);
                 let i2 = normal_idxtm_rec(ctx, i2);
                 match ((*i1).clone(), (*i2).clone()) {
-                    // Case: The function is known, and the set has structure: Apply the function:
+                    // Case: The function is known, and the set has
+                    // structure: Apply the function:
                     (IdxTm::Lam(x,_gx,i11), IdxTm::NmSet(ns2)) => {
                         let mut terms = vec![];
                         for tm2 in ns2.terms.iter() {
@@ -375,13 +377,21 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                         })                          
                     },
                     // Case: The function is known, but the set is
-                    // (possibly) uknown; use the context to see if
+                    // (possibly) known; use the context to see if
                     // there are propositional definitions of the
                     // variable; if so, decompose the variable:
-                    (IdxTm::Lam(_,_,_), IdxTm::Var(ref x)) if None != bitype::find_defs_for_idxtm_var(&ctx, &x) => {
+                    (IdxTm::Lam(_,_,_), IdxTm::Var(ref x))
+                        if None != bitype::find_defs_for_idxtm_var(&ctx, &x) =>
+                    {
                         let xdef : Option<IdxTm> = bitype::find_defs_for_idxtm_var(&ctx, &x);
                         match xdef {
-                            None => IdxTm::FlatMap(i1, i2),
+                            None => {
+                                panic!("TODO");
+                                // TODO-Someday: Try to normalize in
+                                // an empty context, to possibly fall
+                                // into another case (further below).
+                                IdxTm::FlatMap(i1, i2)
+                            }
                             Some(xdef) => {
                                 match normal_idxtm(ctx, xdef) {
                                     IdxTm::NmSet(ns) => {
@@ -389,12 +399,12 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                         for t in ns.terms.iter() {
                                             match t {
                                                 &NmSetTm::Single(ref n) => {
-                                                    terms.push(NmSetTm::Subset(
-                                                        IdxTm::FlatMap(i1.clone(), Rc::new(IdxTm::Sing(n.clone())))));
+                                                    let tm = normal_idxtm(ctx, IdxTm::FlatMap(i1.clone(), Rc::new(IdxTm::Sing(n.clone()))));
+                                                    terms.push(NmSetTm::Subset(tm))
                                                 }
                                                 &NmSetTm::Subset(ref i) => {
-                                                    terms.push(NmSetTm::Subset(
-                                                        IdxTm::FlatMap(i1.clone(), Rc::new(i.clone()))));
+                                                    let tm = normal_idxtm(ctx, IdxTm::FlatMap(i1.clone(), Rc::new(i.clone())));
+                                                    terms.push(NmSetTm::Subset(tm));
                                                 }
                                             }
                                         };
@@ -403,17 +413,28 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                             terms:terms,
                                         })
                                     },
-                                    _ => IdxTm::FlatMap(i1, i2),
+                                    _ => {
+                                        panic!("TODO");
+                                        IdxTm::FlatMap(i1, i2)
+                                    }
                                 }
                             }
                         }
                     }
+                    // Case: The body of the function is exposing set
+                    // structure (but not the set argument), so apply
+                    // the function and re-expose this set structure.
                     (IdxTm::Lam(x,gx,body), j) => { match (*body).clone() {
-                        // Case: The body of the function is exposing set
-                        // structure, so apply the function and re-expose
-                        // this set structure.
+                        IdxTm::Sing(body_nmtm) => {
+                            //println!(" ************** \n Name term body:\n\t{:?}", body_nmtm);
+                            normal_idxtm(
+                                ctx,
+                                IdxTm::Map(Rc::new(NameTm::Lam(x,gx,Rc::new(body_nmtm))),
+                                           Rc::new(j))
+                            )
+                        },                        
                         IdxTm::Apart(body_l, body_r) => {
-                            println!(" ************** \n Left:\n\t{:?}\n Right:\n\t{:?}", body_l, body_r);
+                            //println!(" ************** \n Left:\n\t{:?}\n Right:\n\t{:?}", body_l, body_r);
                             normal_idxtm(
                                 ctx,
                                 IdxTm::Apart(
@@ -436,10 +457,12 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                         // exposing any set structure, so give up, and
                         // do not return a canonical `NmSet` form.
                         _ => {
+                            panic!("TODO");
                             IdxTm::FlatMap(i1, i2)
                         }
                     }},
-                    _ => {
+                    tm => {
+                        panic!("TODO: {:?}", tm);
                         // Give up: No structure to work with at all:
                         IdxTm::FlatMap(i1, i2)
                     }
