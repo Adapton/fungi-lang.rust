@@ -728,6 +728,32 @@ pub mod equiv {
                     (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
                 }
             }
+            (&BiIdxTm::FlatMap(ref m,ref x),&BiIdxTm::FlatMap(ref n,ref y)) => {
+                // Assume sort NmSet
+                let idxarrow = Sort::IdxArrow(Rc::new(Sort::Nm),Rc::new(Sort::NmSet));
+                let left = decide_idxtm_equiv(ctx,m,n,&idxarrow);
+                let right = decide_idxtm_equiv(ctx,x,y,&Sort::NmSet);
+                let (l,r) = (left.res.clone(),right.res.clone());
+                let der = IdxTmRule::FlatMap(left,right);
+                match (l,r) {
+                    (Ok(true),Ok(true)) => succ(der),
+                    (Ok(_),Ok(_)) => fail(der),
+                    (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
+                }
+            }
+            (&BiIdxTm::Star(ref m,ref x),&BiIdxTm::Star(ref n,ref y)) => {
+                // Assume sort NmSet
+                let idxarrow = Sort::IdxArrow(Rc::new(Sort::Nm),Rc::new(Sort::NmSet));
+                let left = decide_idxtm_equiv(ctx,m,n,&idxarrow);
+                let right = decide_idxtm_equiv(ctx,x,y,&Sort::NmSet);
+                let (l,r) = (left.res.clone(),right.res.clone());
+                let der = IdxTmRule::Star(left,right);
+                match (l,r) {
+                    (Ok(true),Ok(true)) => succ(der),
+                    (Ok(_),Ok(_)) => fail(der),
+                    (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
+                }
+            }
             (_ir, _jr) => {
                 if false {
                     println!("=============================================================================== BEGIN");
@@ -1135,7 +1161,7 @@ pub mod subset {
                 }
             }
             (&BiIdxTm::FlatMap(ref i1, ref j1),&BiIdxTm::FlatMap(ref i2, ref j2)) => {
-                let nmsetarrow = Sort::NmArrow(Rc::new(Sort::NmSet),Rc::new(Sort::NmSet));
+                let nmsetarrow = Sort::IdxArrow(Rc::new(Sort::NmSet),Rc::new(Sort::NmSet));
                 let left = decide_idxtm_subset_congr(ctx,i1,i2,&nmsetarrow);
                 let right = decide_idxtm_subset(ctx, &*j1.term, &*j2.term);
                 let (l,r) = (left.res.clone(),right.res.clone());
