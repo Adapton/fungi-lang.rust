@@ -173,6 +173,7 @@ macro_rules! parse_fgi_name_bin {
 macro_rules! fgi_index {
     //     fromast ast (inject ast nodes)
     { fromast $ast:expr } => { $ast };
+    { ^       $ast:expr } => { $ast };
     //     (i)         (parens)
     { ($($i:tt)+) } => { fgi_index![$($i)+] };
     //     {N}         (singleton name set)

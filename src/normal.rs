@@ -40,6 +40,26 @@ pub struct NmSet {
     pub terms: Vec<NmSetTm>
 }
 
+// Add the given tm to the name set terms
+fn nmset_terms_add(cons:Option<NmSetCons>, terms:&mut Vec<NmSetTm>, tm:NmSetTm) {
+    match tm {        
+        NmSetTm::Subset(i) => {
+            match i {
+                IdxTm::NmSet(mut ns) => {
+                    assert_eq!(cons, ns.cons);
+                    terms.append(&mut ns.terms)
+                }
+                i => {
+                    terms.push(NmSetTm::Subset(i))
+                }
+            }
+        }
+        tm => {
+            terms.push(tm)
+        }
+    }
+}
+
 /// True when the name term is normal
 pub fn is_normal_nmtm(_ctx:&Ctx, n:&NameTm) -> bool {
     match *n {
@@ -261,58 +281,90 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
             //  { n } * j == FlatMap(#y:Nm.n * y, j)
             //
             IdxTm::Bin(i1, i2) => {
+                use self::NmSetTm::*;
                 let i1 = normal_idxtm_rec(ctx, i1);
                 let i2 = normal_idxtm_rec(ctx, i2);
+                
+                fn bin_tm (ctx:&Ctx, tm1:NmSetTm, tm2:NmSetTm) -> NmSetTm { match (tm1, tm2) {
+                    //  { m } * { n } == { m * n }
+                    (Single(n), Single(m)) => {
+                        Single(normal_nmtm(
+                            ctx, NameTm::Bin(Rc::new(n), Rc::new(m))
+                        ))
+                    },
+                    //  i * { m } == Map(#x:Nm.x * m, i)
+                    (Subset(i), Single(m)) => {
+                        Subset( normal_idxtm(
+                            ctx, fgi_index!{
+                                [ #x:Nm. x, ^m ] ^i
+                            }
+                        ))
+                    },
+                    //  { n } * j == Map(#y:Nm.n * y, j)
+                    (Single(n), Subset(j)) => {
+                        Subset(normal_idxtm(
+                            ctx, fgi_index!{
+                                [ #x:Nm. ^n, x ] ^j
+                            }
+                        ))
+                    },
+                    // (subset-level identity) -- no normalization recursion; it would diverge.
+                    (Subset(i), Subset(j)) => {
+                        Subset(IdxTm::Bin(
+                            Rc::new(i),
+                            Rc::new(j)
+                        ))
+                    },
+                }};
                 match ((*i1).clone(), (*i2).clone()) {
+                    (IdxTm::Var(x),
+                     IdxTm::NmSet(ns2)) =>
+                    {
+                        let mut terms = vec![];
+                        for tm2 in ns2.terms.iter() {
+                            nmset_terms_add(
+                                ns2.cons.clone(), &mut terms,
+                                bin_tm(ctx, NmSetTm::Subset(IdxTm::Var(x.clone())),tm2.clone()));
+                        }
+                        IdxTm::NmSet(NmSet{
+                            cons:ns2.cons,
+                            terms:terms
+                        })
+                    },                    
                     (IdxTm::NmSet(ns1),
-                     IdxTm::NmSet(ns2)) => {
+                     IdxTm::Var(y)) =>
+                    {
+                        let mut terms = vec![];
+                        for tm1 in ns1.terms.iter() {
+                            nmset_terms_add(
+                                ns1.cons.clone(), &mut terms,
+                                bin_tm(ctx, tm1.clone(), NmSetTm::Subset(IdxTm::Var(y.clone()))));
+                        }
+                        IdxTm::NmSet(NmSet{
+                            cons:ns1.cons,
+                            terms:terms
+                        })
+                    },                   
+                    (IdxTm::NmSet(ns1),
+                     IdxTm::NmSet(ns2)) =>
+                    {
                         assert_eq!(ns1.cons, ns2.cons);
                         let mut terms = vec![];
                         for tm1 in ns1.terms.iter() {
                             for tm2 in ns2.terms.iter() {
-                                use self::NmSetTm::*;
-                                let bin_tm = match (tm1.clone(), tm2.clone()) {
-                                    //  { m } * { n } == { m * n }
-                                    (Single(n), Single(m)) => {
-                                        Single(normal_nmtm(
-                                            ctx, NameTm::Bin(Rc::new(n), Rc::new(m))
-                                        ))
-                                    },
-                                    //  i * { m } == Map(#x:Nm.x * m, i)
-                                    (Subset(i), Single(m)) => {
-                                        Subset( normal_idxtm(
-                                            ctx, fgi_index!{
-                                                [ #x:Nm. [x][^m] ] ^i
-                                            }
-                                        ))
-                                    },
-                                    //  { n } * j == Map(#y:Nm.n * y, j)
-                                    (Single(n), Subset(j)) => {
-                                        Subset(normal_idxtm(
-                                            ctx, fgi_index!{
-                                                [ #x:Nm. [^n][x] ] ^j
-                                            }
-                                        ))
-                                    },
-                                    // (subset-level identity) -- no normalization recursion; it would diverge.
-                                    (Subset(i), Subset(j)) => {
-                                        Subset(IdxTm::Bin(
-                                            Rc::new(i),
-                                            Rc::new(j)
-                                        ))
-                                    },
-                                };               
-                                terms.push(bin_tm)
+                                nmset_terms_add(
+                                    ns1.cons.clone(), &mut terms,
+                                    bin_tm(ctx, tm1.clone(), tm2.clone()));
                             }
                         }
                         IdxTm::NmSet(NmSet{
                             cons:ns1.cons,
                             terms:terms
                         })                        
-                    }
-                    _ => i_clone
-                } 
-            }
+                    },
+                    (i, j) => IdxTm::Bin(Rc::new(i), Rc::new(j))
+                }
+            }                
 
             IdxTm::App(i1, i2) => {
                 let i1 = normal_idxtm_rec(ctx, i1);
@@ -331,18 +383,15 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                                     ) ) ) )
                                         },
                                         NmSetTm::Subset(ref i) => {
-                                            match normal_idxtm(
+                                            let i = normal_idxtm(
                                                 ctx, IdxTm::App(
                                                     Rc::new( IdxTm::WriteScope ),
-                                                    Rc::new(i.clone())))
-                                            {
-                                                IdxTm::NmSet(mut i_ns) => {
-                                                    terms.append( &mut i_ns.terms );
-                                                },
-                                                i => {
-                                                    terms.push( NmSetTm::Subset( i ) );
-                                                }
-                                            }
+                                                    Rc::new(i.clone())));
+                                            nmset_terms_add(
+                                                ns.cons.clone(),
+                                                &mut terms,
+                                                NmSetTm::Subset( i )
+                                            );
                                         }
                                     }
                                 }
@@ -350,7 +399,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                 normal_idxtm(ctx, IdxTm::NmSet(ns))
                             },
                             i2 => {
-                                IdxTm::App(i1, Rc::new(i2))
+                                normal_idxtm(ctx, IdxTm::Map(Rc::new(NameTm::WriteScope), Rc::new(i2)))
                             }
                         }
                     },
@@ -390,7 +439,28 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                             terms:terms
                         })
                     },                            
-                    _ => i_clone
+                    (NameTm::WriteScope, IdxTm::NmSet(ns2)) => {
+                        let mut terms = vec![];
+                        for tm2 in ns2.terms.iter() {
+                            use self::NmSetTm::*;
+                            let mapped_tm = match tm2.clone() {
+                                Single(n) => {
+                                    Single(normal_nmtm(ctx, NameTm::App(Rc::new(NameTm::WriteScope), Rc::new(n.clone()))))
+                                }
+                                Subset(i) => {
+                                    Subset(normal_idxtm(ctx, IdxTm::Map(Rc::new(NameTm::WriteScope), Rc::new(i))))
+                                }
+                            };
+                            nmset_terms_add(ns2.cons.clone(), &mut terms, mapped_tm)
+                        };
+                        IdxTm::NmSet(NmSet{
+                            cons:ns2.cons,
+                            terms:terms
+                        })
+                    },                            
+                    (n1, i2) => {
+                        IdxTm::Map(Rc::new(n1), Rc::new(i2))
+                    }
                 }
             }
 
