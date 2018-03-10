@@ -326,7 +326,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                 }
                             };
                             terms.push(mapped_tm)
-                        }
+                        };
                         IdxTm::NmSet(NmSet{
                             cons:ns2.cons,
                             terms:terms
@@ -339,7 +339,46 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                 let i1 = normal_idxtm_rec(ctx, i1);
                 let i2 = normal_idxtm_rec(ctx, i2);
                 match ((*i1).clone(), (*i2).clone()) {
-                    (IdxTm::Lam(_,_,_), IdxTm::Var(x)) => {
+                    // Case: The function is known, and the set has structure: Apply the function:
+                    (IdxTm::Lam(x,_gx,i11), IdxTm::NmSet(ns2)) => {
+                        let mut terms = vec![];
+                        for tm2 in ns2.terms.iter() {
+                            use self::NmSetTm::*;
+                            match tm2.clone() {
+                                Single(n) => {
+                                    let i12 = subst::subst_term_idxtm(Term::NmTm(n.clone()), &x, (*i11).clone());
+                                    match normal_idxtm(ctx, i12) {
+                                        IdxTm::NmSet(mut ns) => {
+                                            if ns.cons == None || ns.cons == Some(NmSetCons::Apart) {
+                                                // Flatten!
+                                                terms.append(&mut ns.terms);
+                                                ns.cons = Some(NmSetCons::Apart);
+                                            } else {
+                                                // Union-based name set; Do not flatten.
+                                                terms.push(Subset(IdxTm::NmSet(ns)))
+                                            }
+                                        }
+                                        i13 => {
+                                            terms.push(Subset(i13))
+                                        }
+                                    }
+                                }
+                                Subset(i) => {
+                                    terms.push(Subset(IdxTm::FlatMap(i1.clone(), Rc::new(i))))
+                                }
+                            };                            
+                        };
+                        // construct set of terms:
+                        IdxTm::NmSet(NmSet{
+                            cons:ns2.cons,
+                            terms:terms
+                        })                          
+                    },
+                    // Case: The function is known, but the set is
+                    // (possibly) uknown; use the context to see if
+                    // there are propositional definitions of the
+                    // variable; if so, decompose the variable:
+                    (IdxTm::Lam(_,_,_), IdxTm::Var(ref x)) if None != bitype::find_defs_for_idxtm_var(&ctx, &x) => {
                         let xdef : Option<IdxTm> = bitype::find_defs_for_idxtm_var(&ctx, &x);
                         match xdef {
                             None => IdxTm::FlatMap(i1, i2),
@@ -368,48 +407,44 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                 }
                             }
                         }
-                        //panic!("TODO: {:?} {:?}", i2, xdef)
                     }
-                    (IdxTm::Lam(_,_,_), IdxTm::Var(_)) => {
-                        /// The set is not exposing any structure, so do not return a canonical `NmSet` form
+                    (IdxTm::Lam(x,gx,body), j) => { match (*body).clone() {
+                        // Case: The body of the function is exposing set
+                        // structure, so apply the function and re-expose
+                        // this set structure.
+                        IdxTm::Apart(body_l, body_r) => {
+                            println!(" ************** \n Left:\n\t{:?}\n Right:\n\t{:?}", body_l, body_r);
+                            normal_idxtm(
+                                ctx,
+                                IdxTm::Apart(
+                                    Rc::new(normal_idxtm(
+                                        ctx, 
+                                        IdxTm::FlatMap(
+                                            Rc::new(IdxTm::Lam(x.clone(), gx.clone(), body_l)),
+                                            Rc::new(j.clone())
+                                        ))),
+                                    Rc::new(normal_idxtm(
+                                        ctx, 
+                                        IdxTm::FlatMap(
+                                            Rc::new(IdxTm::Lam(x.clone(), gx.clone(), body_r)),
+                                            Rc::new(j)
+                                        ))),
+                                ))
+                        },
+                        // Give up: The set argument is not exposing
+                        // any structure, and the lambda body is not
+                        // exposing any set structure, so give up, and
+                        // do not return a canonical `NmSet` form.
+                        _ => {
+                            IdxTm::FlatMap(i1, i2)
+                        }
+                    }},
+                    _ => {
+                        // Give up: No structure to work with at all:
                         IdxTm::FlatMap(i1, i2)
-                    }                    
-                    (IdxTm::Lam(x,_gx,i11), IdxTm::NmSet(ns2)) => {
-                        let mut terms = vec![];
-                        for tm2 in ns2.terms.iter() {
-                            use self::NmSetTm::*;
-                            match tm2.clone() {
-                                Single(n) => {
-                                    let i12 = subst::subst_term_idxtm(Term::NmTm(n.clone()), &x, (*i11).clone());
-                                    match normal_idxtm(ctx, i12) {
-                                        IdxTm::NmSet(mut ns) => {
-                                            if ns.cons == None || ns.cons == Some(NmSetCons::Apart) {
-                                                // Flatten!
-                                                terms.append(&mut ns.terms);
-                                                ns.cons = Some(NmSetCons::Apart);
-                                            } else {
-                                                // Union-based name set; Do not flatten.
-                                                terms.push(Subset(IdxTm::NmSet(ns)))
-                                            }
-                                        }
-                                        i13 => {
-                                            terms.push(Subset(i13))
-                                        }
-                                    }
-                                }
-                                Subset(i) => {
-                                    terms.push(Subset(IdxTm::FlatMap(i1.clone(), Rc::new(i))))
-                                }
-                            };
-                        };
-                        IdxTm::NmSet(NmSet{
-                            cons:ns2.cons,
-                            terms:terms
-                        })                            
-                    },
-                    _ => i_clone
+                    }
                 }
-            }
+            },
             // Kleene star
             IdxTm::Star(i1, i2) => {
                 // Do _not_ unroll the kleene star; there's no way to

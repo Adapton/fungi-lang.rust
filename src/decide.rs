@@ -203,7 +203,8 @@ pub mod effect {
     use bitype;
     use bitype::{Ext,Ctx};
     use super::equiv;
-
+    use std::rc::Rc;
+    
     /// Computation role, either _Archivist_ or _Editor_.
     #[derive(Clone,Debug,Eq,PartialEq,Hash)]
     pub enum Role {
@@ -333,15 +334,14 @@ pub mod effect {
             match (eff1.clone(), eff2.clone()) {
                 (Effect::WR(wr1, rd1), Effect::WR(wr2, rd2)) => {
                     let wr3 = decide_idxtm_subtraction(ctx, wr1, wr2);
-                    let rd3 = decide_idxtm_subtraction(ctx, rd1, rd2);
-                    match (wr3, rd3) {
-                        (Ok(wr3), Ok(rd3)) => {
-                            let eff3 = Effect::WR(wr3, rd3);
+                    // TODO: Check that rd2 is a subset of rd1; fail otherwise.
+                    match wr3 {
+                        Ok(wr3) => {
+                            let eff3 = Effect::WR(wr3, rd1);
                             println!("^decide_effect_subtraction:\n Success:\n\t{:?}", &eff3);
                             Ok(eff3)
                         },
-                        (Err(err), _) => Result::Err(err),
-                        (_, Err(err)) => Result::Err(err),
+                        Err(err) => Result::Err(err),
                     }
                 }
                 _ => {
@@ -352,9 +352,49 @@ pub mod effect {
         }
     }
 
+    pub fn decide_idxtm_cons(ctx:&Ctx, cons:NmSetCons, i:IdxTm, j:IdxTm) -> Result<IdxTm, Error> {
+        match (i,j) {
+            (IdxTm::Empty, j) => Ok(j),
+            (i, IdxTm::Empty) => Ok(i),
+            (i, j) => {
+                match cons {
+                    NmSetCons::Apart => {
+                        // TODO/XXX: Verify that these name sets are apart, where needed.
+                        Ok(IdxTm::Apart(Rc::new(i), Rc::new(j)))
+                    }
+                    NmSetCons::Union => {
+                        Ok(IdxTm::Union(Rc::new(i), Rc::new(j)))
+                    }
+                }
+            }
+        }
+    }
+    
     /// The result effect, if it exists, is `eff3` such that `eff1 then eff2 = eff3`
     pub fn decide_effect_sequencing(ctx:&Ctx, r:Role, eff1:Effect, eff2:Effect) -> Result<Effect, Error> {
-        Result::Err( Error::CannotSequence(eff1, eff2) )
+        if decide_effect_empty(ctx, eff1.clone()) {
+            Result::Ok(eff2.clone())
+        } else if decide_effect_empty(ctx, eff2.clone()) {
+            Result::Ok(eff1.clone())            
+        } else { match (eff1.clone(), eff2.clone()) {
+            (Effect::WR(wr1, rd1), Effect::WR(wr2, rd2)) => {
+                let wr3 = decide_idxtm_cons(ctx, NmSetCons::Apart, wr1, wr2);
+                let rd3 = decide_idxtm_cons(ctx, NmSetCons::Union, rd1, rd2);
+                match (wr3, rd3) {
+                    (Ok(wr3), Ok(rd3)) => {
+                        Result::Ok( Effect::WR(wr3, rd3) )                            
+                    },
+                    _ => {
+                        println!("^decide_effect_sequencing: Cannot sequence:\n Effect 1:\n\t{:?}\n Effect 2:\n\t{:?}", &eff1, &eff2);
+                        Result::Err( Error::CannotSequence(eff1, eff2) )
+                    }
+                }
+            }
+            _ => {
+                println!("^decide_effect_sequencing: Cannot sequence:\n Effect 1:\n\t{:?}\n Effect 2:\n\t{:?}", &eff1, &eff2);
+                Result::Err( Error::CannotSequence(eff1, eff2) )
+            }
+        }}
     }
 }
 

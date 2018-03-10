@@ -1615,18 +1615,40 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                 Err(_) => fail(ExpRule::Let(x.clone(),td1,
                     synth_exp(ext, ctx, e2)
                 ), TypeError::ParamNoSynth(1)),
-                Ok(CEffect::Cons(CType::Lift(ty1),_eff1)) => {
+                Ok(CEffect::Cons(CType::Lift(ty1), eff1)) => {
                     let new_ctx = ctx.var(x.clone(), ty1);
                     let td2 = synth_exp(ext, &new_ctx, e2);
                     let typ2 = td2.clas.clone();
-                    let td = ExpRule::Let(x.clone(),td1,td2);
                     match typ2 {
-                        Err(_) => fail(td, TypeError::LaterError),
-                        Ok(CEffect::Cons(ty2,eff2)) => {
-                            // TODO-Next: combine effects
-                            succ(td, CEffect::Cons(ty2, eff2))
-                        },
-                        _ => fail(td, TypeError::ParamMism(2)),
+                        Err(_) => {
+                            let td = ExpRule::Let(x.clone(), td1, td2);
+                            fail(td, TypeError::LaterError)
+                        }
+                        Ok(CEffect::Cons(ty2, eff2)) =>
+                        {
+                            match decide::effect::decide_effect_sequencing(
+                                ctx,
+                                /* TODO: Get role from ext structure */
+                                decide::effect::Role::Archivist,
+                                eff1.clone(), eff2.clone()
+                            ) {
+                                Ok(eff3) => {
+                                    let td = ExpRule::Let(x.clone(), td1, td2);
+                                    succ(td, CEffect::Cons(ty2, eff3))
+                                }
+                                Err(err) => {
+                                    println!("{:?}", err);
+                                    fail(ExpRule::Let(
+                                        x.clone(), td1,
+                                        synth_exp(ext, ctx, e2)
+                                    ), TypeError::EffectError(err))
+                                }
+                            }
+                        }
+                        _ => {
+                            let td = ExpRule::Let(x.clone(), td1, td2);
+                            fail(td, TypeError::ParamMism(2))
+                        }
                     }
                 },
                 _ => fail(ExpRule::Let(x.clone(),td1,
@@ -1979,7 +2001,6 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                         synth_exp(ext, ctx, e2)
                     ), TypeError::ParamNoSynth(1)) },
                     Ok(CEffect::Cons(CType::Lift(ref ct1), ref eff1)) => {
-                        let new_ctx = ctx.var(x.clone(),ct1.clone());
                         match decide::effect::decide_effect_subtraction(
                             ctx,
                             /* TODO: Get role from ext structure */
@@ -1987,6 +2008,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                             eff3.clone(), eff1.clone())
                         {
                             Ok(eff2) => {
+                                let new_ctx = ctx.var(x.clone(),ct1.clone());
                                 let typ2 = CEffect::Cons(ctyp.clone(), eff2);
                                 let td2 = check_exp(ext, &new_ctx, e2, &typ2);
                                 let typ2res = td2.clas.clone();
