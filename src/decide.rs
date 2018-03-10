@@ -246,6 +246,7 @@ pub mod effect {
         }
     }
 
+    /// Tactic to find an index term `j` such that `NmSet(ns1) == NmSet(ns2) % j`
     pub fn decide_nmset_subtraction(ctx:&Ctx, ns1:NmSet, ns2:NmSet) -> Result<IdxTm, Error> {
         //println!("decide_nmset_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &ns1, &ns2);
         //
@@ -286,7 +287,7 @@ pub mod effect {
         Result::Ok(i_minus_j)
     }
     
-    /// Tactic to find, and verify, an index term `j2` such that `i = j % j2`
+    /// Tactic to find an index term `j2` such that `i = j % j2`
     ///
     /// TODO: "Verify" the results using our decision procedures; return those derivations with the term that we find
     pub fn decide_idxtm_subtraction(ctx:&Ctx, i:IdxTm, j:IdxTm) -> Result<IdxTm, Error> {
@@ -352,6 +353,7 @@ pub mod effect {
         }
     }
 
+    /// Construct a name set (`i (cons) j`) from name set pair (`i`,`j`) and constructor `cons`.
     pub fn decide_idxtm_cons(ctx:&Ctx, cons:NmSetCons, i:IdxTm, j:IdxTm) -> Result<IdxTm, Error> {
         match (i,j) {
             (IdxTm::Empty, j) => Ok(j),
