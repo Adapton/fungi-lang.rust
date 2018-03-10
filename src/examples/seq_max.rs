@@ -38,10 +38,12 @@ pub fn listing () { fgi_listing_test![
                 )
         );                
 
-        /// Pointers written for each name in a structural recursion (-`_SR`) over a sequence:
+        /// Pointers written for each name in a structural recursion
+        /// (-`_SR`) over a sequence:
         idxtm Seq_SR = ( #x:Nm.({x,@1})%({x,@2}) );
 
-        /// ... prefixed with the current write scope (`WS`-), named `@!` below, as a nameset-level function
+        /// ... prefixed with the current write scope (`WS`-), named
+        /// `@!` below, as a nameset-level function
         idxtm WS_Seq_SR  = ( #x:NmSet.{@!}((Seq_SR) x) );
 
         fn is_empty:(

@@ -33,10 +33,10 @@ functional**: the key invariant of its type-and-effects system.
 In particular, Fungi provides language affordances for  
 - [_first-class names_](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Val.html#variant.Name),  
 - [_first class name-functions_](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Val.html#variant.NameFn),  
-- [nominal, incremental collections](https://docs.rs/fungi-lang/0/fungi_lang/stdlib/index.html), 
+- nominal, incremental collections, 
   whose types are indexed by [_sets of names_](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.IdxTm.html) 
   (e.g., to uniquely name positions in a list, or elements in a set, etc.), and  
-- [nominal, incremental functions over collections](https://docs.rs/fungi-lang/0/fungi_lang/stdlib/index.html), 
+- [nominal, incremental functions over these collections](https://docs.rs/fungi-lang/0/fungi_lang/examples/index.html), 
   whose types are indexed by **read and write effects**, as name sets.  
 
 ## Fungi is a core calculus, and target language
