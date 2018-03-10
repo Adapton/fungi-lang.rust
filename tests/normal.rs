@@ -28,7 +28,7 @@ fn idxtm_equiv_test(tm1:IdxTm, tm2:IdxTm) {
     }
 }
 
-#[test]
+//#[test]
 fn normal_test_1() {
     let (tm1, tm2) = (
         fgi_index![
@@ -51,7 +51,7 @@ fn normal_test_1() {
     idxtm_equiv_test(tm1, tm2)    
 }
 
-#[test]
+//#[test]
 fn normal_test_2() {
     let (tm1, tm2) = (
         fgi_index![
