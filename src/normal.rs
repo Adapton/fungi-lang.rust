@@ -67,6 +67,7 @@ pub fn is_normal_nmtm(_ctx:&Ctx, n:&NameTm) -> bool {
         // Forms that are normal; no reduction rules apply
         //
         NameTm::Var(_)     |
+        NameTm::ValVar(_)  |
         NameTm::Name(_)    |
         NameTm::Lam(_,_,_) => true,
         //
@@ -110,8 +111,9 @@ pub fn is_normal_idxtm(ctx:&Ctx, i:&IdxTm) -> bool {
         IdxTm::App(_, _) |
         IdxTm::Bin(_, _) |
         IdxTm::Map(_, _) |
+        IdxTm::MapStar(_, _) |
         IdxTm::FlatMap(_, _) |
-        IdxTm::Star(_, _) |
+        IdxTm::FlatMapStar(_, _) |
         IdxTm::NoParse(_) => false
     }
 }
@@ -269,7 +271,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                     // name-set term list:
                     (i, IdxTm::NmSet(mut ns))  |
                     (IdxTm::NmSet(mut ns), i) => {
-                        ns.terms.push(NmSetTm::Subset(i));
+                        nmset_terms_add(ns.cons.clone(), &mut ns.terms, NmSetTm::Subset(i));
                         IdxTm::NmSet(ns)
                     }
                     // Case: no existing `NmSet` term ==> No other way
@@ -457,11 +459,40 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                 let n1 = normal_nmtm_rec(ctx, n1);
                 let i2 = normal_idxtm_rec(ctx, i2);
                 match ((*n1).clone(), (*i2).clone()) {
-                    (NameTm::Lam(_,_,_), IdxTm::Var(_)) => {
-                        // The set is not exposing any structure, so
-                        // do not return a canonical `NmSet` form
-                        IdxTm::Map(n1, i2)
-                    }                    
+                    // Case: The function is known, and the set is
+                    // (possibly) known, via the context; use the
+                    // context to see if there are propositional
+                    // definitions of the variable; if so, decompose
+                    // the variable:
+                    (NameTm::Lam(_,_,_), IdxTm::Var(ref x))
+                        if None != bitype::find_defs_for_idxtm_var(&ctx, &x) =>
+                    {
+                        let xdef = bitype::find_defs_for_idxtm_var(&ctx, &x).unwrap();
+                        match normal_idxtm(ctx, xdef) {
+                            IdxTm::NmSet(ns) => {
+                                let mut terms = vec![];
+                                for t in ns.terms.iter() {
+                                    match t {
+                                        &NmSetTm::Single(ref n) => {
+                                            let tm = normal_idxtm(ctx, IdxTm::Map(n1.clone(), Rc::new(IdxTm::Sing(n.clone()))));
+                                            nmset_terms_add(ns.cons.clone(), &mut terms, NmSetTm::Subset(tm))
+                                        }
+                                        &NmSetTm::Subset(ref i) => {
+                                            let tm = normal_idxtm(ctx, IdxTm::Map(n1.clone(), Rc::new(i.clone())));
+                                            nmset_terms_add(ns.cons.clone(), &mut terms, NmSetTm::Subset(tm));
+                                        }
+                                    }
+                                };
+                                IdxTm::NmSet(NmSet{                                            
+                                    cons:Some(NmSetCons::Apart),
+                                    terms:terms,
+                                })
+                            },
+                            _ => {
+                                IdxTm::Map(n1, i2)
+                            }
+                        }
+                    }
                     (NameTm::Lam(_x,_gx,_n11), IdxTm::NmSet(ns2)) => {
                         let mut terms = vec![];
                         for tm2 in ns2.terms.iter() {
@@ -474,7 +505,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                     Subset(IdxTm::Map(n1.clone(), Rc::new(i)))
                                 }
                             };
-                            terms.push(mapped_tm)
+                            nmset_terms_add(ns2.cons.clone(), &mut terms, mapped_tm)
                         };
                         IdxTm::NmSet(NmSet{
                             cons:ns2.cons,
@@ -531,7 +562,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                             }
                                         }
                                         i13 => {
-                                            terms.push(Subset(i13))
+                                            nmset_terms_add(ns2.cons.clone(), &mut terms, Subset(i13))
                                         }
                                     }
                                 }
@@ -550,48 +581,38 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                             terms:terms
                         })                          
                     },
-                    // Case: The function is known, but the set is
-                    // (possibly) known; use the context to see if
-                    // there are propositional definitions of the
-                    // variable; if so, decompose the variable:
+                    // Case: The function is known, and the set is
+                    // (possibly) known, via the context; use the
+                    // context to see if there are propositional
+                    // definitions of the variable; if so, decompose
+                    // the variable:
                     (IdxTm::Lam(_,_,_), IdxTm::Var(ref x))
                         if None != bitype::find_defs_for_idxtm_var(&ctx, &x) =>
                     {
-                        let xdef : Option<IdxTm> = bitype::find_defs_for_idxtm_var(&ctx, &x);
-                        match xdef {
-                            None => {
-                                panic!("TODO");
-                                // TODO-Someday: Try to normalize in
-                                // an empty context, to possibly fall
-                                // into another case (further below).
-                                IdxTm::FlatMap(i1, i2)
-                            }
-                            Some(xdef) => {
-                                match normal_idxtm(ctx, xdef) {
-                                    IdxTm::NmSet(ns) => {
-                                        let mut terms = vec![];
-                                        for t in ns.terms.iter() {
-                                            match t {
-                                                &NmSetTm::Single(ref n) => {
-                                                    let tm = normal_idxtm(ctx, IdxTm::FlatMap(i1.clone(), Rc::new(IdxTm::Sing(n.clone()))));
-                                                    terms.push(NmSetTm::Subset(tm))
-                                                }
-                                                &NmSetTm::Subset(ref i) => {
-                                                    let tm = normal_idxtm(ctx, IdxTm::FlatMap(i1.clone(), Rc::new(i.clone())));
-                                                    terms.push(NmSetTm::Subset(tm));
-                                                }
-                                            }
-                                        };
-                                        IdxTm::NmSet(NmSet{                                            
-                                            cons:Some(NmSetCons::Apart),
-                                            terms:terms,
-                                        })
-                                    },
-                                    _ => {
-                                        panic!("TODO");
-                                        IdxTm::FlatMap(i1, i2)
+                        let xdef = bitype::find_defs_for_idxtm_var(&ctx, &x).unwrap();
+                        match normal_idxtm(ctx, xdef) {
+                            IdxTm::NmSet(ns) => {
+                                let mut terms = vec![];
+                                for t in ns.terms.iter() {
+                                    match t {
+                                        &NmSetTm::Single(ref n) => {
+                                            let tm = normal_idxtm(ctx, IdxTm::FlatMap(i1.clone(), Rc::new(IdxTm::Sing(n.clone()))));
+                                            nmset_terms_add(ns.cons.clone(), &mut terms, NmSetTm::Subset(tm))
+                                        }
+                                        &NmSetTm::Subset(ref i) => {
+                                            let tm = normal_idxtm(ctx, IdxTm::FlatMap(i1.clone(), Rc::new(i.clone())));
+                                            nmset_terms_add(ns.cons.clone(), &mut terms, NmSetTm::Subset(tm));
+                                        }
                                     }
-                                }
+                                };
+                                IdxTm::NmSet(NmSet{                                            
+                                    cons:Some(NmSetCons::Apart),
+                                    terms:terms,
+                                })
+                            },
+                            _ => {
+                                panic!("TODO");
+                                IdxTm::FlatMap(i1, i2)
                             }
                         }
                     }
@@ -631,7 +652,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                         // exposing any set structure, so give up, and
                         // do not return a canonical `NmSet` form.
                         _ => {
-                            panic!("TODO");
+                            //panic!("TODO");
                             IdxTm::FlatMap(i1, i2)
                         }
                     }},
@@ -643,13 +664,99 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                 }
             },
 
-            // Kleene star
-            IdxTm::Star(i1, i2) => {
+            IdxTm::FlatMapStar(i, j) => {
                 // Do _not_ unroll the kleene star; there's no way to
                 // know how much is the right amount
-                let i1 = normal_idxtm_rec(ctx, i1);
-                let i2 = normal_idxtm_rec(ctx, i2);
-                IdxTm::Star(i1, i2)
+                let i = normal_idxtm_rec(ctx, i);
+                let j = normal_idxtm_rec(ctx, j);
+                match ((*i).clone(), (*j).clone()) {
+                    // Case: The function is known, and the set is
+                    // (possibly) known, via the context; use the
+                    // context to see if there are propositional
+                    // definitions of the variable; if so, decompose
+                    // the variable:
+                    (IdxTm::Lam(_,_,_), IdxTm::Var(ref x))
+                        if None != bitype::find_defs_for_idxtm_var(&ctx, &x) =>
+                    {
+                        let xdef = bitype::find_defs_for_idxtm_var(&ctx, &x).unwrap();
+                        match normal_idxtm(ctx, xdef) {
+                            IdxTm::NmSet(ns) => {
+                                let mut terms = vec![];
+                                for t in ns.terms.iter() {
+                                    match t {
+                                        &NmSetTm::Single(ref n) => {
+                                            let tm = normal_idxtm(ctx, IdxTm::FlatMapStar(i.clone(), Rc::new(IdxTm::Sing(n.clone()))));
+                                            nmset_terms_add(
+                                                ns.cons.clone(),
+                                                &mut terms,
+                                                NmSetTm::Subset(tm)
+                                            );
+                                        }
+                                        &NmSetTm::Subset(ref j) => {
+                                            let tm = normal_idxtm(ctx, IdxTm::FlatMapStar(i.clone(), Rc::new(j.clone())));
+                                            nmset_terms_add(
+                                                ns.cons.clone(),
+                                                &mut terms,
+                                                NmSetTm::Subset(tm)
+                                            );
+                                        }
+                                    }
+                                };
+                                IdxTm::NmSet(NmSet{                                            
+                                    cons:Some(NmSetCons::Apart),
+                                    terms:terms,
+                                })
+                            },
+                            _ => {
+                                panic!("TODO");
+                                IdxTm::FlatMapStar(i, j)
+                            }
+                        }
+                    },
+                    // Case: The body of the function is exposing set
+                    // structure; so apply
+                    // the function and re-expose this set structure.
+                    (IdxTm::Lam(x,gx,body),_) => { match (*body).clone() {
+                        IdxTm::Sing(body_nmtm) => {
+                            //println!(" ************** \n Name term body:\n\t{:?}", body_nmtm);
+                            normal_idxtm(
+                                ctx,
+                                IdxTm::MapStar(Rc::new(NameTm::Lam(x,gx,Rc::new(body_nmtm))), j)
+                            )
+                        },                        
+                        IdxTm::Apart(body_l, body_r) => {
+                            //println!(" ************** \n Left:\n\t{:?}\n Right:\n\t{:?}", body_l, body_r);
+                            normal_idxtm(
+                                ctx,
+                                IdxTm::Apart(
+                                    Rc::new(normal_idxtm(
+                                        ctx, 
+                                        IdxTm::FlatMapStar(
+                                            Rc::new(IdxTm::Lam(x.clone(), gx.clone(), body_l)),
+                                            j.clone()
+                                        ))),
+                                    Rc::new(normal_idxtm(
+                                        ctx, 
+                                        IdxTm::FlatMapStar(
+                                            Rc::new(IdxTm::Lam(x.clone(), gx.clone(), body_r)), j
+                                        ))),
+                                ))
+                        },
+                        // Give up: The set argument is not exposing
+                        // any structure, and the lambda body is not
+                        // exposing any set structure, so give up, and
+                        // do not return a canonical `NmSet` form.
+                        _ => {
+                            panic!("TODO");
+                            IdxTm::FlatMapStar(i, j)
+                        }
+                    }},
+                    (_, _) => {
+                        //panic!("TODO: {:?} {:?}", i j);
+                        // Give up: No structure to work with at all:
+                        IdxTm::FlatMapStar(i, j)
+                    }
+                }
             }
 
             // In all other cases, do nothing:

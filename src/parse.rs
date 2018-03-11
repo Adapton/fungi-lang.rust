@@ -80,6 +80,7 @@ macro_rules! fgi_name {
 ///     #a:g.M              (abstraction)
 ///     [M] N ...           (curried application)
 ///     a                   (Variable)
+///     ~x                  (Value variable)
 ///     M, N, ...           (extended bin)   <<--- DEPRECATED: Use `N * M * ...` instead
 ///     n                   (literal Name)
 /// ```
@@ -97,6 +98,13 @@ macro_rules! fgi_nametm {
         NameTm::Bin(
             Rc::new(NameTm::Name(fgi_name![@$nm1])),
             Rc::new(fgi_nametm![@$nm2])
+        )
+    };
+    // ~x * M         <--------------- "*" preferred over ","
+    { ~ $x:ident * $m:tt } => {
+        NameTm::Bin(
+            Rc::new((fgi_nametm![~$x])),
+            Rc::new(fgi_nametm![$m])
         )
     };
     // @n1 * M         <--------------- "*" preferred over ","
@@ -135,6 +143,8 @@ macro_rules! fgi_nametm {
     };
     //     a                   (Variable)
     { $var:ident } => { NameTm::Var(stringify![$var].to_string()) };
+    //   ~ x                   (Value variable)
+    { ~ $var:ident } => { NameTm::ValVar(stringify![$var].to_string()) };
     //     M, N, ...           (extended bin, literal names)
     { $($nmtms:tt)+ } => { split_comma![parse_fgi_name_bin <= $($nmtms)+]};
     // failure
@@ -264,7 +274,7 @@ macro_rules! fgi_index {
         Rc::new(fgi_index![$($par)+]),
     )};
     //     (i)^* j      (iterated flatmapping)
-    { ($($i:tt)+) ^ * $($j:tt)+ } => { IdxTm::Star(
+    { ($($i:tt)+) ^ * $($j:tt)+ } => { IdxTm::FlatMapStar(
         Rc::new(fgi_index![$($i)+]),
         Rc::new(fgi_index![$($j)+]),
     )};

@@ -114,14 +114,14 @@ pub mod ast_dynamic {
 pub use self::ast_dynamic::{Env,RtVal,ExpTerm,NameTmVal};
     
 /// project/pattern-match the name of namespace, defined as the
-/// sub-term M in the following nameterm (lambda) form:
+/// sub-term `M` in the following nameterm (lambda) form:
 ///
 /// ```text
-///  #x.[M, x]
+///  #x:Nm. M * x
 /// ```
 ///
-/// where [M, x] is the binary name formed from uknown name x and M,
-/// the name of the "namespace".
+/// where `M * x` is the binary name formed from uknown name `x` and
+/// `M`, the name of the "namespace".
 ///
 pub fn proj_namespace_name(n:NameTmVal) -> Option<NameTm> {
     match n {
@@ -167,6 +167,9 @@ pub fn nametm_subst(nmtm:NameTm, x:&Var, v:&NameTm) -> NameTm {
             NameTm::App(nametm_subst_rec(nt1, x, v),
                         nametm_subst_rec(nt2, x, v))
         }
+        NameTm::ValVar(x) => {
+            panic!("Unexpected value variable: {}", x)
+        }
         NameTm::Var(y) => {
             if *x == y { v.clone() }
             else { NameTm::Var(y) }
@@ -185,6 +188,7 @@ pub fn nametm_eval_rec(nmtm:Rc<NameTm>) -> NameTmVal {
 pub fn nametm_eval(nmtm:NameTm) -> NameTmVal {
     match nmtm {
         NameTm::Var(x) => { panic!("dynamic type error (open term, with free var {})", x) }
+        NameTm::ValVar(x) => { panic!("dynamic type error (open term, with free (value) var {})", x) }
         NameTm::Name(n) => NameTmVal::Name(n),
         NameTm::Lam(x, _, nt) => NameTmVal::Lam(x, (*nt).clone()),
         NameTm::WriteScope => unimplemented!("write scope"),

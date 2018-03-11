@@ -260,7 +260,7 @@ pub mod effect {
                 else { continue }
             };
             if t2_found { } else {
-                //println!("^decide_nmset_subtraction: Failure\nFrom:\n\t{:?}\nCannot subtract:\n\t{:?}", &ns1, &t2);
+                println!("^decide_nmset_subtraction: Failure\nFrom:\n\t{:?}\nCannot subtract:\n\t{:?}", &ns1, &t2);
                 return Result::Err( Error::CannotSubtractNmSetTmFromNmSet( ns1.clone(), t2.clone() ) )
             };                    
         };
@@ -446,7 +446,7 @@ pub mod equiv {
         App(IdxTmDec, IdxTmDec),
         Map(NmTmDec, IdxTmDec),
         FlatMap(IdxTmDec, IdxTmDec),
-        Star(IdxTmDec, IdxTmDec),
+        FlatMapStar(IdxTmDec, IdxTmDec),
         NoParse(String),
         Fail,
     }
@@ -743,13 +743,13 @@ pub mod equiv {
                     (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
                 }
             }
-            (&BiIdxTm::Star(ref m,ref x),&BiIdxTm::Star(ref n,ref y)) => {
+            (&BiIdxTm::FlatMapStar(ref m,ref x),&BiIdxTm::FlatMapStar(ref n,ref y)) => {
                 // Assume sort NmSet
                 let idxarrow = Sort::IdxArrow(Rc::new(Sort::Nm),Rc::new(Sort::NmSet));
                 let left = decide_idxtm_equiv(ctx,m,n,&idxarrow);
                 let right = decide_idxtm_equiv(ctx,x,y,&Sort::NmSet);
                 let (l,r) = (left.res.clone(),right.res.clone());
-                let der = IdxTmRule::Star(left,right);
+                let der = IdxTmRule::FlatMapStar(left,right);
                 match (l,r) {
                     (Ok(true),Ok(true)) => succ(der),
                     (Ok(_),Ok(_)) => fail(der),
@@ -836,7 +836,7 @@ pub mod subset {
         App(IdxTmDec, IdxTmDec),
         Map(equiv::NmTmDec, IdxTmDec),
         FlatMap(IdxTmDec, IdxTmDec),
-        Star(IdxTmDec, IdxTmDec),
+        FlatMapStar(IdxTmDec, IdxTmDec),
         // - - - - - - - - - - - - - - - - -
         SubsetRefl(normal::NmSetTm),
         Subset(normal::NmSet, normal::NmSet),
@@ -1185,7 +1185,7 @@ pub mod subset {
                     (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
                 }
             }
-            (&BiIdxTm::Star(ref _i1, ref _j1),&BiIdxTm::Star(ref _i2, ref _j2)) => {
+            (&BiIdxTm::FlatMapStar(ref _i1, ref _j1),&BiIdxTm::FlatMapStar(ref _i2, ref _j2)) => {
                 unimplemented!()
             }
             (_, _) => {
@@ -1429,7 +1429,7 @@ pub mod apart {
         Apart(IdxTmDec, IdxTmDec),
         Map(NmTmDec, equiv::IdxTmDec),
         FlatMap(IdxTmDec, IdxTmDec),
-        Star(IdxTmDec, equiv::IdxTmDec),
+        FlatMapStar(IdxTmDec, equiv::IdxTmDec),
         NoParse(String),
     }
     pub type IdxTmDec  = Dec<IdxTmRule>;

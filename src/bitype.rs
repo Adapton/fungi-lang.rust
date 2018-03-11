@@ -270,8 +270,9 @@ pub enum IdxTmRule {
     WriteScope,
     App(IdxTmDer, IdxTmDer),
     Map(NmTmDer, IdxTmDer),
+    MapStar(NmTmDer, IdxTmDer),
     FlatMap(IdxTmDer, IdxTmDer),
-    Star(IdxTmDer, IdxTmDer),
+    FlatMapStar(IdxTmDer, IdxTmDer),
     NoParse(String),
     /// For normal::NmSet index terms
     NmSet,
@@ -827,6 +828,22 @@ pub fn synth_idxtm(ext:&Ext, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer {
                 _ => fail(td, TypeError::AppNotArrow),
             }
         },
+        &IdxTm::MapStar(ref nt, ref idx) => {
+            let td0 = synth_nmtm(ext,ctx,nt);
+            let td1 = synth_idxtm(ext,ctx,idx);
+            let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
+            let td = IdxTmRule::MapStar(td0,td1);
+            match (typ0,typ1) {
+                (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
+                (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
+                (Ok(Sort::NmArrow(n0,n1)),Ok(Sort::NmSet)) => {
+                    if (*n0 == Sort::Nm) && (*n1 == Sort::Nm) { succ(td, Sort::NmSet) }
+                    else { fail(td, TypeError::ParamMism(0)) }
+                },
+                (Ok(Sort::NmArrow(_,_)),_) => fail(td, TypeError::ParamMism(1)),
+                _ => fail(td, TypeError::AppNotArrow),
+            }
+        },
         &IdxTm::FlatMap(ref idx0, ref idx1) => {
             let td0 = synth_idxtm(ext,ctx,idx0);
             let td1 = synth_idxtm(ext,ctx,idx1);
@@ -855,11 +872,11 @@ pub fn synth_idxtm(ext:&Ext, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer {
                 (Ok(_),_) => fail(td, TypeError::ParamMism(0)),
             }
         },
-        &IdxTm::Star(ref idx0, ref idx1) => {
+        &IdxTm::FlatMapStar(ref idx0, ref idx1) => {
             let td0 = synth_idxtm(ext,ctx,idx0);
             let td1 = synth_idxtm(ext,ctx,idx1);
             let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
-            let td = IdxTmRule::Star(td0,td1);
+            let td = IdxTmRule::FlatMapStar(td0,td1);
             match (typ0,typ1) {
                 (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
                 (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
@@ -906,6 +923,16 @@ pub fn synth_nmtm(ext:&Ext, ctx:&Ctx, nmtm:&NameTm) -> NmTmDer {
     let fail = |td:NmTmRule, err :TypeError| { failure(Dir::Synth, ext, ctx, nmtm.clone(), td, err)  };
     let succ = |td:NmTmRule, sort:Sort     | { success(Dir::Synth, ext, ctx, nmtm.clone(), td, sort) };
     match nmtm {
+        &NameTm::ValVar(ref x) => {
+            let td = NmTmRule::Var(x.clone());            
+            match ctx.lookup_var(x) {
+                None => fail(td, TypeError::VarNotInScope(x.clone())),
+                Some(typ) => match typ {
+                    Type::Nm(_) => succ(td, Sort::Nm),
+                    ty => fail(td, TypeError::UnexpectedType(ty.clone()))
+                }
+            }        
+        },
         &NameTm::Var(ref x) => {
             let td = NmTmRule::Var(x.clone());
             match ctx.lookup_ivar(x) {
@@ -2313,8 +2340,9 @@ pub mod debug {
                 IdxTmRule::WriteScope => "WriteScope",
                 IdxTmRule::App(_, _) => "App",
                 IdxTmRule::Map(_, _) => "Map",
+                IdxTmRule::MapStar(_, _) => "MapStar",
                 IdxTmRule::FlatMap(_, _) => "FlatMap",
-                IdxTmRule::Star(_, _) => "Star",
+                IdxTmRule::FlatMapStar(_, _) => "FlatMapStar",
                 IdxTmRule::NoParse(_) => "NoParse",
                 IdxTmRule::NmSet => "NmSet",
             }

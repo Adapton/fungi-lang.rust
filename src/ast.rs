@@ -47,12 +47,19 @@ pub type Var = String;
 pub type Ident = String;
 
 /// Name Literals
+///
+/// In Fungi, names are binary trees, whose leaves are (optionally)
+/// enriched with atomic data symbols (e.g., numbers and strings).
 #[derive(Clone,Debug,Eq,PartialEq,Hash,PartialOrd,Ord)]
 pub enum Name {
-    Leaf,
-    Sym(String),
-    Num(usize),
+    /// Form a binary tree from two existing trees
     Bin(NameRec, NameRec),
+    /// Form empty binary tree
+    Leaf,
+    /// Atomic string literal
+    Sym(String),
+    /// Atomic number literal
+    Num(usize),
     NoParse(String),
 }
 pub type NameRec = Rc<Name>;
@@ -60,12 +67,48 @@ pub type NameRec = Rc<Name>;
 /// Name Terms
 #[derive(Clone,Debug,Eq,PartialEq,Hash,PartialOrd,Ord)]
 pub enum NameTm {
+    /// Name-term level variable `x`, of some sort `g`:
+    ///
+    /// ```text
+    ///  Γ(x) = g
+    /// ----------- :: Var
+    ///  Γ ⊢ x : g
+    /// ```
     Var(Var),
+    /// Injected value-level variable `x`, of type `Nm[i]`, for some name set `i`:
+    ///
+    /// ```text
+    ///  Γ(x) = Nm[i]
+    /// -------------- :: ValVar
+    ///  Γ ⊢ ~x : Nm
+    /// ```
+    ValVar(Var),
+    /// ```text
+    /// ------------ :: Name
+    ///  Γ ⊢ n : Nm
+    /// ```
     Name(Name),
+    /// ```text
+    ///  Γ ⊢ N : Nm
+    ///  Γ ⊢ M : Nm
+    /// --------------- :: Name
+    ///  Γ ⊢ N * M : Nm
+    /// ```    
     Bin(NameTmRec, NameTmRec),
+    /// ```text
+    ///  Γ, x:g1 ⊢ M : g2
+    /// ------------------------- :: Lam
+    ///  Γ ⊢ #x:g1. M : g1 -> g2
+    /// ```
     Lam(Var, Sort, NameTmRec),
+    /// ```text
+    ///  Γ ⊢ M : g1 -> g2
+    ///  Γ ⊢ N : g1
+    /// ------------------ :: App
+    ///  Γ ⊢ [M] N : g2
+    /// ```
     App(NameTmRec, NameTmRec),
-    /// @@ : Nm -> Nm
+    /// `@@ : Nm -> Nm`
     ///
     /// This is the initial/default/neutral/ambient write scope.  All
     /// other write scopes are functions that compose with this one
@@ -79,54 +122,126 @@ pub type NameTmRec = Rc<NameTm>;
 /// Index terms
 #[derive(Clone,Debug,Eq,PartialEq,Hash,PartialOrd,Ord)]
 pub enum IdxTm {
-    Var(Var),
-    Ident(Ident),
-    Sing(NameTm),
-    Empty,
-    Apart(IdxTmRec, IdxTmRec),
-    Union(IdxTmRec, IdxTmRec),
-    Unit,
-    /// All binary combinations of two name sets.
-    ///
-    /// This is a common special case of curried nameset mapping:
-    ///
-    /// `( i ,, j ) := (#a:Nm. ((#b:Nm. a,,b) j)) i`
-    ///
-    /// Since this double-mapping pattern is very common, we introduce
-    /// a special AST node for it.
-    ///
-    /// `Bin` Sorting rule:
-    ///
     /// ```text
-    /// Gamma |- i : NmSet
-    /// Gamma |- j : NmSet
-    /// ---------------------------- :: Bin
-    /// Gamma |- ( i ,, j ) : NmSet
+    ///  Γ(x) = g
+    /// ----------- :: Var
+    ///  Γ ⊢ x : g
+    /// ```    
+    Var(Var),
+    /// ```text
+    ///  Γ(x) = (Γ', i)
+    ///  Γ' ⊢ i : g
+    /// ----------------- :: Ident  (contextual definition)
+    ///  Γ ⊢ i : g
+    /// ```    
+    Ident(Ident),
+    /// ```text
+    ///  Γ ⊢ M : Nm
+    /// ------------------ :: Sing
+    ///  Γ ⊢ { M } : NmSet
+    /// ```    
+    Sing(NameTm),
+    /// ```text
+    /// -------------- :: Empty
+    ///  Γ ⊢ 0 : NmSet
+    /// ```
+    Empty,
+    /// ```text
+    ///  Γ ⊢ i : NmSet
+    ///  Γ ⊢ j : NmSet
+    /// ------------------- :: Apart
+    ///  Γ ⊢ i % j : NmSet
+    /// ```
+    Apart(IdxTmRec, IdxTmRec),
+    /// ```text
+    ///  Γ ⊢ i : NmSet
+    ///  Γ ⊢ j : NmSet
+    /// ------------------- :: Union
+    ///  Γ ⊢ i U j : NmSet
+    /// ```
+    Union(IdxTmRec, IdxTmRec),
+    /// ```text
+    /// -------------- :: Unit
+    ///  Γ ⊢ () : ??
+    /// ```    
+    Unit,
+    /// ```text
+    ///  Γ ⊢ i : NmSet
+    ///  Γ ⊢ j : NmSet
+    /// ----------------------- :: Bin
+    ///  Γ ⊢ i * j : NmSet
     /// ```
     Bin(IdxTmRec, IdxTmRec),
-    /// `Pair` Sorting rule:
-    ///
     /// ```text
-    /// Gamma |- i : g1
-    /// Gamma |- j : g2
-    /// ----------------------------- :: Pair
-    /// Gamma |- ( i , j ) : g1 x g2
+    ///  Γ ⊢ i : g1
+    ///  Γ ⊢ j : g2
+    /// ------------------------- :: Pair
+    ///  Γ ⊢ (i , j) : g1 x g2
     /// ```
     Pair(IdxTmRec, IdxTmRec),
+    /// ```text
+    ///  Γ ⊢ i : g1 x g2
+    /// ------------------ :: Proj1
+    ///  Γ ⊢ proj1 i : g1
+    /// ```    
     Proj1(IdxTmRec),
+    /// ```text
+    ///  Γ ⊢ i : g1 x g2
+    /// ------------------ :: Proj2
+    ///  Γ ⊢ proj2 i : g2
+    /// ```        
     Proj2(IdxTmRec),
-    /// @! : NmSet -> NmSet
+    /// `@! : NmSet -> NmSet`
+    ///
+    /// The ambient write scope (`@@ : Nm -> Nm`), lifted to name sets.
+    ///
     WriteScope,
     /// A normalized form for union/apart name sub-sets; never written
     /// directly by the programmer.  This form is used by the `normal`
     /// module for distributing set-level functions over a sets'
     /// constructors, for a uniform choice of type `NmSetCons`.
     NmSet(normal::NmSet),
+    /// ```text
+    ///  Γ, x:g1 ⊢ i : g2
+    /// -------------------------- :: Lam
+    ///  Γ ⊢ #x:g1. i : g1 -> g2
+    /// ```
     Lam(Var, Sort, IdxTmRec),
+    /// ```text
+    ///  Γ ⊢ i : g1 -> g2
+    ///  Γ ⊢ j : g1
+    /// ------------------ :: App
+    ///  Γ ⊢ {i} j : g2
+    /// ```
     App(IdxTmRec, IdxTmRec),
+    /// ```text
+    ///  Γ ⊢ M : Nm -> Nm
+    ///  Γ ⊢ j : NmSet
+    /// ------------------ :: Map
+    ///  Γ ⊢ [M] j : NmSet
+    /// ```
     Map(NameTmRec, IdxTmRec),
+    /// ```text
+    ///  Γ ⊢ M : Nm -> Nm
+    ///  Γ ⊢ j : NmSet
+    /// ------------------ :: MapStar
+    ///  Γ ⊢ [M]^* j : NmSet
+    /// ```
+    MapStar(NameTmRec, IdxTmRec),
+    /// ```text
+    ///  Γ ⊢ i : Nm -> NmSet
+    ///  Γ ⊢ j : NmSet
+    /// ----------------------- :: FlatMap
+    ///  Γ ⊢ (i) j : NmSet
+    /// ```
     FlatMap(IdxTmRec, IdxTmRec),
-    Star(IdxTmRec, IdxTmRec),
+    /// ```text
+    ///  Γ ⊢ i : Nm -> NmSet
+    ///  Γ ⊢ j : NmSet
+    /// ----------------------- :: FlatMapStar
+    ///  Γ ⊢ (i)^* j : NmSet
+    /// ```    
+    FlatMapStar(IdxTmRec, IdxTmRec),
     NoParse(String),
 }
 pub type IdxTmRec = Rc<IdxTm>;

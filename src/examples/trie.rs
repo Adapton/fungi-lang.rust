@@ -33,11 +33,13 @@ pub fn listing () { fgi_listing_test![
                 )
         );                
         
-        idxtm Bin     = (#x:Nm.({x,@1})%({x,@2}));
-        idxtm WS_Bin  = (#x:NmSet.{@!}(       (Bin)   x));
+        idxtm Bin     = (#x:Nm.       ( {x,@1})%({x,@2}) );
+        idxtm WS_Bin  = (#x:NmSet.{@!}(       (Bin)   x) );
         idxtm WS_Bin1 = (#x:NmSet.{@!}((Bin) ((Bin)^* x)));
         idxtm WS_Join = (#x:NmSet.{@!}(       (Bin)^* x ));
-        idxtm WS_Trie = (#x:NmSet.{@!}(  x * ((Bin)^* x )));
+        idxtm Join    = (#x:NmSet.    (       (Bin)^* x ));
+        idxtm WS_Trie = (#x:NmSet.{@!}(((Bin)x) %
+                                       (x * ({Join}x))));
     }
     
     let join:(
@@ -73,9 +75,13 @@ pub fn listing () { fgi_listing_test![
             bin => {
                 unpack (X1,X2,X3,Y1,Y2,Y3,Y4) bin = bin
                 let (n,lev,l,r) = {ret bin}
-                let (rsl, sl) = { memo{n,(@1)}{ {force trie}[X2][Y2]{!l} } }
-                let (rsr, sr) = { memo{n,(@2)}{ {force trie}[X3][Y4]{!r} } }
-                unimplemented
+                let (rsl, _sl) = { memo{n,(@1)}{ {force trie}[X2][Y2]{!l} } }
+                let (rsr, _sr) = { memo{n,(@2)}{ {force trie}[X3][Y4]{!r} } }
+                ws (nmfn [#x:Nm. ~n * x]) {
+                    unimplemented
+                    //{force join}[(WS_Join)(X2%X3)][((WS_Bin)((Join)X2%X3))]
+                    //{!rsl} {!rsr}
+                }
             }
         }
     }

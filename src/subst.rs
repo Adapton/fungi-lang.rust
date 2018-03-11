@@ -46,7 +46,8 @@ pub fn fv_of_term(t:&Term) -> Vec<Term> {
 pub fn fv_of_nmtm(n:&NameTm, bound:Vec<Term>, out:&mut Vec<Term>) {
     use ast::NameTm::*;
     match n {
-        &Var(_) => {
+        &Var(_) |
+        &ValVar(_) => {
             let x = Term::NmTm(n.clone());
             if let Some(_) = bound.iter().position(|y| &x == y) { /* x is bound. */ }
             else { /* x is free */ out.push(x) }
@@ -89,7 +90,8 @@ pub fn fv_of_idxtm(i:&IdxTm, bound:Vec<Term>, out:&mut Vec<Term>) {
         &Sing(ref n) => {
             fv_of_nmtm(n, bound, out)
         }
-        &Map(ref n, ref i) => {
+        &Map(ref n, ref i)     |
+        &MapStar(ref n, ref i) => {
             fv_of_nmtm(n, bound.clone(), out);
             fv_of_idxtm(i, bound,        out);
         }
@@ -112,7 +114,7 @@ pub fn fv_of_idxtm(i:&IdxTm, bound:Vec<Term>, out:&mut Vec<Term>) {
         &Pair(ref i, ref j)    |
         &App(ref i, ref j)     |
         &FlatMap(ref i, ref j) |
-        &Star(ref i, ref j)    => {
+        &FlatMapStar(ref i, ref j)    => {
             fv_of_idxtm(i, bound.clone(), out);
             fv_of_idxtm(j, bound        , out);
         }
@@ -467,12 +469,16 @@ pub fn subst_term_idxtm(t:Term, x:&String, i:IdxTm) -> IdxTm {
             IdxTm::Map(subst_term_nmtm_rec(t.clone(), x, n),
                        subst_term_idxtm_rec(t, x, j))
         }
+        IdxTm::MapStar(n, j) => {
+            IdxTm::MapStar(subst_term_nmtm_rec(t.clone(), x, n),
+                           subst_term_idxtm_rec(t, x, j))
+        }
         IdxTm::FlatMap(i, j) => {
             IdxTm::FlatMap(subst_term_idxtm_rec(t.clone(), x, i),
                            subst_term_idxtm_rec(t, x, j))
         }
-        IdxTm::Star(i, j) => {
-            IdxTm::Star(subst_term_idxtm_rec(t.clone(), x, i),
+        IdxTm::FlatMapStar(i, j) => {
+            IdxTm::FlatMapStar(subst_term_idxtm_rec(t.clone(), x, i),
                         subst_term_idxtm_rec(t, x, j))
         }
         IdxTm::NoParse(s) =>
@@ -489,6 +495,9 @@ pub fn subst_term_nmtm_rec(t:Term, x:&String, m:Rc<NameTm>) -> Rc<NameTm> {
 /// Substitute name terms into name terms
 pub fn subst_term_nmtm(t:Term, x:&String, m:NameTm) -> NameTm {
     if ! term_is_nmtm(&t) { m.clone() } else { match m {
+        NameTm::ValVar(y) => {
+            NameTm::ValVar(y)
+        }
         NameTm::Var(y) => {
             if term_is_nmtm(&t) && x == &y {
                 match t {
