@@ -13,6 +13,7 @@ pub fn listing0 () { fgi_listing_test![
     ret 0
 ]}
 
+
 #[test]
 pub fn listing0_fail0 () { fgi_listing_expect![
     [Expect::Failure]
@@ -21,7 +22,7 @@ pub fn listing0_fail0 () { fgi_listing_expect![
         Thk[0] foralli X:NmSet.
             0 Nm[X] -> 0 Nat ->
         { 0 ; 0 }
-        F Ref[X] Nat
+        F Ref[{@!} X] Nat
     ) = {
         ret thunk #n.#x.
             ref n x

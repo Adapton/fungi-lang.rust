@@ -1035,8 +1035,14 @@ pub mod subset {
                             res:Ok(true)
                         }
                     }
-                    // Subcase 5: "Other"
-                    a => panic!("{:?}", a)
+                    // Subcase 5: "Other: Say 'No'"
+                    _ => {
+                        return Dec{
+                            ctx:ctx.clone(),
+                            rule:Rc::new(IdxTmRule::Fail),
+                            clas:Sort::NmSet,
+                            res:Err(DecError::SubsetSearchFailure)
+                        }}                    
                 }
             },
             _ => decide_idxtm_subset_congr (
