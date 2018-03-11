@@ -65,11 +65,19 @@ pub fn listing () { fgi_listing_test![
     let trie:(
         Thk[0] foralli (X,Y):NmSet.
             0 Seq[X][Y] ->
-        { ({WS_Trie} X) % {[@@][@666 * @1]}; Y }
+        { {WS_Trie} X ; Y }
         F Set[X][{WS_Trie} X]
     ) = {
-        ret thunk fix trie. #seq.
-        unimplemented
+        ret thunk fix trie. #seq. match seq {
+            on => { ret roll inj1 on }
+            bin => {
+                unpack (X1,X2,X3,Y1,Y2,Y3,Y4) bin = bin
+                let (n,lev,l,r) = {ret bin}
+                let (rsl, sl) = { memo{n,(@1)}{ {force trie}[X2][Y2]{!l} } }
+                let (rsr, sr) = { memo{n,(@2)}{ {force trie}[X3][Y4]{!r} } }
+                unimplemented
+            }
+        }
     }
 
     ret 0
