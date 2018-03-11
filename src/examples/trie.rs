@@ -56,9 +56,14 @@ pub fn listing () { fgi_listing_test![
         { {WS_Trie} X; Y }
         F Set[X][{WS_Trie} X]
     ) = {
-        ws (nmfn [#x:Nm. @666 * x]) {
-            unimplemented
+        ret thunk fix trie. #seq.
+        let foo = {
+            ws (nmfn [#x:Nm. @666 * x]) {
+                let (a,b) = { memo(name @1){ ret 0 } }
+                ret 0
+            }
         }
+        unimplemented
     }
 
     ret 0

@@ -481,13 +481,15 @@ pub enum TypeError {
     // More errors
     CheckFailType(Type),
     CheckFailCEffect(CEffect),
+    CheckFailArrow(CEffect),    
     SynthFailVal(Val),
     UnexpectedCEffect(CEffect),
     UnexpectedType(Type),
     EffectError(decide::effect::Error),
     
-    // for statement-like AST nodes e.g. `Let`
-    LaterError,
+    Later(Rc<TypeError>),
+    Inside(Rc<TypeError>),
+    
     // error in subderivation; for tree-shaped AST nodes e.g. `App`, and value forms.
     Subder,
     Mismatch,
@@ -519,11 +521,15 @@ impl fmt::Display for TypeError {
             TypeError::Unimplemented => format!("Internal Error: type-checking unimplemented"),
             TypeError::CheckFailType(ref t) => format!("check fail for type {:?}",t),
             TypeError::CheckFailCEffect(ref _ce) => format!("check fail for ceffect ..."),
+            TypeError::CheckFailArrow(ref _ce) => format!("check fail for ceffect; expected arrow"),
             TypeError::SynthFailVal(ref v) => format!("failed to synthesize type for value {:?}",v),
             TypeError::UnexpectedCEffect(ref ce) => format!("unexpected effect type: {:?}", ce),
             TypeError::UnexpectedType(ref t) => format!("unexpected type: {:?}", t),
-            TypeError::LaterError => format!("error in a later line of code"),
-            TypeError::Subder     => format!("error in a subderivation"),
+
+            TypeError::Inside(_)  => format!("error inside (the 'primary' subderivation)"),
+            TypeError::Later(_)   => format!("error later (the 'secondary' subderivation)"),
+            TypeError::Subder     => format!("error in a subderivation (not specific)"),
+            
             TypeError::Mismatch   => format!("type mismatch"),
             TypeError::MismatchSort(ref g1, ref g2) => format!("sort mismatch: found {:?}, but expected {:?}", g1, g2),
             TypeError::EffectError(ref err) => format!("effect error: {:?}", err),
@@ -533,12 +539,20 @@ impl fmt::Display for TypeError {
     }
 }
 
+fn wrap_later_error(err:&TypeError) -> TypeError {
+    match err {
+        &TypeError::Later(_) => err.clone(),
+        err => TypeError::Later(Rc::new(err.clone())),
+    }
+}
+
 fn error_is_local(err:&TypeError) -> bool {
     match *err {
         TypeError::VarNotInScope(_) => true,
         TypeError::IdentNotInScope(_) => true,
         TypeError::NoParse(_) => true,
         TypeError::AnnoMism => true,
+        TypeError::CheckFailArrow(_) => true,
         TypeError::NoSynthRule => true,
         TypeError::NoCheckRule => true,
         TypeError::InvalidPtr => true,
@@ -560,7 +574,8 @@ fn error_is_local(err:&TypeError) -> bool {
         TypeError::SynthFailVal(_) => false,
         TypeError::UnexpectedCEffect(_) => true,
         TypeError::UnexpectedType(_) => true,
-        TypeError::LaterError => false,
+        TypeError::Later(_) => false,
+        TypeError::Inside(_) => false,
         TypeError::Subder     => false,
         TypeError::Mismatch   => true,
         TypeError::MismatchSort(_,_)  => true,
@@ -951,7 +966,6 @@ pub fn synth_nmtm(ext:&Ext, ctx:&Ctx, nmtm:&NameTm) -> NmTmDer {
             }
         },
         &NameTm::NoParse(ref s) => {
-            println!("XXX: {:?}", s);
             fail(NmTmRule::NoParse(s.clone()),TypeError::NoParse(s.clone()))
         },
     }  
@@ -1496,6 +1510,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                 (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
                 (Ok(Type::Nm(idx)),Ok(ce)) => {
                     // use the ambient write scope to determine the written name:
+                    //println!("XXX Write scope: {:?}", ext.write_scope.clone());
                     let idx = IdxTm::Map(Rc::new(ext.write_scope.clone()), Rc::new(idx));
                     let typ = Type::Thk(idx.clone(),Rc::new(ce));
                     let eff = Effect::WR(idx, IdxTm::Empty);
@@ -1524,7 +1539,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let typ2 = td2.clas.clone();
             let td = ExpRule::DefType(x.clone(), t.clone(), td2);
             match typ2 {
-                Err(_) => fail(td, TypeError::LaterError),
+                Err(ref err) => fail(td, wrap_later_error(err)),
                 Ok(ty) => succ(td, ty.clone()),
             }
         },
@@ -1624,9 +1639,9 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                     let td2 = synth_exp(ext, &new_ctx, e2);
                     let typ2 = td2.clas.clone();
                     match typ2 {
-                        Err(_) => {
+                        Err(ref err) => {
                             let td = ExpRule::Let(x.clone(), td1, td2);
-                            fail(td, TypeError::LaterError)
+                            fail(td, wrap_later_error(err))
                         }
                         Ok(CEffect::Cons(ty2, eff2)) =>
                         {
@@ -1741,7 +1756,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let typ2 = td2.clas.clone();
             let td = ExpRule::DebugLabel(n.clone(),s.clone(),td2);
             match typ2 {
-                Err(_err) => fail(td, TypeError::LaterError),
+                Err(ref err) => fail(td, wrap_later_error(err)),
                 Ok(ty) => succ(td, ty),
             }
         },
@@ -1752,8 +1767,61 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             fail(ExpRule::HostFn(hef.clone()),
                  TypeError::NoSynthRule)
         },
+
+        &Exp::WriteScope(ref v,ref e) => {
+            let td0 = synth_val(ext, ctx, v);
+            match td0.clas.clone() {
+                Ok(Type::NmFn(nmlamb)) => {
+                    let new_scope = fgi_nametm![
+                        #n:Nm.[^ext.write_scope.clone()][[^nmlamb] n]
+                    ];
+                    //println!("XXX: {:?}", new_scope);
+                    let new_ext = Ext{write_scope:new_scope, ..ext.clone()};
+                    let td1 = synth_exp(&new_ext, ctx, e);
+                    let typ1 = td1.clas.clone();
+                    let td = ExpRule::WriteScope(td0,td1);
+                    match typ1 {
+                        Ok(ref ceffect) => succ(td, ceffect.clone()),
+                        Err(_) => fail(td, TypeError::ParamNoCheck(1)),
+                    }
+                }
+                _ => fail(
+                    ExpRule::WriteScope(td0, synth_exp(ext,ctx,e)),
+                    TypeError::ScopeNotNmTm
+                ),
+            }
+        },
+
+        &Exp::Split(ref v, ref x1, ref x2, ref e) => {
+            let td0 = synth_val(ext, ctx, v);
+            let v_ty = td0.clone().clas.map(|a| normal::normal_type(ctx, &a));
+            match v_ty.clone() {
+                Err(_) => fail(ExpRule::Split(
+                    td0, x1.clone(), x2.clone(),
+                    synth_exp(ext, ctx, e)
+                ), TypeError::ParamNoSynth(0)),
+                Ok(Type::Prod(t1,t2)) => {
+                    let new_ctx = ctx
+                        .var(x1.clone(),(*t1).clone())
+                        .var(x2.clone(),(*t2).clone())
+                    ;
+                    let td3 = synth_exp(ext, ctx, e);
+                    let typ3 = td3.clas.clone();
+                    let td = ExpRule::Split(td0, x1.clone(), x2.clone(), td3);
+                    match typ3 {
+                        Err(ref err) => fail(td, wrap_later_error(err)),
+                        Ok(ref ceffect) => succ(td, ceffect.clone())
+                    }
+                },
+                _ => fail(ExpRule::Split(
+                    td0, x1.clone(), x2.clone(),
+                    synth_exp(ext, ctx, e)
+                ), TypeError::ParamMism(0)),
+            }
+        },
+        
         //
-        // -------- low priority:
+        // -------- More cases TODO: low priority:
         //
         
         &Exp::NameFnApp(ref v0,ref v1) => {
@@ -1784,23 +1852,10 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             // TODO: implement
             fail(td, TypeError::Unimplemented)
         },
-
         //
-        // -------- More cases (lowest priority)
+        // -------- More cases TODO: lowest priority:
         //
 
-        &Exp::WriteScope(ref v,ref e) => {
-            let td0 = synth_val(ext, ctx, v);
-            let td1 = synth_exp(ext, ctx, e);
-            let td = ExpRule::WriteScope(td0,td1);
-            fail(td, TypeError::NoSynthRule) // Ok, for now.
-        },
-        &Exp::Split(ref v, ref x1, ref x2, ref e) => {
-            let td0 = synth_val(ext, ctx, v);
-            let td3 = synth_exp(ext, ctx, e);
-            let td = ExpRule::Split(td0,x1.clone(),x2.clone(),td3);
-            fail(td, TypeError::NoSynthRule) // Ok, for now.
-        },
         &Exp::Case(ref v, ref x1, ref e1, ref x2, ref e2) => {
             let td0 = synth_val(ext, ctx, v);
             let td2 = synth_exp(ext, ctx, e1);
@@ -1897,7 +1952,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 }
             } else { fail(ExpRule::Lam(
                 x.clone(), synth_exp(ext, &ctx, e)
-            ), TypeError::AnnoMism) }
+            ), TypeError::CheckFailArrow(ceffect.clone())) }
         },
         &Exp::Unroll(ref v,ref x,ref e) => {
             let v_td = synth_val(ext, ctx, v);
@@ -1943,7 +1998,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                     let typ3 = td3.clas.clone();
                     let rule = ExpRule::Unpack(a1.clone(),x.clone(),v_td,td3);
                     match typ3 {
-                        Err(_) => fail(rule, TypeError::LaterError),
+                        Err(ref err) => fail(rule, wrap_later_error(err)),
                         Ok(_) => succ(rule, ceffect.clone())
                     }
                 },
@@ -2000,10 +2055,11 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 let td1 = synth_exp(ext, ctx, e1);
                 let typ1 = td1.clas.clone();
                 match typ1 {
-                    Err(_) => { fail(ExpRule::Let(
+                    Err(ref err) => {
+                        fail(ExpRule::Let(
                         x.clone(), td1,
                         synth_exp(ext, ctx, e2)
-                    ), TypeError::ParamNoSynth(1)) },
+                    ), err.clone()) },
                     Ok(CEffect::Cons(CType::Lift(ref ct1), ref eff1)) => {
                         match decide::effect::decide_effect_subtraction(
                             ctx,
@@ -2018,7 +2074,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                                 let typ2res = td2.clas.clone();
                                 let td = ExpRule::Let(x.clone(), td1,td2);
                                 match typ2res {
-                                    Err(_) => fail(td, TypeError::LaterError),
+                                    Err(ref err) => fail(td, wrap_later_error(err)),
                                     Ok(_) => succ(td, ceffect.clone()),
                                 }
                             }
@@ -2074,7 +2130,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                     let typ3 = td3.clas.clone();
                     let td = ExpRule::Split(td0, x1.clone(), x2.clone(), td3);
                     match typ3 {
-                        Err(_) => fail(td, TypeError::LaterError),
+                        Err(ref err) => fail(td, wrap_later_error(err)),
                         Ok(_) => succ(td, ceffect.clone())
                     }
                 },
@@ -2103,7 +2159,6 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
             }
         },
         &Exp::Thunk(ref v,ref e) => {
-            // TODO: Handle scope
             if let &CEffect::Cons(
                 CType::Lift(Type::Thk(ref idx,ref ce)),
                 Effect::WR(ref _w,ref _r)
@@ -2137,9 +2192,9 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                         let new_scope = fgi_nametm![
                             #n:Nm.[^ext.write_scope.clone()][[^nmlamb] n]
                         ];
-                        println!("{:?}", new_scope);
+                        //println!("XXX: {:?}", new_scope);
                         let new_ext = Ext{write_scope:new_scope, ..ext.clone()};
-                        let td1 = check_exp(ext,ctx,e,ceffect);
+                        let td1 = check_exp(&new_ext,ctx,e,ceffect);
                         let typ1 = td1.clas.clone();
                         let td = ExpRule::WriteScope(td0,td1);
                         match typ1 {

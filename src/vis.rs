@@ -123,13 +123,10 @@ macro_rules! fgi_listing_test {
             let bundle : Bundle = fgi_bundle![
                 $($e)+
             ];
+            let path = format!("target/{}.fgb", module_path!());
+            write_bundle(path.as_str(), &bundle);
             match bundle.program.clas {
-                Ok(_) => {
-                    let path = format!("target/{}.fgb", module_path!());
-                    //println!("path: {}", path);
-                    write_bundle(path.as_str(), &bundle);
-                    return Ok(())
-                },                           
+                Ok(_)    => { return Ok(()) },                           
                 Err(err) => { Err(format!("{:?}", err)) }
             }
         };
@@ -156,4 +153,5 @@ pub fn write_bundle(filename: &str, bundle: &Bundle) {
     let data = format!("{:?}", bundle);
     let mut f = File::create(filename).expect("Could not create bundle file");
     f.write_all(data.as_bytes()).expect("Could not write bundle data");
+    f.flush().expect("Could not flush");
 }
