@@ -337,6 +337,7 @@ pub mod effect {
                 (Effect::WR(wr1, rd1), Effect::WR(wr2, _rd2)) => {
                     let wr3 = decide_idxtm_subtraction(ctx, wr1, wr2);
                     // TODO: Check that rd2 is a subset of rd1; fail otherwise.
+                    // XXX -- See: fungi_lang::examples::basic_read_effects::listing0_fail0
                     match wr3 {
                         Ok(wr3) => {
                             let eff3 = Effect::WR(wr3, rd1);
@@ -945,7 +946,13 @@ pub mod subset {
                         // Not enough info.
                         None => {
                             println!("No defs for {}, looking for subset:\t\n{:?}", x, &a);
-                            panic!("TODO: {:?}", ctx)
+                            //panic!("TODO: {:?}", ctx)
+                            return Dec{
+                                ctx:ctx.clone(),
+                                rule:Rc::new(IdxTmRule::Fail),
+                                clas:Sort::NmSet,
+                                res:Err(DecError::SubsetSearchFailure)
+                            }
                         }
                         // Use def to try to reason further; TODO:
                         // backtrack if we fail and try next def.

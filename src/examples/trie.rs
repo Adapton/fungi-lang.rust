@@ -1,5 +1,5 @@
 #[test]
-pub fn listing () { fgi_listing_test![
+pub fn listing () { fgi_listing_expect![[Expect::Failure]
     decls {
         /// Optional natural numbers:
         type OpNat = (+ Unit + Nat );

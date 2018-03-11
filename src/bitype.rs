@@ -588,6 +588,12 @@ fn wrap_later_error(err:&TypeError) -> TypeError {
         err => TypeError::Later(Rc::new(err.clone())),
     }
 }
+fn wrap_inside_error(err:&TypeError) -> TypeError {
+    match err {
+        &TypeError::Inside(_) => err.clone(),
+        err => TypeError::Inside(Rc::new(err.clone())),
+    }
+}
 
 fn error_is_local(err:&TypeError) -> bool {
     match *err {
@@ -716,8 +722,10 @@ pub fn find_defs_for_idxtm_var(ctx:&Ctx, x:&Var) -> Option<IdxTm> {
 
 /// synthesize sort for index term
 pub fn synth_idxtm(ext:&Ext, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer {
-    let fail = |r:IdxTmRule, err :TypeError| { failure(Dir::Synth, ext, ctx, idxtm.clone(), r, err)  };
-    let succ = |r:IdxTmRule, sort:Sort     | { success(Dir::Synth, ext, ctx, idxtm.clone(), r, sort) };
+    let fail = |r:IdxTmRule, err:TypeError| { failure(Dir::Synth, ext, ctx, idxtm.clone(), r, err)  };
+    let succ = |r:IdxTmRule, sort:Sort    | { success(Dir::Synth, ext, ctx, idxtm.clone(), r, sort) };
+    let fail_inside = |r:IdxTmRule, err:&TypeError| { fail(r, wrap_inside_error(err)) }
+    ;
     match idxtm {
         &IdxTm::Ident(ref x) => {
             let rule = IdxTmRule::Var(x.clone());
@@ -738,7 +746,7 @@ pub fn synth_idxtm(ext:&Ext, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer {
             let ty0 = td0.clas.clone();
             let td = IdxTmRule::Sing(td0);
             match ty0 {
-                Err(_) => fail(td, TypeError::ParamNoSynth(0)),
+                Err(ref e) => fail_inside(td, e),
                 Ok(ref t) if *t == Sort::Nm => succ(td, Sort::NmSet),
                 Ok(_) => fail(td, TypeError::ParamMism(0)),
             }
@@ -1581,6 +1589,25 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                 }
             }
         },
+        &Exp::Ref(ref v1,ref v2) => {
+            let td0 = synth_val(ext, ctx, v1);
+            let td1 = synth_val(ext, ctx, v2);
+            let (tp0,typ1) = (td0.clas.clone(),td1.clas.clone());
+            let td = ExpRule::Ref(td0,td1);
+            match (tp0,typ1) {
+                (Err(ref e),_) => fail(td, wrap_inside_error(e)),
+                (_,Err(ref e)) => fail(td, wrap_inside_error(e)),
+                (Ok(Type::Nm(idx)),Ok(a)) => {
+                    // use the ambient write scope to determine the written name:
+                    //println!("XXX Write scope: {:?}", ext.write_scope.clone());
+                    let idx = IdxTm::Map(Rc::new(ext.write_scope.clone()), Rc::new(idx));
+                    let typ = Type::Ref(idx.clone(),Rc::new(a));
+                    let eff = Effect::WR(idx, IdxTm::Empty);
+                    succ(td, CEffect::Cons(CType::Lift(typ),eff))
+                },
+                _ => fail(td, TypeError::ParamMism(1)),
+            }
+        },
         &Exp::Thunk(ref v,ref e) => {
             let td0 = synth_val(ext, ctx, v);
             let td1 = synth_exp(ext, ctx, e);
@@ -1956,12 +1983,6 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let td1 = synth_exp(ext, ctx, e1);
             let td2 = synth_exp(ext, ctx, e2);
             let td = ExpRule::IfThenElse(td0,td1,td2);
-            fail(td, TypeError::NoSynthRule) // Ok, for now.
-        },
-        &Exp::Ref(ref v1,ref v2) => {
-            let td0 = synth_val(ext, ctx, v1);
-            let td1 = synth_val(ext, ctx, v2);
-            let td = ExpRule::Ref(td0,td1);
             fail(td, TypeError::NoSynthRule) // Ok, for now.
         },
 

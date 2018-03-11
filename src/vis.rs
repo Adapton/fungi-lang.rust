@@ -82,6 +82,13 @@ pub struct Bundle {
     pub traces: Vec<reflect::trace::Trace>,
 }
 
+/// Expectations for examples and tests
+#[derive(Clone,Debug)]
+pub enum Expect {
+    Failure,
+    Success,
+}
+
 impl Bundle {
     pub fn exp_rule(&self) -> bitype::ExpRule {
         (*self.program.rule).clone()
@@ -113,21 +120,30 @@ macro_rules! fgi_bundle {
 /// listing parses and type checks.
 ///
 #[macro_export]
-macro_rules! fgi_listing_test {
-    [$($e:tt)+] => {{
+macro_rules! fgi_listing_expect {
+    [ [ $($outcome:tt)+ ] $($e:tt)+ ] => {{
         fn help() -> Result<(),String> {
             use std::rc::Rc;
             use ast::*;
             use bitype::*;
-            use vis::*;        
+            use vis::*;
+
             let bundle : Bundle = fgi_bundle![
                 $($e)+
             ];
-            let path = format!("target/{}.fgb", module_path!());
+
+            // Aside: I'd really, really prefer to use the function
+            // name (not line number), but this path name, but this
+            // issue has been open for two years:
+            // https://github.com/rust-lang/rfcs/issues/1743
+            let path = format!("target/{}:{}.fgb", module_path!(), line!());
+            
             write_bundle(path.as_str(), &bundle);
-            match bundle.program.clas {
-                Ok(_)    => { return Ok(()) },                           
-                Err(err) => { Err(format!("{:?}", err)) }
+            match ($($outcome)+, bundle.program.clas) {
+                (Expect::Success, Ok(_))    => { return Ok(()) },
+                (Expect::Success, Err(err)) => { return Err(format!("{:?}", err)) }
+                (Expect::Failure, Ok(_))    => { return Err(format!("Expected a failure, but did _not_ observe one.")) },
+                (Expect::Failure, Err(_err)) => { return Ok(()) },
             }
         };
         use std::thread;
@@ -135,9 +151,23 @@ macro_rules! fgi_listing_test {
             thread::Builder::new().stack_size(64 * 1024 * 1024).spawn(move || {
                 help()
             });
-        assert!(child.unwrap().join().unwrap().is_ok());
+        let res = child.unwrap().join();
+        println!("Thread join result: {:?}", &res);
+        let res = res.unwrap();
+        println!("     thread result: {:?}", &res);
+        assert!(res.is_ok());
     }}
 }
+
+#[macro_export]
+macro_rules! fgi_listing_test {
+    [ $($e:tt)+ ] => {{
+        {
+            fgi_listing_expect![ [ Expect::Success ] $($e)+ ]
+        }
+    }}
+}
+
 
 pub fn capture_traces<F>(f: F) -> (eval::ExpTerm, Vec<reflect::trace::Trace>)
 where F: FnOnce() -> eval::ExpTerm {
