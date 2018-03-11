@@ -47,7 +47,19 @@ pub fn listing () { fgi_listing_test![
         { {WS_Join} (X1%X2); Y1%Y2 }
         F Set[(WS_Join)(X1 % X2)][{WS_Join}(X1%X2)]
     ) = {
-        unimplemented
+        ret thunk fix join. #set1. #set2. match set1 {
+            on1 => { match set2 {
+                on2  => { unimplemented }
+                bin2 => { unimplemented }
+            }}
+            bin1 => { match set2 {
+                on2  => { unimplemented }
+                bin2 => {
+                    // XXX
+                    unimplemented
+                }
+            }}
+        }
     }
 
     let trie:(
@@ -57,36 +69,7 @@ pub fn listing () { fgi_listing_test![
         F Set[X][{WS_Trie} X]
     ) = {
         ret thunk fix trie. #seq.
-        let foo = {
-            ws (nmfn [#x:Nm. @666 * x]) {
-                let (a,b) = { memo(name @1){ ret 0 } }
-                ret 0
-            }
-        }
         unimplemented
-    }
-
-    let test_write_scope:(
-        Thk[0] 
-        { {@!}( ({@666} % {@777}) * ({@1} % {@2}) ); 0 }
-        F Nat
-    ) = {
-        ret thunk
-        let foo = {
-            ws (nmfn [#x:Nm. @666 * x]) {
-                let (a1,b1) = { memo(name @1){ ret 111 } }
-                let (a2,b2) = { memo(name @2){ ret 222 } }
-                ret 0
-            }
-        }
-        let bar = {
-            ws (nmfn [#x:Nm. @777 * x]) {
-                let (a1,b1) = { memo(name @1){ ret 111 } }
-                let (a2,b2) = { memo(name @2){ ret 222 } }
-                ret 0
-            }
-        }
-        ret 0
     }
 
     ret 0
