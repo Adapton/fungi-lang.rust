@@ -317,7 +317,7 @@ pub mod effect {
                 decide_nmset_subtraction(ctx, ns1, ns2)
             }
             (i, j) => {
-                //println!("^decide_idxtm_subtraction: Failure:\n From index term:\n\t{:?}\n We do not know how to subtract index term:\n\t{:?}", &i, &j);
+                println!("^decide_idxtm_subtraction: Failure:\n From index term:\n\t{:?}\n We do not know how to subtract index term:\n\t{:?}", &i, &j);
                 Result::Err( Error::TODO )
             }
         }        
