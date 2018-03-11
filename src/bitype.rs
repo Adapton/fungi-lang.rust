@@ -1598,8 +1598,6 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                 (Err(ref e),_) => fail(td, wrap_inside_error(e)),
                 (_,Err(ref e)) => fail(td, wrap_inside_error(e)),
                 (Ok(Type::Nm(idx)),Ok(a)) => {
-                    // use the ambient write scope to determine the written name:
-                    //println!("XXX Write scope: {:?}", ext.write_scope.clone());
                     let idx = IdxTm::Map(Rc::new(ext.write_scope.clone()), Rc::new(idx));
                     let typ = Type::Ref(idx.clone(),Rc::new(a));
                     let eff = Effect::WR(idx, IdxTm::Empty);
@@ -1617,8 +1615,6 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                 (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
                 (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
                 (Ok(Type::Nm(idx)),Ok(ce)) => {
-                    // use the ambient write scope to determine the written name:
-                    //println!("XXX Write scope: {:?}", ext.write_scope.clone());
                     let idx = IdxTm::Map(Rc::new(ext.write_scope.clone()), Rc::new(idx));
                     let typ = Type::Thk(idx.clone(),Rc::new(ce));
                     let eff = Effect::WR(idx, IdxTm::Empty);
@@ -1890,7 +1886,6 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                     let new_scope = fgi_nametm![
                         #n:Nm.[^ext.write_scope.clone()][[^nmlamb] n]
                     ];
-                    //println!("XXX: {:?}", new_scope);
                     let new_ext = Ext{write_scope:new_scope, ..ext.clone()};
                     let td1 = synth_exp(&new_ext, ctx, e);
                     let typ1 = td1.clas.clone();
@@ -2301,7 +2296,6 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                         let new_scope = fgi_nametm![
                             #n:Nm.[^ext.write_scope.clone()][[^nmlamb] n]
                         ];
-                        //println!("XXX: {:?}", new_scope);
                         let new_ext = Ext{write_scope:new_scope, ..ext.clone()};
                         let td1 = check_exp(&new_ext,ctx,e,ceffect);
                         let typ1 = td1.clas.clone();

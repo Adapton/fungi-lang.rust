@@ -214,6 +214,8 @@ pub mod effect {
     /// Effect-related decision errors
     #[derive(Clone,Debug,Eq,PartialEq,Hash)]
     pub enum Error {
+        /// Cannot subtract the second index term from the first
+        CannotSubtractFromIdxTm(IdxTm, IdxTm),        
         /// Cannot subtract structure from a variable with unknown structure
         CannotSubtractFromVar(Var, IdxTm),
         /// Cannot subtract a name set term from a name set
@@ -318,7 +320,7 @@ pub mod effect {
             }
             (i, j) => {
                 println!("^decide_idxtm_subtraction: Failure:\n From index term:\n\t{:?}\n We do not know how to subtract index term:\n\t{:?}", &i, &j);
-                Result::Err( Error::TODO )
+                Result::Err( Error::CannotSubtractFromIdxTm(i, j) )
             }
         }        
     }
