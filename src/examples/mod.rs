@@ -17,9 +17,13 @@ filters a sequence of elements, producing a new (smaller) sequence.
 
 ### Sets
 
-Sets of natural numbers, represented as probabilistically-balanced binary hash tries:
+_In progress_
 
-**TODO**
+Sets of natural numbers, represented as probabilistically-balanced binary hash tries:
+- [`trie_join`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/trie.rs.html) 
+joins two sets (as tries) into a single set (as a trie).
+ - [`trie_of_seq`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/trie.rs.html)
+build a set of elements (as a hash trie) from a sequence of elements (as a level tree).
 
 ### Quickhull
 

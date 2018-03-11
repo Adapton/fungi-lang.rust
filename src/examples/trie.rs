@@ -85,6 +85,11 @@ pub fn listing () { fgi_listing_test![
                     {force join}[0][0][0][0]
                     {!rsl} {!rsr}
                 }}
+                /* TODO --- Macro for this (common) use case of `ws` with a surrounding `let`:
+                let trie      =(n){
+                    {force join}[0][0][0][0]
+                    {!rsl} {!rsr}
+                }*/
                 ret trie
             }
         }
