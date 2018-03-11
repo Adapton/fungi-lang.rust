@@ -63,7 +63,9 @@ pub fn fv_of_nmtm(n:&NameTm, bound:Vec<Term>, out:&mut Vec<Term>) {
             bound.push(Term::NmTm(NameTm::Var(x.clone())));
             fv_of_nmtm(m, bound, out);
         }
-        &WriteScope => { },
+        &WriteScope => { out.push(Term::NmTm(
+            NameTm::WriteScope
+        )) },
         &NoParse(_) => { },
     }
 }
@@ -85,8 +87,8 @@ pub fn fv_of_idxtm(i:&IdxTm, bound:Vec<Term>, out:&mut Vec<Term>) {
         &Ident(_)   |
         &NoParse(_) |
         &Unit       |
-        &Empty      |
-        &WriteScope => {}
+        &Empty      => {}
+        &WriteScope => { out.push(Term::IdxTm(IdxTm::WriteScope)) }
         &Sing(ref n) => {
             fv_of_nmtm(n, bound, out)
         }
@@ -394,13 +396,26 @@ pub fn subst_term_idxtm_rec(t:Term, x:&String, i:Rc<IdxTm>) -> Rc<IdxTm> {
     Rc::new(subst_term_idxtm(t, x, (*i).clone()))
 }
 
+/// magic variable name for the write scope function over name sets (`"@!"`)
+pub fn idxtm_writescope_var_str() -> &'static str { "@!" }
+
+/// magic variable name for the write scope function over names (`"@@"`)
+pub fn nmtm_writescope_var_str() -> &'static str { "@@" }
+
 /// Substitute terms into index terms
 pub fn subst_term_idxtm(t:Term, x:&String, i:IdxTm) -> IdxTm {
     // Types never appear in index terms
     if term_is_type(&t) { i.clone() } else { match i {
         // Variables and identifiers are lexically distinct
         IdxTm::Ident(y) => IdxTm::Ident(y),
-        IdxTm::WriteScope => IdxTm::WriteScope,
+        IdxTm::WriteScope => {
+            if x == idxtm_writescope_var_str() { match t {
+                Term::IdxTm(i) => i,
+                _ => unreachable!(),
+            }} else {
+                IdxTm::WriteScope
+            }
+        },
         IdxTm::Var(y) => {
             if term_is_idxtm(&t) && x == &y {
                 match t {
@@ -508,7 +523,14 @@ pub fn subst_term_nmtm(t:Term, x:&String, m:NameTm) -> NameTm {
                 NameTm::Var(y)
             }
         }
-        NameTm::WriteScope => NameTm::WriteScope,
+        NameTm::WriteScope => {
+            if x == nmtm_writescope_var_str() { match t {
+                Term::NmTm(n) => n,
+                _ => unreachable!(),
+            }} else {
+                NameTm::WriteScope
+            }
+        },
         NameTm::NoParse(s) => NameTm::NoParse(s),
         NameTm::Name(n) => NameTm::Name(n),
         NameTm::App(n1, n2) => {
