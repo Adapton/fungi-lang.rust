@@ -56,8 +56,10 @@ pub fn listing () { fgi_listing_test![
         { {WS_Trie} X; Y }
         F Set[X][{WS_Trie} X]
     ) = {
-        unimplemented
+        ws (nmfn [#x:Nm. @666 * x]) {
+            unimplemented
+        }
     }
-    
+
     ret 0
 ]}

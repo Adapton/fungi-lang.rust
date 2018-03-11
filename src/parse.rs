@@ -80,7 +80,7 @@ macro_rules! fgi_name {
 ///     #a:g.M              (abstraction)
 ///     [M] N ...           (curried application)
 ///     a                   (Variable)
-///     M, N, ...           (extended bin)
+///     M, N, ...           (extended bin)   <<--- DEPRECATED: Use `N * M * ...` instead
 ///     n                   (literal Name)
 /// ```
 #[macro_export]
@@ -92,12 +92,26 @@ macro_rules! fgi_nametm {
     { [$($nmtm:tt)+] } => { fgi_nametm![$($nmtm)+] };
     //
     { @@ } => { NameTm::WriteScope };
-    // @n1 * @n2         <--------------- preferred over @n1, @n2  (which I couldn't get to parse anyway)
+    // @n1 * @n2         <--------------- "*" preferred over ","
     { @$nm1:tt * @$nm2:tt } => {
-        NameTm::Name(Name::Bin(
-            Rc::new(fgi_name![@$nm1]),
-            Rc::new(fgi_name![@$nm2])
-        ))
+        NameTm::Bin(
+            Rc::new(NameTm::Name(fgi_name![@$nm1])),
+            Rc::new(fgi_nametm![@$nm2])
+        )
+    };
+    // @n1 * M         <--------------- "*" preferred over ","
+    { @$nm1:tt * $m:tt } => {
+        NameTm::Bin(
+            Rc::new(NameTm::Name(fgi_name![@$nm1])),
+            Rc::new(fgi_nametm![$m])
+        )
+    };
+    // N * M         <--------------- "*" preferred over ","
+    { @$n:tt * $m:tt } => {
+        NameTm::Bin(
+            Rc::new(fgi_nametm![$n]),
+            Rc::new(fgi_nametm![$m])
+        )
     };
     //     @n                  (literal name)
     { @$($nm:tt)+ } => { NameTm::Name(fgi_name![@$($nm)+]) };

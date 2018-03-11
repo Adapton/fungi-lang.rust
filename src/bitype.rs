@@ -951,6 +951,7 @@ pub fn synth_nmtm(ext:&Ext, ctx:&Ctx, nmtm:&NameTm) -> NmTmDer {
             }
         },
         &NameTm::NoParse(ref s) => {
+            println!("XXX: {:?}", s);
             fail(NmTmRule::NoParse(s.clone()),TypeError::NoParse(s.clone()))
         },
     }  
@@ -2136,6 +2137,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                         let new_scope = fgi_nametm![
                             #n:Nm.[^ext.write_scope.clone()][[^nmlamb] n]
                         ];
+                        println!("{:?}", new_scope);
                         let new_ext = Ext{write_scope:new_scope, ..ext.clone()};
                         let td1 = check_exp(ext,ctx,e,ceffect);
                         let typ1 = td1.clas.clone();
