@@ -197,9 +197,9 @@ pub struct Dec<Rule:HasClas> {
 
 /// Decide effect relationships
 pub mod effect {
-    use ast::{Var,Sort,IdxTm,Effect};
+    use ast::*;
     use normal;
-    use normal::{NmSet,NmSetTm,NmSetCons};
+    use normal::{NmSet,NmSetCons};
     use bitype;
     use bitype::{Ext,Ctx};
     use super::equiv;
@@ -247,7 +247,7 @@ pub mod effect {
     }
 
     /// Tactic to find an index term `j` such that `NmSet(ns1) == NmSet(ns2) % j`
-    pub fn decide_nmset_subtraction(ctx:&Ctx, ns1:NmSet, ns2:NmSet) -> Result<IdxTm, Error> {
+    pub fn decide_nmset_subtraction(_ctx:&Ctx, ns1:NmSet, ns2:NmSet) -> Result<IdxTm, Error> {
         //println!("decide_nmset_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &ns1, &ns2);
         //
         // Step 1: Verify: Before computing subtraction, check
@@ -327,13 +327,14 @@ pub mod effect {
     ///
     /// TODO: "Verify" the results using our decision procedures; return those derivations with the term that we find    
     pub fn decide_effect_subtraction(ctx:&Ctx, r:Role, eff1:Effect, eff2:Effect) -> Result<Effect, Error> {
+        assert_eq!(r, Role::Archivist);
         if decide_effect_empty(ctx, eff2.clone()) {
             Result::Ok(eff1.clone())
         }
         else {
             //println!("decide_effect_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &eff1, &eff2);
             match (eff1.clone(), eff2.clone()) {
-                (Effect::WR(wr1, rd1), Effect::WR(wr2, rd2)) => {
+                (Effect::WR(wr1, rd1), Effect::WR(wr2, _rd2)) => {
                     let wr3 = decide_idxtm_subtraction(ctx, wr1, wr2);
                     // TODO: Check that rd2 is a subset of rd1; fail otherwise.
                     match wr3 {
@@ -354,7 +355,7 @@ pub mod effect {
     }
 
     /// Construct a name set (`i (cons) j`) from name set pair (`i`,`j`) and constructor `cons`.
-    pub fn decide_idxtm_cons(ctx:&Ctx, cons:NmSetCons, i:IdxTm, j:IdxTm) -> Result<IdxTm, Error> {
+    pub fn decide_idxtm_cons(_nctx:&Ctx, cons:NmSetCons, i:IdxTm, j:IdxTm) -> Result<IdxTm, Error> {
         match (i,j) {
             (IdxTm::Empty, j) => Ok(j),
             (i, IdxTm::Empty) => Ok(i),
@@ -371,9 +372,35 @@ pub mod effect {
             }
         }
     }
+
+    /// The result effect, if it exists, is `ceffect3` such that `eff1 then ceffect2 = ceffect3`
+    pub fn decide_effect_ceffect_sequencing(ctx:&Ctx, r:Role, eff1:Effect, ce2:CEffect) -> Result<CEffect, Error> {
+        match ce2 {
+            CEffect::Cons(ctype2, eff2) => {
+                match decide_effect_sequencing(ctx, r, eff1, eff2) {
+                    Err(e) => Err(e),
+                    Ok(eff3) => Ok(CEffect::Cons(ctype2, eff3))
+                }
+            },
+            CEffect::ForallType(x,xk,ce) => {
+                match decide_effect_ceffect_sequencing(ctx, r, eff1, (*ce).clone()) {
+                    Err(e) => Err(e),
+                    Ok(ce) => Ok(CEffect::ForallType(x,xk,Rc::new(ce)))
+                }
+            },
+            CEffect::ForallIdx(x,xg,p,ce) => {
+                match decide_effect_ceffect_sequencing(ctx, r, eff1, (*ce).clone()) {
+                    Err(e) => Err(e),
+                    Ok(ce) => Ok(CEffect::ForallIdx(x,xg,p,Rc::new(ce)))
+                }
+            }
+            CEffect::NoParse(s) => Ok(CEffect::NoParse(s)),
+        }
+    }
     
     /// The result effect, if it exists, is `eff3` such that `eff1 then eff2 = eff3`
     pub fn decide_effect_sequencing(ctx:&Ctx, r:Role, eff1:Effect, eff2:Effect) -> Result<Effect, Error> {
+        assert_eq!(r, Role::Archivist);
         if decide_effect_empty(ctx, eff1.clone()) {
             Result::Ok(eff2.clone())
         } else if decide_effect_empty(ctx, eff2.clone()) {
@@ -403,7 +430,7 @@ pub mod effect {
 
 /// Decide equivalence of two terms (types, indices, name terms)
 pub mod equiv {
-    use ast::*;
+    //use ast::*;
     use bitype::{HasClas};
     use bitype::{NmTmDer,IdxTmDer};
     use bitype::NmTmRule as BiNmTm;
@@ -808,7 +835,7 @@ pub mod equiv {
 
 /// Decide subset relationships over name sets, index terms and types
 pub mod subset {
-    use ast::*;
+    //use ast::*;
     use bitype;
     use bitype::{Ctx};
     //use std::fmt;
@@ -1294,9 +1321,9 @@ pub mod subset {
                         &ctx.add_ivars(x1,x2,g1),
                         a1, a2
                     )
-                }
+                }               
                 // Exists for index-level variables; they are classified by sorts
-                (Type::Exists(x1, g1, p1, a1), Type::Exists(x2, g2, p2, a2)) => {
+                (Type::Exists(x1, g1, _p1, a1), Type::Exists(x2, g2, _p2, a2)) => {
                     // extend ctx with x1 ~~ x2.  Prove: p1 ==> p2 by
                     // extending context with p1, to prove p2. Show
                     // that a1 <= a2.

@@ -704,7 +704,7 @@ pub fn find_defs_for_idxtm_var(ctx:&Ctx, x:&Var) -> Option<IdxTm> {
         &Ctx::Empty => None,
         &Ctx::PropTrue(_, Prop::Equiv(IdxTm::Var(ref x_), ref i,_)) if x == x_ => Some(i.clone()),
         &Ctx::PropTrue(_, Prop::Equiv(ref i, IdxTm::Var(ref x_),_)) if x == x_ => Some(i.clone()),
-        &Ctx::PropTrue(_, Prop::Equiv(ref i, ref j, ref g)) => {
+        &Ctx::PropTrue(_, Prop::Equiv(ref _i, ref _j, ref _g)) => {
             // This is the not the prop that we are looking for; but perhaps print it.
             //println!("PropTrue: {:?} == {:?} : {:?}", i, j, g);
             find_defs_for_idxtm_var(&*(ctx.rest().unwrap()), x)
@@ -1186,8 +1186,10 @@ pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
                             x_typ_raw.clone(), typ_raw.clone()
                     );                    
                     if subset_flag {
-                        println!("Checked type of variable {}:\n\t{:?}\nAgainst:\n\t{:?}\n",
-                                 x, x_typ_raw, typ_raw);
+                        if false { // Super-verbose variable-typing messages:
+                            println!("Checked type of variable {}:\n\t{:?}\nAgainst:\n\t{:?}\n",
+                                     x, x_typ_raw, typ_raw);
+                        }
                         succ(td, x_typ_raw)
                     }
                     else {
@@ -1599,14 +1601,21 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             }
         },
         &Exp::Force(ref v) => {
+            // Sequence an effect _before_ an existing ceffect; get the resulting CEffect
             let td0 = synth_val(ext, ctx, v);
             let typ0 = td0.clas.clone();
             let td = ExpRule::Force(td0);
             match typ0 {
                 Err(_) => fail(td, TypeError::ParamNoSynth(0)),
-                Ok(Type::Thk(ref _idx,ref ce)) => {
-                    // TODO-Next: Compose effects
-                    succ(td, (**ce).clone())
+                Ok(Type::Thk(ref idx, ref ce)) => {
+                    match decide::effect::decide_effect_ceffect_sequencing(
+                        ctx, decide::effect::Role::Archivist,
+                        Effect::WR(fgi_index![0], idx.clone()),
+                        (**ce).clone())
+                    {
+                        Ok(ce) => succ(td, ce.clone()),
+                        Err(efferr) => fail(td, TypeError::EffectError(efferr))
+                    }
                 }
                 Ok(t) => fail(td, TypeError::UnexpectedType(t.clone())),
             }
@@ -1994,7 +2003,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
             let td = check_exp(ext, &new_ctx, e, ceffect);
             let td_typ = td.clas.clone();
             match td_typ {
-                Err(_) => fail(ExpRule::Fix(x.clone(),td), TypeError::CheckFailCEffect((ceffect.clone()))),
+                Err(_) => fail(ExpRule::Fix(x.clone(),td), TypeError::CheckFailCEffect(ceffect.clone())),
                 Ok(_)  => succ(ExpRule::Fix(x.clone(),td), ceffect.clone())
             }
         },
@@ -2026,7 +2035,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 //     return fail(td, TypeError::InvalidPtr)
                 // }
                 match typ1 {
-                    Err(_) => fail(td, TypeError::CheckFailCEffect((ceffect.clone()))),
+                    Err(_) => fail(td, TypeError::CheckFailCEffect(ceffect.clone())),
                     Ok(_) => succ(td, ceffect.clone()),
                 }
             } else { fail(ExpRule::Lam(
@@ -2049,7 +2058,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                     let td0_typ = td0.clas.clone();
                     let td = ExpRule::Unroll(v_td, x.clone(), td0);
                     match td0_typ {
-                        Err(_) => fail(td, TypeError::CheckFailCEffect((ceffect.clone()))),
+                        Err(_) => fail(td, TypeError::CheckFailCEffect(ceffect.clone())),
                         Ok(_)  => succ(td, ceffect.clone())
                     }
                 }
@@ -2103,7 +2112,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                     let td = ExpRule::Case(v_td, x1.clone(), td1, x2.clone(), td2);
                     match (td1_typ, td2_typ) {
                         (Ok(_),Ok(_)) => succ(td, ceffect.clone()),
-                        (_    ,_    ) => fail(td, TypeError::CheckFailCEffect((ceffect.clone()))),
+                        (_    ,_    ) => fail(td, TypeError::CheckFailCEffect(ceffect.clone())),
                     }
                 }
                 Ok(t) => {
@@ -2185,7 +2194,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 //     return fail(td, TypeError::InvalidPtr)
                 // }
                 match typ0 {
-                    Err(_) => fail(td, TypeError::CheckFailType((t.clone()))),
+                    Err(_) => fail(td, TypeError::CheckFailType(t.clone())),
                     Ok(_) => succ(td, ceffect.clone())
                 }
             } else { fail(ExpRule::Ret(

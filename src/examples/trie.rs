@@ -32,14 +32,19 @@ pub fn listing () { fgi_listing_test![
                     x Ref[Y3](set[X3][Y4]))
                 )
         );                
-        
+
+        /// Structural recursion over a binary tree (output names and pointers):
         idxtm    Bin   = (#x:Nm.         {x,@1} % {x,@2}  );
-        idxtm    Join  = (#x:NmSet.    ( (Bin)^* x       ));
-
         idxtm WS_Bin   = (#x:NmSet.{@!}( (Bin) x         ));
-        idxtm WS_Join  = (#x:NmSet.{@!}( {Join} x        ));
-        idxtm WS_Join1 = (#x:NmSet.{@!}( (Bin)((Bin)^* x)));
 
+        /// Trie_of_seq: Index functions for output names and pointers:
+        idxtm    Join  = (#x:NmSet.    ( (Bin)^* x       ));
+        idxtm    Join1 = (#x:NmSet.    ( (Bin)((Bin)^* x)));        
+        idxtm WS_Join  = (#x:NmSet.{@!}( {Join}  x       ));
+        idxtm WS_Join1 = (#x:NmSet.{@!}( {Join1} x       ));
+
+        /// Trie_of_seq: Index functions for output names and pointers:
+        idxtm    Trie  = (#x:NmSet.{@!}( {Join} x        ));
         idxtm WS_Trie  = (#x:NmSet.{@!}(( (Bin) x        )
                                         % (x * ({Join}x))));
     }
@@ -82,7 +87,8 @@ pub fn listing () { fgi_listing_test![
                 let (rsl, _l) = { memo{n,(@1)}{ {force trie}[X2][Y2]{!l} } }
                 let (rsr, _r) = { memo{n,(@2)}{ {force trie}[X3][Y4]{!r} } }
                 let trie      = { ws (nmfn [#x:Nm. ~n * x]) {
-                    {force join}[0][0][0][0]
+                    {force join}
+                    [({Trie}X1)][({Trie}X2)][({WS_Trie}X1)][({WS_Trie}X2)]
                     {!rsl} {!rsr}
                 }}
                 /* TODO --- Macro for this (common) use case of `ws` with a surrounding `let`:

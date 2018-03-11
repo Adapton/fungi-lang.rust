@@ -459,7 +459,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                             IdxTm::NmSet(mut ns) => {
                                 let mut terms = vec![];
                                 for t in ns.terms.iter() {
-                                    match (*t) {
+                                    match *t {
                                         NmSetTm::Single(ref n) => {
                                             terms.push( NmSetTm::Single(
                                                 normal_nmtm(
@@ -704,7 +704,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                 })
                             },
                             _ => {
-                                panic!("TODO");
+                                //panic!("TODO");
                                 IdxTm::FlatMap(i1, i2)
                             }
                         }
@@ -749,8 +749,8 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                             IdxTm::FlatMap(i1, i2)
                         }
                     }},
-                    tm => {
-                        panic!("TODO: {:?}", tm);
+                    _tm => {
+                        //panic!("TODO: {:?}", tm);
                         // Give up: No structure to work with at all:
                         IdxTm::FlatMap(i1, i2)
                     }
@@ -801,7 +801,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                 })
                             },
                             _ => {
-                                panic!("TODO");
+                                //panic!("TODO");
                                 IdxTm::FlatMapStar(i, j)
                             }
                         }
@@ -840,7 +840,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                         // exposing any set structure, so give up, and
                         // do not return a canonical `NmSet` form.
                         _ => {
-                            panic!("TODO");
+                            //panic!("TODO");
                             IdxTm::FlatMapStar(i, j)
                         }
                     }},
