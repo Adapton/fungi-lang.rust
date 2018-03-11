@@ -166,7 +166,7 @@ macro_rules! parse_fgi_name_bin {
 ///     {i} j ...   (curried application)
 ///     [M] j       (mapping)
 ///     (i) j       (flatmapping)
-///     (i)* j      (iterated flatmapping)
+///     (i)^* j     (iterated flatmapping)
 ///     a           (variable)
 /// ```
 #[macro_export]
@@ -249,8 +249,8 @@ macro_rules! fgi_index {
         Rc::new(fgi_nametm![$($m)+]),
         Rc::new(fgi_index![$($par)+]),
     )};
-    //     (i)* j      (iterated flatmapping)
-    { ($($i:tt)+)* $($j:tt)+ } => { IdxTm::Star(
+    //     (i)^* j      (iterated flatmapping)
+    { ($($i:tt)+) ^ * $($j:tt)+ } => { IdxTm::Star(
         Rc::new(fgi_index![$($i)+]),
         Rc::new(fgi_index![$($j)+]),
     )};

@@ -124,7 +124,12 @@ macro_rules! fgi_listing_test {
                 $($e)+
             ];
             match bundle.program.clas {
-                Ok(_) => Ok(()),
+                Ok(_) => {
+                    let path = format!("target/{}.fgb", module_path!());
+                    //println!("path: {}", path);
+                    write_bundle(path.as_str(), &bundle);
+                    return Ok(())
+                },                           
                 Err(err) => { Err(format!("{:?}", err)) }
             }
         };
@@ -133,8 +138,6 @@ macro_rules! fgi_listing_test {
             thread::Builder::new().stack_size(64 * 1024 * 1024).spawn(move || {
                 help()
             });
-        // TODO: Write the bundle to a file that is determined by the
-        // module name of the macro expansion context.
         assert!(child.unwrap().join().unwrap().is_ok());
     }}
 }
