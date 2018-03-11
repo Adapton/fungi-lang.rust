@@ -324,6 +324,10 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
             //
             //  { n } * j == FlatMap(#y:Nm.n * y, j)
             //
+            //  (X1 % X2) * j == (X1 * j) % (X2 * j)
+            //
+            //  i * (Y1 % Y2) == (i * Y1) % (i * Y2)
+            //
             IdxTm::Bin(i1, i2) => {
                 use self::NmSetTm::*;
                 let i1 = normal_idxtm_rec(ctx, i1);
@@ -352,13 +356,49 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                             }
                         ))
                     },
+                    //  (X1 % X2) * j == (X1 * j) % (X2 * j)
+                    (Subset(IdxTm::Var(ref x_w_def)), Subset(ref j))
+                        if None != bitype::find_defs_for_idxtm_var(&ctx, x_w_def)
+                        =>
+                    { let xdef = bitype::find_defs_for_idxtm_var(&ctx, x_w_def);
+                      match normal_idxtm(ctx, xdef.unwrap()) {
+                          IdxTm::NmSet(ns) => {
+                              let mut terms = vec![];
+                              for t in ns.terms.iter() {
+                                  match t {
+                                      &NmSetTm::Single(ref n) => {
+                                          let tm = normal_idxtm(ctx, IdxTm::Bin(Rc::new(IdxTm::Sing(n.clone())), Rc::new(j.clone())));
+                                          nmset_terms_add(ns.cons.clone(), &mut terms, NmSetTm::Subset(tm))
+                                      }
+                                      &NmSetTm::Subset(ref i) => {
+                                          let tm = normal_idxtm(ctx, IdxTm::Bin(Rc::new(i.clone()), Rc::new(j.clone())));
+                                          nmset_terms_add(ns.cons.clone(), &mut terms, NmSetTm::Subset(tm));
+                                      }
+                                  }
+                              };
+                              Subset(IdxTm::NmSet(NmSet{
+                                  cons:Some(NmSetCons::Apart),
+                                  terms:terms,
+                              }))
+                          },
+                          _ => {
+                              Subset(normal_idxtm(
+                                  ctx, IdxTm::Bin(Rc::new(IdxTm::Var(x_w_def.clone())),Rc::new(j.clone()))
+                              ))
+                          }
+                      }
+                    }
+                    //  i * (Y1 % Y2) == (i * Y1) % (i * Y2)
+                    //
+                    //  TODO
+                    //  
                     // (subset-level identity) -- no normalization recursion; it would diverge.
                     (Subset(i), Subset(j)) => {
                         Subset(IdxTm::Bin(
                             Rc::new(i),
                             Rc::new(j)
                         ))
-                    },
+                    },                    
                 }};
                 match ((*i1).clone(), (*i2).clone()) {
                     (IdxTm::Var(x),

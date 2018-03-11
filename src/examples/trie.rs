@@ -33,13 +33,15 @@ pub fn listing () { fgi_listing_test![
                 )
         );                
         
-        idxtm Bin     = (#x:Nm.       ( {x,@1})%({x,@2}) );
-        idxtm WS_Bin  = (#x:NmSet.{@!}(       (Bin)   x) );
-        idxtm WS_Bin1 = (#x:NmSet.{@!}((Bin) ((Bin)^* x)));
-        idxtm WS_Join = (#x:NmSet.{@!}(       (Bin)^* x ));
-        idxtm Join    = (#x:NmSet.    (       (Bin)^* x ));
-        idxtm WS_Trie = (#x:NmSet.{@!}(((Bin)x) %
-                                       (x * ({Join}x))));
+        idxtm    Bin   = (#x:Nm.         {x,@1} % {x,@2}  );
+        idxtm    Join  = (#x:NmSet.    ( (Bin)^* x       ));
+
+        idxtm WS_Bin   = (#x:NmSet.{@!}( (Bin) x         ));
+        idxtm WS_Join  = (#x:NmSet.{@!}( (Join) x        ));
+        idxtm WS_Join1 = (#x:NmSet.{@!}( (Bin)((Bin)^* x)));
+
+        idxtm WS_Trie  = (#x:NmSet.{@!}(( (Bin) x        )
+                                        % (x * ({Join}x))));
     }
     
     let join:(
