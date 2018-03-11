@@ -220,7 +220,6 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
     if is_normal_idxtm(ctx, &i) { 
         return i
     } else {
-        let i_clone = i.clone();
         match i {
             IdxTm::Empty => {
                 IdxTm::NmSet(NmSet{cons:None, terms:vec![]})
@@ -263,7 +262,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                     terms:terms1
                                 })
                             },
-                            _ => i_clone
+                            _ => IdxTm::Apart(i1, i2) 
                         }}
                     // Case: Either LHS or RHS has a name set term
                     // list.  Push the non-name-set term onto the
@@ -305,9 +304,9 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                     terms:terms1
                                 })
                             },
-                            _ => i_clone
+                            _ => IdxTm::Union(i1, i2) 
                         }}
-                    _ => i_clone
+                    _ => IdxTm::Union(i1, i2)
                 }
             }            
 
@@ -652,8 +651,9 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                 let i2 = normal_idxtm_rec(ctx, i2);
                 IdxTm::Star(i1, i2)
             }
+
             // In all other cases, do nothing:
-            _ => i_clone
+            i_othercase => i_othercase
         }
     }
 }
@@ -663,7 +663,6 @@ pub fn normal_nmtm(ctx:&Ctx, n:NameTm) -> NameTm {
     if is_normal_nmtm(ctx, &n) {
         return n
     } else {
-        let n_clone = n.clone();
         match n {
             NameTm::Bin(n1,n2) => {
                 let n1 = normal_nmtm_rec(ctx, n1);
@@ -676,10 +675,7 @@ pub fn normal_nmtm(ctx:&Ctx, n:NameTm) -> NameTm {
                             Name::Bin(Rc::new(n1),
                                       Rc::new(n2)))
                     },
-                    _ => {
-                        // Fail: do nothing to `n`:
-                        n_clone
-                    }
+                    _ => NameTm::Bin(n1,n2)
                 }
             },
             NameTm::App(n1,n2) => {
@@ -690,14 +686,11 @@ pub fn normal_nmtm(ctx:&Ctx, n:NameTm) -> NameTm {
                         let n12 = subst::subst_nmtm_rec(n2, &x, n11);
                         normal_nmtm(ctx, (*n12).clone())
                     },
-                    _ => {
-                        // Fail: do nothing to `n`:
-                        n_clone
-                    }
+                    _ => NameTm::App(n1,n2)
                 }
             },
             // In all other cases (NoParse, etc), do nothing:
-            _n => n_clone
+            n_othercase => n_othercase
         }
     }
 }
