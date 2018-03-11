@@ -4,8 +4,12 @@ Examples of data structures and algorithms in Fungi.
 
 ### Basics
 
+Small examples, showing the basics of the novel language features of Fungi:
+
 - [`basic_read_effects`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/basic_read_effects.rs.html)
 demonstrate _read effects_, which track which reference cells and thunks a program observes and forces, respectively.
+- [`basic_write_effects`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/basic_write_effects.rs.html)
+demonstrate _write effects_, which track which reference cells and thunks a program allocates.
 - [`basic_write_scope`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/basic_write_scope.rs.html)
 demonstrate _write scopes_, which distinctly qualify written names for different dynamic calling contexts.
 
