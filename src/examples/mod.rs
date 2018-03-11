@@ -2,6 +2,11 @@
 
 Examples of data structures and algorithms in Fungi.
 
+### Basics
+
+- [`basic_write_scope`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/basic_write_scope.rs.html)
+demonstrate _write scopes_, which distinctly qualify written names for different dynamic calling contexts.
+
 ### Sequences
 
 Sequences of natural numbers, represented as probabilistically-balanced binary trees (level trees):
@@ -24,6 +29,7 @@ Computes the convex hull, in sorted order, of an unordered sequence of points in
 
 */
 
+
 /// Find the maximum element in a sequence
 ///
 /// [Fungi listing](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/seq_max.rs.html)
@@ -34,4 +40,8 @@ pub mod seq_max;
 /// [Fungi listing](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/seq_filter.rs.html)
 pub mod seq_filter;
 
+
+// --- In progress:
 pub mod trie;
+pub mod basic_write_scope;
+

@@ -1805,7 +1805,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                         .var(x1.clone(),(*t1).clone())
                         .var(x2.clone(),(*t2).clone())
                     ;
-                    let td3 = synth_exp(ext, ctx, e);
+                    let td3 = synth_exp(ext, &new_ctx, e);
                     let typ3 = td3.clas.clone();
                     let td = ExpRule::Split(td0, x1.clone(), x2.clone(), td3);
                     match typ3 {
