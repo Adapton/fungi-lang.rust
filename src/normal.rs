@@ -577,6 +577,59 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                 }
             }
 
+            IdxTm::MapStar(n1, i2) => {
+                let n1 = normal_nmtm_rec(ctx, n1);
+                let i2 = normal_idxtm_rec(ctx, i2);
+                match ((*n1).clone(), (*i2).clone()) {
+                    // Case: The function is known, and the set is
+                    // (possibly) known, via the context; use the
+                    // context to see if there are propositional
+                    // definitions of the variable; if so, decompose
+                    // the variable:
+                    (NameTm::Lam(_,_,_), IdxTm::Var(ref x))
+                        if None != bitype::find_defs_for_idxtm_var(&ctx, &x) =>
+                    {
+                        let xdef = bitype::find_defs_for_idxtm_var(&ctx, &x).unwrap();
+                        match normal_idxtm(ctx, xdef) {
+                            IdxTm::NmSet(ns) => {
+                                let mut terms = vec![];
+                                for t in ns.terms.iter() {
+                                    match t {
+                                        &NmSetTm::Single(ref n) => {
+                                            let tm = normal_idxtm(ctx, IdxTm::MapStar(n1.clone(), Rc::new(IdxTm::Sing(n.clone()))));
+                                            nmset_terms_add(ns.cons.clone(), &mut terms, NmSetTm::Subset(tm))
+                                        }
+                                        &NmSetTm::Subset(ref i) => {
+                                            let tm = normal_idxtm(ctx, IdxTm::MapStar(n1.clone(), Rc::new(i.clone())));
+                                            nmset_terms_add(ns.cons.clone(), &mut terms, NmSetTm::Subset(tm));
+                                        }
+                                    }
+                                };
+                                IdxTm::NmSet(NmSet{                                            
+                                    cons:Some(NmSetCons::Apart),
+                                    terms:terms,
+                                })
+                            },
+                            _ => {
+                                IdxTm::MapStar(n1, i2)
+                            }
+                        }
+                    }
+                    (NameTm::Lam(_,_,_), IdxTm::NmSet(ref ns2)) if ns2.terms.len() == 0 => {
+                        // For empty sets, the map result is always
+                        // empty. We do not apply the (starred)
+                        // function for non-empty sets.
+                        IdxTm::NmSet(NmSet{
+                            cons:ns2.cons.clone(),
+                            terms:vec![]
+                        })
+                    },                            
+                    (n1, i2) => {
+                        IdxTm::MapStar(Rc::new(n1), Rc::new(i2))
+                    }
+                }
+            }
+            
             IdxTm::FlatMap(i1, i2) => {
                 let i1 = normal_idxtm_rec(ctx, i1);
                 let i2 = normal_idxtm_rec(ctx, i2);

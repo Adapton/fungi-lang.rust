@@ -37,7 +37,7 @@ pub fn listing () { fgi_listing_test![
         idxtm    Join  = (#x:NmSet.    ( (Bin)^* x       ));
 
         idxtm WS_Bin   = (#x:NmSet.{@!}( (Bin) x         ));
-        idxtm WS_Join  = (#x:NmSet.{@!}( (Join) x        ));
+        idxtm WS_Join  = (#x:NmSet.{@!}( {Join} x        ));
         idxtm WS_Join1 = (#x:NmSet.{@!}( (Bin)((Bin)^* x)));
 
         idxtm WS_Trie  = (#x:NmSet.{@!}(( (Bin) x        )
@@ -49,7 +49,9 @@ pub fn listing () { fgi_listing_test![
             0 Set[X1][Y1] ->
             0 Set[X2][Y2] ->
         { {WS_Join} (X1%X2); Y1%Y2 }
-        F Set[(WS_Join)(X1 % X2)][{WS_Join}(X1%X2)]
+        F Set
+            [(Join)(X1 % X2)]
+            [{WS_Join}(X1 % X2)]
     ) = {
         ret thunk fix join. #set1. #set2. match set1 {
             on1 => { match set2 {
@@ -77,13 +79,13 @@ pub fn listing () { fgi_listing_test![
             bin => {
                 unpack (X1,X2,X3,Y1,Y2,Y3,Y4) bin = bin
                 let (n,lev,l,r) = {ret bin}
-                let (rsl, _sl) = { memo{n,(@1)}{ {force trie}[X2][Y2]{!l} } }
-                let (rsr, _sr) = { memo{n,(@2)}{ {force trie}[X3][Y4]{!r} } }
-                ws (nmfn [#x:Nm. ~n * x]) {
-                    unimplemented
-                    //{force join}[(WS_Join)(X2%X3)][((WS_Bin)((Join)X2%X3))]
-                    //{!rsl} {!rsr}
-                }
+                let (rsl, _l) = { memo{n,(@1)}{ {force trie}[X2][Y2]{!l} } }
+                let (rsr, _r) = { memo{n,(@2)}{ {force trie}[X3][Y4]{!r} } }
+                let trie      = { ws (nmfn [#x:Nm. ~n * x]) {
+                    {force join}[0][0][0][0]
+                    {!rsl} {!rsr}
+                }}
+                ret trie
             }
         }
     }

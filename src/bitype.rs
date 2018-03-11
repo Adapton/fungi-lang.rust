@@ -187,7 +187,7 @@ impl Ctx {
 }
 
 pub trait HasClas {
-    type Term;
+    type Term : fmt::Debug;
     type Clas;    
     fn tm_fam() -> String;
 }
@@ -238,12 +238,54 @@ pub struct DerVis {
 /// Name term sorting rule
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum NmTmRule {
+    /// Name-term level variable `x`, of some sort `g`:
+    ///
+    /// ```text
+    ///  Γ(x) = g
+    /// ----------- :: Var
+    ///  Γ ⊢ x : g
+    /// ```
     Var(Var),
+    /// Injected value-level variable `x`, of type `Nm[i]`, for some name set `i`:
+    ///
+    /// ```text
+    ///  Γ(x) = Nm[i]
+    /// -------------- :: ValVar
+    ///  Γ ⊢ ~x : Nm
+    /// ```
+    ValVar(Var),
+    /// ```text
+    /// ------------ :: Name
+    ///  Γ ⊢ n : Nm
+    /// ```
     Name(Name),
+    /// ```text
+    ///  Γ ⊢ N : Nm
+    ///  Γ ⊢ M : Nm
+    /// --------------- :: Bin
+    ///  Γ ⊢ N * M : Nm
+    /// ```    
     Bin(NmTmDer, NmTmDer),
+    /// ```text
+    ///  Γ, x:g1 ⊢ M : g2
+    /// ------------------------- :: Lam
+    ///  Γ ⊢ #x:g1. M : g1 -> g2
+    /// ```
     Lam(Var,Sort,NmTmDer),
-    WriteScope,
+    /// ```text
+    ///  Γ ⊢ M : g1 -> g2
+    ///  Γ ⊢ N : g1
+    /// ------------------ :: App
+    ///  Γ ⊢ [M] N : g2
+    /// ```
     App(NmTmDer, NmTmDer),
+    /// `@@ : Nm -> Nm`
+    ///
+    /// This is the initial/default/neutral/ambient write scope.  All
+    /// other write scopes are functions that compose with this one
+    /// (where this function is always the "last" function in the
+    /// composition).
+    WriteScope,    
     NoParse(String),
 }
 pub type NmTmDer = Der<NmTmRule>;
@@ -600,6 +642,12 @@ fn failure<R:HasClas+debug::DerRule>
     let is_local_err = error_is_local(&err);
     
     println!("Failed to {} {} {}, error: {}", dir.short(), R::term_desc(), n.short(), err);
+    if is_local_err {
+        // Do not print a huge term to the terminal, but print _something_ a little more:
+        println!("  Failure term: {:.80}",
+                 format!("{:?}", tm)
+        );
+    }
     Der{
         //ext: ext.clone(),
         ctx: ctx.clone(),
@@ -924,7 +972,7 @@ pub fn synth_nmtm(ext:&Ext, ctx:&Ctx, nmtm:&NameTm) -> NmTmDer {
     let succ = |td:NmTmRule, sort:Sort     | { success(Dir::Synth, ext, ctx, nmtm.clone(), td, sort) };
     match nmtm {
         &NameTm::ValVar(ref x) => {
-            let td = NmTmRule::Var(x.clone());            
+            let td = NmTmRule::ValVar(x.clone());
             match ctx.lookup_var(x) {
                 None => fail(td, TypeError::VarNotInScope(x.clone())),
                 Some(typ) => match typ {
@@ -1137,7 +1185,11 @@ pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
                             &decide::relctx_of_ctx(&ctx),
                             x_typ_raw.clone(), typ_raw.clone()
                     );                    
-                    if subset_flag { succ(td, x_typ_raw) }
+                    if subset_flag {
+                        println!("Checked type of variable {}:\n\t{:?}\nAgainst:\n\t{:?}\n",
+                                 x, x_typ_raw, typ_raw);
+                        succ(td, x_typ_raw)
+                    }
                     else {
                         println!("================================================================================== BEGIN");
                         println!("Detailed errors for checking type of variable {}:", x);
@@ -2312,6 +2364,7 @@ pub mod debug {
         fn short(&self) -> &str {
             match *self {
                 NmTmRule::Var(_) => "Var",
+                NmTmRule::ValVar(_) => "ValVar",
                 NmTmRule::Name(_) => "Name",
                 NmTmRule::Bin(_, _) => "Bin",
                 NmTmRule::Lam(_,_,_) => "Lam",

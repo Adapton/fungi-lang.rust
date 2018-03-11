@@ -262,7 +262,7 @@ pub mod effect {
             if t2_found { } else {
                 println!("^decide_nmset_subtraction: Failure\nFrom:\n\t{:?}\nCannot subtract:\n\t{:?}", &ns1, &t2);
                 return Result::Err( Error::CannotSubtractNmSetTmFromNmSet( ns1.clone(), t2.clone() ) )
-            };                    
+            }
         };
         //
         // Step 2: Calculate: OK -- All the terms in ns2 are
@@ -1048,6 +1048,10 @@ pub mod subset {
             (_ir, _jr) if i == j => {
                 succ(IdxTmRule::Refl(i.clone()))
             }
+            (&BiIdxTm::Empty, _) => {
+                // Empty is a subset of everything else
+                succ(IdxTmRule::Empty)
+            }
             (&BiIdxTm::Var(ref v1),&BiIdxTm::Var(ref v2)) => {
                 if ctx.lookup_ivareq(v1,v2,g) {
                     succ(IdxTmRule::Var((v1.clone(),v2.clone())))
@@ -1121,10 +1125,6 @@ pub mod subset {
                     (Ok(_),Ok(_)) => fail(der),
                     (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
                 }
-            }
-            (&BiIdxTm::Empty,&BiIdxTm::Empty) => {
-                // Assume sort NmSet
-                succ(IdxTmRule::Empty)
             }
             (&BiIdxTm::Sing(ref m),&BiIdxTm::Sing(ref n)) => {
                 // Assume sort NmSet
@@ -1206,6 +1206,7 @@ pub mod subset {
     {
         let d = decide_idxtm_subset(ctx, &i, &j);
         if d.res == Ok(true) {
+            //println!("decide_idxtm_subset: success:\n\t{:?}\n\t{:?}", i, j);
             return true
         }
         else {
@@ -1220,6 +1221,7 @@ pub mod subset {
         let (ctx1, ctx2) = ctxs_of_relctx((*ctx).clone());
         let a = normal::normal_type(&ctx1, &a);
         let b = normal::normal_type(&ctx2, &b);
+        //println!("decide_type_subset_norm: BEGIN:\n\t{:?}\n\t{:?}", a, b);
         decide_type_subset(ctx, a, b)
     }
 

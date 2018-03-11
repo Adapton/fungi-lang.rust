@@ -91,7 +91,7 @@ pub enum NameTm {
     /// ```text
     ///  Γ ⊢ N : Nm
     ///  Γ ⊢ M : Nm
-    /// --------------- :: Name
+    /// --------------- :: Bin
     ///  Γ ⊢ N * M : Nm
     /// ```    
     Bin(NameTmRec, NameTmRec),
