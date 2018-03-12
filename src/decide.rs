@@ -356,7 +356,18 @@ pub mod effect {
                         },
                         (Err(err),_) => Result::Err(err),
                         // TODO-someday: gather all errors together
-                        (_,Err(err)) => Result::Err(Error::CannotDecideReadSubset(Rc::new(err))),
+                        (_,Err(err)) => {
+                            println!("======================================================= BEGIN");
+                            println!("decide_effect_subtraction: Cannot decide read subset:");
+                            println!(" Superset (candidate):\n\t{:?}", &rd1);
+                            println!(" Subset (candidate):\n\t{:?}", &rd2);
+                            println!("\n\
+                                      (If you believe this subset relationship holds, \
+                                      Fungi may need additional reasoning in its `decide` \
+                                      and/or `normal` modules...)");
+                            println!("------------------------------------------------------- END");
+                            Result::Err(Error::CannotDecideReadSubset(Rc::new(err)))
+                        },
                     }
                 }
                 _ => {

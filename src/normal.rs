@@ -288,6 +288,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                 }
             }
 
+            // XXX -- add cases that are analygous to Apart cases above
             IdxTm::Union(i1, i2) => {
                 let i1 = normal_idxtm_rec(ctx, i1);
                 let i2 = normal_idxtm_rec(ctx, i2);
@@ -378,7 +379,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                   }
                               };
                               Subset(IdxTm::NmSet(NmSet{
-                                  cons:Some(NmSetCons::Apart),
+                                  cons:ns.cons.clone(),
                                   terms:terms,
                               }))
                           },
@@ -525,7 +526,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                     }
                                 };
                                 IdxTm::NmSet(NmSet{                                            
-                                    cons:Some(NmSetCons::Apart),
+                                    cons:ns.cons.clone(),
                                     terms:terms,
                                 })
                             },
@@ -607,7 +608,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                     }
                                 };
                                 IdxTm::NmSet(NmSet{                                            
-                                    cons:Some(NmSetCons::Apart),
+                                    cons:ns.cons.clone(),
                                     terms:terms,
                                 })
                             },
@@ -700,7 +701,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                     }
                                 };
                                 IdxTm::NmSet(NmSet{                                            
-                                    cons:Some(NmSetCons::Apart),
+                                    cons:ns.cons.clone(),
                                     terms:terms,
                                 })
                             },
@@ -721,7 +722,8 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                 IdxTm::Map(Rc::new(NameTm::Lam(x,gx,Rc::new(body_nmtm))),
                                            Rc::new(j))
                             )
-                        },                        
+                        },
+                        // XXX/TODO -- Same reasoning for Unions?
                         IdxTm::Apart(body_l, body_r) => {
                             //println!(" ************** \n Left:\n\t{:?}\n Right:\n\t{:?}", body_l, body_r);
                             normal_idxtm(
@@ -797,7 +799,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                     }
                                 };
                                 IdxTm::NmSet(NmSet{                                            
-                                    cons:Some(NmSetCons::Apart),
+                                    cons:ns.cons.clone(),
                                     terms:terms,
                                 })
                             },
@@ -817,7 +819,8 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                 ctx,
                                 IdxTm::MapStar(Rc::new(NameTm::Lam(x,gx,Rc::new(body_nmtm))), j)
                             )
-                        },                        
+                        },
+                        // XXX/TODO -- Same reasoning for Unions?                        
                         IdxTm::Apart(body_l, body_r) => {
                             //println!(" ************** \n Left:\n\t{:?}\n Right:\n\t{:?}", body_l, body_r);
                             normal_idxtm(
@@ -919,6 +922,7 @@ pub fn normal_nmtm_rec(ctx:&Ctx, n:Rc<NameTm>) -> Rc<NameTm> {
 pub fn idxtm_of_nmsettms(tms:&NmSetTms) -> IdxTm {
     let mut i : IdxTm = IdxTm::Empty;
     for t in tms.iter() {
+        // TODO/XXX -- take set cons as param
         i = IdxTm::Apart(
             Rc::new({
                 match (*t).clone() {
