@@ -295,22 +295,43 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                 match ((*i1).clone(), (*i2).clone()) {
                     (IdxTm::NmSet(ns1),
                      IdxTm::NmSet(ns2)) => {
+                        // if the ns is Union-based, it's fine to
+                        // combine; if Apart-based, it's still fine
+                        // (sound), though we loose some information
+                        // in the process of doing so:
+                        /*
                         match (ns1.cons, ns2.cons) {
                             (None, None) |
                             (None, Some(NmSetCons::Union)) |
                             (Some(NmSetCons::Union), None) |
                             (Some(NmSetCons::Union), Some(NmSetCons::Union)) => {
-                                let mut terms1 = ns1.terms;
-                                let mut terms2 = ns2.terms;
-                                terms1.append(&mut terms2);
-                                IdxTm::NmSet(NmSet{
-                                    cons:Some(NmSetCons::Union),
-                                    terms:terms1
-                                })
-                            },
-                            _ => IdxTm::Union(i1, i2) 
-                        }}
-                    _ => IdxTm::Union(i1, i2)
+                         */
+                        let mut terms1 = ns1.terms;
+                        let mut terms2 = ns2.terms;
+                        terms1.append(&mut terms2);
+                        IdxTm::NmSet(NmSet{
+                            cons:Some(NmSetCons::Union),
+                            terms:terms1
+                        })
+                    }                
+                    // Case: Either LHS or RHS has a name set term
+                    // list.  Push the non-name-set term onto the
+                    // name-set term list:
+                    (i, IdxTm::NmSet(mut ns))  |
+                    (IdxTm::NmSet(mut ns), i) => {
+                        nmset_terms_add(ns.cons.clone(), &mut ns.terms, NmSetTm::Subset(i));
+                        IdxTm::NmSet(ns)
+                    }
+                    // Case: no existing `NmSet` term ==> No other way
+                    // to combine these subsets' representations (),
+                    // so introduce a new `NmSet` term, with two entries:
+                    _ => {
+                        IdxTm::NmSet(NmSet{
+                            cons:Some(NmSetCons::Union),
+                            terms:vec![NmSetTm::Subset((*i1).clone()),
+                                       NmSetTm::Subset((*i2).clone())],
+                        })
+                    }
                 }
             }            
 

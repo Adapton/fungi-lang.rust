@@ -1,5 +1,7 @@
 #[test]
-pub fn listing () { fgi_listing_test![
+pub fn listing () { fgi_listing_expect![
+    [Expect::Success]
+        
     decls {
         /// Optional natural numbers:
         type OpNat = (+ Unit + Nat );
@@ -51,7 +53,7 @@ pub fn listing () { fgi_listing_test![
         Thk[0] foralli (X,Y):NmSet.
             0 Seq[X][Y] ->
         { {WS_Seq_SR} X;
-           Y % ({WS_Seq_SR} X)
+           Y % ( {WS_Seq_SR} X )
         }
         F OpNat
     ) = {

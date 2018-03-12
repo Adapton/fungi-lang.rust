@@ -85,8 +85,14 @@ pub struct Bundle {
 /// Expectations for examples and tests
 #[derive(Clone,Debug)]
 pub enum Expect {
-    Failure,
+    // We expect Fungi to reject the program/test
+    Failure,    
+    // We expect Fungi to accept the program/test
     Success,
+    // We _really_ want the test to have a `Success` outcome, but the test exhibits something that is currently broken in Fungi
+    FailurexXXX,
+    // We _really_ want the test to have a `Failure` outcome, but the test exhibits something that is currently broken in Fungi
+    SuccessxXXX,
 }
 
 impl Bundle {
@@ -140,10 +146,15 @@ macro_rules! fgi_listing_expect {
             
             write_bundle(path.as_str(), &bundle);
             match ($($outcome)+, bundle.program.clas) {
-                (Expect::Success, Ok(_))    => { return Ok(()) },
-                (Expect::Success, Err(err)) => { return Err(format!("{:?}", err)) }
-                (Expect::Failure, Ok(_))    => { return Err(format!("Expected a failure, but did _not_ observe one.")) },
-                (Expect::Failure, Err(_err)) => { return Ok(()) },
+                (Expect::Success,     Ok(_))     => { return Ok(()) },
+                (Expect::FailurexXXX, Ok(_))     => { return Ok(()) },
+                (Expect::Success,     Err(err))  => { return Err(format!("{:?}", err)) }                
+                (Expect::FailurexXXX, Err(err))  => { return Err(format!("Fixed?: {:?}", err)) }
+
+                (Expect::Failure,     Ok(_))     => { return Err(format!("Expected a failure, but did _not_ observe one.")) },
+                (Expect::SuccessxXXX, Ok(_))     => { return Err(format!("Fixed?")) }
+                (Expect::SuccessxXXX, Err(_err)) => { return Ok(()) }
+                (Expect::Failure,     Err(_err)) => { return Ok(()) },
             }
         };
         use std::thread;

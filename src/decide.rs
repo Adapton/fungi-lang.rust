@@ -357,15 +357,18 @@ pub mod effect {
                         (Err(err),_) => Result::Err(err),
                         // TODO-someday: gather all errors together
                         (_,Err(err)) => {
-                            println!("======================================================= BEGIN");
-                            println!("decide_effect_subtraction: Cannot decide read subset:");
-                            println!(" Superset (candidate):\n\t{:?}", &rd1);
-                            println!(" Subset (candidate):\n\t{:?}", &rd2);
-                            println!("\n\
-                                      (If you believe this subset relationship holds, \
-                                      Fungi may need additional reasoning in its `decide` \
-                                      and/or `normal` modules...)");
-                            println!("------------------------------------------------------- END");
+                            if true {
+                                println!("======================================================= BEGIN");
+                                println!("decide_effect_subtraction: Cannot decide read subset:");
+                                println!(" Error: {:?}\n", err);
+                                println!(" Superset (candidate):\n\t{:?}", &rd1);
+                                println!(" Subset (candidate):\n\t{:?}", &rd2);
+                                println!("\n\
+                                          (If you believe this subset relationship holds, \
+                                          Fungi may need additional reasoning in its `decide` \
+                                          and/or `normal` modules...)");
+                                println!("------------------------------------------------------- END");
+                            }
                             Result::Err(Error::CannotDecideReadSubset(Rc::new(err)))
                         },
                     }
@@ -466,12 +469,14 @@ pub mod equiv {
     /// Name term equivalence rules
     #[derive(Clone,Debug,Eq,PartialEq,Hash)]
     pub enum NmTmRule {
-        Refl(NmTmDer),
+        Refl(NmTmDer),        
         Var(Var2),
         Bin(NmTmDec, NmTmDec),
         Lam(Var2,Sort,NmTmDec),
         App(NmTmDec, NmTmDec),
         NoParse(String),
+        FailDistinctNames(Name,Name),
+        FailNoRule,
     }
     pub type NmTmDec  = Dec<NmTmRule>;    
     impl HasClas for NmTmRule {
@@ -564,6 +569,13 @@ pub mod equiv {
         };
         match (&*m.rule,&*n.rule) {
             (mr,nr) if nr == mr => { succ(NmTmRule::Refl(n.clone())) }
+            (&BiNmTm::Name(ref n1),&BiNmTm::Name(ref n2)) => {
+                if n1 == n2 {
+                    succ(NmTmRule::Refl(m.clone()))
+                } else {
+                    fail(NmTmRule::FailDistinctNames(n1.clone(), n2.clone()))
+                }
+            }
             (&BiNmTm::Var(ref v1),&BiNmTm::Var(ref v2)) => {
                 if ctx.lookup_nvareq(v1,v2,g) {
                     succ(NmTmRule::Var((v1.clone(),v2.clone())))
@@ -632,9 +644,12 @@ pub mod equiv {
                     (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
                 }
             }
-            (_mr, _nr) => {
-                // TODO: Non-structural cases
-                unimplemented!("decide_nmtm_equiv non-struct")
+            (a, b) => {
+                println!("Note: Fungi called: decide_nmtm_equiv on non-struct:\n\
+                          \t{:?}\n\
+                          Versus\n\
+                          \t{:?}", a, b);
+                fail(NmTmRule::FailNoRule)
             }
         }
     }
@@ -868,6 +883,7 @@ pub mod subset {
     use super::*;
     use super::equiv::{decide_nmtm_equiv};
     use bitype::IdxTmRule as BiIdxTm;
+    use normal::NmSetTm;
 
     /// Index term equivalence rules
     #[derive(Clone,Debug,Eq,PartialEq,Hash)]
@@ -908,7 +924,34 @@ pub mod subset {
             _ => { println!("{:?}", p); false }
         }
     }
-   
+
+    // -------------------------------------------------------------
+    /// Decide name set subset relation.
+    ///
+    /// Return true iff name set `i` is a subset of, or equal to, name
+    /// set `j`.  Uses `decide_idxtm_congr` as a subroutine.
+    //
+    pub fn decide_nmsettm_subset(ctx: &RelCtx, tm1:&NmSetTm, tm2:&NmSetTm) -> bool {
+        println!("??????? search ?????????? ------------ BEGIN");
+        let res = match (tm1, tm2) {
+            (&NmSetTm::Single(ref x), &NmSetTm::Single(ref y)) => {
+                // TODO -- use equiv module
+                x == y
+            },
+            (&NmSetTm::Single(ref x), &NmSetTm::Subset(ref y)) => {
+                decide_idxtm_subset_simple(ctx, &IdxTm::Sing(x.clone()), y)
+            },
+            (&NmSetTm::Subset(ref x), &NmSetTm::Single(ref y)) => {
+                decide_idxtm_subset_simple(ctx, x, &IdxTm::Sing(y.clone()))
+            },
+            (&NmSetTm::Subset(ref x), &NmSetTm::Subset(ref y)) => {
+                decide_idxtm_subset_simple(ctx, x, y)
+            }
+        };
+        println!("??????? search ?????????? ----------- END");
+        res
+    }
+    
     // -------------------------------------------------------------
     /// Decide name set subset relation.
     ///
@@ -935,7 +978,7 @@ pub mod subset {
                 clas:Sort::NmSet,
                 res:Ok(true)
             }
-        } else { match b {
+        } else { match b.clone() {
             // Else: The terms are not equal, but perhaps they are:
             //
             // 1.  Related as propositions of the form `(x = x1%x2)
@@ -968,7 +1011,7 @@ pub mod subset {
                     match xdef {
                         // Not enough info.
                         None => {
-                            println!("No defs for {}, looking for subset:\t\n{:?}", x, &a);
+                            //println!("No defs for {}, looking for subset:\t\n{:?}", x, &a);
                             //panic!("TODO: {:?}", ctx)
                             return Dec{
                                 ctx:ctx.clone(),
@@ -1038,16 +1081,29 @@ pub mod subset {
                         for tm1 in a_ns.terms.iter() {
                             let mut found_tm1 = false;
                             for tm2 in b_ns.terms.iter() {
-                                if tm1 == tm2 {
-                                    found_tm1 = true
+                                // XXX -- Too strong: Use subset check here:
+                                if tm1 == tm2 ||
+                                    decide_nmsettm_subset(ctx, tm1, tm2)
+                                {
+                                    found_tm1 = true;
                                 }
                             }
                             if found_tm1 { continue } else {
+                                if true {
+                                    println!("Subcase-4: Term not found in superset candidate:\n\
+                                              \t`{:?}`\n
+                                          Not found among:\n\
+                                          \t`{:?}`", tm1, b_ns.terms);
+                                }
                                 return Dec{
                                     ctx:ctx.clone(),
                                     rule:Rc::new(IdxTmRule::Fail),
                                     clas:Sort::NmSet,
-                                    res:Err(DecError::SubsetSearchFailure(format!("Subcase-4")))
+                                    res:Err(DecError::SubsetSearchFailure(
+                                        format!("Subcase-4: Term not found in superset candidate:\n\
+                                                 \t`{:?}`\n\n\
+                                                 Not found among:\n\
+                                                 \t`{:?}`", tm1, b_ns.terms)))
                                 }
                             }
                         };
@@ -1059,7 +1115,18 @@ pub mod subset {
                         }
                     }
                     // Subcase 5: "Other: Say 'No'"
-                    _ => {
+                    a => {
+                        if false {
+                            println!("======================================================= BEGIN");
+                            println!("decide_idxtm_subset: Cannot decide subset:");
+                            println!(" Superset (candidate):\n\t{:?}", &b);
+                            println!(" Subset (candidate):\n\t{:?}", &a);
+                            println!("\n\
+                                      (If you believe this subset relationship holds, \
+                                      Fungi may need additional reasoning in its `decide` \
+                                      and/or `normal` modules...)");
+                            println!("------------------------------------------------------- END");
+                        };
                         return Dec{
                             ctx:ctx.clone(),
                             rule:Rc::new(IdxTmRule::Fail),
@@ -1603,7 +1670,13 @@ pub mod apart {
                     (Err(_),_ ) | (_,Err(_)) => err(der, DecError::InSubDec)
                 }
             }
-            _ => { unimplemented!("decide_nmtm_apart non-struct") }
+            (a,b) => {
+                println!("decide_nmtm_apart non-struct:\n\
+                          \t{:?}\n\
+                          Versus\n\
+                          \t{:?}", a, b);
+                panic!("XXX");
+            }
         }
     }
 

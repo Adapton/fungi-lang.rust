@@ -2251,6 +2251,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                                 }
                             }
                             Err(err) => {
+                                panic!("XXX: {:?}", eff3);
                                 fail(ExpRule::Let(
                                     x.clone(), td1,
                                     synth_exp(ext,ctx,e2)
@@ -2335,7 +2336,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 CType::Lift(Type::Thk(ref idx,ref ce)),
                 Effect::WR(ref _w,ref _r)
             ) = ceffect {
-                // TODO: use this once effects are properly implemented
+                // TODO/XXX --- check effects:
                 // if (*w,r) != (*idx,IdxTm::Empty) {
                 //     return fail(ExpRule::Thunk(
                 //         synth_val(ext, ctx, v),
