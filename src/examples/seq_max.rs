@@ -49,7 +49,7 @@ pub fn listing () { fgi_listing_test![
     // Compute the (optional) maximum natural number in a sequence
     let max:(
         Thk[0] foralli (X,Y):NmSet.
-            0 Seq[X][Y] -> { {WS_Seq_SR} X; Y } F OpNat
+            0 Seq[X][Y] -> { {WS_Seq_SR} X; Y % {WS_Seq_SR} X} F OpNat
     ) = {
         ret thunk fix max. #seq. match seq {
             on => { ret on }

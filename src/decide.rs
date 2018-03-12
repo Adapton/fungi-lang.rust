@@ -181,7 +181,7 @@ pub enum DecError {
     AppNotArrow,
     PairNotProd,
     /// search-based decision procedure fails to find proof of a subset relation
-    SubsetSearchFailure,
+    SubsetSearchFailure(String),
     /// Unknown case of congruence (could be a mismatch)
     UnknownCongruence(IdxTm, IdxTm),
 }
@@ -224,6 +224,8 @@ pub mod effect {
         CannotSubtract(Effect, Effect),
         /// The Archivist cannot sequence the two effects
         CannotSequence(Effect, Effect),
+        /// The Archivist cannot prove that the current effect typing context permits a given read set
+        CannotDecideReadSubset(Rc<super::DecError>),
         /// TODO
         TODO
     }
@@ -336,17 +338,25 @@ pub mod effect {
         else {
             //println!("decide_effect_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &eff1, &eff2);
             match (eff1.clone(), eff2.clone()) {
-                (Effect::WR(wr1, rd1), Effect::WR(wr2, _rd2)) => {
+                (Effect::WR(wr1, rd1), Effect::WR(wr2, rd2)) => {
                     let wr3 = decide_idxtm_subtraction(ctx, wr1, wr2);
-                    // TODO: Check that rd2 is a subset of rd1; fail otherwise.
-                    // XXX -- See: fungi_lang::examples::basic_read_effects::listing0_fail0
-                    match wr3 {
-                        Ok(wr3) => {
+                    use super::subset;
+                    let rdsub = subset::decide_idxtm_subset(
+                        &super::relctx_of_ctx(ctx),
+                        // rd2: Candidate to be the smaller set
+                        &rd2,
+                        // rd1: Candidate to be the larger set
+                        &rd1.clone()
+                    );
+                    match (wr3, rdsub.res) {
+                        (Ok(wr3), Ok(_)) => {
                             let eff3 = Effect::WR(wr3, rd1);
                             //println!("^decide_effect_subtraction:\n Success:\n\t{:?}", &eff3);
                             Ok(eff3)
                         },
-                        Err(err) => Result::Err(err),
+                        (Err(err),_) => Result::Err(err),
+                        // TODO-someday: gather all errors together
+                        (_,Err(err)) => Result::Err(Error::CannotDecideReadSubset(Rc::new(err))),
                     }
                 }
                 _ => {
@@ -953,7 +963,7 @@ pub mod subset {
                                 ctx:ctx.clone(),
                                 rule:Rc::new(IdxTmRule::Fail),
                                 clas:Sort::NmSet,
-                                res:Err(DecError::SubsetSearchFailure)
+                                res:Err(DecError::SubsetSearchFailure(format!("Subcase-1")))
                             }
                         }
                         // Use def to try to reason further; TODO:
@@ -1001,7 +1011,7 @@ pub mod subset {
                             ctx:ctx.clone(),
                             rule:Rc::new(IdxTmRule::Fail),
                             clas:Sort::NmSet,
-                            res:Err(DecError::SubsetSearchFailure)
+                            res:Err(DecError::SubsetSearchFailure(format!("Subcase-3")))
                         }
                     },
                     IdxTm::NmSet(a_ns) => {                        
@@ -1026,7 +1036,7 @@ pub mod subset {
                                     ctx:ctx.clone(),
                                     rule:Rc::new(IdxTmRule::Fail),
                                     clas:Sort::NmSet,
-                                    res:Err(DecError::SubsetSearchFailure)
+                                    res:Err(DecError::SubsetSearchFailure(format!("Subcase-4")))
                                 }
                             }
                         };
@@ -1043,7 +1053,7 @@ pub mod subset {
                             ctx:ctx.clone(),
                             rule:Rc::new(IdxTmRule::Fail),
                             clas:Sort::NmSet,
-                            res:Err(DecError::SubsetSearchFailure)
+                            res:Err(DecError::SubsetSearchFailure(format!("Subcase-5")))
                         }}                    
                 }
             },

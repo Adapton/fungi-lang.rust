@@ -668,9 +668,14 @@ fn failure<R:HasClas+debug::DerRule>
     
     println!("Failed to {} {} {}, error: {}", dir.short(), R::term_desc(), n.short(), err);
     if is_local_err {
+        let tm_str = format!("{:?}", tm);
         // Do not print a huge term to the terminal, but print _something_ a little more:
-        println!("  Failure term: {:.80}",
-                 format!("{:?}", tm)
+        println!("  Failure term: `{:.80}`{}",
+                 tm_str, if tm_str.len() >= 80 {
+                     "... (truncated at 80 chars)."
+                 } else {
+                     "."
+                 }
         );
     }
     Der{
@@ -1585,10 +1590,9 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                 }, e_der),
                  ce)
         }
-        &Exp::AnnoC(ref e,ref ctyp) => {
-            // TODO: this is a hackthat only works while we're ignoring effects,
-            // we need check_exp to handle an optional effect
-            let noeffect = Effect::WR(IdxTm::Empty,IdxTm::Empty);
+        &Exp::AnnoC(ref e, ref ctyp) => {
+            // XXX/TODO: this is a hack, depending on what you expect it to mean.
+            let noeffect = Effect::WR(IdxTm::Empty, IdxTm::Empty);
             let td0 = check_exp(ext, ctx, e, &CEffect::Cons(ctyp.clone(),noeffect));
             let typ0 = td0.clas.clone();
             let td = ExpRule::AnnoC(td0, ctyp.clone());
