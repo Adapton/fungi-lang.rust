@@ -21,7 +21,7 @@ pub fn listing0_fail0 () { fgi_listing_expect![
     let get:(
         Thk[0] foralli X:NmSet.
             0 Ref[X] Nat ->
-        { 0 ; 0 }
+        { 0 ; 0 }  // <----------- Should be `{0 ; X}`
         F Nat
     ) = {
         ret thunk #r.
