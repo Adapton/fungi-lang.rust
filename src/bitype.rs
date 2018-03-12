@@ -1661,13 +1661,8 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                     // E'  = [ (#x:NmSet.{@@} x) / '@!' ] E0
                     // E'' = [ M / '@@' ] E'
                     //
-                    // XXXX
-                    //
-                    //let ce = (**ce).clone();                    
-                    //let ce = normal::normal_ceffect(&ctx.only_defs(), (**ce).clone());
                     let ce = expand::expand_ceffect(&ctx, (**ce).clone());
-                    
-                    let ce = subst::subst_term_ceffect(                        
+                    let ce = subst::subst_term_ceffect(
                         Term::IdxTm( fgi_index!{#x:NmSet.[@@] x} ),
                         & subst::idxtm_writescope_var_str().to_string(),
                         ce
@@ -1860,13 +1855,35 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                 Ok(Type::Thk(idx,ce)) => {
                     match *ce {
                         CEffect::Cons(CType::Lift(ref typ),ref eff) => {
-                            // TODO-Next: compose write effect above with a read effect
-                            succ(td, CEffect::Cons(CType::Lift(
-                                Type::Prod(
-                                    Rc::new(Type::Ref(idx,Rc::new(typ.clone()))),
-                                    Rc::new(typ.clone())
-                                )
-                            ),eff.clone()))
+                            // Substitute the write scope variables away:
+                            //
+                            // E0  = expand-identifier-definitions( E )
+                            // E'  = [ (#x:NmSet.{@@} x) / '@!' ] E0
+                            // E'' = [ M / '@@' ] E'
+                            //
+                            let eff = expand::expand_effect(&ctx, (*eff).clone());
+                            let eff = subst::subst_term_effect(
+                                Term::IdxTm( fgi_index!{#x:NmSet.[@@] x} ),
+                                & subst::idxtm_writescope_var_str().to_string(),
+                                eff
+                            );
+                            let eff = subst::subst_term_effect(
+                                Term::NmTm( ext.write_scope.clone() ),
+                                & subst::nmtm_writescope_var_str().to_string(),
+                                eff
+                            );
+                            match decide::effect::decide_effect_sequencing(
+                                ctx, decide::effect::Role::Archivist,
+                                Effect::WR(fgi_index![0], idx.clone()), eff)
+                            {
+                                Err(efferr) => fail(td, TypeError::EffectError(efferr)),
+                                Ok(eff3) => succ(td, CEffect::Cons(CType::Lift(
+                                    Type::Prod(
+                                        Rc::new(Type::Ref(idx,Rc::new(typ.clone()))),
+                                        Rc::new(typ.clone())
+                                    )
+                                ), eff3.clone()))
+                            }
                         },
                         _ => fail(td, TypeError::ParamMism(0)),
                     }
