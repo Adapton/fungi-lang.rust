@@ -44,11 +44,6 @@ pub fn listing () { fgi_listing_test![
         /// ... prefixed with the current write scope (`WS`-), named
         /// `@!` below, as a nameset-level function
         idxtm WS_Seq_SR  = ( #x:NmSet.{@!}((Seq_SR) x) );
-
-        fn is_empty:(
-            Thk[0] foralli (X,Y):NmSet.
-                0 (Seq[X][Y]) -> { 0; Y } F Bool
-        ) = { unimplemented }
     }
 
     // Compute the (optional) maximum natural number in a sequence
