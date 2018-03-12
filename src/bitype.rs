@@ -1855,6 +1855,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                 Ok(Type::Thk(idx,ce)) => {
                     match *ce {
                         CEffect::Cons(CType::Lift(ref typ),ref eff) => {
+                            /*
                             // Substitute the write scope variables away:
                             //
                             // E0  = expand-identifier-definitions( E )
@@ -1872,9 +1873,10 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                                 & subst::nmtm_writescope_var_str().to_string(),
                                 eff
                             );
+                             */
                             match decide::effect::decide_effect_sequencing(
                                 ctx, decide::effect::Role::Archivist,
-                                Effect::WR(fgi_index![0], idx.clone()), eff)
+                                Effect::WR(fgi_index![0], idx.clone()), eff.clone())
                             {
                                 Err(efferr) => fail(td, TypeError::EffectError(efferr)),
                                 Ok(eff3) => succ(td, CEffect::Cons(CType::Lift(

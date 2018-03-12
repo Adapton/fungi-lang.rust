@@ -37,14 +37,12 @@ pub fn listing () { fgi_listing_expect![[Expect::Failure]
         idxtm    Bin   = (#x:Nm.         {x,@1} % {x,@2}  );
         idxtm WS_Bin   = (#x:NmSet.{@!}( (Bin) x         ));
 
-        /// Trie_of_seq: Index functions for output names and pointers:
+        /// Trie_join: Index functions for output names and pointers:
         idxtm    Join  = (#x:NmSet.    ( (Bin)^* x       ));
-        idxtm    Join1 = (#x:NmSet.    ( (Bin)((Bin)^* x)));        
         idxtm WS_Join  = (#x:NmSet.{@!}( {Join}  x       ));
-        idxtm WS_Join1 = (#x:NmSet.{@!}( {Join1} x       ));
 
         /// Trie_of_seq: Index functions for output names and pointers:
-        idxtm    Trie  = (#x:NmSet.{@!}( {Join} x        ));
+        idxtm    Trie  = (#x:NmSet.    ( {Join} x        ));
         idxtm WS_Trie  = (#x:NmSet.{@!}(( (Bin) x        )
                                         % (x * ({Join}x))));
     }
@@ -91,11 +89,6 @@ pub fn listing () { fgi_listing_expect![[Expect::Failure]
                     [({Trie}X2)][({Trie}X3)][({WS_Trie}X2)][({WS_Trie}X3)]
                     {!rsl} {!rsr}
                 }}
-                /* TODO --- Macro for this (common) use case of `ws` with a surrounding `let`:
-                let trie      =(n){
-                    {force join}[0][0][0][0]
-                    {!rsl} {!rsr}
-                }*/
                 ret trie
             }
         }
