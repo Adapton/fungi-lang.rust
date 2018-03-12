@@ -70,16 +70,17 @@ pub fn is_normal_nmtm(_ctx:&Ctx, n:&NameTm) -> bool {
         NameTm::ValVar(_)  |
         NameTm::Name(_)    |
         NameTm::Lam(_,_,_) => true,
+        NameTm::WriteScope => true,        
         //
         // Forms that are not normal (there are reduction rules)
         //
         NameTm::Bin(_,_)   |
         NameTm::App(_,_)  => false,
+        NameTm::Ident(_)   => false,
         //
         // Other forms that we dont really need to consider:
         //
         NameTm::NoParse(_) => false,
-        NameTm::WriteScope => false,
     }
 }
 
@@ -864,6 +865,18 @@ pub fn normal_nmtm(ctx:&Ctx, n:NameTm) -> NameTm {
         return n
     } else {
         match n {
+            NameTm::Ident(x) => {
+                match ctx.lookup_nmtm_def(&x) {
+                    Some(a) => {
+                        normal_nmtm(ctx, a)
+                    },
+                    _ => {
+                        println!("undefined name term: {} in\n{:?}", x, ctx);
+                        // Give up:
+                        NameTm::Ident(x.clone())
+                    }
+                }
+            }
             NameTm::Bin(n1,n2) => {
                 let n1 = normal_nmtm_rec(ctx, n1);
                 let n2 = normal_nmtm_rec(ctx, n2);
@@ -980,7 +993,7 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
             // all other identifiers are for defined types; look up the definition
             _ => { match ctx.lookup_type_def(ident) {
                 Some(a) => {
-                    // If the definition is itself an identifier, it's a user type label
+                    // If the definition is itself an identifier, it's a user type label -- XXX
                     if let Type::Ident(_) = a { a.clone() }
                     else { normal_type(ctx, &a) }
                 },

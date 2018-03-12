@@ -7,6 +7,7 @@ use std::rc::Rc;
 use normal;
 use decide;
 use subst;
+use expand;
 
 /// "Extra" typing information carried by the typing judgements
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
@@ -173,6 +174,15 @@ impl Ctx {
                 if x == y { Some(i.clone()) } else { c.lookup_idxtm_def(x) }
             },
             ref c => c.rest().unwrap().lookup_idxtm_def(x)
+        }        
+    }
+    pub fn lookup_nmtm_def(&self, x:&Var) -> Option<NameTm> {
+        match *self {
+            Ctx::Empty => None,
+            Ctx::Def(ref c,ref y, Term::NmTm(ref n)) => {
+                if x == y { Some(n.clone()) } else { c.lookup_nmtm_def(x) }
+            },
+            ref c => c.rest().unwrap().lookup_nmtm_def(x)
         }        
     }
     //TODO: Return a Vec<_>; try each possible decomposition.
@@ -988,6 +998,11 @@ pub fn synth_nmtm(ext:&Ext, ctx:&Ctx, nmtm:&NameTm) -> NmTmDer {
     let fail = |td:NmTmRule, err :TypeError| { failure(Dir::Synth, ext, ctx, nmtm.clone(), td, err)  };
     let succ = |td:NmTmRule, sort:Sort     | { success(Dir::Synth, ext, ctx, nmtm.clone(), td, sort) };
     match nmtm {
+        &NameTm::Ident(ref x) => {
+            // expand the identifier
+            let nmtm = expand::expand_nmtm(ctx, NameTm::Ident(x.clone()));
+            synth_nmtm(ext, ctx, &nmtm)
+        }
         &NameTm::ValVar(ref x) => {
             let td = NmTmRule::ValVar(x.clone());
             match ctx.lookup_var(x) {
@@ -1648,9 +1663,10 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                     //
                     // XXXX
                     //
-                    let ce = (**ce).clone();
-                    
+                    //let ce = (**ce).clone();                    
                     //let ce = normal::normal_ceffect(&ctx.only_defs(), (**ce).clone());
+                    let ce = expand::expand_ceffect(&ctx, (**ce).clone());
+                    
                     let ce = subst::subst_term_ceffect(                        
                         Term::IdxTm( fgi_index!{#x:NmSet.[@@] x} ),
                         & subst::idxtm_writescope_var_str().to_string(),
@@ -1913,7 +1929,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             match td0.clas.clone() {
                 Ok(Type::NmFn(nmlamb)) => {
                     let new_scope = fgi_nametm![
-                        #n:Nm.[^ext.write_scope.clone()][[^nmlamb] n]
+                        #_a:Nm.[^ext.write_scope.clone()][[^nmlamb] _a]
                     ];
                     let new_ext = Ext{write_scope:new_scope, ..ext.clone()};
                     let td1 = synth_exp(&new_ext, ctx, e);

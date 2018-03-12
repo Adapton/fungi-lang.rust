@@ -67,6 +67,7 @@ pub fn fv_of_nmtm(n:&NameTm, bound:Vec<Term>, out:&mut Vec<Term>) {
             NameTm::WriteScope
         )) },
         &NoParse(_) => { },
+        &Ident(_) => { },
     }
 }
 
@@ -272,9 +273,27 @@ pub fn subst_term_type(t:Term, x:&String, a:Type) -> Type {
             )
         }
         Type::Thk(i, ce) => {
+            //
+            // The scope of the write scope variable `WriteScope`:
+            // ---------------------------------------------------
+            //
+            // Conceptually, there is a hidden binder to bind the `@@`
+            // and `@!` variables for each `Thk` type (determined by
+            // the allocation context's dynamic write scope); these
+            // variables may appear free in each `ce`.
+            //
+            let ce = {
+                if x == idxtm_writescope_var_str() ||
+                    x == nmtm_writescope_var_str()
+                {
+                    ce
+                } else {
+                    subst_term_ceffect_rec(t.clone(), x, ce)
+                }
+            };
             Type::Thk(
-                subst_term_idxtm(t.clone(), x, i),
-                subst_term_ceffect_rec(t, x, ce),
+                subst_term_idxtm(t, x, i),
+                ce,
             )
         }        
         Type::IdxApp(a0, i) => {
@@ -512,6 +531,9 @@ pub fn subst_term_nmtm(t:Term, x:&String, m:NameTm) -> NameTm {
     if ! term_is_nmtm(&t) { m.clone() } else { match m {
         NameTm::ValVar(y) => {
             NameTm::ValVar(y)
+        }
+        NameTm::Ident(y) => {
+            NameTm::Ident(y)
         }
         NameTm::Var(y) => {
             if term_is_nmtm(&t) && x == &y {

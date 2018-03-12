@@ -179,6 +179,7 @@ pub fn nametm_subst(nmtm:NameTm, x:&Var, v:&NameTm) -> NameTm {
             else { NameTm::Lam(y, s, nametm_subst_rec(nt, x, v)) }
         }
         NameTm::NoParse(_) => unreachable!(),
+        NameTm::Ident(_) => unreachable!(),
     }
 }
 
@@ -216,6 +217,7 @@ pub fn nametm_eval(nmtm:NameTm) -> NameTmVal {
             }
         }
         NameTm::NoParse(_) => unreachable!(),
+        NameTm::Ident(_) => unreachable!(),
     }
 }
 

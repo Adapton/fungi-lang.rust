@@ -19,6 +19,7 @@ pub mod ast;
 pub mod parse;
 pub mod normal;
 pub mod subst;
+pub mod expand;
 pub mod bitype;
 pub mod decide;
 pub mod eval;

@@ -75,6 +75,13 @@ pub enum NameTm {
     ///  Γ ⊢ x : g
     /// ```
     Var(Var),
+    /// ```text
+    ///  Γ(x) = (Γ', i)
+    ///  Γ' ⊢ i : g
+    /// ----------------- :: Ident  (contextual definition)
+    ///  Γ ⊢ i : g
+    /// ```    
+    Ident(Ident),
     /// Injected value-level variable `x`, of type `Nm[i]`, for some name set `i`:
     ///
     /// ```text

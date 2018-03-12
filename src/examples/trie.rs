@@ -88,7 +88,7 @@ pub fn listing () { fgi_listing_expect![[Expect::Failure]
                 let (rsr, _r) = { memo{n,(@2)}{ {force trie}[X3][Y4]{!r} } }
                 let trie      = { ws (nmfn [#x:Nm. ~n * x]) {
                     {force join}
-                    [({Trie}X1)][({Trie}X2)][({WS_Trie}X1)][({WS_Trie}X2)]
+                    [({Trie}X2)][({Trie}X3)][({WS_Trie}X2)][({WS_Trie}X3)]
                     {!rsl} {!rsr}
                 }}
                 /* TODO --- Macro for this (common) use case of `ws` with a surrounding `let`:
