@@ -184,6 +184,15 @@ impl Ctx {
             _ => self.rest().unwrap().find_defs_for_idxtm_var(x)
         }
     }
+    pub fn only_defs(&self) -> Ctx {
+        match self {
+            &Ctx::Empty => Ctx::Empty,
+            &Ctx::Def(ref c, ref x, ref t) => {
+                Ctx::Def(c.clone(), x.clone(), t.clone())
+            }
+            _ => self.rest().unwrap().only_defs()
+        }
+    }
 }
 
 pub trait HasClas {
@@ -1631,10 +1640,30 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             match typ0 {
                 Err(_) => fail(td, TypeError::ParamNoSynth(0)),
                 Ok(Type::Thk(ref idx, ref ce)) => {
+                    // Substitute the write scope variables away:
+                    //
+                    // E0  = expand-identifier-definitions( E )
+                    // E'  = [ (#x:NmSet.{@@} x) / '@!' ] E0
+                    // E'' = [ M / '@@' ] E'
+                    //
+                    // XXXX
+                    //
+                    let ce = (**ce).clone();
+                    
+                    //let ce = normal::normal_ceffect(&ctx.only_defs(), (**ce).clone());
+                    let ce = subst::subst_term_ceffect(                        
+                        Term::IdxTm( fgi_index!{#x:NmSet.[@@] x} ),
+                        & subst::idxtm_writescope_var_str().to_string(),
+                        ce
+                    );
+                    let ce = subst::subst_term_ceffect(
+                        Term::NmTm( ext.write_scope.clone() ),
+                        & subst::nmtm_writescope_var_str().to_string(),
+                        ce
+                    );
                     match decide::effect::decide_effect_ceffect_sequencing(
                         ctx, decide::effect::Role::Archivist,
-                        Effect::WR(fgi_index![0], idx.clone()),
-                        (**ce).clone())
+                        Effect::WR(fgi_index![0], idx.clone()), ce)
                     {
                         Ok(ce) => succ(td, ce.clone()),
                         Err(efferr) => fail(td, TypeError::EffectError(efferr))

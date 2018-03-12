@@ -1029,6 +1029,60 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
     }
 }
 
+
+/// Need to expand `Ident`s inside computation types and effects
+/// before substituting away the write scope variables `@!` and `@@`.
+pub fn normal_ctype(ctx:&Ctx, ct:CType) -> CType {
+    match ct {
+        CType::Lift(a) => {
+            CType::Lift(normal_type(ctx, &a))
+        }
+        CType::Arrow(a, ce) => {
+            CType::Arrow(normal_type(ctx, &a),
+                         normal_ceffect_rec(ctx, ce))
+        }
+        CType::NoParse(s) => CType::NoParse(s)
+    }
+}
+
+/// Need to expand `Ident`s inside computation effects
+/// before substituting away the write scope variables `@!` and `@@`.
+pub fn normal_effect(ctx:&Ctx, eff:Effect) -> Effect {
+    match eff {
+        Effect::WR(i, j) => {
+            Effect::WR(normal_idxtm(ctx, i),
+                       normal_idxtm(ctx, j))
+        },
+        Effect::NoParse(s) => Effect::NoParse(s)
+    }        
+}
+
+/// Need to expand `Ident`s inside computation types and effects
+/// before substituting away the write scope variables `@!` and `@@`.
+pub fn normal_ceffect(ctx:&Ctx, ce:CEffect) -> CEffect {
+    match ce {
+        CEffect::Cons(ct, eff) => {
+            CEffect::Cons(normal_ctype(ctx, ct),
+                          normal_effect(ctx, eff))
+        }
+        CEffect::ForallType(y, k, ce) => {
+            CEffect::ForallType(y, k, normal_ceffect_rec(ctx, ce))
+        }
+        CEffect::ForallIdx(y, g, p, ce) => {
+            CEffect::ForallIdx(y, g,
+                               //normal_prop(t.clone(), x, p),
+                               p.clone(),
+                               normal_ceffect_rec(ctx, ce))
+        }
+        CEffect::NoParse(s) => CEffect::NoParse(s)
+    }
+}
+
+pub fn normal_ceffect_rec(ctx:&Ctx, ce:Rc<CEffect>) -> Rc<CEffect> {
+    Rc::new(normal_ceffect(ctx, (*ce).clone()))
+}
+
+
 /*
 
 Not head normal:
