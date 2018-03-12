@@ -357,7 +357,7 @@ pub mod effect {
                         (Err(err),_) => Result::Err(err),
                         // TODO-someday: gather all errors together
                         (_,Err(err)) => {
-                            if true {
+                            if false {
                                 println!("======================================================= BEGIN");
                                 println!("decide_effect_subtraction: Cannot decide read subset:");
                                 println!(" Error: {:?}\n", err);
@@ -932,7 +932,7 @@ pub mod subset {
     /// set `j`.  Uses `decide_idxtm_congr` as a subroutine.
     //
     pub fn decide_nmsettm_subset(ctx: &RelCtx, tm1:&NmSetTm, tm2:&NmSetTm) -> bool {
-        println!("??????? search ?????????? ------------ BEGIN");
+        //println!("??????? search ?????????? ------------ BEGIN");
         let res = match (tm1, tm2) {
             (&NmSetTm::Single(ref x), &NmSetTm::Single(ref y)) => {
                 // TODO -- use equiv module
@@ -948,7 +948,7 @@ pub mod subset {
                 decide_idxtm_subset_simple(ctx, x, y)
             }
         };
-        println!("??????? search ?????????? ----------- END");
+        //println!("??????? search ?????????? ----------- END");
         res
     }
     
@@ -1319,10 +1319,12 @@ pub mod subset {
                 unimplemented!()
             }
             (_, _) => {
-                println!("=============================================================================== BEGIN");
-                println!("decide_idxtm_subset: Cannot decide this case:\n Left:\n\t{:?}\n Right:\n\t{:?}", i.term, j.term);
-                println!("This case is not implemented; but, it _may_ indicate a type error.");
-                println!("------------------------------------------------------------------------------- END");
+                if false {
+                    println!("=============================================================================== BEGIN");
+                    println!("decide_idxtm_subset: Cannot decide this case:\n Left:\n\t{:?}\n Right:\n\t{:?}", i.term, j.term);
+                    println!("This case is not implemented; but, it _may_ indicate a type error.");
+                    println!("------------------------------------------------------------------------------- END");
+                }
                 err(IdxTmRule::Fail, DecError::UnknownCongruence((*i.term).clone(), (*j.term).clone()))
             }
         }
@@ -1340,7 +1342,7 @@ pub mod subset {
             return true
         }
         else {
-            println!("decide_idxtm_subset: failed:\n\t{:?}\n\t{:?}", i, j);
+            //println!("decide_idxtm_subset: failed:\n\t{:?}\n\t{:?}", i, j);
             return false
         }
     }

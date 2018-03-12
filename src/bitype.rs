@@ -2251,7 +2251,6 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                                 }
                             }
                             Err(err) => {
-                                panic!("XXX: {:?}", eff3);
                                 fail(ExpRule::Let(
                                     x.clone(), td1,
                                     synth_exp(ext,ctx,e2)
