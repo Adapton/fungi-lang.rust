@@ -38,13 +38,12 @@ pub fn listing () { fgi_listing_expect![[Expect::Failure]
         idxtm WS_Bin   = (#x:NmSet.{@!}( (Bin) x         ));
 
         /// Trie_join: Index functions for output names and pointers:
-        idxtm    Join  = (#x:NmSet.    ( (Bin)^* x       ));
+        idxtm    Join  = (#x:NmSet.    ( (Bin)((Bin)^* x)));
         idxtm WS_Join  = (#x:NmSet.{@!}( {Join}  x       ));
 
         /// Trie_of_seq: Index functions for output names and pointers:
         idxtm    Trie  = (#x:NmSet.    ( {Join} x        ));
-        idxtm WS_Trie  = (#x:NmSet.{@!}(( (Bin) x        )
-                                        % (x * ({Join}x))));
+        idxtm WS_Trie  = (#x:NmSet.{@!}( {Join} x        ));
     }
     
     let join:(
