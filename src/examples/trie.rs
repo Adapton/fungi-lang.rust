@@ -51,7 +51,12 @@ pub fn listing () { fgi_listing_expect![[Expect::Failure]
         Thk[0] foralli (X1, X2, Y1, Y2):NmSet.
             0 Set[X1][Y1] ->
             0 Set[X2][Y2] ->
-        { {WS_Join} (X1%X2); Y1%Y2 }
+        {
+            {WS_Join} (X1%X2)
+                ;
+            Y1 % ( Y2 %
+                   ( {WS_Join} (X1%X2) ) )
+        }
         F Set
             [(Join)(X1 % X2)]
             [{WS_Join}(X1 % X2)]
@@ -74,7 +79,11 @@ pub fn listing () { fgi_listing_expect![[Expect::Failure]
     let trie:(
         Thk[0] foralli (X,Y):NmSet.
             0 Seq[X][Y] ->
-        { {WS_Trie} X ; Y }
+        {
+            {WS_Trie} X
+                ;
+            Y % ( {WS_Trie} X )
+        }
         F Set[X][{WS_Trie} X]
     ) = {
         ret thunk fix trie. #seq. match seq {
