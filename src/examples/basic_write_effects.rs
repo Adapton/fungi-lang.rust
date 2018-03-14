@@ -16,7 +16,7 @@ pub fn listing0 () { fgi_listing_test![
 
 #[test]
 pub fn listing0_fail0_check () { fgi_listing_expect![
-    [Expect::Failure]
+    [Expect::FailurexXXX]
 
     let set:(
         Thk[0] foralli X:NmSet.
@@ -49,7 +49,7 @@ pub fn listing0_fail0_synth () { fgi_listing_expect![
 
 #[test]
 pub fn listing0_fail1_check () { fgi_listing_expect![
-    [Expect::Failure]
+    [Expect::FailurexXXX]
 
     let set:(
         Thk[0] foralli X:NmSet.
