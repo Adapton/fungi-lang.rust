@@ -45,6 +45,43 @@ pub fn listing () { fgi_listing_test![
         idxtm    Join  = (#x:NmSet.    ( (Bin)((Bin)^* x)));
         idxtm WS_Join  = (#x:NmSet.{@!}( {Join}  x       ));
     }
+
+    // Create a named binary node, with two leaves
+    let bin_leaf_leaf:(
+        Thk[0] foralli X:NmSet.
+            0 Nm[X] ->
+            0 OpNat ->
+            0 OpNat ->
+        { {WS_Bin}X ; 0 }
+        F Set[X][{WS_Bin}X]
+    ) = {
+        ret thunk #n.#x.#y.
+        let l :(Ref[{WS_Bin1} X]Set[0][0]) = {
+            ref{n,(@1)}(roll inj1 x)
+        }
+        let r :(Ref[{WS_Bin2} X]Set[0][0]) = {
+            ref{n,(@2)}(roll inj1 y)
+        }
+        ret roll inj2 pack (
+            X, 0, 0,
+            ({WS_Bin1} X), 0,
+            ({WS_Bin2} X), 0,
+        )(n, l, r)
+    }
+
+    // Create a named binary node, with two leaves
+    let join_leaves:(
+        Thk[0] foralli X:NmSet.
+            0 Nm[X] ->
+            0 OpNat ->
+            0 OpNat ->
+        { {WS_Bin}X ; 0 }
+        F Set[X][{WS_Join}X]
+    ) = {
+        //ret thunk #n.#x.#y.
+        //{force bin_leaf_leaf}[X] n x y
+        unimplemented
+    }
     
     let join:(
         Thk[0] foralli (X0, X1, X2, Y1, Y2):NmSet.
@@ -58,7 +95,7 @@ pub fn listing () { fgi_listing_test![
                 ( {WS_Join} (X0 % X1 % X2) )))
         }
         F Set
-            [(Join)(X0 % X1 % X2)]
+            [X0 % ({Join}(X1 % X2))]
             [{WS_Join}(X0 % X1 % X2)]
     ) = {
         ret thunk fix join.
@@ -66,17 +103,7 @@ pub fn listing () { fgi_listing_test![
         match set1 {
             on1 => { match set2 {
                 on2  => {
-                    let l :(Ref[{WS_Bin1} X0]Set[0][0]) = {
-                        ref{n,(@1)}(roll inj1 on1)
-                    }
-                    let r :(Ref[{WS_Bin2} X0]Set[0][0]) = {
-                        ref{n,(@2)}(roll inj1 on2)
-                    }
-                    ret roll inj2 pack (
-                        X0, 0, 0,
-                        ({WS_Bin1} X0), 0,
-                        ({WS_Bin2} X0), 0,
-                    )(n, l, r)
+                    {force join_leaves}[X0] n on1 on2
                 }
                 bin2 => {
                     unimplemented
