@@ -25,8 +25,11 @@ pub mod decide;
 pub mod eval;
 #[macro_use]
 pub mod vis;
-#[doc(hidden)]
-pub mod stdlib;
+
+// Note to readers: The standard library is a stale "sketch" of Fungi
+// code; see `examples` modules for up-to-date examples.
+#[doc(hidden)] pub mod stdlib; 
+
 pub mod examples;
 
 // Translation

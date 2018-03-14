@@ -1091,7 +1091,7 @@ pub mod subset {
                             if found_tm1 { continue } else {
                                 if true {
                                     println!("Subcase-4: Term not found in superset candidate:\n\
-                                              \t`{:?}`\n
+                                              \t`{:?}`\n\
                                           Not found among:\n\
                                           \t`{:?}`", tm1, b_ns.terms);
                                 }

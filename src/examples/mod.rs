@@ -4,7 +4,8 @@ Examples of data structures and algorithms in Fungi.
 
 ### Basics
 
-Small examples, showing the basics of the novel language features of Fungi:
+These (very small) examples demonstrate the basics of how computation
+effects and refinement data types interact in Fungi:
 
 - [`basic_read_effects`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/basic_read_effects.rs.html)
 --- _read effects_ track the reference cells and thunks that a Fungi program observes and forces.
@@ -12,6 +13,12 @@ Small examples, showing the basics of the novel language features of Fungi:
 --- _write effects_ track the reference cells and thunks that a Fungi program allocates.
 - [`basic_write_scope`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/basic_write_scope.rs.html)
 --- _write scopes_ distinctly qualify written names for different dynamic calling contexts.
+
+### FP Basics in Fungi
+
+These examples demonstrate familiar functional programming (FP) patterns in Fungi:
+
+- [`op_nat`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/op_nat.rs.html) --- Simple primitives for optional natural numbers
 
 ### Sequences
 
@@ -39,6 +46,11 @@ Computes the convex hull, in sorted order, of an unordered sequence of points in
 
 */
 
+/// Optional natural numbers
+///
+/// [Fungi listing](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/op_nat.rs.html)
+pub mod op_nat;
+
 
 /// Find the maximum element in a sequence
 ///
@@ -52,6 +64,8 @@ pub mod seq_filter;
 
 
 // --- In progress:
+pub mod set_join;
+
 pub mod trie;
 
 

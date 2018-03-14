@@ -1161,11 +1161,21 @@ macro_rules! fgi_exp {
         fgi_val![$v],
         Rc::new(fgi_exp![$($e)+]),
     )};
+    //     ref { e1 } v2                   (create ref)
+    { ref { $($e1:tt)+ } $($v2:tt)+ } => {
+        Exp::Let("ref_name_sugar".to_string(),
+                 Rc::new(fgi_exp![ $($e1)+ ]),
+                 Rc::new(Exp::Ref(
+                     Val::Var("ref_name_sugar".to_string()),
+                     fgi_val![$($v2)+]
+                 ))
+        )
+    };
     //     ref v1 v2                       (create ref)
     { ref $v1:tt $($v2:tt)+ } => { Exp::Ref(
         fgi_val![$v1],
         fgi_val![$($v2)+],
-    )};
+    )};    
     //     force v                         (force thunk)
     { force $($v:tt)+ } => { Exp::Force( fgi_val![$($v)+])};
     //     refthunk v                      (coerce thunk)

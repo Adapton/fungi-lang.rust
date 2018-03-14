@@ -558,6 +558,12 @@ pub enum TypeError {
     MismatchSort(Sort,Sort),
     SubsumptionFailure(CEffect,CEffect),
 }
+
+fn debug_truncate<X:fmt::Debug>(x: &X) -> String {
+    let x = format!("{:?}", x);
+    format!("\n\t`{:.80}{}", x, if x.len() > 80 { " ...`" } else { "`" } )
+}
+
 impl fmt::Display for TypeError {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
         let s = match *self {
@@ -581,12 +587,12 @@ impl fmt::Display for TypeError {
             TypeError::DSLiteral => format!("data structure literals not allowed"),
             TypeError::EmptyDT => format!("ambiguous empty data type"),
             TypeError::Unimplemented => format!("Internal Error: type-checking unimplemented"),
-            TypeError::CheckFailType(ref t) => format!("check fail for type {:?}",t),
+            TypeError::CheckFailType(ref t) => format!("check fail for type {}", debug_truncate(t)),
             TypeError::CheckFailCEffect(ref _ce) => format!("check fail for ceffect ..."),
             TypeError::CheckFailArrow(ref _ce) => format!("check fail for ceffect; expected arrow"),
-            TypeError::SynthFailVal(ref v) => format!("failed to synthesize type for value {:?}",v),
-            TypeError::UnexpectedCEffect(ref ce) => format!("unexpected effect type: {:?}", ce),
-            TypeError::UnexpectedType(ref t) => format!("unexpected type: {:?}", t),
+            TypeError::SynthFailVal(ref v) => format!("failed to synthesize type for value {}",debug_truncate(v)),
+            TypeError::UnexpectedCEffect(ref ce) => format!("unexpected effect type: {}", debug_truncate(ce)),
+            TypeError::UnexpectedType(ref t) => format!("unexpected type: {}", debug_truncate(t)),
 
             TypeError::Inside(_)  => format!("error inside (the 'primary' subderivation)"),
             TypeError::Later(_)   => format!("error later (the 'secondary' subderivation)"),
@@ -668,15 +674,7 @@ fn failure<R:HasClas+debug::DerRule>
     
     println!("Failed to {} {} {}, error: {}", dir.short(), R::term_desc(), n.short(), err);
     if is_local_err {
-        let tm_str = format!("{:?}", tm);
-        // Do not print a huge term to the terminal, but print _something_ a little more:
-        println!("  Failure term: `{:.80}`{}",
-                 tm_str, if tm_str.len() >= 80 {
-                     "... (truncated at 80 chars)."
-                 } else {
-                     "."
-                 }
-        );
+        println!("  Failure term: {}", debug_truncate(&tm));
     }
     Der{
         //ext: ext.clone(),
@@ -2335,13 +2333,8 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 CType::Lift(Type::Thk(ref idx,ref ce)),
                 Effect::WR(ref _w,ref _r)
             ) = ceffect {
-                // TODO/XXX --- check effects:
-                // if (*w,r) != (*idx,IdxTm::Empty) {
-                //     return fail(ExpRule::Thunk(
-                //         synth_val(ext, ctx, v),
-                //         synth_exp(ext, ctx, e),
-                //     ), TypeError::InvalidPtr)
-                // }
+                // TODO/XXX --- check effects: that write set _w contains idx
+                //
                 let td0 = check_val(ext,ctx,v,&Type::Nm(idx.clone()));
                 let td1 = check_exp(ext,ctx,e,&**ce);
                 let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
@@ -2354,6 +2347,29 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
             } else { fail(ExpRule::Thunk(
                 synth_val(ext, ctx, v),
                 synth_exp(ext, ctx, e),
+            ),TypeError::AnnoMism)}
+        },
+        &Exp::Ref(ref v1,ref v2) => {
+            if let &CEffect::Cons(
+                CType::Lift(Type::Ref(ref rf_idx,ref a)),
+                Effect::WR(ref _w, ref _r)
+            ) = ceffect {
+                let td0 = synth_val(ext, ctx, v1);
+                let td0ty = td0.clas.clone();
+                let td1 = check_val(ext, ctx, v2, a);
+                let td = ExpRule::Ref(td0, td1);
+                match td0ty {
+                    Ok(Type::Nm(ref v1_idx)) => {
+                        // TODO/XXX --- check effects: that write set _w contains rf_idx
+                        // TODO/XXX -- check that v1_idx in the current write scope matches rf_idx
+                        succ(td, ceffect.clone())
+                    },
+                    Ok(_) => fail(td, TypeError::Mismatch),
+                    Err(ref err) => fail(td, TypeError::Inside(Rc::new(err.clone())))
+                }
+            } else { fail(ExpRule::Ref(
+                synth_val(ext, ctx, v1),
+                synth_val(ext, ctx, v2),
             ),TypeError::AnnoMism)}
         },
         &Exp::WriteScope(ref v,ref e) => {
