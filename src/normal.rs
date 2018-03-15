@@ -638,14 +638,34 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                             }
                         }
                     }
-                    (NameTm::Lam(_,_,_), IdxTm::NmSet(ref ns2)) if ns2.terms.len() == 0 => {
-                        // For empty sets, the map result is always
-                        // empty. We do not apply the (starred)
-                        // function for non-empty sets.
-                        IdxTm::NmSet(NmSet{
-                            cons:ns2.cons.clone(),
-                            terms:vec![]
-                        })
+                    (NameTm::Lam(_,_,_), IdxTm::NmSet(ref ns2)) => {
+                        if ns2.terms.len() == 0 {
+                            // For empty sets, the map result is always
+                            // empty. We do not apply the (starred)
+                            // function for non-empty sets.
+                            IdxTm::NmSet(NmSet{
+                                cons:ns2.cons.clone(),
+                                terms:vec![]
+                            })
+                        } else {
+                            let mut terms = vec![];
+                            for tm2 in ns2.terms.iter() {
+                                use self::NmSetTm::*;
+                                let mapped_tm = match tm2.clone() {
+                                    Single(n) => {
+                                        Subset(IdxTm::MapStar(n1.clone(), Rc::new(IdxTm::Sing(n))))
+                                    }
+                                    Subset(i) => {
+                                        Subset(IdxTm::MapStar(n1.clone(), Rc::new(i)))
+                                    }
+                                };
+                                nmset_terms_add(ns2.cons.clone(), &mut terms, mapped_tm)
+                            };                            
+                            IdxTm::NmSet(NmSet{
+                                cons:ns2.cons.clone(),
+                                terms:terms
+                            })
+                        }
                     },                            
                     (n1, i2) => {
                         IdxTm::MapStar(Rc::new(n1), Rc::new(i2))

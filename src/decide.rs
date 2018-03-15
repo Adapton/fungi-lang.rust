@@ -181,7 +181,11 @@ pub enum DecError {
     AppNotArrow,
     PairNotProd,
     /// search-based decision procedure fails to find proof of a subset relation
-    SubsetSearchFailure(String),
+    SubsetSearchFailureMisc(String),
+    /// search-based decision procedure fails to find proof of a membership/subset relation for a name set term
+    SubsetSearchFailureTm(normal::NmSetTm,normal::NmSet),
+    /// search-based decision procedure fails to find proof of a membership/subset relation for a name set term
+    SubsetSearchFailure(IdxTm,IdxTm),
     /// Unknown case of congruence (could be a mismatch)
     UnknownCongruence(IdxTm, IdxTm),
 }
@@ -401,6 +405,12 @@ pub mod effect {
     }
 
     /// The result effect, if it exists, is `ceffect3` such that `eff1 then ceffect2 = ceffect3`
+    ///
+    /// This operation is called "effect coalescing" in the formalism
+    /// of Fungi.  It's a wrapper around effect sequencing, that
+    /// pushes another effect after the existing one within the
+    /// `CEffect` syntax, even if under one or more "forall" binders.
+    ///
     pub fn decide_effect_ceffect_sequencing(ctx:&Ctx, r:Role, eff1:Effect, ce2:CEffect) -> Result<CEffect, Error> {
         match ce2 {
             CEffect::Cons(ctype2, eff2) => {
@@ -931,7 +941,41 @@ pub mod subset {
     /// Return true iff name set `i` is a subset of, or equal to, name
     /// set `j`.  Uses `decide_idxtm_congr` as a subroutine.
     //
-    pub fn decide_nmsettm_subset(ctx: &RelCtx, tm1:&NmSetTm, tm2:&NmSetTm) -> bool {
+    pub fn decide_nmsettm_subset(ctx: &RelCtx, tm1:&NmSetTm, tm2:&NmSetTm) -> IdxTmDec {
+        //println!("??????? search ?????????? ------------ BEGIN");
+        let res = match (tm1, tm2) {
+            (&NmSetTm::Single(ref x), &NmSetTm::Single(ref y)) => {
+                let (ctx1, ctx2) = ctxs_of_relctx(ctx.clone());
+                let xd = bitype::synth_nmtm(&Ext::empty(), &ctx1, x);
+                let yd = bitype::synth_nmtm(&Ext::empty(), &ctx2, y);
+                let dec = decide_nmtm_equiv(ctx, &xd, &yd, &Sort::Nm);
+                Dec { ctx:ctx.clone(),
+                      rule:Rc::new(IdxTmRule::Sing(dec.clone())),
+                      clas:Sort::NmSet,
+                      res:dec.res.clone()
+                }
+            },
+            (&NmSetTm::Single(ref x), &NmSetTm::Subset(ref y)) => {
+                decide_idxtm_subset(ctx, &IdxTm::Sing(x.clone()), y)
+            },
+            (&NmSetTm::Subset(ref x), &NmSetTm::Single(ref y)) => {
+                decide_idxtm_subset(ctx, x, &IdxTm::Sing(y.clone()))
+            },
+            (&NmSetTm::Subset(ref x), &NmSetTm::Subset(ref y)) => {
+                decide_idxtm_subset(ctx, x, y)
+            }
+        };
+        //println!("??????? search ?????????? ----------- END");
+        res
+    }
+
+    // -------------------------------------------------------------
+    /// Decide name set subset relation.
+    ///
+    /// Return true iff name set `i` is a subset of, or equal to, name
+    /// set `j`.  Uses `decide_idxtm_congr` as a subroutine.
+    //
+    pub fn decide_nmsettm_subset_simple(ctx: &RelCtx, tm1:&NmSetTm, tm2:&NmSetTm) -> bool {
         //println!("??????? search ?????????? ------------ BEGIN");
         let res = match (tm1, tm2) {
             (&NmSetTm::Single(ref x), &NmSetTm::Single(ref y)) => {
@@ -951,7 +995,7 @@ pub mod subset {
         //println!("??????? search ?????????? ----------- END");
         res
     }
-    
+
     // -------------------------------------------------------------
     /// Decide name set subset relation.
     ///
@@ -1017,7 +1061,7 @@ pub mod subset {
                                 ctx:ctx.clone(),
                                 rule:Rc::new(IdxTmRule::Fail),
                                 clas:Sort::NmSet,
-                                res:Err(DecError::SubsetSearchFailure(format!("Subcase-1")))
+                                res:Err(DecError::SubsetSearchFailureMisc(format!("Subcase-1")))
                             }
                         }
                         // Use def to try to reason further; TODO:
@@ -1065,7 +1109,7 @@ pub mod subset {
                             ctx:ctx.clone(),
                             rule:Rc::new(IdxTmRule::Fail),
                             clas:Sort::NmSet,
-                            res:Err(DecError::SubsetSearchFailure(format!("Subcase-3")))
+                            res:Err(DecError::SubsetSearchFailureMisc(format!("Subcase-3")))
                         }
                     },
                     IdxTm::NmSet(a_ns) => {                        
@@ -1083,27 +1127,26 @@ pub mod subset {
                             for tm2 in b_ns.terms.iter() {
                                 // XXX -- Too strong: Use subset check here:
                                 if tm1 == tm2 ||
-                                    decide_nmsettm_subset(ctx, tm1, tm2)
+                                    decide_nmsettm_subset_simple(ctx, tm1, tm2)
                                 {
                                     found_tm1 = true;
                                 }
                             }
                             if found_tm1 { continue } else {
-                                if true {
+                                if false {
                                     println!("Subcase-4: Term not found in superset candidate:\n\
-                                              \t`{:?}`\n\
-                                          Not found among:\n\
-                                          \t`{:?}`", tm1, b_ns.terms);
-                                }
+                                              \t`{:?}`\n\n\
+                                              Not found among:\n\
+                                              \t`{:?}`", tm1, b_ns.terms)
+                                };
                                 return Dec{
                                     ctx:ctx.clone(),
                                     rule:Rc::new(IdxTmRule::Fail),
                                     clas:Sort::NmSet,
-                                    res:Err(DecError::SubsetSearchFailure(
-                                        format!("Subcase-4: Term not found in superset candidate:\n\
-                                                 \t`{:?}`\n\n\
-                                                 Not found among:\n\
-                                                 \t`{:?}`", tm1, b_ns.terms)))
+                                    res:Err(DecError::SubsetSearchFailureTm(
+                                        tm1.clone(),
+                                        b_ns
+                                    ))
                                 }
                             }
                         };
@@ -1116,7 +1159,7 @@ pub mod subset {
                     }
                     // Subcase 5: "Other: Say 'No'"
                     a => {
-                        if false {
+                        if true {
                             println!("======================================================= BEGIN");
                             println!("decide_idxtm_subset: Cannot decide subset:");
                             println!(" Superset (candidate):\n\t{:?}", &b);
@@ -1131,7 +1174,7 @@ pub mod subset {
                             ctx:ctx.clone(),
                             rule:Rc::new(IdxTmRule::Fail),
                             clas:Sort::NmSet,
-                            res:Err(DecError::SubsetSearchFailure(format!("Subcase-5")))
+                            res:Err(DecError::SubsetSearchFailure(a, b))
                         }}                    
                 }
             },

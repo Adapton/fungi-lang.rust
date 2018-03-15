@@ -89,13 +89,13 @@ pub fn listing () { fgi_listing_test![
             0 Set[X1][Y1] ->
             0 Set[X2][Y2] ->
         {
-            {WS_Join} (X1%X2)
+            {WS_Join}(X0%X1%X2)
                 ;
             Y1 % ( Y2 % (
-                ( {WS_Join} (X0 % X1 % X2) )))
+                ( {WS_Join}(X0%X1%X2) )))
         }
         F Set
-            [X0 % ({Join}(X1 % X2))]
+            [{   Join}(X0 % X1 % X2)]
             [{WS_Join}(X0 % X1 % X2)]
     ) = {
         ret thunk fix join.

@@ -1222,7 +1222,10 @@ pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
                     );                    
                     if subset_flag {
                         if false { // Super-verbose variable-typing messages:
-                            println!("Checked type of variable {}:\n\t{:?}\nAgainst:\n\t{:?}\n",
+                            println!("Checked type of variable {}:\n\
+                                      \t{:?}\n\
+                                      Against:\n\
+                                      \t{:?}\n",
                                      x, x_typ_raw, typ_raw);
                         }
                         succ(td, x_typ_raw)
@@ -1233,6 +1236,9 @@ pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
                         println!(".. Variable {}'s type:\n{:?} \n\n...does not check against type:\n{:?}\n", x, x_typ_raw, typ_raw);
                         println!("");
                         println!(".. type-subset holds: {}\n", subset_flag);
+                        println!("");
+                        println!(".. Variable {}'s type:\n{:?} \n\n...does not check against type:\n{:?}\n", x,
+                                 normal::normal_type(ctx, &x_typ_raw), typ);
                         println!("---------------------------------------------------------------------------------- END ");
                         fail(td, TypeError::AnnoMism)
                     }
@@ -2445,6 +2451,14 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                     println!("================================================================================== BEGIN");
                     println!("Detailed errors for checking an `Exp::{}` via subsumption:", td.rule.short());
                     println!(".. {}'s type:\n{:?} \n\n...does not check against type:\n{:?}\n", td.rule.short(), ty, ceffect);
+                    println!("");
+                    if false {
+                        // may be very verbose
+                        println!(".. {}'s type:\n{:?} \n\n...does not check against type:\n{:?}\n", td.rule.short(),
+                                 normal::normal_ceffect(ctx, ty.clone()),
+                                 normal::normal_ceffect(ctx, ceffect.clone()),
+                        );
+                    }
                     println!("---------------------------------------------------------------------------------- END ");
                     td.clas = Err(TypeError::SubsumptionFailure(ty, ceffect.clone()));
                     td
