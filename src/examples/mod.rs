@@ -4,8 +4,8 @@ Examples of data structures and algorithms in Fungi.
 
 ### Basics
 
-These (very small) examples demonstrate the basics of how computation
-effects and refinement data types interact in Fungi:
+These (very small) examples demonstrate basic interaction principles
+of Fungi's _refinement data types_ and _computation effects_:
 
 - [`basic_read_effects`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/basic_read_effects.rs.html)
 --- _read effects_ track the reference cells and thunks that a Fungi program observes and forces.
@@ -18,7 +18,7 @@ effects and refinement data types interact in Fungi:
 
 ### FP Basics in Fungi
 
-These examples demonstrate familiar functional programming (FP) patterns in Fungi:
+Basic patterns from functional programming (FP), in Fungi:
 
 - [`op_nat`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/op_nat.rs.html) --- Simple primitives for optional natural numbers
 

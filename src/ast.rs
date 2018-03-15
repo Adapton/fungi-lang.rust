@@ -17,6 +17,8 @@
 //!                               [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.CEffect.html).  
 //!  - Effects (`ε`):             [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_effect.html),
 //!                               [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Effect.html).  
+//!  - Propositions (`P`):        [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_prop.html),
+//!                               [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Prop.html).  
 //!  - Kinds (`K`):               [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_kind.html),
 //!                               [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Kind.html).  
 //!
@@ -27,8 +29,6 @@
 //!                               [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.NameTm.html).  
 //!  - Index terms (`i,j,X,Y,Z`): [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_index.html),
 //!                               [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.IdxTm.html).  
-//!  - Propositions (`P`):        [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_prop.html),
-//!                               [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Prop.html).  
 //!  - Sorts (`g`):               [concrete](https://docs.rs/fungi-lang/0/fungi_lang/macro.fgi_sort.html),
 //!                               [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Sort.html).  
 //!

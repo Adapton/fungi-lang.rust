@@ -55,16 +55,10 @@ features of Fungi are intentionally made **explicit**.
 
 ## Status:
 
- - We have implemented the [AST structure](https://docs.rs/fungi-lang/0/fungi_lang/ast/index.html).
- - We have implemented [big-step evaluation](https://docs.rs/fungi-lang/0/fungi_lang/eval/index.html).
- - Currently, we implementing a [bidirectional type system](https://docs.rs/fungi-lang/0/fungi_lang/bitype/index.html),
-   and eventually, the refinement types and associated decision
-   procedures.
-   - For technical background and formal definitions, see the [latest draft of the technical report](https://arxiv.org/abs/1610.00097).
-   - We are presently implementing these formalisms; the deductive
-     proof rules for index equivalence and apartness do not indicate
-     an obvious algorithm, or obvious encoding into SMT.  Creating
-     these decision procedures is a key research challenge.
+ - We have implemented a prototype of the [bidirectional type system](https://docs.rs/fungi-lang/0/fungi_lang/bitype/index.html),
+   including the refinement types and associated [decision procedures for effects](https://docs.rs/fungi-lang/0/fungi_lang/decide/effect/index.html).
+ - See also: [Example programs in Fungi](https://docs.rs/fungi-lang/0/fungi_lang/examples/index.html).
+ - For technical background and formal definitions, see the [latest draft of the technical report](https://arxiv.org/abs/1610.00097).
 
 ## Resources:
 
