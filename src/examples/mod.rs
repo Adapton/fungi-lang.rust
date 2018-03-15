@@ -73,4 +73,4 @@ pub mod trie;
 pub mod basic_read_effects;
 pub mod basic_write_effects;
 pub mod basic_write_scope;
-
+pub mod basic_subtyping;
