@@ -13,6 +13,8 @@ effects and refinement data types interact in Fungi:
 --- _write effects_ track the reference cells and thunks that a Fungi program allocates.
 - [`basic_write_scope`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/basic_write_scope.rs.html)
 --- _write scopes_ distinctly qualify written names for different dynamic calling contexts.
+- [`basic_subtyping`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/basic_subtyping.rs.html)
+--- _subtyping_ permits structures with _fewer_ names to be used in contexts that expect _more_ names.
 
 ### FP Basics in Fungi
 
