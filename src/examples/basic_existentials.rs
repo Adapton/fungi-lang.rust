@@ -2,13 +2,13 @@
 pub fn listing0 () { fgi_listing_test![
 
     let foo:(
-        Thk[0] foralli (X,Y,Z):NmSet.
+        Thk[0] foralli (X,Y):NmSet.
             0 Bool ->
             0 Nm[X] ->
             0 Nm[Y] ->
         { {@!}(X%Y) ; 0 }
-        F (exists (ZZ):NmSet | (ZZ=(X%Y):NmSet).
-           (x Nm[ZZ] x Ref[{@!}(ZZ)] Nat))
+        F (exists (Z):NmSet | (Z=(X%Y):NmSet).
+           (x Nm[Z] x Ref[{@!}(Z)] Nat))
     ) = {
         ret thunk #b. #nx. #ny.
             if (b) {
