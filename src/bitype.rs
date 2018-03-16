@@ -10,7 +10,7 @@ use subst;
 use expand;
 
 /// "Extra" typing information carried by the typing judgements
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[deriven(Clone,Debug,Eq,PartialEq,Hash)]
 pub struct Ext {
     /// The last programmer-chosen label encountered in the AST; for visualizations, error messages, etc.
     pub last_label:Option<Rc<String>>,
@@ -2365,7 +2365,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 let td1 = check_val(ext, ctx, v2, a);
                 let td = ExpRule::Ref(td0, td1);
                 match td0ty {
-                    Ok(Type::Nm(ref v1_idx)) => {
+                    Ok(Type::Nm(ref _v1_idx)) => {
                         // TODO/XXX --- check effects: that write set _w contains rf_idx
                         // TODO/XXX -- check that v1_idx in the current write scope matches rf_idx
                         succ(td, ceffect.clone())
