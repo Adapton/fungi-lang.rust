@@ -58,14 +58,14 @@ features of Fungi are intentionally made **explicit**.
    - For technical background and formal definitions, see the [latest draft of the technical report](https://arxiv.org/abs/1610.00097).
    - To view these Fungi typing derivations interactively, especially to diagnose type or effect errors, see a related project, the [Human-Fungi Interface](https://github.com/Adapton/fungi-vis)  
 
-## Fungi Resources:
+## Fungi Developer Resources:
 
  - Rust Implementation of Fungi:
     - [Documentation](https://docs.rs/fungi-lang)  
     - [Crate website](https://crates.io/crates/fungi-lang)  
  - [Visualization tools for Fungi programs](https://github.com/Adapton/fungi-vis)  
 
-## Related Resources:
+## Related Projects:
 
  - [Adapton](http://adapton.org) provides the semantic foundation for Fungi's approach to incremental computation.  
  - [IODyn](https://github.com/cuplv/iodyn-lang.rust) is an implicitly-incremental language, targetting Fungi via a type-directed translation  
