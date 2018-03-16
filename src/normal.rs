@@ -1062,8 +1062,9 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
                     normal_type(ctx, &body)
                 },
                 a => {
-                    panic!("sort error: expected TypeFn, not {:?}", a);
-                    //typ.clone()
+                    println!("sort error: expected TypeFn, not {:?}", a);
+                    // Give up:
+                    typ.clone()
                 }
             }
         }
@@ -1079,8 +1080,9 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
                     normal_type(ctx, &body)
                 },
                 a => {
-                    panic!("sort error: expected TypeFn, not {:?}", a);
-                    //typ.clone()
+                    println!("sort error: expected TypeFn, not {:?}", a);
+                    // Give up:
+                    typ.clone()
                 }
             }
         }
@@ -1088,8 +1090,7 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
 }
 
 
-/// Need to expand `Ident`s inside computation types and effects
-/// before substituting away the write scope variables `@!` and `@@`.
+/// Normalize a computation type.
 pub fn normal_ctype(ctx:&Ctx, ct:CType) -> CType {
     match ct {
         CType::Lift(a) => {
@@ -1103,8 +1104,7 @@ pub fn normal_ctype(ctx:&Ctx, ct:CType) -> CType {
     }
 }
 
-/// Need to expand `Ident`s inside computation effects
-/// before substituting away the write scope variables `@!` and `@@`.
+/// Normalize an effect.
 pub fn normal_effect(ctx:&Ctx, eff:Effect) -> Effect {
     match eff {
         Effect::WR(i, j) => {
@@ -1115,8 +1115,7 @@ pub fn normal_effect(ctx:&Ctx, eff:Effect) -> Effect {
     }        
 }
 
-/// Need to expand `Ident`s inside computation types and effects
-/// before substituting away the write scope variables `@!` and `@@`.
+/// Normalize a computation effect.
 pub fn normal_ceffect(ctx:&Ctx, ce:CEffect) -> CEffect {
     match ce {
         CEffect::Cons(ct, eff) => {
@@ -1136,6 +1135,7 @@ pub fn normal_ceffect(ctx:&Ctx, ce:CEffect) -> CEffect {
     }
 }
 
+/// Normalize a computation effect.
 pub fn normal_ceffect_rec(ctx:&Ctx, ce:Rc<CEffect>) -> Rc<CEffect> {
     Rc::new(normal_ceffect(ctx, (*ce).clone()))
 }

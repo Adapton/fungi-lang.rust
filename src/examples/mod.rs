@@ -15,6 +15,8 @@ of Fungi's _refinement data types_ and _computation effects_:
 --- _write scopes_ distinctly qualify written names for different dynamic calling contexts.
 - [`basic_subtyping`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/basic_subtyping.rs.html)
 --- _subtyping_ permits structures with _fewer_ names to be used in contexts that expect _more_ names.
+- [`basic_existentials`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/basic_existentials.rs.html)
+--- _existential types_ permit packing names and named structures into types that approximate those names.
 
 ### FP Basics in Fungi
 
@@ -76,3 +78,4 @@ pub mod basic_read_effects;
 pub mod basic_write_effects;
 pub mod basic_write_scope;
 pub mod basic_subtyping;
+pub mod basic_existentials;
