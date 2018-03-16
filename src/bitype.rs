@@ -10,7 +10,7 @@ use subst;
 use expand;
 
 /// "Extra" typing information carried by the typing judgements
-#[deriven(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub struct Ext {
     /// The last programmer-chosen label encountered in the AST; for visualizations, error messages, etc.
     pub last_label:Option<Rc<String>>,
