@@ -24,7 +24,7 @@ organizes into two **computation roles**:
 Note: _For now, the current Fungi prototype focuses only on the
 *archivist* role, leaving the editor role to the surrounding Rust
 code; future work will integrate the editor role into Fungi programs,
-so facilitate additional effects-related checks._
+to facilitate additional effects-related checks._
 
 ## Fungi programs name their (incremental) data and subcomputations
 
