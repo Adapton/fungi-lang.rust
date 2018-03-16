@@ -21,6 +21,10 @@ organizes into two **computation roles**:
    output in the process (e.g., placing or removing focus on different
    outputs of the archivists' functions).
 
+Note: _For now, the current Fungi prototype focuses only on the
+*archivist* role, leaving the editor role to the surrounding Rust
+code; future work will integrate the editor role into Fungi programs,
+so facilitate additional effects-related checks._
 
 ## Fungi programs name their (incremental) data and subcomputations
 
@@ -39,7 +43,9 @@ Adapton-related projects, Fungi provides additional language
 affordances for describing names, both statically and dynamically, but
 especially statically, before the incremental program runs.
 
-Fungi serves as a typed target language for
+### Future work: Implicitly-incremental programs _translate_ to Fungi programs:
+
+In the future, Fungi will serve as a typed target language for
 [IODyn](https://github.com/cuplv/iodyn-lang.rust).  Unlike IODyn,
 which offers an **implicit** incremental language, the incremental
 features of Fungi are intentionally made **explicit**.
