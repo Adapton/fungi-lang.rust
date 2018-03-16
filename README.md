@@ -30,15 +30,6 @@ from memory later.  However, due to the Fungi **type and effect
 system** for names, **the behavior of Fungi archivists is
 functional**: the key invariant of its type-and-effects system.
 
-In particular, Fungi provides language affordances for  
-- [_first-class names_](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Val.html#variant.Name),  
-- [_first class name-functions_](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Val.html#variant.NameFn),  
-- nominal, incremental collections, 
-  whose types are indexed by [_sets of names_](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.IdxTm.html) 
-  (e.g., to uniquely name positions in a list, or elements in a set, etc.), and  
-- [nominal, incremental functions over these collections](https://docs.rs/fungi-lang/0/fungi_lang/examples/index.html), 
-  whose types are indexed by **read and write effects**, as name sets.  
-
 ## Fungi is a core calculus, and target language
 
 Fungi gives a **typed**, **general-purpose core caluclus** for
@@ -55,19 +46,19 @@ features of Fungi are intentionally made **explicit**.
 
 ## Status:
 
- - We have implemented a prototype of the [bidirectional type system](https://docs.rs/fungi-lang/0/fungi_lang/bitype/index.html),
-   including the refinement types and associated [decision procedures for effects](https://docs.rs/fungi-lang/0/fungi_lang/decide/effect/index.html).
- - See also: [Example programs in Fungi](https://docs.rs/fungi-lang/0/fungi_lang/examples/index.html).
- - For technical background and formal definitions, see the [latest draft of the technical report](https://arxiv.org/abs/1610.00097).
+ - [Example programs in Fungi](https://docs.rs/fungi-lang/0/fungi_lang/examples/index.html).
+   - We have implemented a prototype of the [bidirectional type system](https://docs.rs/fungi-lang/0/fungi_lang/bitype/index.html),
+     including the refinement types and associated [decision procedures for effects](https://docs.rs/fungi-lang/0/fungi_lang/decide/effect/index.html).
+   - For technical background and formal definitions, see the [latest draft of the technical report](https://arxiv.org/abs/1610.00097).
 
-## Resources:
+## Fungi Resources:
 
- - [Rust Implementation: Documentation](https://docs.rs/fungi-lang)  
- - [Rust Implementation: Crate](https://crates.io/crates/fungi-lang)  
+ - Rust Implementation of Fungi:
+    - [Documentation](https://docs.rs/fungi-lang)  
+    - [Crate website](https://crates.io/crates/fungi-lang)  
  - [Visualization tools for Fungi programs](https://github.com/Adapton/fungi-vis)  
 
+## Related Resources:
 
-## Other links:
-
- - [Adapton](http://adapton.org)  
- - [IODyn](https://github.com/cuplv/iodyn-lang.rust)  
+ - [Adapton](http://adapton.org) provides the semantic foundation for Fungi's approach to incremental computation.  
+ - [IODyn](https://github.com/cuplv/iodyn-lang.rust) is an implicitly-incremental language, targetting Fungi via a type-directed translation  
