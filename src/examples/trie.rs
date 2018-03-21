@@ -52,17 +52,18 @@ pub fn listing () { fgi_listing_expect![[Expect::Failure]
             0 Set[X1][Y1] ->
             0 Set[X2][Y2] ->
         {
-            {WS_Join} (X1%X2)
-                ;
-            Y1 % ( Y2 % (
-                ({WS_Bin} X0) %
-                    ( {WS_Join} (X1%X2) ) ))
+            ({WS_Bin} X0))
+            % ({WS_Join} (X1%X2))
+        ;
+            Y1 % Y2
+            % ({WS_Bin} X0)
+            % ({WS_Join} (X1%X2))
         }
         F Set
             [(Join)(X1 % X2)]
             [{WS_Join}(X1 % X2)]
     ) = {
-        ret thunk fix join. #set1. #set2. match set1 {
+        ret thunk fix join. #nm. #set1. #set2. match set1 {
             on1 => { match set2 {
                 on2  => { unimplemented }
                 bin2 => { unimplemented }

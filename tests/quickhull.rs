@@ -44,16 +44,35 @@ fn quickhull2() {
     let bundle : Bundle = fgi_bundle![
     //let qh_ast = fgi_exp![
         decls {
-            type Hull = ( user(Hull) )
+            type Hull = ( foralli (X,Y):NmSet.user(Hull) )
             type Pt = ( user(Pt) )
-            type Pts = ( user(Pts) )
-            type Line = ( (x Pt x Pt) )
-        }
-        let max_pt : (Thk[0] 0 Line -> 0 Pts -> 0 F Pt) = { unimplemented }
-        let filter_line : (Thk[0] 0 Line -> 0 Pts -> 0 F Pts) = { unimplemented }
-        let push : (Thk[0] 0 Pt -> 0 Hull -> 0 F Hull) = { unimplemented }
+            type Pts = ( foralli (X,Y):NmSet.user(Pts) )
+            type Line = ( foralli (X,Y):NmSet.(x Pt x Pt) )
 
-        let qh1 : (Thk[0] 0 Line -> 0 Pts -> 0 Hull -> { {@!}({@1}%{@3});0} F Hull) = {
+            /// Structural recursion over a binary tree (output names and pointers):
+            idxtm    Bin   = (#x:Nm.         {x,@1} % {x,@2}  )
+            idxtm WS_Bin   = (#x:NmSet.{@!}( (Bin) x         ))
+            /// Structural recursion over a trinary tree (output names and pointers):
+            idxtm    Tri   = (#x:Nm. {x,@1} % {x,@2} % {x,@3} )
+            idxtm WS_Tri   = (#x:NmSet.{@!}( (Tri) x         ))
+        }
+        let max_pt : (Thk[0] foralli (X0,X1,Y1):NmSet.
+            0 Line[X0] -> 0 Pts[X1][Y1] ->
+            {{WS_Bin}X1;({WS_Bin}X1)%Y1} F Pt
+        ) = { unimplemented }
+        let filter_line : (Thk[0] foralli (X0,X,Y):NmSet.
+            0 Line[X0] -> 0 Pts[X][Y] ->
+            {{WS_Bin}X;({WS_Bin}X)%Y} F Pts[X][Y%{WS_Bin}X]
+        ) = { unimplemented }
+        let push : (Thk[0] foralli (X1,X2,X3,Y):NmSet.
+            0 Nm[X0] -> 0 Line[X1] -> 0 Pt -> 0 Hull[X2][Y] ->
+            {{@!}X0;0} F Hull[X1%X2][({!@}X0)%Y]
+        ) = { unimplemented }
+
+        let qh2 : (Thk[0] foralli (X,Y,Z):NmSet.
+            0 Line[X0] -> 0 Pts[X1][Y1] -> 0 Hull[X2][Y2] ->
+            { 0 ; 0 } F Hull[X0%X2][Y2]
+        ) = {
             ret thunk fix qh1. #ln. #pts. #h.
             let (ll,lr) = { ret ln }
             let p = { {force max_pt} ln pts}
