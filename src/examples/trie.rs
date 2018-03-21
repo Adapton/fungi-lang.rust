@@ -52,7 +52,7 @@ pub fn listing () { fgi_listing_expect![[Expect::Failure]
             0 Set[X1][Y1] ->
             0 Set[X2][Y2] ->
         {
-            ({WS_Bin} X0))
+            ({WS_Bin} X0)
             % ({WS_Join} (X1%X2))
         ;
             Y1 % Y2

@@ -5,7 +5,7 @@ extern crate fungi_lang;
 // XXX stack overflow issue ??
 //#[test]
 
-fn quickhull () {
+pub fn quickhull () {
   use std::thread;
   let child =
     thread::Builder::new().stack_size(64 * 1024 * 1024).spawn(move || { 
@@ -13,7 +13,7 @@ fn quickhull () {
     });
   let _ = child.unwrap().join();
 }
-fn quickhull2() {
+pub fn quickhull2() {
     use std::rc::Rc;
     use fungi_lang::ast::*;
     use fungi_lang::bitype::*;
