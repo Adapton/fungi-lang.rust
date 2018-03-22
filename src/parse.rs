@@ -942,6 +942,7 @@ macro_rules! parse_fgi_pack_multi {
 ///     let x : A = {e1} e2             (annotated let-binding)
 ///     let rec x : A = {e1} e2         (annotated let-rec binding)
 ///     thk v e                         (create thunk)
+///     ref { e1 } v2                   (create ref with name from expression)
 ///     ref v1 v2                       (create ref)
 ///     force v                         (force thunk)
 ///     refthunk v                      (coerce a value-producing thunk to a ref)
