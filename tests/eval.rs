@@ -6,10 +6,11 @@ extern crate adapton;
 use std::rc::Rc;
 use fungi_lang::ast::*;
 use fungi_lang::eval;
+use fungi_lang::dynamics;
 use fungi_lang::vis;
 
 
-fn eval_closed_exp(e:Exp) -> eval::ExpTerm {
+fn eval_closed_exp(e:Exp) -> dynamics::ExpTerm {
     eval::eval(vec![], e)
 }
 

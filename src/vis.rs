@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use ast::{Name, Exp, Val, PrimApp};
 use bitype;
-use eval;
+use dynamics;
 use adapton::reflect;
 use adapton::engine::manage;
 
@@ -180,8 +180,8 @@ macro_rules! fgi_listing_test {
 }
 
 
-pub fn capture_traces<F>(f: F) -> (eval::ExpTerm, Vec<reflect::trace::Trace>)
-where F: FnOnce() -> eval::ExpTerm {
+pub fn capture_traces<F>(f: F) -> (dynamics::ExpTerm, Vec<reflect::trace::Trace>)
+where F: FnOnce() -> dynamics::ExpTerm {
     manage::init_dcg();
     
     reflect::dcg_reflect_begin();

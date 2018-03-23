@@ -39,8 +39,8 @@ use std::fmt::{Debug,Formatter};
 //use std::fmt::{Debug,Result};
 use std::hash::{Hash,Hasher};
 
-use eval;
 use normal;
+use dynamics;
 
 pub type Var = String;
 // type of identifiers
@@ -393,7 +393,7 @@ pub type ValRec = Rc<Val>;
 pub struct HostEvalFn {
     pub path:String,
     pub arity:usize,
-    pub eval:Rc<Fn(Vec<eval::ast_dynamic::RtVal>) -> eval::ast_dynamic::ExpTerm>
+    pub eval:Rc<Fn(Vec<dynamics::RtVal>) -> dynamics::ExpTerm>
 }
 impl Hash for HostEvalFn {
     fn hash<H:Hasher>(&self, _hasher: &mut H) {

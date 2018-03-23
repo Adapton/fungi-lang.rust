@@ -2357,7 +2357,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
         },
         &Exp::Ref(ref v1,ref v2) => {
             if let &CEffect::Cons(
-                CType::Lift(Type::Ref(ref rf_idx,ref a)),
+                CType::Lift(Type::Ref(ref _rf_idx,ref a)),
                 Effect::WR(ref _w, ref _r)
             ) = ceffect {
                 let td0 = synth_val(ext, ctx, v1);
