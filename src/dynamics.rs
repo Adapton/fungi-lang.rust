@@ -1,15 +1,19 @@
 /*! Syntax for dynamic, evaluation-time structures.
 
-Syntax that is not statically written in the program by the
-programmer, but arises dynamically, from running programs.  
+Notably, some of these syntantic forms are absent from programs
+written by the programmer; rather, they only arise _dynamically_, from
+_running_ these programs, and in some cases, by using Adapton engine.
 
-We separate these structures into a module in order to import it
-elsewhere, without importing other aspects of the evaluation
-semantics.  For practical reasons, these AST structures still must be
-mentioned in the static structure.  Namely, the `Exp::HostEval` form
-holds a function over these types, providing a "trapdoor" for
-libraries to extend the core evaluation rules below with custom ones
-(e.g., for standard library primitives, such as vectors).
+However, since they are common to multiple operational semantics
+(`eval` and `reduce`), we separate these dynamic structures from any
+one particular evaluation semantics.
+
+For practical reasons, these AST structures still must be mentioned in
+the static structure.  Namely, the `Exp::HostEval` form holds a
+function over these types, providing a "trapdoor" for libraries to
+extend the core evaluation rules below with custom ones (e.g., for
+standard library primitives, such as vectors).
+See also: The [ExpTerm](https://docs.rs/fungi-lang/0/fungi_lang/dynamics/enum.ExpTerm.html) type.
 
 */
 use ast::*;
@@ -59,11 +63,11 @@ pub enum RtVal {
     /// Thunks from Adapton engine; they each _evaluate to_ a terminal expression
     Thunk(engine::Art<ExpTerm>),
 }
-
+/// Run-time values
 pub type RtValRec = Rc<RtVal>;
 
 /// Terminal expressions (a la CBPV), but in environment-passing
-/// style, where lambdas are associatd with closing environments.
+/// style, where (closed) lambda terms have closing environments.
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum ExpTerm {
     /// Lambda expression, with a closing environment
