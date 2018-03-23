@@ -1,4 +1,8 @@
 /*! **Fungi language:** *reference implementation in Rust.*
+ 
+See also:
+[Example Fungi programs](https://docs.rs/fungi-lang/0.1.43/fungi_lang/examples/index.html)
+in this Rust implementation.
 
 # Syntax
 
@@ -7,6 +11,8 @@ its [concrete syntax](XXX) with Rust macros:
 
  - `ast`   --- Abstract syntax (Rust datatypes)
  - `parse` --- Concrete syntax (Rust macros)
+
+(See [examples](https://docs.rs/fungi-lang/0.1.43/fungi_lang/examples/index.html))
 
 # Statics
 
