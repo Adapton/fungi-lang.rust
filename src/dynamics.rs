@@ -87,3 +87,191 @@ pub enum NameTmVal {
     /// (Closed) name function
     Lam(Var,NameTm),
 }
+
+/// project/pattern-match the name of namespace, defined as the
+/// sub-term `M` in the following nameterm (lambda) form:
+///
+/// ```text
+///  #x:Nm. M * x
+/// ```
+///
+/// where `M * x` is the binary name formed from uknown name `x` and
+/// `M`, the name of the "namespace".
+///
+pub fn proj_namespace_name(n:NameTmVal) -> Option<NameTm> {
+    match n {
+        NameTmVal::Name(_) => None,
+        NameTmVal::Lam(x,m) => {
+            match m {
+                NameTm::Bin(m1, m2) => {
+                    match (*m2).clone() {
+                        NameTm::Var(y) => {
+                            if x == y { Some((*m1).clone()) }
+                            else { None }
+                        }
+                        _ => None,
+                    }
+                },
+                _ => None,
+            }
+        },
+    }
+}
+
+/// Convert a name term value back into (the same) name term
+pub fn nametm_of_nametmval(v:NameTmVal) -> NameTm {
+    use ast::Sort;
+    match v {
+        NameTmVal::Name(n)  => NameTm::Name(n),
+        // eval doesn't use sorts, unit is fine
+        NameTmVal::Lam(x,m) => NameTm::Lam(x,Sort::Unit,Rc::new(m))
+    }
+}
+
+/// Substitute a name term value for a free variable in another term
+pub fn nametm_subst_rec(nmtm:Rc<NameTm>, x:&Var, v:&NameTm) -> Rc<NameTm> {
+    Rc::new(nametm_subst((*nmtm).clone(), x, v))
+}
+/// Substitute a name term value for a free variable in another term
+pub fn nametm_subst(nmtm:NameTm, x:&Var, v:&NameTm) -> NameTm {
+    match nmtm {
+        NameTm::Name(n) => NameTm::Name(n),
+        NameTm::WriteScope => NameTm::WriteScope,
+        NameTm::Bin(nt1, nt2) => {
+            NameTm::Bin(nametm_subst_rec(nt1, x, v),
+                        nametm_subst_rec(nt2, x, v))
+        }
+        NameTm::App(nt1, nt2) => {
+            NameTm::App(nametm_subst_rec(nt1, x, v),
+                        nametm_subst_rec(nt2, x, v))
+        }
+        NameTm::ValVar(x) => {
+            panic!("Unexpected value variable: {}", x)
+        }
+        NameTm::Var(y) => {
+            if *x == y { v.clone() }
+            else { NameTm::Var(y) }
+        }
+        NameTm::Lam(y,s,nt) => {
+            if *x == y { NameTm::Lam(y,s,nt) }
+            else { NameTm::Lam(y, s, nametm_subst_rec(nt, x, v)) }
+        }
+        NameTm::NoParse(_) => unreachable!(),
+        NameTm::Ident(_) => unreachable!(),
+    }
+}
+
+/// Evaluate a name term, dynamically (see also: `normal` module)
+pub fn nametm_eval_rec(nmtm:Rc<NameTm>) -> NameTmVal {
+    nametm_eval((*nmtm).clone())
+}
+
+/// Evaluate a name term, dynamically (see also: `normal` module)
+pub fn nametm_eval(nmtm:NameTm) -> NameTmVal {
+    match nmtm {
+        NameTm::Var(x) => { panic!("dynamic type error (open term, with free var {})", x) }
+        NameTm::ValVar(x) => { panic!("dynamic type error (open term, with free (value) var {})", x) }
+        NameTm::Name(n) => NameTmVal::Name(n),
+        NameTm::Lam(x, _, nt) => NameTmVal::Lam(x, (*nt).clone()),
+        NameTm::WriteScope => unimplemented!("write scope"),
+        NameTm::Bin(nt1, nt2) => {
+            let nt1 = nametm_eval_rec(nt1);
+            let nt2 = nametm_eval_rec(nt2);
+            match (nt1, nt2) {
+                (NameTmVal::Name(n1),
+                 NameTmVal::Name(n2)) => {
+                    NameTmVal::Name(Name::Bin(Rc::new(n1), Rc::new(n2)))
+                },
+                _ => { panic!("dynamic type error (bin name term)") }
+            }
+        }
+        NameTm::App(nt1, nt2) => {
+            let nt1 = nametm_eval_rec(nt1);
+            let nt2 = nametm_eval_rec(nt2);
+            match nt1 {
+                NameTmVal::Lam(x, nt3) => {
+                    let ntv = nametm_of_nametmval(nt2);
+                    let nt4 = nametm_subst(nt3, &x, &ntv);
+                    nametm_eval(nt4)
+                },
+                _ => { panic!("dynamic type error (bin name term)") }
+            }
+        }
+        NameTm::NoParse(_) => unreachable!(),
+        NameTm::Ident(_) => unreachable!(),
+    }
+}
+
+/// Name conversion. Convert an `ast` name into a run-time (adapton
+/// library) name.
+pub fn engine_name_of_ast_name(n:Name) -> engine::Name {
+    match n {
+        Name::Leaf   => engine::name_unit(),
+        Name::Sym(s) => engine::name_of_string(s),
+        Name::Num(n) => engine::name_of_usize(n),
+        Name::Bin(n1, n2) => {
+            let en1 = engine_name_of_ast_name((*n1).clone());
+            let en2 = engine_name_of_ast_name((*n2).clone());
+            engine::name_pair(en1,en2)
+        }
+        Name::NoParse(_) => unimplemented!()
+    }
+}
+
+/// Given a closing environment and an `ast` value (with zero or
+/// more variables) producing a closed, run-time value.
+///
+/// panics if the environment fails to close the given value's
+/// variables.
+pub fn close_val(env:&Env, v:&Val) -> RtVal {
+    use ast::Val::*;
+    match *v {
+        // variable case:
+        Var(ref x) => {
+            let mut v = None;
+            // most-recently pushed binding is "in scope" (others are shadowed)
+            for &(ref y, ref vy) in env.iter().rev() {
+                if x == y {
+                    v = Some(vy.clone());
+                    break;
+                } else {}
+            };
+            match v {
+                None => panic!("close_val: free variable: {}", x),
+                Some(v) => v
+            }
+        }
+        // other cases: base cases, and structural recursion:
+        Name(ref n)    => RtVal::Name(n.clone()),
+
+        // XXX/TODO --- Descend into name terms and continue substitution...?
+        // OR -- Do we have an invariant that these terms are closed?
+        NameFn(ref nf) => RtVal::NameFn(nf.clone()), 
+        
+        Unit         => RtVal::Unit,
+        Bool(ref b)  => RtVal::Bool(b.clone()),
+        Nat(ref n)   => RtVal::Nat(n.clone()),
+        Str(ref s)   => RtVal::Str(s.clone()),
+
+        // anonymous thunk case: clone and save the environment (and exp):
+        ThunkAnon(ref e) => RtVal::ThunkAnon(env.clone(), (**e).clone()),
+
+        // inductive cases
+        Inj1(ref v1) => RtVal::Inj1(close_val_rec(env, v1)),
+        Inj2(ref v1) => RtVal::Inj2(close_val_rec(env, v1)),
+        Roll(ref v1) => RtVal::Roll(close_val_rec(env, v1)),
+        Pack(ref _a, ref _v) => unimplemented!("eval pack"),
+        Pair(ref v1, ref v2) =>
+            RtVal::Pair(close_val_rec(env, v1),
+                        close_val_rec(env, v2)),
+        // Forget annotation
+        Anno(ref v,_) => close_val(env, v),
+        NoParse(_) => unreachable!(),
+
+    }
+}
+
+/// See `close_val`
+pub fn close_val_rec(env:&Env, v:&Rc<Val>) -> Rc<RtVal> {
+    Rc::new(close_val(env, &**v))
+}

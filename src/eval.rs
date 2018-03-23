@@ -1,231 +1,52 @@
-//! Evaluation semantics.
-//!
-//! # Fungi evaluation semantics
-//!
-//! This module gives the incremental semantics of Fungi programs,
-//! using an external library ([Adapton in Rust](http://adapton.org))
-//! to create and maintain the "demanded computation graph" (the DCG),
-//! that underpins change propagation.
-//!
-//! ## Design discussion
-//!
-//! The Rust types and functions below demonstrate how closely the
-//! IODyn Target AST corresponds to the primitive notions of Adapton,
-//! namely `ref`s and `thunk`s, and their observation/demand
-//! operations, `get` and `force`, respectively.
-//!
-//! In particular, the semantics of `ref` and `thunk` are _entirely_
-//! encapsulated by the Adapton run-time library, leaving the
-//! dynamics semantics for other expression forms to `eval` to define.
-//! In this sense, the language built around the `ref` and `thunk`
-//! primitives is open-ended.
-//!
-//! Given this language choice, as usual, we choose STLC in CBPV, with
-//! product and sum types.  Other language/semantics design choices in
-//! this module are guided by our choice of "CBPV +
-//! environment-passing-style", as discussed further in this module's
-//! comments.
-//!
-//! ## Val vs RtVal
-//!
-//! We distinguish between programmer-written values (Val) and closed,
-//! run-time values (RtVal).  Environments map variables to (closed)
-//! run-time values.
-//!
-//! ## Exp vs TermExp
-//!
-//! We distinguish between (open) expressions and (fully evaluated)
-//! terminal expressions, which are closed.
+/*! Evaluation semantics.
+
+This module gives the incremental semantics of Fungi programs as a
+"big-step" evaluation function, 
+[`eval`](https://docs.rs/fungi-lang/0/src/fungi_lang/eval.rs.html).
+
+To do so, it uses an external library ([Adapton in
+Rust](http://adapton.org)) to create and maintain the "demanded
+computation graph" (the DCG), that underpins change propagation.
+
+*/
+
+// ## Implementation discussion
+//
+// The Rust types and functions below demonstrate how closely the
+// IODyn Target AST corresponds to the primitive notions of Adapton,
+// namely `ref`s and `thunk`s, and their observation/demand
+// operations, `get` and `force`, respectively.
+//
+// In particular, the semantics of `ref` and `thunk` are _entirely_
+// encapsulated by the Adapton run-time library, leaving the
+// dynamics semantics for other expression forms to `eval` to define.
+// In this sense, the language built around the `ref` and `thunk`
+// primitives is open-ended.
+//
+// Given this language choice, as usual, we choose STLC in CBPV, with
+// product and sum types.  Other language/semantics design choices in
+// this module are guided by our choice of "CBPV +
+// environment-passing-style", as discussed further in this module's
+// comments.
+//
+// ## Val vs RtVal
+//
+// We distinguish between programmer-written values (Val) and closed,
+// run-time values (RtVal).  Environments map variables to (closed)
+// run-time values.
+//
+// ## Exp vs TermExp
+//
+// We distinguish between (open) expressions and (fully evaluated)
+// terminal expressions, which are closed.
 
 use adapton::macros::*;
 use adapton::engine::{thunk,NameChoice};
 use adapton::engine;
 
-use ast::{Exp,PrimApp,Var,Val,Name,NameTm};
+use ast::{Exp,PrimApp,Name,NameTm};
 use std::rc::Rc;
 use dynamics::*;
-    
-/// project/pattern-match the name of namespace, defined as the
-/// sub-term `M` in the following nameterm (lambda) form:
-///
-/// ```text
-///  #x:Nm. M * x
-/// ```
-///
-/// where `M * x` is the binary name formed from uknown name `x` and
-/// `M`, the name of the "namespace".
-///
-pub fn proj_namespace_name(n:NameTmVal) -> Option<NameTm> {
-    match n {
-        NameTmVal::Name(_) => None,
-        NameTmVal::Lam(x,m) => {
-            match m {
-                NameTm::Bin(m1, m2) => {
-                    match (*m2).clone() {
-                        NameTm::Var(y) => {
-                            if x == y { Some((*m1).clone()) }
-                            else { None }
-                        }
-                        _ => None,
-                    }
-                },
-                _ => None,
-            }
-        },
-    }
-}
-
-pub fn nametm_of_nametmval(v:NameTmVal) -> NameTm {
-    use ast::Sort;
-    match v {
-        NameTmVal::Name(n)  => NameTm::Name(n),
-        // eval doesn't use sorts, unit is fine
-        NameTmVal::Lam(x,m) => NameTm::Lam(x,Sort::Unit,Rc::new(m))
-    }
-}
-
-pub fn nametm_subst_rec(nmtm:Rc<NameTm>, x:&Var, v:&NameTm) -> Rc<NameTm> {
-    Rc::new(nametm_subst((*nmtm).clone(), x, v))
-}
-pub fn nametm_subst(nmtm:NameTm, x:&Var, v:&NameTm) -> NameTm {
-    match nmtm {
-        NameTm::Name(n) => NameTm::Name(n),
-        NameTm::WriteScope => NameTm::WriteScope,
-        NameTm::Bin(nt1, nt2) => {
-            NameTm::Bin(nametm_subst_rec(nt1, x, v),
-                        nametm_subst_rec(nt2, x, v))
-        }
-        NameTm::App(nt1, nt2) => {
-            NameTm::App(nametm_subst_rec(nt1, x, v),
-                        nametm_subst_rec(nt2, x, v))
-        }
-        NameTm::ValVar(x) => {
-            panic!("Unexpected value variable: {}", x)
-        }
-        NameTm::Var(y) => {
-            if *x == y { v.clone() }
-            else { NameTm::Var(y) }
-        }
-        NameTm::Lam(y,s,nt) => {
-            if *x == y { NameTm::Lam(y,s,nt) }
-            else { NameTm::Lam(y, s, nametm_subst_rec(nt, x, v)) }
-        }
-        NameTm::NoParse(_) => unreachable!(),
-        NameTm::Ident(_) => unreachable!(),
-    }
-}
-
-pub fn nametm_eval_rec(nmtm:Rc<NameTm>) -> NameTmVal {
-    nametm_eval((*nmtm).clone())
-}
-pub fn nametm_eval(nmtm:NameTm) -> NameTmVal {
-    match nmtm {
-        NameTm::Var(x) => { panic!("dynamic type error (open term, with free var {})", x) }
-        NameTm::ValVar(x) => { panic!("dynamic type error (open term, with free (value) var {})", x) }
-        NameTm::Name(n) => NameTmVal::Name(n),
-        NameTm::Lam(x, _, nt) => NameTmVal::Lam(x, (*nt).clone()),
-        NameTm::WriteScope => unimplemented!("write scope"),
-        NameTm::Bin(nt1, nt2) => {
-            let nt1 = nametm_eval_rec(nt1);
-            let nt2 = nametm_eval_rec(nt2);
-            match (nt1, nt2) {
-                (NameTmVal::Name(n1),
-                 NameTmVal::Name(n2)) => {
-                    NameTmVal::Name(Name::Bin(Rc::new(n1), Rc::new(n2)))
-                },
-                _ => { panic!("dynamic type error (bin name term)") }
-            }
-        }
-        NameTm::App(nt1, nt2) => {
-            let nt1 = nametm_eval_rec(nt1);
-            let nt2 = nametm_eval_rec(nt2);
-            match nt1 {
-                NameTmVal::Lam(x, nt3) => {
-                    let ntv = nametm_of_nametmval(nt2);
-                    let nt4 = nametm_subst(nt3, &x, &ntv);
-                    nametm_eval(nt4)
-                },
-                _ => { panic!("dynamic type error (bin name term)") }
-            }
-        }
-        NameTm::NoParse(_) => unreachable!(),
-        NameTm::Ident(_) => unreachable!(),
-    }
-}
-
-/// Name conversion. Convert Tgt-AST name into a run-time (adapton
-/// library) name.
-pub fn engine_name_of_ast_name(n:Name) -> engine::Name {
-    match n {
-        Name::Leaf   => engine::name_unit(),
-        Name::Sym(s) => engine::name_of_string(s),
-        Name::Num(n) => engine::name_of_usize(n),
-        Name::Bin(n1, n2) => {
-            let en1 = engine_name_of_ast_name((*n1).clone());
-            let en2 = engine_name_of_ast_name((*n2).clone());
-            engine::name_pair(en1,en2)
-        }
-        Name::NoParse(_) => unimplemented!()
-    }
-}
-
-/// Given a closing environment and an Tgt-AST value (with zero or
-/// more variables) producing a closed, run-time value.
-///
-/// panics if the environment fails to close the given value's
-/// variables.
-pub fn close_val(env:&Env, v:&Val) -> RtVal {
-    use ast::Val::*;
-    match *v {
-        // variable case:
-        Var(ref x) => {
-            let mut v = None;
-            // most-recently pushed binding is "in scope" (others are shadowed)
-            for &(ref y, ref vy) in env.iter().rev() {
-                if x == y {
-                    v = Some(vy.clone());
-                    break;
-                } else {}
-            };
-            match v {
-                None => panic!("close_val: free variable: {}", x),
-                Some(v) => v
-            }
-        }
-        // other cases: base cases, and structural recursion:
-        Name(ref n)    => RtVal::Name(n.clone()),
-
-        // XXX/TODO --- Descend into name terms and continue substitution...?
-        // OR -- Do we have an invariant that these terms are closed?
-        NameFn(ref nf) => RtVal::NameFn(nf.clone()), 
-        
-        Unit         => RtVal::Unit,
-        Bool(ref b)  => RtVal::Bool(b.clone()),
-        Nat(ref n)   => RtVal::Nat(n.clone()),
-        Str(ref s)   => RtVal::Str(s.clone()),
-
-        // anonymous thunk case: clone and save the environment (and exp):
-        ThunkAnon(ref e) => RtVal::ThunkAnon(env.clone(), (**e).clone()),
-
-        // inductive cases
-        Inj1(ref v1) => RtVal::Inj1(close_val_rec(env, v1)),
-        Inj2(ref v1) => RtVal::Inj2(close_val_rec(env, v1)),
-        Roll(ref v1) => RtVal::Roll(close_val_rec(env, v1)),
-        Pack(ref _a, ref _v) => unimplemented!("eval pack"),
-        Pair(ref v1, ref v2) =>
-            RtVal::Pair(close_val_rec(env, v1),
-                        close_val_rec(env, v2)),
-        // Forget annotation
-        Anno(ref v,_) => close_val(env, v),
-        NoParse(_) => unreachable!(),
-
-    }
-}
-
-/// See `close_val`
-pub fn close_val_rec(env:&Env, v:&Rc<Val>) -> Rc<RtVal> {
-    Rc::new(close_val(env, &**v))
-}
 
 /// Dynamic type errors ("stuck cases" for evaluation)
 ///
@@ -280,17 +101,19 @@ fn eval_type_error<A>(err:EvalTyErr, env:Env, e:Exp) -> A {
 /// Under the given closing environment, evaluate the given Tgt-AST
 /// expression, producing a terminal expression (a la CBPV), typically
 /// with run-time values.
-///
-/// Adapton primitives: The primitives `thunk`, `ref`, `force` and
-/// `get` each use the Adapton run-time library in a simple way that
-/// directly corresponds with the given expression form.
-///
-/// CPBV consequences: Due to CBPV style, most cases are simple (0 or
-/// 1 recursive calls).  The only two cases that have multiple
-/// recursive calls are `let` and `app`, which necessarily each have
-/// two recursive calls to `eval`. In CBV style, many more cases would
-/// require multiple recursive calls to eval.
-///
+//
+// # Implementation Discussion
+//
+// Adapton primitives: The primitives `thunk`, `ref`, `force` and
+// `get` each use the Adapton run-time library in a simple way that
+// directly corresponds with the given expression form.
+//
+// CPBV consequences: Due to CBPV style, most cases are simple (0 or 1
+// recursive calls).  The only two cases that have multiple recursive
+// calls are `let` and `app`, which necessarily each have two
+// recursive calls to `eval`. In CBV style, many more cases would
+// require multiple recursive calls to eval.
+//
 pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
     match e.clone() {
         // basecase 1a: lambdas are terminal computations
