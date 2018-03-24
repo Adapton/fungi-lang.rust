@@ -60,6 +60,8 @@ pub enum Error {
     LamNonAppCont,
     RetNonLetCont,
     RefNonName,
+    SplitNonPair,
+    CaseNonInj,
 }
 
 // fn type_error<A>(err:Error, env:Env, e:Exp) -> A {
@@ -72,7 +74,6 @@ fn set_exp(c:&mut Config, e:Rc<Exp>) {
 fn set_env(c:&mut Config, x:Var, v:RtVal) {
     c.env.push((x,v))
 }
-
 fn produce_value(c:&mut Config, v:RtVal) -> Result<(),Error> {
     match c.stk.pop().unwrap().cont {
         Cont::Let(x, e) => {
@@ -82,6 +83,14 @@ fn produce_value(c:&mut Config, v:RtVal) -> Result<(),Error> {
         }
         _ => Result::Err(Error::RetNonLetCont),
     }
+}
+fn continue_rec(c:&mut Config, e:Rc<Exp>) -> Result<(),Error> {
+    set_exp(c, e);
+    Result::Ok(())
+}
+fn continue_with(c:&mut Config, e:Exp) -> Result<(),Error> {
+    c.exp = e;
+    Result::Ok(())
 }
 
 /// Step: perform a single small-step reduction.
@@ -94,8 +103,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
         Exp::Fix(f, e1) => {
             let t = RtVal::ThunkAnon(c.env.clone(), c.exp.clone());
             set_env(c, f, t);
-            set_exp(c, e1);
-            Result::Ok(())
+            continue_rec(c, e1)
         }
         Exp::App(e, v) => {
             let v = close_val(&c.env, &v);
@@ -103,15 +111,13 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
                 env:c.env.clone(),
                 cont:Cont::App(v),
             });
-            set_exp(c, e);
-            Result::Ok(())
+            continue_rec(c, e)
         }
         Exp::Lam(x, e) => {
             match c.stk.pop().unwrap().cont {
                 Cont::App(v) => {
                     set_env(c, x, v);
-                    set_exp(c, e);
-                    Result::Ok(())
+                    continue_rec(c, e)
                 }
                 _ => Result::Err(Error::LamNonAppCont),
             }
@@ -121,8 +127,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
                 env:c.env.clone(),
                 cont:Cont::Let(x, (*e2).clone())
             });
-            set_exp(c, e1);
-            Result::Ok(())
+            continue_rec(c, e1)
         }        
         Exp::Ret(v) => {
             let v = close_val(&c.env, &v);
@@ -139,8 +144,38 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
                 _ => Result::Err(Error::RefNonName)
             }
         }
-        
-        
+        Exp::Split(v, x, y, e1) => {
+            match close_val(&env, &v) {
+                RtVal::Pair(v1, v2) => {
+                    env_set(c, x, v1);
+                    env_set(c, y, v2);
+                    continue_rec(c, e1)
+                },
+                _ => Result::Err(Error::SplitNonPair)
+            }
+        }
+        Exp::IfThenElse(v, e1, e2) => {
+            match close_val(&env, &v) {
+                RtVal::Bool(b) => {
+                    if b { continue_rec(c, e1) }
+                    else { continue_rec(c, e2) }
+                }
+                _ => Result::Err(Error::IfNonBool)
+            }
+        }
+        Exp::Case(v, x, ex, y, ey) => {
+            match close_val(&env, &v) {
+                RtVal::Inj1(v) => {
+                    env_set(c, x, v);
+                    continue_rec(c, ex);
+                },
+                RtVal::Inj2(v) => {
+                    env_set(c, y, v);
+                    continue_rec(c, ey);
+                },
+                _ => Result::Err(Error::CaseNonInj)
+            }
+        }        
         _ => unimplemented!()
     }
 }
