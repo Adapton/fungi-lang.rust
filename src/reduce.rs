@@ -13,12 +13,11 @@ See also:
 
 */
 
-//use adapton::macros::*;
-//use adapton::engine::{thunk,NameChoice};
-//use adapton::engine;
+use adapton::macros::*;
+use adapton::engine::{thunk,NameChoice};
+use adapton::engine;
 
-//use ast::{Var,Exp,PrimApp,Name,NameTm};
-use ast::{Var,Exp};
+use ast::{Var,Exp,PrimApp,Name,NameTm};
 use std::rc::Rc;
 use dynamics::*;
 
@@ -58,7 +57,9 @@ pub struct Config {
 /// and secondly for future error messages).
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub enum Error {
-    LamNonApp,
+    LamNonAppCont,
+    RetNonLetCont,
+    RefNonName,
 }
 
 // fn type_error<A>(err:Error, env:Env, e:Exp) -> A {
@@ -72,6 +73,17 @@ fn set_env(c:&mut Config, x:Var, v:RtVal) {
     c.env.push((x,v))
 }
 
+fn produce_value(c:&mut Config, v:RtVal) -> Result<(),Error> {
+    match c.stk.pop().unwrap().cont {
+        Cont::Let(x, e) => {
+            set_env(c, x, v);
+            c.exp = e;
+            Result::Ok(())
+        }
+        _ => Result::Err(Error::RetNonLetCont),
+    }
+}
+
 /// Step: perform a single small-step reduction.
 ///
 /// In the given reduction configuation, reduce the current expression
@@ -79,6 +91,12 @@ fn set_env(c:&mut Config, x:Var, v:RtVal) {
 ///
 pub fn step(c:&mut Config) -> Result<(),Error> {
     match c.exp.clone() {
+        Exp::Fix(f, e1) => {
+            let t = RtVal::ThunkAnon(c.env.clone(), c.exp.clone());
+            set_env(c, f, t);
+            set_exp(c, e1);
+            Result::Ok(())
+        }
         Exp::App(e, v) => {
             let v = close_val(&c.env, &v);
             c.stk.push(Frame{
@@ -95,16 +113,32 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
                     set_exp(c, e);
                     Result::Ok(())
                 }
-                _ => Result::Err(Error::LamNonApp),
+                _ => Result::Err(Error::LamNonAppCont),
             }
         }
-        Exp::Fix(f, e1) => {
-            let t = RtVal::ThunkAnon(c.env.clone(), c.exp.clone());
-            set_env(c, f, t);
+        Exp::Let(x, e1, e2) => {
+            c.stk.push(Frame{
+                env:c.env.clone(),
+                cont:Cont::Let(x, (*e2).clone())
+            });
             set_exp(c, e1);
             Result::Ok(())
+        }        
+        Exp::Ret(v) => {
+            let v = close_val(&c.env, &v);
+            produce_value(c, v)
         }
-        
+        Exp::Ref(v1, v2) => {
+            match close_val(&c.env, &v1) {
+                RtVal::Name(n) => { // create engine ref named n, holding v2
+                    let n = engine_name_of_ast_name(n);
+                    let v2 = close_val(&c.env, &v2);
+                    let r = engine::cell(n, v2);
+                    produce_value(c, RtVal::Ref(r))
+                },
+                _ => Result::Err(Error::RefNonName)
+            }
+        }
         
         
         _ => unimplemented!()
@@ -112,9 +146,6 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
 }
 
 /*    
-        // basecase 1a: lambdas are terminal computations
-        Exp::Lam(x, e)   => { ExpTerm::Lam(env, x, e) }
-        // basecase 1b: host functions are terminal computations
         Exp::HostFn(hef) => { ExpTerm::HostFn(hef, vec![]) }
         // basecase 2: returns are terminal computations
         Exp::Ret(v)      => { ExpTerm::Ret(close_val(&env, &v)) }
