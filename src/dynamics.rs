@@ -18,7 +18,11 @@ See also: The [ExpTerm](https://docs.rs/fungi-lang/0/fungi_lang/dynamics/enum.Ex
 */
 use ast::*;
 use adapton::engine;
+// use serialize::ArtDef;
+
 use std::rc::Rc;
+
+use serde::Serialize;
 
 /// TODO-Sometime: Prune the environments (using free variables as filters)
 pub type Env = Vec<(String,RtVal)>;
@@ -34,7 +38,7 @@ pub type Env = Vec<(String,RtVal)>;
 /// - unlike values written by user in their program, run-time values
 /// may contain run-time structures, such as _actual_ thunks and
 /// references, a la `Art`s from Adapton library.
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum RtVal {
     /// Unit value
     Unit,
@@ -59,8 +63,10 @@ pub enum RtVal {
     /// AST Names; we convert to Adapton engine names when we use the engine API
     Name(Name),
     /// Refs from Adapton engine; they each contain a run-time value
-    Ref(engine::Art<RtVal>),    
+    #[serde(skip_serializing)] // #[serde(with="ArtDef")]
+    Ref(engine::Art<RtVal>),
     /// Thunks from Adapton engine; they each _evaluate to_ a terminal expression
+    #[serde(skip_serializing)] // #[serde(with="ArtDef")]
     Thunk(engine::Art<ExpTerm>),
 }
 /// Run-time values
@@ -68,7 +74,7 @@ pub type RtValRec = Rc<RtVal>;
 
 /// Terminal expressions (a la CBPV), but in environment-passing
 /// style, where (closed) lambda terms have closing environments.
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum ExpTerm {
     /// Lambda expression, with a closing environment
     Lam(Env, Var, Rc<Exp>),
@@ -80,7 +86,7 @@ pub enum ExpTerm {
 
 /// Name Term Values.  The value forms (name and lambda) for the Name
 /// Term sub-language (STLC + names).
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum NameTmVal {
     /// (Closed) name term
     Name(Name),

@@ -4,6 +4,10 @@
 
 #[macro_use] extern crate adapton;
 
+extern crate serde;
+extern crate serde_json;
+#[macro_use] extern crate serde_derive;
+
 // // Source language (IODyn)
 // // ------------------------
 // #[macro_use] pub mod ast;
@@ -26,6 +30,7 @@ pub mod decide;
 pub mod eval;
 #[macro_use]
 pub mod vis;
+pub mod serialize;
 
 // Note to readers: The standard library is a stale "sketch" of Fungi
 // code; see `examples` modules for up-to-date examples.

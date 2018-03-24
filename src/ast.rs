@@ -50,7 +50,7 @@ pub type Ident = String;
 ///
 /// In Fungi, names are binary trees, whose leaves are (optionally)
 /// enriched with atomic data symbols (e.g., numbers and strings).
-#[derive(Clone,Debug,Eq,PartialEq,Hash,PartialOrd,Ord)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize,PartialOrd,Ord)]
 pub enum Name {
     /// Form a binary tree from two existing trees
     Bin(NameRec, NameRec),
@@ -65,7 +65,7 @@ pub enum Name {
 pub type NameRec = Rc<Name>;
 
 /// Name Terms
-#[derive(Clone,Debug,Eq,PartialEq,Hash,PartialOrd,Ord)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize,PartialOrd,Ord)]
 pub enum NameTm {
     /// Name-term level variable `x`, of some sort `g`:
     ///
@@ -127,7 +127,7 @@ pub enum NameTm {
 pub type NameTmRec = Rc<NameTm>;
 
 /// Index terms
-#[derive(Clone,Debug,Eq,PartialEq,Hash,PartialOrd,Ord)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize,PartialOrd,Ord)]
 pub enum IdxTm {
     /// ```text
     ///  Γ(x) = g
@@ -254,7 +254,7 @@ pub enum IdxTm {
 pub type IdxTmRec = Rc<IdxTm>;
 
 /// Sorts (classify name and index terms)
-#[derive(Clone,Debug,Eq,PartialEq,Hash,PartialOrd,Ord)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize,PartialOrd,Ord)]
 pub enum Sort {
     Nm,
     NmSet,
@@ -267,7 +267,7 @@ pub enum Sort {
 pub type SortRec = Rc<Sort>;
 
 /// Kinds (classify types)
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum Kind {
     Type,
     TypeParam(KindRec),
@@ -277,7 +277,7 @@ pub enum Kind {
 pub type KindRec = Rc<Kind>;
 
 /// Propositions about name and index terms
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum Prop {
     Tt,
     Equiv(IdxTm, IdxTm, Sort),
@@ -288,7 +288,7 @@ pub enum Prop {
 pub type PropRec = Rc<Prop>;
 
 /// Effects
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum Effect {
     WR(IdxTm, IdxTm),
     //Then(EffectRec, EffectRec),
@@ -297,7 +297,7 @@ pub enum Effect {
 pub type EffectRec = Rc<Effect>;
 
 /// Value types
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum Type {
     Var(Var),
     Ident(Ident),
@@ -328,7 +328,7 @@ pub fn type_nat()     -> Type { Type::Ident(ident_nat()) }
 pub fn type_bool()    -> Type { Type::Ident(ident_bool()) }
 
 /// Computation types
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum CType {
     Lift(Type),
     Arrow(Type,CEffectRec),
@@ -336,7 +336,7 @@ pub enum CType {
 }
 
 /// Computation effects
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum CEffect {
     Cons(CType,Effect),
     ForallType(Var,Kind,CEffectRec),
@@ -346,7 +346,7 @@ pub enum CEffect {
 pub type CEffectRec = Rc<CEffect>;
 
 /// Value terms
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum Val {
     Var(Var),
     Unit,
@@ -389,10 +389,11 @@ pub type ValRec = Rc<Val>;
 ///
 /// For use as a trapdoor for many different primitives in Fungi's
 /// standard library (e.g., vectors, strings, etc.).
-#[derive(Clone)]
+#[derive(Clone,Serialize)]
 pub struct HostEvalFn {
     pub path:String,
     pub arity:usize,
+    #[serde(skip_serializing)]
     pub eval:Rc<Fn(Vec<dynamics::RtVal>) -> dynamics::ExpTerm>
 }
 impl Hash for HostEvalFn {
@@ -413,7 +414,7 @@ impl PartialEq for HostEvalFn {
 impl Eq for HostEvalFn { }
 
 /// Expressions (aka, computation terms)
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum PrimApp {
     // Binary combination of two names; produces a name.
     NameBin(Val,Val),
@@ -448,7 +449,7 @@ pub enum PrimApp {
 }
 
 /// Expressions (aka, computation terms)
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum Exp {
     UseAll(UseAllModule, ExpRec),
     Decls(DeclsRec, ExpRec),
@@ -490,7 +491,7 @@ pub enum Exp {
 pub type ExpRec = Rc<Exp>;
 
 /// Each module consists of a declaration list body
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub struct Module {
     pub path:  String,
     pub body:  String,
@@ -511,7 +512,7 @@ pub struct Module {
 /// declaration lists are "pure" terms, when included within larger
 /// expressions via the `UseAll` form, or other future import forms.
 ///
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum Decls {
     /// Use all of the definitions of another module
     UseAll(UseAllModule,    DeclsRec),
@@ -533,7 +534,7 @@ pub enum Decls {
 pub type DeclsRec = Rc<Decls>;
 
 /// Declaration that uses (imports) all decls from another module
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub struct UseAllModule {
     pub path: String,
     pub module: Rc<Module>

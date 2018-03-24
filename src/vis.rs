@@ -11,6 +11,8 @@ use adapton::engine::manage;
 use std::fs::File;
 use std::io::Write;
 
+use serde_json;
+
 pub fn label_exp(e: Exp, ct: &mut usize) -> Exp {
     rewrite_exp(&e, ct)
 }
@@ -75,11 +77,12 @@ fn rewrite_prim_app(prim: &PrimApp, ct: &mut usize) -> PrimApp {
     }
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,Serialize)]
 pub struct Bundle {
     pub input: String,
     pub program: bitype::ExpDer,
-    pub traces: Vec<reflect::trace::Trace>,
+    // #[serde(with="TraceVecDef")]
+    // pub traces: Vec<reflect::trace::Trace>,
 }
 
 /// Expectations for examples and tests
@@ -111,7 +114,7 @@ macro_rules! fgi_bundle {
             input: stringify!($($e)+).to_owned(),
             program: program,
             // traces: traces,
-            traces: vec![],
+            // traces: vec![],
         }
     }}
 }
@@ -191,8 +194,9 @@ where F: FnOnce() -> dynamics::ExpTerm {
 }
 
 pub fn write_bundle(filename: &str, bundle: &Bundle) {
-    let data = format!("{:?}", bundle);
+    // let data = format!("{:?}", bundle);
+    let data = serde_json::to_string(bundle).expect("Could not convert bundle to JSON");
     let mut f = File::create(filename).expect("Could not create bundle file");
     f.write_all(data.as_bytes()).expect("Could not write bundle data");
-    f.flush().expect("Could not flush");
+    f.flush().expect("Could not flush bundle output");
 }

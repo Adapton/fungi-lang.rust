@@ -16,7 +16,7 @@ use subst;
 /// `i`.  The purpose of this form is to expose the union/apart
 /// connectives as forming a list/vector of subsets, over which we can
 /// distribute set-level functions.
-#[derive(Clone,Debug,Eq,PartialEq,Hash,PartialOrd,Ord)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize,PartialOrd,Ord)]
 pub enum NmSetTm {
     /// singleton name term `M`
     Single(NameTm),
@@ -26,13 +26,13 @@ pub enum NmSetTm {
 pub type NmSetTms = Vec<NmSetTm>;
 
 /// Name set constructor; the subsets of a `NmSet` are (uniformly) combined as "apart" or "union"
-#[derive(Clone,Debug,Eq,PartialEq,Hash,PartialOrd,Ord)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize,PartialOrd,Ord)]
 pub enum NmSetCons {
     Union,
     Apart,
 }
 /// Canonical form (normal form) for a name set
-#[derive(Clone,Debug,Eq,PartialEq,Hash,PartialOrd,Ord)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize,PartialOrd,Ord)]
 pub struct NmSet {
     /// None means that the term list is a singleton or empty; for sets with two or more sub-terms, this constructor gives the (uniform) way the terms are connected.
     pub cons: Option<NmSetCons>,

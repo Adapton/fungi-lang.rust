@@ -4,13 +4,15 @@ use ast::*;
 use std::fmt;
 use std::rc::Rc;
 
+use serde::Serialize;
+
 use normal;
 use decide;
 use subst;
 use expand;
 
 /// "Extra" typing information carried by the typing judgements
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub struct Ext {
     /// The last programmer-chosen label encountered in the AST; for visualizations, error messages, etc.
     pub last_label:Option<Rc<String>>,
@@ -36,7 +38,7 @@ impl Ext {
 
 
 /// Typing context
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum Ctx {
     Empty,
     /// Define a type term to be carried in the type context
@@ -60,7 +62,7 @@ pub type CtxRec = Rc<Ctx>;
 /// and carried (by identifier name) in the typing context, and used
 /// (by identifier name) to construct terms used in typing
 /// derivations.
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum Term {
     NmTm(NameTm),
     IdxTm(IdxTm),
@@ -206,13 +208,13 @@ impl Ctx {
 }
 
 pub trait HasClas {
-    type Term : fmt::Debug;
-    type Clas;    
+    type Term : fmt::Debug+Serialize;
+    type Clas : Serialize;    
     fn tm_fam() -> String;
 }
 
 /// Typing derivation: A context (`ctx`), a direction (`dir`), a classifier (type, sort, etc) and a rule (`rule`).
-#[derive(Clone,Debug,Eq,Hash)]
+#[derive(Clone,Debug,Eq,Hash,Serialize)]
 pub struct Der<Rule:HasClas+debug::DerRule> {
     // TODO: Add this "extra info" to the derivations; may break HFI in the short term.
     //pub ext:Ext,
@@ -243,7 +245,7 @@ impl<Rule:HasClas+debug::DerRule> Der<Rule> {
     pub fn is_ok(&self) -> bool { self.clas.is_ok() }
 }
 /// Information for visualizing derivation trees in HFI
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub struct DerVis {
     /// Term family name, for HFI
     pub tmfam:String,
@@ -255,7 +257,7 @@ pub struct DerVis {
 
 
 /// Name term sorting rule
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum NmTmRule {
     /// Name-term level variable `x`, of some sort `g`:
     ///
@@ -315,7 +317,7 @@ impl HasClas for NmTmRule {
 }
 
 /// Index term sorting rule
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum IdxTmRule {
     Var(Var),
     Sing(NmTmDer),
@@ -346,7 +348,7 @@ impl HasClas for IdxTmRule {
 }
 
 /// Value typing rule
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum ValRule {
     Var(Var),
     Unit,
@@ -376,7 +378,7 @@ impl HasClas for ValRule {
 ///
 /// Two named objects in a module can reuse the same name if they have
 /// different qualifiers (e.g., name term vs index term vs type vs value).
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum Qual {
     NmTm,
     IdxTm,
@@ -385,7 +387,7 @@ pub enum Qual {
 }
 
 /// Module item derivation; wraps a `DeclDer` with additional structure
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub struct ItemDer {
     pub doc:Option<String>,
     pub qual:Qual,
@@ -393,13 +395,13 @@ pub struct ItemDer {
     pub der:DeclDer,
 }
 /// Module item typing rule; each `Decl` is typed by an `ItemRule`
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum ItemRule {
     UseAll(UseAllModuleDer),
     Bind(ItemDer),
     NoParse(String),
 }
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 /// Module typing derivation
 pub struct ModuleDer {
     /// untyped AST of the module
@@ -409,7 +411,7 @@ pub struct ModuleDer {
     /// the context exported by this module to modules that use it
     pub ctx_out: Ctx,
 }
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 /// Module import typing derivation
 pub struct UseAllModuleDer {
     /// untyped AST of the imported module
@@ -418,7 +420,7 @@ pub struct UseAllModuleDer {
     pub der: ModuleDer,
 }
 /// Module declaration typing rule
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum DeclRule {
     UseAll(UseAllModuleDer),
     NmTm (String, NmTmDer),
@@ -429,7 +431,7 @@ pub enum DeclRule {
     Fn   (String, ValDer),
 }
 /// Classifier for declared object in a module
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum DeclClas {
     /// Classifier `g` for name terms `N` and index terms `i`
     Sort(Sort),
@@ -449,7 +451,7 @@ impl HasClas for DeclRule {
 }
 
 /// Expression typing rule
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum ExpRule {
     UseAll(UseAllModuleDer,ExpDer),
     Decls(Vec<ItemRule>,ExpDer),
@@ -487,7 +489,7 @@ impl HasClas for ExpRule {
 }
 
 /// Primitive application typing rule
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum PrimAppRule {
     NatEq(ValDer,ValDer),
     NatLt(ValDer,ValDer),
@@ -503,7 +505,7 @@ pub enum PrimAppRule {
 /// classifier for the check, e.g., the system of rules for values and
 /// expressions check against a `Type` or a `CEffect`, respectively.
 ///
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum Dir<R:HasClas+debug::DerRule> {
     Synth,
     Check(R::Clas),
@@ -518,7 +520,7 @@ impl<R:HasClas+debug::DerRule> Dir<R> {
 }
 
 /// Typing error
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum TypeError {
     VarNotInScope(String),
     IdentNotInScope(String),

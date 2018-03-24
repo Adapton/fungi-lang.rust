@@ -10,7 +10,7 @@ use std::rc::Rc;
 pub type Var2 = (Var, Var);
 
 /// Relational typing context: Relates pairs of variables, terms, etc
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum RelCtx {
     /// Basecase 1: empty context
     Empty,
@@ -172,7 +172,7 @@ pub fn ctxs_of_relctx_rec(c: Rc<RelCtx>) -> (Rc<Ctx>, Rc<Ctx>) {
 }
 
 /// Decision-related error
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum DecError {
     /// Type/sort/kind error during the decision procedure
     TypeError(TypeError),
@@ -191,7 +191,7 @@ pub enum DecError {
 }
 
 /// Derivation for a decision procedure, expressed as deductive inference rules
-#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub struct Dec<Rule:HasClas> {
     pub ctx:RelCtx,
     pub rule:Rc<Rule>,
@@ -210,13 +210,13 @@ pub mod effect {
     use std::rc::Rc;
     
     /// Computation role, either _Archivist_ or _Editor_.
-    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+    #[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
     pub enum Role {
         Archivist,
         Editor,
     }
     /// Effect-related decision errors
-    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+    #[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
     pub enum Error {
         /// Cannot subtract the second index term from the first
         CannotSubtractFromIdxTm(IdxTm, IdxTm),        
@@ -477,7 +477,7 @@ pub mod equiv {
     use super::*;
 
     /// Name term equivalence rules
-    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+    #[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
     pub enum NmTmRule {
         Refl(NmTmDer),        
         Var(Var2),
@@ -496,7 +496,7 @@ pub mod equiv {
     }
     
     /// Index term equivalence rules
-    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+    #[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
     pub enum IdxTmRule {
         Var(Var2),
         Refl(IdxTmDer),
@@ -524,7 +524,7 @@ pub mod equiv {
     }
 
     /// Value type equivalence rules
-    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+    #[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
     pub enum TypeRule {
         Refl(Type),
         SubsetNorm(Type,Type),
@@ -538,7 +538,7 @@ pub mod equiv {
     }    
 
     /// Computation type equivalence rules
-    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+    #[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
     pub enum CEffectRule {
         /// Every term is equal to itself
         Refl(CEffect),
@@ -896,7 +896,7 @@ pub mod subset {
     use normal::NmSetTm;
 
     /// Index term equivalence rules
-    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+    #[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
     pub enum IdxTmRule {
         Var(Var2),
         Refl(IdxTmDer),
@@ -1567,7 +1567,7 @@ pub mod apart {
     ///
     /// Fig. 24 of https://arxiv.org/abs/1610.00097v5
     ///
-    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+    #[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
     pub enum NmTmRule {
         Var(Var2),
         Sym(NmTmDec),
@@ -1592,7 +1592,7 @@ pub mod apart {
     ///
     /// Fig. 29 of https://arxiv.org/abs/1610.00097v5
     ///
-    #[derive(Clone,Debug,Eq,PartialEq,Hash)]
+    #[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
     pub enum IdxTmRule {
         Var(Var2),
         Sym(IdxTmDec),
