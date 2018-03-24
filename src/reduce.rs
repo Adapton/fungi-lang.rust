@@ -19,7 +19,7 @@ See also:
 
 //use ast::{Var,Exp,PrimApp,Name,NameTm};
 use ast::{Var,Exp};
-//use std::rc::Rc;
+use std::rc::Rc;
 use dynamics::*;
 
 /// Stack frame
@@ -65,24 +65,48 @@ pub enum Error {
 //     panic!("type_error: {:?}:\n\tenv:{:?}\n\te:{:?}\n", err, env, e)
 // }
 
+fn set_exp(c:&mut Config, e:Rc<Exp>) {
+    c.exp = (*e).clone()
+}
+fn set_env(c:&mut Config, x:Var, v:RtVal) {
+    c.env.push((x,v))
+}
 
 /// Step: perform a single small-step reduction.
 ///
 /// In the given reduction configuation, reduce the current expression
 /// by one step.
 ///
-pub fn step(mut c:Config) -> Result<(),Error> {
+pub fn step(c:&mut Config) -> Result<(),Error> {
     match c.exp.clone() {
+        Exp::App(e, v) => {
+            let v = close_val(&c.env, &v);
+            c.stk.push(Frame{
+                env:c.env.clone(),
+                cont:Cont::App(v),
+            });
+            set_exp(c, e);
+            Result::Ok(())
+        }
         Exp::Lam(x, e) => {
             match c.stk.pop().unwrap().cont {
                 Cont::App(v) => {
-                    c.env.push((x,v));
-                    c.exp = (*e).clone();
+                    set_env(c, x, v);
+                    set_exp(c, e);
                     Result::Ok(())
                 }
                 _ => Result::Err(Error::LamNonApp),
             }
         }
+        Exp::Fix(f, e1) => {
+            let t = RtVal::ThunkAnon(c.env.clone(), c.exp.clone());
+            set_env(c, f, t);
+            set_exp(c, e1);
+            Result::Ok(())
+        }
+        
+        
+        
         _ => unimplemented!()
     }
 }

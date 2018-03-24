@@ -6,11 +6,17 @@ in this Rust implementation.
 
 # Syntax
 
-Fungi's [abstract syntax](XXX) consists of Rust data types; we implement
-its [concrete syntax](XXX) with Rust macros:
+Fungi's 
+[abstract syntax](https://docs.rs/fungi-lang/0/fungi_lang/ast/index.html) 
+consists of Rust data types; we implement
+its 
+[concrete syntax](https://docs.rs/fungi-lang/0/fungi_lang/parse/index.html) 
+with Rust macros:
 
- - `ast`   --- Abstract syntax (Rust datatypes)
- - `parse` --- Concrete syntax (Rust macros)
+ - [`ast`](https://docs.rs/fungi-lang/0/fungi_lang/ast/index.html)
+--- Abstract syntax (Rust datatypes)
+ - [`parse`](https://docs.rs/fungi-lang/0/fungi_lang/parse/index.html)
+--- Concrete syntax (Rust macros)
 
 (See [examples](https://docs.rs/fungi-lang/0.1.43/fungi_lang/examples/index.html))
 
@@ -21,13 +27,22 @@ Fungi's statics relate Fungi programs with their types and effects.
 To accomplish this, Fungi gives a "type-level" semantics for relating
 types, and their index- and name terms.
 Specifically, this theory includes various supportive notions:  
- - `expand` --- expand type-level definitions,
- - `subst`  --- perform type-level variable substitution, 
- - `normal` --- perform type-level term normalization,
- - `decide` --- decide relationships about types, and about type indices.
+ - [`expand`](https://docs.rs/fungi-lang/0/fungi_lang/expand/index.html)
+--- expand type-level definitions,
+ - [`subst`](https://docs.rs/fungi-lang/0/fungi_lang/subst/index.html)
+--- perform type-level variable substitution, 
+ - [`normal`](https://docs.rs/fungi-lang/0/fungi_lang/normal/index.html)
+--- perform type-level term normalization,
+ - [`decide`](https://docs.rs/fungi-lang/0/fungi_lang/decide/index.html)
+--- decide relationships about types, and about type indices.
+   - [`equiv`](https://docs.rs/fungi-lang/0/fungi_lang/decide/equiv/index.html) -- decides term _equivalence_ relationships
+   - [`apart`](https://docs.rs/fungi-lang/0/fungi_lang/decide/apart/index.html) -- decides term _apartness_ relationships
+   - [`subset`](https://docs.rs/fungi-lang/0/fungi_lang/decide/subset/index.html) -- decide name _subsets_, and _subtyping_ relationships
+   - [`effect`](https://docs.rs/fungi-lang/0/fungi_lang/decide/effect/index.html) -- decide _effect sequencing_ and _subtracting_ relationships
   
 These notions are each in support of  
- - `bitype` --- bi-directional type checking for program terms (expressions and values).
+ - [`bitype`](https://docs.rs/fungi-lang/0/fungi_lang/bitype/index.html)
+--- bi-directional type checking for program terms (expressions and values).
 
 In particular, the `bitype` module synthesizes and checks the types of
 Fungi program terms, and thus provides the most common "entry points"
@@ -48,7 +63,7 @@ TODO
 // === Syntax ===
 //
 pub mod ast;
-#[doc(hidden)]
+//#[doc(hidden)]
 #[macro_use]
 pub mod parse;
 
