@@ -62,6 +62,7 @@ pub enum Error {
     RefNonName,
     SplitNonPair,
     CaseNonInj,
+    IfNonBool,
 }
 
 // fn type_error<A>(err:Error, env:Env, e:Exp) -> A {
@@ -73,6 +74,9 @@ fn set_exp(c:&mut Config, e:Rc<Exp>) {
 }
 fn set_env(c:&mut Config, x:Var, v:RtVal) {
     c.env.push((x,v))
+}
+fn set_env_rec(c:&mut Config, x:Var, v:Rc<RtVal>) {
+    c.env.push((x,(*v).clone()))
 }
 fn produce_value(c:&mut Config, v:RtVal) -> Result<(),Error> {
     match c.stk.pop().unwrap().cont {
@@ -145,17 +149,17 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
             }
         }
         Exp::Split(v, x, y, e1) => {
-            match close_val(&env, &v) {
+            match close_val(&c.env, &v) {
                 RtVal::Pair(v1, v2) => {
-                    env_set(c, x, v1);
-                    env_set(c, y, v2);
+                    set_env_rec(c, x, v1);
+                    set_env_rec(c, y, v2);
                     continue_rec(c, e1)
                 },
                 _ => Result::Err(Error::SplitNonPair)
             }
         }
         Exp::IfThenElse(v, e1, e2) => {
-            match close_val(&env, &v) {
+            match close_val(&c.env, &v) {
                 RtVal::Bool(b) => {
                     if b { continue_rec(c, e1) }
                     else { continue_rec(c, e2) }
@@ -164,14 +168,14 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
             }
         }
         Exp::Case(v, x, ex, y, ey) => {
-            match close_val(&env, &v) {
+            match close_val(&c.env, &v) {
                 RtVal::Inj1(v) => {
-                    env_set(c, x, v);
-                    continue_rec(c, ex);
+                    set_env_rec(c, x, v);
+                    continue_rec(c, ex)
                 },
                 RtVal::Inj2(v) => {
-                    env_set(c, y, v);
-                    continue_rec(c, ey);
+                    set_env_rec(c, y, v);
+                    continue_rec(c, ey)
                 },
                 _ => Result::Err(Error::CaseNonInj)
             }
@@ -183,7 +187,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
 /*    
         Exp::HostFn(hef) => { ExpTerm::HostFn(hef, vec![]) }
         // basecase 2: returns are terminal computations
-        Exp::Ret(v)      => { ExpTerm::Ret(close_val(&env, &v)) }
+        Exp::Ret(v)      => { ExpTerm::Ret(close_val(&c.env, &v)) }
 
         // ignore types at run time:
         Exp::DefType(_x, _a, e)  => { return reduce(env, (*e).clone()) }
@@ -201,7 +205,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
             return reduce(env, (*e1).clone())
         }
         Exp::Unroll(v, x, e1) => {
-            match close_val(&env, &v) {
+            match close_val(&c.env, &v) {
                 RtVal::Roll(v) => {
                     env.push((x,(*v).clone()));
                     return reduce(env, (*e1).clone())
@@ -211,7 +215,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
         }
         Exp::Unpack(_i,_x,_v,_e) => { unimplemented!("reduce unpack") }
         Exp::Thunk(v, e1) => {
-            match close_val(&env, &v) {
+            match close_val(&c.env, &v) {
                 RtVal::Name(n) => { // create engine thunk named n
                     // suspending reduceuation of expression e1:
                     let n = Some(engine_name_of_ast_name(n));
@@ -222,10 +226,10 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
             }
         }
         Exp::Ref(v1, v2) => {
-            match close_val(&env, &v1) {
+            match close_val(&c.env, &v1) {
                 RtVal::Name(n) => { // create engine ref named n, holding v2
                     let n = engine_name_of_ast_name(n);
-                    let v2 = close_val(&env, &v2);
+                    let v2 = close_val(&c.env, &v2);
                     let r = engine::cell(n, v2);
                     ExpTerm::Ret(RtVal::Ref(r))
                 },
@@ -242,7 +246,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
             }
         }
         Exp::App(e1, v) => {
-            let v = close_val(&env, &v);
+            let v = close_val(&c.env, &v);
             match reduce(env.clone(), (*e1).clone()) {
                 ExpTerm::Lam(mut env, x, e2) => {
                     env.push((x, v));
@@ -265,7 +269,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
         }
         Exp::IdxApp(_e1, _i) => { unimplemented!("Index application") }
         Exp::Split(v, x, y, e1) => {
-            match close_val(&env, &v) {
+            match close_val(&c.env, &v) {
                 RtVal::Pair(v1, v2) => {
                     env.push((x, (*v1).clone()));
                     env.push((y, (*v2).clone()));
@@ -275,7 +279,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
             }
         }
         Exp::IfThenElse(v, e1, e2) => {
-            match close_val(&env, &v) {
+            match close_val(&c.env, &v) {
                 RtVal::Bool(b) => {
                     if b { return reduce(env, (*e1).clone()) }
                     else { return reduce(env, (*e2).clone()) }
@@ -284,7 +288,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
             }
         }
         Exp::Case(v, x, ex, y, ey) => {
-            match close_val(&env, &v) {
+            match close_val(&c.env, &v) {
                 RtVal::Inj1(v) => {
                     env.push((x, (*v).clone()));
                     return reduce(env, (*ex).clone())
@@ -297,13 +301,13 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
             }
         }
         Exp::Get(v) => {
-            match close_val(&env, &v) {
+            match close_val(&c.env, &v) {
                 RtVal::Ref(a) => { ExpTerm::Ret(engine::force(&a)) },
                 v => type_error(Error::GetNonRef(v), env, e)
             }
         }
         Exp::Force(v) => {
-            match close_val(&env, &v) {
+            match close_val(&c.env, &v) {
                 RtVal::Thunk(a)          => { engine::force(&a) },
                 RtVal::ThunkAnon(env, e) => { return reduce(env, e) },
                 v => type_error(Error::ForceNonThunk(v), env, e)                    
@@ -316,7 +320,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
                     _ => unreachable!()
                 }
             };
-            match close_val(&env, &v) {
+            match close_val(&c.env, &v) {
                 RtVal::Thunk(a) => {
                     let r = engine::thunk_map(a, Rc::new(val_of_retval));
                     let v = engine::force(&r);
@@ -339,7 +343,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
             // functions into names, by projecting out their "names"
             // from an eta-expanded prepend operation.  If we fail to
             // find this pattern, we fail (TODO: enforce statically?).
-            match close_val(&env, &v) {
+            match close_val(&c.env, &v) {
                 RtVal::NameFn(n) =>
                     match proj_namespace_name(nametm_eval(n)) {
                         None => type_error(Error::WriteScopeWithoutName1, env, e),
@@ -361,7 +365,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
             // (injected) name function v1 to (injected) name v2; the
             // reduceuation itself happens in the name term sublanguage,
             // via nametm_eval.  The result is an (injected) name.
-            match (close_val(&env, &v1), close_val(&env, &v2)) {
+            match (close_val(&c.env, &v1), close_val(&c.env, &v2)) {
                 ( RtVal::NameFn(nf), RtVal::Name(n) ) => {
                     match nametm_eval(NameTm::App(Rc::new(nf),
                                                   Rc::new(NameTm::Name(n)))) {
@@ -384,7 +388,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
         // Names: Primitive operation for 
         
         Exp::PrimApp(PrimApp::NameBin(v1,v2)) => {
-            match (close_val(&env, &v1), close_val(&env, &v2)) {
+            match (close_val(&c.env, &v1), close_val(&c.env, &v2)) {
                 (RtVal::Name(n1),RtVal::Name(n2)) => {
                     ExpTerm::Ret(RtVal::Name(Name::Bin(Rc::new(n1), Rc::new(n2))))
                 },
@@ -397,7 +401,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
         //
         
         Exp::PrimApp(PrimApp::NatPlus(v1,v2)) => {
-            match (close_val(&env, &v1), close_val(&env, &v2)) {
+            match (close_val(&c.env, &v1), close_val(&c.env, &v2)) {
                 (RtVal::Nat(n1),RtVal::Nat(n2)) => {
                     ExpTerm::Ret(RtVal::Nat(n1 + n2))
                 },
@@ -405,7 +409,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
             }
         }        
         Exp::PrimApp(PrimApp::NatEq(v1,v2)) => {
-            match (close_val(&env, &v1), close_val(&env, &v2)) {
+            match (close_val(&c.env, &v1), close_val(&c.env, &v2)) {
                 (RtVal::Nat(n1),RtVal::Nat(n2)) => {
                     ExpTerm::Ret(RtVal::Bool(n1 == n2))
                 },
@@ -413,7 +417,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
             }
         }
         Exp::PrimApp(PrimApp::NatLt(v1,v2)) => {
-            match (close_val(&env, &v1), close_val(&env, &v2)) {
+            match (close_val(&c.env, &v1), close_val(&c.env, &v2)) {
                 (RtVal::Nat(n1),RtVal::Nat(n2)) => {
                     ExpTerm::Ret(RtVal::Bool(n1 < n2))
                 },
@@ -421,7 +425,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
             }
         }
         Exp::PrimApp(PrimApp::NatLte(v1,v2)) => {
-            match (close_val(&env, &v1), close_val(&env, &v2)) {
+            match (close_val(&c.env, &v1), close_val(&c.env, &v2)) {
                 (RtVal::Nat(n1),RtVal::Nat(n2)) => {
                     ExpTerm::Ret(RtVal::Bool(n1 <= n2))
                 },
