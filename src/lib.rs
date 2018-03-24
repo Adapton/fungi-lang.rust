@@ -1,7 +1,7 @@
 /*! **Fungi language:** *reference implementation in Rust.*
  
 See also:
-[Example Fungi programs](https://docs.rs/fungi-lang/0.1.43/fungi_lang/examples/index.html)
+[example Fungi programs](https://docs.rs/fungi-lang/0.1.43/fungi_lang/examples/index.html)
 in this Rust implementation.
 
 # Syntax
@@ -20,11 +20,11 @@ Fungi's statics relate Fungi programs with their types and effects.
 
 To accomplish this, Fungi gives a "type-level" semantics for relating
 types, and their index- and name terms.
-Specifically, this theory includes various supportive components:  
- - `subst`  --- type-level variable substitution, 
- - `expand` --- expansion of type-level definitions,
- - `normal` --- type-level term normalization,
- - `decide` --- decision procedures for relating types and type indices,  
+Specifically, this theory includes various supportive notions:  
+ - `expand` --- expand type-level definitions,
+ - `subst`  --- perform type-level variable substitution, 
+ - `normal` --- perform type-level term normalization,
+ - `decide` --- decide relationships about types, and about type indices.
   
 These notions are each in support of  
  - `bitype` --- bi-directional type checking for program terms (expressions and values).

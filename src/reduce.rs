@@ -13,13 +13,42 @@ See also:
 
 */
 
-use adapton::macros::*;
-use adapton::engine::{thunk,NameChoice};
-use adapton::engine;
+//use adapton::macros::*;
+//use adapton::engine::{thunk,NameChoice};
+//use adapton::engine;
 
-use ast::{Exp,PrimApp,Name,NameTm};
-use std::rc::Rc;
+//use ast::{Var,Exp,PrimApp,Name,NameTm};
+use ast::{Var,Exp};
+//use std::rc::Rc;
 use dynamics::*;
+
+/// Stack frame
+pub struct Frame {
+    pub env: Env,
+    pub cont: Cont,
+}
+
+/// Local continuations
+pub enum Cont {
+    /// Continues an arrow-typed computation by applying a value to the function
+    App(RtVal),
+    /// Continues a value-producing computation by let-binding the produced value
+    Let(Var,Exp),
+}
+
+/// Configuration for reduction: A stack, environment and expression.
+pub struct Config {
+    /// The Stack continues the expression with local continuations (one per frame)
+    pub stk: Vec<Frame>,
+    /// The environment closes the expression's free variables
+    pub env: Env,
+    /// The expression gives the "active program"
+    ///
+    /// This "active program" is closed by the environment, and
+    /// continued by the local continuations (and closing
+    /// environments) stored on the stack.
+    pub exp: Exp,
+}
 
 /// Dynamic type errors ("stuck cases" for reduction)
 ///
@@ -29,54 +58,36 @@ use dynamics::*;
 /// and secondly for future error messages).
 #[derive(Clone,Debug,Eq,PartialEq)]
 pub enum Error {
-    // let case
-    LetNonRet(ExpTerm),
-    // app case
-    AppNonLam(ExpTerm),
-    // split case
-    SplitNonPair(RtVal),
-    // if case
-    IfNonBool(RtVal),
-    // case case
-    CaseNonInj(RtVal),
-    // unroll case
-    UnrollNonRoll(RtVal),
-    // thunk case
-    ThunkNonName(RtVal),    
-    ForceNonThunk(RtVal),
-    RefThunkNonThunk(RtVal),
-    // ref case
-    RefNonName(RtVal),
-    GetNonRef(RtVal),
-    // write scope case
-    WriteScopeWithoutName0,
-    WriteScopeWithoutName1,
-    WriteScopeWithoutName2,
-    // name fn app
-    NameFnApp0,
-    NameFnApp1,
-    // name bin
-    PrimAppNameBin(RtVal,RtVal),
-    // nat operations
-    PrimAppNatLt(RtVal,RtVal),
-    PrimAppNatEq(RtVal,RtVal),
-    PrimAppNatLte(RtVal,RtVal),
-    PrimAppNatPlus(RtVal,RtVal),
+    LamNonApp,
 }
 
-fn type_error<A>(err:Error, env:Env, e:Exp) -> A {
-    panic!("type_error: {:?}:\n\tenv:{:?}\n\te:{:?}\n", err, env, e)
+// fn type_error<A>(err:Error, env:Env, e:Exp) -> A {
+//     panic!("type_error: {:?}:\n\tenv:{:?}\n\te:{:?}\n", err, env, e)
+// }
+
+
+/// Step: perform a single small-step reduction.
+///
+/// In the given reduction configuation, reduce the current expression
+/// by one step.
+///
+pub fn step(mut c:Config) -> Result<(),Error> {
+    match c.exp.clone() {
+        Exp::Lam(x, e) => {
+            match c.stk.pop().unwrap().cont {
+                Cont::App(v) => {
+                    c.env.push((x,v));
+                    c.exp = (*e).clone();
+                    Result::Ok(())
+                }
+                _ => Result::Err(Error::LamNonApp),
+            }
+        }
+        _ => unimplemented!()
+    }
 }
 
-
-/// Small-step reduction
-///
-/// Under the given closing environment, reduce the given expression,
-/// producing a terminal expression (a la CBPV), typically with
-/// run-time values.
-///
-pub fn reduce(mut env:Env, e:Exp) -> ExpTerm {
-    match e.clone() {
+/*    
         // basecase 1a: lambdas are terminal computations
         Exp::Lam(x, e)   => { ExpTerm::Lam(env, x, e) }
         // basecase 1b: host functions are terminal computations
@@ -331,3 +342,4 @@ pub fn reduce(mut env:Env, e:Exp) -> ExpTerm {
         
     }
 }
+*/
