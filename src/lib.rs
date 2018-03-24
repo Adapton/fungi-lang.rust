@@ -50,7 +50,42 @@ into the implementation of Fungi's statics.
 
 # Dynamics
 
-TODO
+Fungi's dynamics execute Fungi programs, under varying notions of execution.
+
+Fungi's program executions use [Adapton in
+Rust](http://github.com/Adapton/adapton.rust). 
+We define two 
+reference implementations for Fungi's dynamics: 
+[_big-step evaluation_](https://docs.rs/fungi-lang/0/fungi_lang/eval/index.html), 
+and [_small-step reduction_](https://docs.rs/fungi-lang/0/fungi_lang/reduce/index.html). These approaches have many [_common definitions_](https://docs.rs/fungi-lang/0/fungi_lang/dynamics/index.html).
+
+- [`reduce`](https://docs.rs/fungi-lang/0/fungi_lang/reduce/index.html)
+-- program dynamics as _small-step reduction_
+- [`eval`](https://docs.rs/fungi-lang/0/fungi_lang/eval/index.html)
+-- program dynamics as _big-step evaluation_
+- [`dynamics`](https://docs.rs/fungi-lang/0/fungi_lang/dynamics/index.html)
+-- common definitions: name term evaluation, run-time values, and environments.
+
+## Dynamics: practicum
+
+_Summary_: Use program _reduction_ (_not_ evaluation) in all practical
+settings.
+
+For the sake of completeness, we provide two execution definitions.
+However, the implementation of [small-step
+reduction](https://docs.rs/fungi-lang/0/fungi_lang/reduce/index.html)
+is _significantly_ more practical than the version of [big-step
+evaluation](https://docs.rs/fungi-lang/0/fungi_lang/eval/index.html) given here.
+
+In particular, program _reduction_ avoids using (Rust-level) stack
+space, whereas the simple evaluation definition here uses the
+(Rust-level) stack space in proportion to the depth of the full
+evaluation derivation.  These derivations can be _deep_ for recursive,
+looping programs, where their depth is often the same, asymptotically,
+as their running time. On the other hand, this definition of
+evaluation is simple, and easy to read and understand --- the goal of
+its reference implementation; readers are encouraged to 
+[read it](https://docs.rs/fungi-lang/0/fungi_lang/eval/index.html), _not_ run it (except for very small programs).
 
 */
 #![recursion_limit="512"]
