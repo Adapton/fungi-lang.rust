@@ -1,7 +1,7 @@
 /*! **Fungi language:** *reference implementation in Rust.*
  
 See also:
-[example Fungi programs](https://docs.rs/fungi-lang/0.1.43/fungi_lang/examples/index.html)
+[example Fungi programs](https://docs.rs/fungi-lang/0/fungi_lang/examples/index.html)
 in this Rust implementation.
 
 # Syntax
@@ -18,7 +18,7 @@ with Rust macros:
  - [`parse`](https://docs.rs/fungi-lang/0/fungi_lang/parse/index.html)
 --- Concrete syntax (Rust macros)
 
-(See [examples](https://docs.rs/fungi-lang/0.1.43/fungi_lang/examples/index.html))
+(See [examples](https://docs.rs/fungi-lang/0/fungi_lang/examples/index.html))
 
 # Statics
 
