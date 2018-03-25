@@ -56,13 +56,17 @@ Fungi's program executions use [Adapton in
 Rust](http://github.com/Adapton/adapton.rust). 
 We define two 
 reference implementations for Fungi's dynamics: 
-[_big-step evaluation_](https://docs.rs/fungi-lang/0/fungi_lang/eval/index.html), 
-and [_small-step reduction_](https://docs.rs/fungi-lang/0/fungi_lang/reduce/index.html). These approaches have many [_common definitions_](https://docs.rs/fungi-lang/0/fungi_lang/dynamics/index.html).
+[_small-step reduction_](https://docs.rs/fungi-lang/0/fungi_lang/reduce/index.html),
+and 
+[_big-step evaluation_](https://docs.rs/fungi-lang/0/fungi_lang/eval/index.html):
 
 - [`reduce`](https://docs.rs/fungi-lang/0/fungi_lang/reduce/index.html)
 -- program dynamics as _small-step reduction_
 - [`eval`](https://docs.rs/fungi-lang/0/fungi_lang/eval/index.html)
 -- program dynamics as _big-step evaluation_
+
+These approaches have many [_common definitions_](https://docs.rs/fungi-lang/0/fungi_lang/dynamics/index.html):
+
 - [`dynamics`](https://docs.rs/fungi-lang/0/fungi_lang/dynamics/index.html)
 -- common definitions: name term evaluation, run-time values, and environments.
 

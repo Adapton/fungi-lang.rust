@@ -53,6 +53,27 @@ pub struct Config {
     pub exp: Exp,
 }
 
+/// Cases for which `step` fails to reduce the program
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub enum StepError {
+    /// Ordinary program termination
+    ///
+    /// Though a "step error" (`step` cannot reduce the
+    /// configuration), this outcome signals ordinary termination of
+    /// the program.  In particular, `step` cannot reduce a terminal
+    /// expression in a configuration with an empty stack: there are
+    /// no continuations to follow; these configurations have "halted"
+    /// (terminated).
+    ///
+    Halt(ExpTerm),
+    /// Irreducible, ill-typed program configurations
+    ///
+    /// All other errors (aside from an empty stack) are _unexpected_
+    /// in a well-typed Fungi program, and correspond to reduction
+    /// getting "stuck" in a state that is not well-typed.
+    Stuck(Stuck)
+}
+
 /// Dynamic type errors ("stuck cases" for reduction)
 ///
 /// For each place in the `reduce` function where a dynamic type error
@@ -60,12 +81,7 @@ pub struct Config {
 /// with the relevant information (first for documentation purposes,
 /// and secondly for future error messages).
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
-pub enum Error {
-    // It is an "error" to step a configuration that has run out of
-    // stack frames to which to return; these programs have "halted"
-    // (terminated); though called an "Error", this constructor
-    // signals ordinary termination of the program.
-    HaltEmptyStack(ExpTerm),
+pub enum Stuck {
     LamNonAppCont,
     HostEvalFnNonAppCont,
     RetNonLetCont,
@@ -82,6 +98,10 @@ pub enum Error {
     WriteScope,
     NameFnApp,
     RefThunkNonThunk,
+}
+
+fn stuck_err<X>(s:Stuck) -> Result<X,StepError> {
+    Err(StepError::Stuck(s))
 }
 
 fn debug_truncate<X:fmt::Debug>(x: &X) -> String {
@@ -101,28 +121,28 @@ fn set_env_rec(c:&mut Config, x:Var, v:Rc<RtVal>) {
 }
 fn produce_value(c:&mut Config,
                  v:RtVal)
-                 -> Result<(),Error>
+                 -> Result<(),StepError>
 {
     if c.stk.is_empty() {
-        Err(Error::HaltEmptyStack(
+        Err(StepError::Halt(
             ExpTerm::Ret(v)))
     }
     else { match c.stk.pop().unwrap().cont {
         Cont::Let(x, e) => {
             set_env(c, x, v);
             c.exp = e;
-            Result::Ok(())
+            Ok(())
         }
-        _ => Result::Err(Error::RetNonLetCont),
+        _ => stuck_err(Stuck::RetNonLetCont),
     }}
 }
 fn consume_value(c:&mut Config,
                  restore_env:Option<Env>,
                  x:Var, e:Rc<Exp>)
-                 -> Result<(),Error>
+                 -> Result<(),StepError>
 {
     if c.stk.is_empty() {
-        Err(Error::HaltEmptyStack(
+        Err(StepError::Halt(
             ExpTerm::Lam(restore_env.unwrap_or(vec![]), x, e)))
     }
     else { match c.stk.pop().unwrap().cont {
@@ -133,12 +153,12 @@ fn consume_value(c:&mut Config,
             };
             continue_rec(c, e)
         }
-        _ => Result::Err(Error::LamNonAppCont),
+        _ => stuck_err(Stuck::LamNonAppCont),
     }}
 }
 fn do_hostevalfn(c:&mut Config,
                  hef:HostEvalFn,
-                 mut args:Vec<RtVal>) -> Result<(),Error>
+                 mut args:Vec<RtVal>) -> Result<(),StepError>
 {
     // pop the configuration's stack, pushing its arguments onto the
     // argument vector for the host evaluation function.
@@ -152,19 +172,19 @@ fn do_hostevalfn(c:&mut Config,
                 args.push(v);
                 continue
             }
-            _ => return Result::Err(Error::HostEvalFnNonAppCont),
+            _ => return stuck_err(Stuck::HostEvalFnNonAppCont),
         }
     }
 }
-fn continue_rec(c:&mut Config, e:Rc<Exp>) -> Result<(),Error> {
+fn continue_rec(c:&mut Config, e:Rc<Exp>) -> Result<(),StepError> {
     set_exp(c, e);
-    Result::Ok(())
+    Ok(())
 }
-fn continue_with(c:&mut Config, e:Exp) -> Result<(),Error> {
+fn continue_with(c:&mut Config, e:Exp) -> Result<(),StepError> {
     c.exp = e;
-    Result::Ok(())
+    Ok(())
 }
-fn continue_te(c:&mut Config, te:ExpTerm) -> Result<(),Error> {
+fn continue_te(c:&mut Config, te:ExpTerm) -> Result<(),StepError> {
     match te {
         ExpTerm::Ret(v) => produce_value(c, v),
         ExpTerm::Lam(env,x,e) => consume_value(c,Some(env),x,e),
@@ -172,7 +192,7 @@ fn continue_te(c:&mut Config, te:ExpTerm) -> Result<(),Error> {
     }
 }
 
-/// Perform small steps of reduction until irreducible.
+/// Perform reduction steps (via `step`) until irreducible.
 ///
 /// Reduces the current configuration until it is irreducible.  This
 /// process will (generally) both push and pop the configuration's
@@ -183,7 +203,7 @@ pub fn reduce(stk:Vec<Frame>, env:Env, exp:Exp) -> ExpTerm {
     let mut c = Config{stk:stk, env:env, exp:exp};
     loop {
         match step(&mut c) {
-            Err(Error::HaltEmptyStack(t)) => return t,
+            Err(StepError::Halt(t)) => return t,
             Ok(()) => continue,
             Err(err) => panic!("{:?}", err),
         }
@@ -195,7 +215,7 @@ pub fn reduce(stk:Vec<Frame>, env:Env, exp:Exp) -> ExpTerm {
 /// In the given reduction configuation, reduce the current expression
 /// by one step.
 ///
-pub fn step(c:&mut Config) -> Result<(),Error> {
+pub fn step(c:&mut Config) -> Result<(),StepError> {
     match c.exp.clone() {
         Exp::DefType(_, _, e)  |
         Exp::AnnoC(e, _)       |
@@ -243,7 +263,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
                     let r = engine::cell(n, v2);
                     produce_value(c, RtVal::Ref(r))
                 },
-                _ => Result::Err(Error::RefNonName)
+                _ => stuck_err(Stuck::RefNonName)
             }
         }
         Exp::Get(v) => {
@@ -252,7 +272,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
                     let v = engine::force(&a);
                     produce_value(c, v)
                 },
-                _ => Result::Err(Error::GetNonRef)
+                _ => stuck_err(Stuck::GetNonRef)
             }
         }
         Exp::Force(v) => {
@@ -265,7 +285,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
                     c.env = env;
                     continue_with(c, e)
                 }
-                _ => Result::Err(Error::ForceNonThunk)
+                _ => stuck_err(Stuck::ForceNonThunk)
             }
         }
         
@@ -276,7 +296,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
                     set_env_rec(c, y, v2);
                     continue_rec(c, e1)
                 },
-                _ => Result::Err(Error::SplitNonPair)
+                _ => stuck_err(Stuck::SplitNonPair)
             }
         }
         Exp::IfThenElse(v, e1, e2) => {
@@ -285,7 +305,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
                     if b { continue_rec(c, e1) }
                     else { continue_rec(c, e2) }
                 }
-                _ => Result::Err(Error::IfNonBool)
+                _ => stuck_err(Stuck::IfNonBool)
             }
         }
         Exp::Case(v, x, ex, y, ey) => {
@@ -298,7 +318,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
                     set_env_rec(c, y, v);
                     continue_rec(c, ey)
                 },
-                _ => Result::Err(Error::CaseNonInj)
+                _ => stuck_err(Stuck::CaseNonInj)
             }
         }
         Exp::Unroll(v, x, e1) => {
@@ -307,7 +327,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
                     set_env_rec(c, x, v);
                     continue_rec(c, e1)
                 },
-                _ => Result::Err(Error::UnrollNonRoll)
+                _ => stuck_err(Stuck::UnrollNonRoll)
             }
         }
         Exp::Unpack(_i,_x,_v,_e) => {
@@ -325,7 +345,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
                     );
                     produce_value(c, RtVal::Thunk(t))
                 },
-                _ => Result::Err(Error::ThunkNonName)
+                _ => stuck_err(Stuck::ThunkNonName)
             }
         }
         Exp::DebugLabel(label, msg, e) => {
@@ -341,14 +361,14 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
                 (RtVal::Name(n1),RtVal::Name(n2)) => {
                     produce_value(c, RtVal::Name(Name::Bin(Rc::new(n1), Rc::new(n2))))
                 },
-                _ => Result::Err(Error::NameBin)
+                _ => stuck_err(Stuck::NameBin)
             }
         }
         Exp::WriteScope(v, e1) => {
             match close_val(&c.env, &v) {
                 RtVal::NameFn(n) =>
                     match proj_namespace_name(nametm_eval(n)) {
-                        None => Result::Err(Error::WriteScope),
+                        None => stuck_err(Stuck::WriteScope),
                         Some(n) => {
                             match nametm_eval(n) {
                                 NameTmVal::Name(n) => {
@@ -360,11 +380,11 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
                                     });
                                     continue_te(c, te)
                                 },                                    
-                                _ => Result::Err(Error::WriteScope),
+                                _ => stuck_err(Stuck::WriteScope),
                             }
                         }
                     },
-                _ => Result::Err(Error::WriteScope),
+                _ => stuck_err(Stuck::WriteScope),
             }
         }
         Exp::NameFnApp(v1, v2) => {
@@ -374,10 +394,10 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
                                                   Rc::new(NameTm::Name(n)))) {
                         NameTmVal::Name(n) =>
                             continue_te(c, ExpTerm::Ret(RtVal::Name(n))),
-                        _ => Err(Error::NameFnApp),
+                        _ => stuck_err(Stuck::NameFnApp),
                     }
                 },
-                _ => Err(Error::NameFnApp),
+                _ => stuck_err(Stuck::NameFnApp),
             }
         }
         
@@ -390,7 +410,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
                 (RtVal::Nat(n1),RtVal::Nat(n2)) => {
                     produce_value(c, RtVal::Nat(n1 + n2))
                 },
-                _ => Result::Err(Error::NatPrim)
+                _ => stuck_err(Stuck::NatPrim)
             }
         }        
         Exp::PrimApp(PrimApp::NatEq(v1,v2)) => {
@@ -398,7 +418,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
                 (RtVal::Nat(n1),RtVal::Nat(n2)) => {
                     produce_value(c, RtVal::Bool(n1 == n2))
                 },
-                _ => Result::Err(Error::NatPrim)
+                _ => stuck_err(Stuck::NatPrim)
             }
         }
         Exp::PrimApp(PrimApp::NatLt(v1,v2)) => {
@@ -406,7 +426,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
                 (RtVal::Nat(n1),RtVal::Nat(n2)) => {
                     produce_value(c, RtVal::Bool(n1 < n2))
                 },
-                _ => Result::Err(Error::NatPrim)
+                _ => stuck_err(Stuck::NatPrim)
             }
         }
         Exp::PrimApp(PrimApp::NatLte(v1,v2)) => {
@@ -414,7 +434,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
                 (RtVal::Nat(n1),RtVal::Nat(n2)) => {
                     produce_value(c, RtVal::Bool(n1 <= n2))
                 },
-                _  => Result::Err(Error::NatPrim)
+                _  => stuck_err(Stuck::NatPrim)
             }
         }
         Exp::PrimApp(PrimApp::RefThunk(v)) => {
@@ -432,7 +452,7 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
                         RtVal::Pair(Rc::new(RtVal::Ref(r)),
                                     Rc::new(v))))
                 },
-                _ => Err(Error::RefThunkNonThunk)
+                _ => stuck_err(Stuck::RefThunkNonThunk)
             }
         }
     }
