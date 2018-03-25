@@ -9,7 +9,7 @@ Rust](http://adapton.org)) to create and maintain the "demanded
 computation graph" (the DCG), that underpins change propagation.
 
 See also: 
-[`reduce`](https://docs.rs/fungi-lang/0/fungi_lang/reduce.rs.html).
+[`reduce`](https://docs.rs/fungi-lang/0/src/fungi_lang/reduce.rs.html).
 
 */
 
