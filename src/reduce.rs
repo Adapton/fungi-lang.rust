@@ -12,22 +12,24 @@ See also:
 [`eval`](https://docs.rs/fungi-lang/0/fungi_lang/eval.rs.html).
 
 */
+use std::rc::Rc;
 
 use adapton::macros::*;
 use adapton::engine::{thunk,NameChoice};
 use adapton::engine;
 
-use ast::{Var,Exp,PrimApp,Name,NameTm};
-use std::rc::Rc;
+use ast::*;
 use dynamics::*;
 
 /// Stack frame
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub struct Frame {
     pub env: Env,
     pub cont: Cont,
 }
 
 /// Local continuations
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Cont {
     /// Continues an arrow-typed computation by applying a value to the function
     App(RtVal),
@@ -36,6 +38,7 @@ pub enum Cont {
 }
 
 /// Configuration for reduction: A stack, environment and expression.
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub struct Config {
     /// The Stack continues the expression with local continuations (one per frame)
     pub stk: Vec<Frame>,
@@ -49,20 +52,39 @@ pub struct Config {
     pub exp: Exp,
 }
 
+fn config_from_env_exp(env:Env, exp:Exp) -> Config {
+    Config{
+        stk:vec![],
+        env:env,
+        exp:exp,
+    }
+}
+
 /// Dynamic type errors ("stuck cases" for reduction)
 ///
 /// For each place in the `reduce` function where a dynamic type error
 /// may arise that prevents us from progressing, we give a constructor
 /// with the relevant information (first for documentation purposes,
 /// and secondly for future error messages).
-#[derive(Clone,Debug,Eq,PartialEq)]
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub enum Error {
+    Irreducible,
     LamNonAppCont,
+    HostEvalFnNonAppCont,
     RetNonLetCont,
     RefNonName,
+    ThunkNonName,
     SplitNonPair,
     CaseNonInj,
     IfNonBool,
+    GetNonRef,
+    ForceNonThunk,
+    NatPrim,
+    NameBin,
+    UnrollNonRoll,
+    WriteScope,
+    NameFnApp,
+    RefThunkNonThunk,
 }
 
 // fn type_error<A>(err:Error, env:Env, e:Exp) -> A {
@@ -88,6 +110,40 @@ fn produce_value(c:&mut Config, v:RtVal) -> Result<(),Error> {
         _ => Result::Err(Error::RetNonLetCont),
     }
 }
+fn consume_value(c:&mut Config, restore_env:Option<Env>,
+                 x:Var, e:Rc<Exp>) -> Result<(),Error>
+{
+    match c.stk.pop().unwrap().cont {
+        Cont::App(v) => {
+            set_env(c, x, v);
+            if let Some(env) = restore_env {
+                c.env = env;
+            };
+            continue_rec(c, e)
+        }
+        _ => Result::Err(Error::LamNonAppCont),
+    }
+}
+fn do_hostevalfn(c:&mut Config,
+                 hef:HostEvalFn,
+                 mut args:Vec<RtVal>) -> Result<(),Error>
+{
+    // pop the configuration's stack, pushing its arguments onto the
+    // argument vector for the host evaluation function.
+    loop {
+        if args.len() == hef.arity {
+            let te = (hef.eval)(args);
+            return continue_te(c, te);
+        }
+        match c.stk.pop().unwrap().cont {
+            Cont::App(v) => {
+                args.push(v);
+                continue
+            }
+            _ => return Result::Err(Error::HostEvalFnNonAppCont),
+        }
+    }
+}
 fn continue_rec(c:&mut Config, e:Rc<Exp>) -> Result<(),Error> {
     set_exp(c, e);
     Result::Ok(())
@@ -96,14 +152,53 @@ fn continue_with(c:&mut Config, e:Exp) -> Result<(),Error> {
     c.exp = e;
     Result::Ok(())
 }
+fn continue_te(c:&mut Config, te:ExpTerm) -> Result<(),Error> {
+    match te {
+        ExpTerm::Ret(v) => produce_value(c, v),
+        ExpTerm::Lam(env,x,e) => consume_value(c,Some(env),x,e),
+        ExpTerm::HostFn(hef, args) => do_hostevalfn(c,hef,args)
+    }
+}
 
-/// Step: perform a single small-step reduction.
+/// Perform small steps of reduction until irreducible.
+///
+/// Reduces the current configuration until it is irreducible.
+/// Typically (barring that no error occurs), this will both push and
+/// pop the configuration's stack, and will consume its initial stack
+/// frames, entirely.
+///
+pub fn reduce(c:Config) -> ExpTerm {
+    let mut mc = c;
+    loop {
+        match step(&mut mc) {
+            Ok(()) => continue,
+            Err(Error::Irreducible) => break,
+            Err(err) => panic!("{:?}", err),
+        }
+    }
+    return match mc.exp {
+        Exp::Lam(x, e)   => ExpTerm::Lam(mc.env, x, e),
+        Exp::HostFn(hef) => ExpTerm::HostFn(hef, vec![]),
+        Exp::Ret(v)      => ExpTerm::Ret(close_val(&mc.env, &v)),
+        _                => unreachable!()
+    }
+}
+
+/// Perform a single small-step reduction.
 ///
 /// In the given reduction configuation, reduce the current expression
 /// by one step.
 ///
 pub fn step(c:&mut Config) -> Result<(),Error> {
     match c.exp.clone() {
+        Exp::DefType(_, _, e)  |
+        Exp::AnnoC(e, _)       |
+        Exp::AnnoE(e, _)       |
+        Exp::UseAll(_, e)      |
+        Exp::IdxApp(e, _)      |
+        Exp::Decls(_, e)      =>
+        { continue_rec(c, e) }
+        
         Exp::Fix(f, e1) => {
             let t = RtVal::ThunkAnon(c.env.clone(), c.exp.clone());
             set_env(c, f, t);
@@ -117,14 +212,11 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
             });
             continue_rec(c, e)
         }
+        Exp::HostFn(hef) => {
+            do_hostevalfn(c,hef,vec![])
+        }
         Exp::Lam(x, e) => {
-            match c.stk.pop().unwrap().cont {
-                Cont::App(v) => {
-                    set_env(c, x, v);
-                    continue_rec(c, e)
-                }
-                _ => Result::Err(Error::LamNonAppCont),
-            }
+            consume_value(c, None, x, e)
         }
         Exp::Let(x, e1, e2) => {
             c.stk.push(Frame{
@@ -148,6 +240,29 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
                 _ => Result::Err(Error::RefNonName)
             }
         }
+        Exp::Get(v) => {
+            match close_val(&c.env, &v) {
+                RtVal::Ref(a) => {
+                    let v = engine::force(&a);
+                    produce_value(c, v)
+                },
+                _ => Result::Err(Error::GetNonRef)
+            }
+        }
+        Exp::Force(v) => {
+            match close_val(&c.env, &v) {
+                RtVal::Thunk(a) => {
+                    let te = engine::force(&a);
+                    continue_te(c, te)
+                },
+                RtVal::ThunkAnon(env, e) => {
+                    c.env = env;
+                    continue_with(c, e)
+                }
+                _ => Result::Err(Error::ForceNonThunk)
+            }
+        }
+        
         Exp::Split(v, x, y, e1) => {
             match close_val(&c.env, &v) {
                 RtVal::Pair(v1, v2) => {
@@ -179,8 +294,139 @@ pub fn step(c:&mut Config) -> Result<(),Error> {
                 },
                 _ => Result::Err(Error::CaseNonInj)
             }
+        }
+        Exp::Unroll(v, x, e1) => {
+            match close_val(&c.env, &v) {
+                RtVal::Roll(v) => {
+                    set_env_rec(c, x, v);
+                    continue_rec(c, e1)
+                },
+                _ => Result::Err(Error::UnrollNonRoll)
+            }
+        }
+        Exp::Unpack(_i,_x,_v,_e) => {
+            unimplemented!()
+        }
+        Exp::Thunk(v, e1) => {
+            match close_val(&c.env, &v) {
+                RtVal::Name(n) => { // create engine thunk named n
+                    // suspending evaluation of expression e1:
+                    let n = Some(engine_name_of_ast_name(n));
+                    let t = thunk!([n]? reduce ;
+                                   c:config_from_env_exp(
+                                       c.env.clone(),
+                                       (*e1).clone()
+                                   ));
+                    produce_value(c, RtVal::Thunk(t))
+                },
+                _ => Result::Err(Error::ThunkNonName)
+            }
+        }
+        Exp::DebugLabel(label, msg, e) => {
+            let label : Option<engine::Name> =
+                label.map( engine_name_of_ast_name );
+            engine::reflect_dcg::debug_effect(label, msg);
+            continue_rec(c, e)
+        }
+        Exp::Unimp => { unimplemented!() }
+        Exp::NoParse(s) => { panic!("Evaluation reached unparsed program text: `{}`", s) }
+        Exp::PrimApp(PrimApp::NameBin(v1,v2)) => {
+            match (close_val(&c.env, &v1), close_val(&c.env, &v2)) {
+                (RtVal::Name(n1),RtVal::Name(n2)) => {
+                    produce_value(c, RtVal::Name(Name::Bin(Rc::new(n1), Rc::new(n2))))
+                },
+                _ => Result::Err(Error::NameBin)
+            }
+        }
+        Exp::WriteScope(v, e1) => {
+            match close_val(&c.env, &v) {
+                RtVal::NameFn(n) =>
+                    match proj_namespace_name(nametm_eval(n)) {
+                        None => Result::Err(Error::WriteScope),
+                        Some(n) => {
+                            match nametm_eval(n) {
+                                NameTmVal::Name(n) => {
+                                    let ns_name = engine_name_of_ast_name(n);
+                                    let te = engine::ns(ns_name, ||{ reduce(config_from_env_exp(c.env.clone(), (*e1).clone())) });
+                                    continue_te(c, te)
+                                },                                    
+                                _ => Result::Err(Error::WriteScope),
+                            }
+                        }
+                    },
+                _ => Result::Err(Error::WriteScope),
+            }
+        }
+        Exp::NameFnApp(v1, v2) => {
+            match (close_val(&c.env, &v1), close_val(&c.env, &v2)) {
+                ( RtVal::NameFn(nf), RtVal::Name(n) ) => {
+                    match nametm_eval(NameTm::App(Rc::new(nf),
+                                                  Rc::new(NameTm::Name(n)))) {
+                        NameTmVal::Name(n) =>
+                            continue_te(c, ExpTerm::Ret(RtVal::Name(n))),
+                        _ => Err(Error::NameFnApp),
+                    }
+                },
+                _ => Err(Error::NameFnApp),
+            }
+        }
+        
+        //
+        // In-built primitives for basetypes (naturals, bools, etc.)
+        //
+        
+        Exp::PrimApp(PrimApp::NatPlus(v1,v2)) => {
+            match (close_val(&c.env, &v1), close_val(&c.env, &v2)) {
+                (RtVal::Nat(n1),RtVal::Nat(n2)) => {
+                    produce_value(c, RtVal::Nat(n1 + n2))
+                },
+                _ => Result::Err(Error::NatPrim)
+            }
         }        
-        _ => unimplemented!()
+        Exp::PrimApp(PrimApp::NatEq(v1,v2)) => {
+            match (close_val(&c.env, &v1), close_val(&c.env, &v2)) {
+                (RtVal::Nat(n1),RtVal::Nat(n2)) => {
+                    produce_value(c, RtVal::Bool(n1 == n2))
+                },
+                _ => Result::Err(Error::NatPrim)
+            }
+        }
+        Exp::PrimApp(PrimApp::NatLt(v1,v2)) => {
+            match (close_val(&c.env, &v1), close_val(&c.env, &v2)) {
+                (RtVal::Nat(n1),RtVal::Nat(n2)) => {
+                    produce_value(c, RtVal::Bool(n1 < n2))
+                },
+                _ => Result::Err(Error::NatPrim)
+            }
+        }
+        Exp::PrimApp(PrimApp::NatLte(v1,v2)) => {
+            match (close_val(&c.env, &v1), close_val(&c.env, &v2)) {
+                (RtVal::Nat(n1),RtVal::Nat(n2)) => {
+                    produce_value(c, RtVal::Bool(n1 <= n2))
+                },
+                _  => Result::Err(Error::NatPrim)
+            }
+        }
+        Exp::PrimApp(PrimApp::RefThunk(v)) => {
+            fn val_of_retval (et:ExpTerm) -> RtVal {
+                match et {
+                    ExpTerm::Ret(v) => v,
+                    _ => unreachable!()
+                }
+            };
+            match close_val(&c.env, &v) {
+                RtVal::Thunk(a) => {
+                    let r = engine::thunk_map(a, Rc::new(val_of_retval));
+                    let v = engine::force(&r);
+                    continue_te(c, ExpTerm::Ret(
+                        RtVal::Pair(Rc::new(RtVal::Ref(r)),
+                                    Rc::new(v))))
+                },
+                _ => Err(Error::RefThunkNonThunk)
+            }
+        }
+        
+        /*_ => unimplemented!()*/
     }
 }
 
