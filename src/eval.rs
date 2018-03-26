@@ -8,6 +8,9 @@ To do so, it uses an external library ([Adapton in
 Rust](http://adapton.org)) to create and maintain the "demanded
 computation graph" (the DCG), that underpins change propagation.
 
+See also: 
+[`reduce`](https://docs.rs/fungi-lang/0/src/fungi_lang/reduce.rs.html).
+
 */
 
 // ## Implementation discussion

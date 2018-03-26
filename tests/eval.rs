@@ -6,6 +6,7 @@ extern crate adapton;
 use std::rc::Rc;
 use fungi_lang::ast::*;
 use fungi_lang::eval;
+use fungi_lang::reduce;
 use fungi_lang::dynamics;
 use fungi_lang::vis;
 
@@ -14,18 +15,24 @@ fn eval_closed_exp(e:Exp) -> dynamics::ExpTerm {
     eval::eval(vec![], e)
 }
 
+fn reduce_closed_exp(e:Exp) -> dynamics::ExpTerm {
+    reduce::reduce(vec![], vec![], e)
+}
+
 fn eval_test_equiv(e1:Exp, e2:Exp) {
-    println!("> {:?}\n\n", e1);
-    let t1 = eval_closed_exp(e1);
-    let t2 = eval_closed_exp(e2);
-    // let (t1, x1) = capture_traces(move ||
-    //     eval_closed_exp(vis::label_exp(e1, &mut 0))
-    // );
-    // let (t2, x2) = capture_traces(move ||
-    //     eval_closed_exp(vis::label_exp(e2, &mut 0))
-    // );
-    // println!("Traces: {:?}\n\n", x1);
-    assert_eq!(t1, t2)
+    //println!("> {:?}\n\n", e1);
+
+    let eval_t1 = eval_closed_exp(e1.clone());
+    let eval_t2 = eval_closed_exp(e2.clone());
+    assert_eq!(eval_t1, eval_t2);
+
+    let red_t1 = reduce_closed_exp(e1);
+    let red_t2 = reduce_closed_exp(e2);
+    assert_eq!(red_t1, red_t2);
+
+    // Evaluation and reduction are equivalent:
+    assert_eq!(eval_t1, red_t1);
+    assert_eq!(eval_t2, red_t2);
 }
 
 #[test]
@@ -91,26 +98,26 @@ fn eval_case () {
     
     eval_test_equiv(
         fgi_exp![
-            match (inj2 2) {
+            match (inj2 6) {
                 x => {x + 1}
-                y => {ret 0}
+                y => {ret 3}
             }
         ],
         fgi_exp![
-            ret 0
+            ret 3
         ]);
 
     // test nested cases; nested injections are a little awkward
     eval_test_equiv(
         fgi_exp![
-            match (inj2 (inj2 2)) {
-                x => {ret 0}
-                x => {ret 0}
+            match (inj2 (inj2 7)) {
+                x => {ret 1}
+                x => {ret 2}
                 y => {ret y}
             }
         ],
         fgi_exp![
-            ret 2
+            ret 7
         ])
 }
 
