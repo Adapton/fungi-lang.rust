@@ -194,8 +194,8 @@ where F: FnOnce() -> dynamics::ExpTerm {
 }
 
 pub fn write_bundle(filename: &str, bundle: &Bundle) {
-    // let data = format!("{:?}", bundle);
-    let data = serde_json::to_string(bundle).expect("Could not convert bundle to JSON");
+    let data = format!("{:?}", bundle);
+    // let data = serde_json::to_string(bundle).expect("Could not convert bundle to JSON");
     let mut f = File::create(filename).expect("Could not create bundle file");
     f.write_all(data.as_bytes()).expect("Could not write bundle data");
     f.flush().expect("Could not flush bundle output");
