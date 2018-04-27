@@ -20,10 +20,10 @@ of Fungi's _refinement data types_ and _computation effects_:
 
 ### FP Basics in Fungi
 
-Basic patterns from functional programming (FP), in Fungi:
+Basic patterns from functional programming (FP), in the _"pure"_ fragment of Fungi.  The "pure effect" (written `0`, for short) means that a computation lacks read and write effects.
 
 - [`op_nat`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/op_nat.rs.html) --- Simple primitives for optional natural numbers
-- [`list_nat`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/list_nat.rs.html) --- Simple primitives for lists of natural numbers
+- [`pure_list_nat`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/pure_list_nat.rs.html) --- Simple primitives for lists of natural numbers
 
 ### Sequences
 
@@ -56,10 +56,10 @@ Computes the convex hull, in sorted order, of an unordered sequence of points in
 /// [Fungi listing](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/op_nat.rs.html)
 pub mod op_nat;
 
-/// Lists of natural numbers
+/// Lists of natural numbers, without names, and with pure operations.
 ///
-/// [Fungi listing](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/list_nat.rs.html)
-pub mod list_nat;
+/// [Fungi listing](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/pure_list_nat.rs.html)
+pub mod pure_list_nat;
 
 
 /// Find the maximum element in a sequence
