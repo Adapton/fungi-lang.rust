@@ -19,14 +19,16 @@ pub fn listing0 () { fgi_listing_test![
     // }
     
     let cons:(
-        Thk[0] foralli (X1,X2,Y1,Y2):NmSet.
+        Thk[0]
+            foralli (X,X1,X2):NmSet | ((X1%X2)=X:NmSet).
+            foralli (Y,Y1,Y2):NmSet | ((Y1%Y2)=Y:NmSet).
             0 Nm[X1] ->
             0 Nat ->
             0 Ref[Y1](List[X2][Y2]) ->
             0 F List[X1%X2][Y1%Y2]
     ) = {            
         ret thunk #n.#h.#t. ret roll inj2
-            pack (X1, X2, Y1, Y2) (n, h, t)
+            pack (X1,X2,Y1,Y2) (n, h, t)
     }
    
     // let rec map:(
@@ -119,5 +121,38 @@ pub fn listing0 () { fgi_listing_test![
     //     }
     // }
     
+    ret 0
+]}
+
+
+#[test]
+pub fn listing1 () { fgi_listing_expect![
+    [Expect::FailurexXXX]
+
+    decls {
+        /// Lists of natural numbers
+        type List  = (
+            rec list. foralli (X,Y):NmSet.
+            (+ Unit +
+             (exists (X1,X2):NmSet | ((X1%X2)=X:NmSet).
+              exists (Y1,Y2):NmSet | ((Y1%Y2)=Y:NmSet).
+              x Nm[X1] x Nat x Ref[Y1](list[X2][Y2])
+             ))
+        );
+    }
+
+    let cons:(
+        Thk[0]
+            foralli (X1,X2):NmSet. // <-- forgot to insist that X1%X2
+            foralli (Y1,Y2):NmSet. // <-- forgot to insist that Y1%Y2
+            0 Nm[X1] ->
+            0 Nat ->
+            0 Ref[Y1](List[X2][Y2]) ->
+            0 F List[X1%X2][Y1%Y2]
+    ) = {            
+        ret thunk #n.#h.#t. ret roll inj2
+            pack (X1,X2,Y1,Y2) (n, h, t)
+    }
+
     ret 0
 ]}
