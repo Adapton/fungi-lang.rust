@@ -48,7 +48,7 @@ pub fn listing0 () { fgi_listing_expect![
                 let h2 = {{force f} h}
                 let t2 = {{force map} [X2][Y2] f {!t}}
                 ret roll inj2
-                    pack (X1,X2,Y1,Y2) (n, h2, t)
+                    pack (X1,X2,Y1,Y2) (n, h2, t2)
             }
         }
     }
