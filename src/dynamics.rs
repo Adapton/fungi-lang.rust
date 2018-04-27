@@ -22,7 +22,7 @@ use adapton::engine;
 
 use std::rc::Rc;
 
-use serde::Serialize;
+//use serde::Serialize;
 
 /// TODO-Sometime: Prune the environments (using free variables as filters)
 pub type Env = Vec<(String,RtVal)>;

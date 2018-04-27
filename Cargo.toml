@@ -1,6 +1,6 @@
 [package]
 name = "fungi-lang"
-version = "0.1.46"
+version = "0.1.47"
 authors = ["Matthew A. Hammer", "Kyle Headley", "Ryan Vandersmith"]
 
 # A short blurb about the package. This is not rendered in any format when
@@ -30,6 +30,7 @@ license = "MPL-2.0"
 [dependencies]
 iodyn = "0.2"
 adapton = "0.3"
+
 serde = { version = "1.0", features = ["rc"] }
 serde_json = "1.0"
 serde_derive = "1.0"

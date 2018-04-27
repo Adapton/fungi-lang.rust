@@ -23,6 +23,7 @@ of Fungi's _refinement data types_ and _computation effects_:
 Basic patterns from functional programming (FP), in Fungi:
 
 - [`op_nat`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/op_nat.rs.html) --- Simple primitives for optional natural numbers
+- [`list_nat`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/list_nat.rs.html) --- Simple primitives for lists of natural numbers
 
 ### Sequences
 
@@ -55,6 +56,11 @@ Computes the convex hull, in sorted order, of an unordered sequence of points in
 /// [Fungi listing](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/op_nat.rs.html)
 pub mod op_nat;
 
+/// Lists of natural numbers
+///
+/// [Fungi listing](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/list_nat.rs.html)
+pub mod list_nat;
+
 
 /// Find the maximum element in a sequence
 ///
@@ -69,7 +75,6 @@ pub mod seq_filter;
 
 // --- In progress:
 pub mod set_join;
-
 pub mod trie;
 
 
@@ -79,3 +84,4 @@ pub mod basic_write_effects;
 pub mod basic_write_scope;
 pub mod basic_subtyping;
 pub mod basic_existentials;
+

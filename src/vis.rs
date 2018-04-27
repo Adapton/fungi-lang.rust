@@ -11,7 +11,7 @@ use adapton::engine::manage;
 use std::fs::File;
 use std::io::Write;
 
-use serde_json;
+//use serde_json;
 
 pub fn label_exp(e: Exp, ct: &mut usize) -> Exp {
     rewrite_exp(&e, ct)

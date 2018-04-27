@@ -1,12 +1,12 @@
 /*! Serialization for external data structures contained in Fungi's bundle format. */
 
-use std::rc::Rc;
-use std::marker::PhantomData;
+// use std::rc::Rc;
+// use std::marker::PhantomData;
 
-use adapton;
-use adapton::engine;
+// use adapton;
+// use adapton::engine;
 
-use serde::Serialize;
+// use serde::Serialize;
 
 // TODO: add custom handling for Rc<> to preserve references
 
