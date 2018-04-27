@@ -21,7 +21,10 @@ pub fn listing0 () { fgi_listing_test![
     }
    
     let rec map:(
-        Thk[0] 0 (Thk[0] 0 Nat -> 0 F Nat) -> 0 List -> 0 F List
+        Thk[0]
+            0 (Thk[0] 0 Nat -> 0 F Nat) ->
+            0 List ->
+            0 F List
     ) = {
         #f.#l. unroll match l {
             _u => { ret roll inj1 () }
@@ -35,7 +38,10 @@ pub fn listing0 () { fgi_listing_test![
     }
 
     let rec filter:(
-        Thk[0] 0 List -> 0 (Thk[0] 0 Nat -> 0 F Bool) -> 0 F List
+        Thk[0]
+            0 List ->
+            0 (Thk[0] 0 Nat -> 0 F Bool) ->
+            0 F List
     ) = {
         #l.#f. unroll match l {
             _u => { ret roll inj1 () }
@@ -52,7 +58,10 @@ pub fn listing0 () { fgi_listing_test![
     }
 
     let rec map_filter:(
-        Thk[0] 0 List -> 0 (Thk[0] 0 Nat -> 0 F OpNat) -> 0 F List
+        Thk[0]
+            0 List ->
+            0 (Thk[0] 0 Nat -> 0 F OpNat) ->
+            0 F List
     ) = {
         #l. #f. unroll match l {
             _u => { ret roll inj1 () }
@@ -69,7 +78,10 @@ pub fn listing0 () { fgi_listing_test![
     }
 
     let rec reverse:(
-        Thk[0] 0 List -> 0 List -> 0 F List
+        Thk[0]
+            0 List ->
+            0 List ->
+            0 F List
     ) = {
         #l.#r. unroll match l {
             _u => { ret r }
@@ -82,7 +94,8 @@ pub fn listing0 () { fgi_listing_test![
     }
 
     let rec fold:(
-        Thk[0] 0 List ->
+        Thk[0]
+            0 List ->
             0 Nat ->
             0 (Thk[0] 0 Nat -> 0 Nat -> 0 F Nat) ->
             0 F Nat
