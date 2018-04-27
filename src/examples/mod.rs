@@ -74,6 +74,7 @@ pub mod seq_filter;
 
 
 // --- In progress:
+pub mod list_nat;
 pub mod set_join;
 pub mod trie;
 
