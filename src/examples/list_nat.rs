@@ -1,5 +1,7 @@
 #[test]
-pub fn listing0 () { fgi_listing_test![
+pub fn listing0 () { fgi_listing_expect![
+    [Expect::SuccessxXXX]
+    
     decls {
         /// Lists of natural numbers
         type List  = (
@@ -31,22 +33,25 @@ pub fn listing0 () { fgi_listing_test![
             pack (X1,X2,Y1,Y2) (n, h, t)
     }
    
-    // let rec map:(
-    //     Thk[0]
-    //         0 (Thk[0] 0 Nat -> 0 F Nat) ->
-    //         0 List ->
-    //         0 F List
-    // ) = {
-    //     #f.#l. unroll match l {
-    //         _u => { ret roll inj1 () }
-    //         c => {
-    //             let (h, t) = { ret c }
-    //             let h2 = {{force f} h}
-    //             let t2 = {{force map} f t}
-    //             {{force cons} h2 t2}
-    //         }
-    //     }
-    // }
+    let rec map:(
+        Thk[0]
+            foralli (X,Y):NmSet.
+            0 (Thk[0] 0 Nat -> 0 F Nat) ->
+            0 List[X][Y] ->
+        {{@!}X; Y} F List[X][{@!}X]
+    ) = {
+        #f.#l. unroll match l {
+            _u => { ret roll inj1 () }
+            c => {
+                unpack (X1,X2,Y1,Y2) c = c
+                let (n, h, t) = { ret c }
+                let h2 = {{force f} h}
+                let t2 = {{force map} [X2][Y2] f {!t}}
+                ret roll inj2
+                    pack (X1,X2,Y1,Y2) (n, h2, t)
+            }
+        }
+    }
 
     // let rec filter:(
     //     Thk[0]
