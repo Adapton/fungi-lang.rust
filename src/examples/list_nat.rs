@@ -1,7 +1,7 @@
 #[test]
 pub fn listing0 () { fgi_listing_test![
     decls {
-        /// Optional natural numbers
+        /// Lists of natural numbers
         type List  = (+ Unit + (x Nat x List));
 
         /// Optional natural numbers
