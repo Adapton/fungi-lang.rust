@@ -35,7 +35,21 @@ pub fn listing0 () { fgi_listing_expect![
         ret thunk #n.#h.#t. ret roll inj2
             pack (X1,X2,Y1,Y2) (n, h, t)
     }
-   
+
+
+    let ref_cons:(
+        Thk[0]
+            foralli (X,X1,X2):NmSet | ((X1%X2)=X:NmSet).
+            foralli (Y,Y1,Y2):NmSet | ((Y1%Y2)=Y:NmSet).
+            0 Nm[X1] ->
+            0 Nat ->
+            0 Ref[Y1](List[X2][Y2]) ->
+            {{@!}X;0} F Ref[{@!}X1](List[X1%X2][Y1%Y2])
+    ) = {            
+        ret thunk #n.#h.#t. ref n
+            roll inj2 pack (X1,X2,Y1,Y2) (n, h, t)
+    }
+    
     let rec map:(
         Thk[0]
             foralli (X,Y):NmSet.
@@ -111,21 +125,25 @@ pub fn listing0 () { fgi_listing_expect![
         }
     }
 
-    // let rec reverse:(
-    //     Thk[0]
-    //         0 List ->
-    //         0 List ->
-    //         0 F List
-    // ) = {
-    //     #l.#r. unroll match l {
-    //         _u => { ret r }
-    //         c => {
-    //             let (h, t) = { ret c }
-    //             let r2 = {{force cons} h r}
-    //             {{force reverse} t r}
-    //         }
-    //     }
-    // }
+    let rec reverse:(
+        Thk[0]
+            foralli (X,Xa,Xb):NmSet | ((Xa%Xb)=X:NmSet).
+            foralli (Y,Ya,Yb):NmSet | ((Ya%Yb)=Y:NmSet).
+            0 List[Xa][Ya] ->
+            0 List[Xb][Yb] ->
+        //{ {@!}(Xa % Xa*{@1}); {@!}(Xa*{@1}) % Y} F List
+        0 F List[X][Y]
+    ) = {
+        #l.#r. unroll match l {
+            _u => { ret r }
+            c => {
+                unpack (Xa1,Xa2,Ya1,Ya2) c = c
+                let (n, h, t) = { ret c }
+                let r2 = {{force ref_cons}[_][_][_][_][_][_] n h t}
+                memo{n,(@1)}{{force reverse} {!t} r2}
+            }
+        }
+    }
 
     // let rec fold:(
     //     Thk[0]
