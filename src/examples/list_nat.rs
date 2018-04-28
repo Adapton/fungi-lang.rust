@@ -1,6 +1,6 @@
 #[test]
 pub fn listing0 () { fgi_listing_expect![
-    [Expect::SuccessxXXX]
+    [Expect::Success]
     
     decls {
         /// Lists of natural numbers
@@ -46,9 +46,11 @@ pub fn listing0 () { fgi_listing_expect![
                 unpack (X1,X2,Y1,Y2) c = c
                 let (n, h, t) = { ret c }
                 let h2 = {{force f} h}
-                let t2 = {memo(n){{force map} [X2][Y2] f {!t}}}
+                let (rt2,_t2) = {
+                    memo(n){{force map} [X2][Y2] f {!t}}
+                }
                 ret roll inj2
-                    pack (X1,X2,{@!}X1,{@!}X2) (n, h2, t2)
+                    pack (X1,X2,{@!}X1,{@!}X2) (n, h2, rt2)
             }
         }
     }
