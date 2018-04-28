@@ -1,8 +1,8 @@
 # <img src="http://adapton.org/fungi-lang-logo/Fungi-lang-logo-64.png" alt="Logo" style="width: 64px;"/> Fungi: A typed functional language for programs that name their own cached dependency graphs [![Travis](https://api.travis-ci.org/Adapton/fungi-lang.rust.svg?branch=master)](https://travis-ci.org/Adapton/fungi-lang.rust)
 
-**Fungi is a language design and implementation for incremental
-computation with names.** In particular, Fungi is a typed functional
-language for programs that name their own cached dependency graphs.
+**Fungi is a programming language for incremental computation with
+names.** In particular, Fungi is a typed functional language for
+programs that name their own cached dependency graphs.
 
 ## Fungi programs _compute incrementally_
 
