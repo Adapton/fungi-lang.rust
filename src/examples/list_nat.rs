@@ -12,6 +12,9 @@ pub fn listing0 () { fgi_listing_expect![
               x Nm[X1] x Nat x Ref[Y1](list[X2][Y2])
              ))
         );
+
+        /// Optional natural numbers
+        type OpNat  = (+ Unit + Nat );
     }
 
     // let nil:(
@@ -55,45 +58,58 @@ pub fn listing0 () { fgi_listing_expect![
         }
     }
 
-    // let rec filter:(
-    //     Thk[0]
-    //         0 List ->
-    //         0 (Thk[0] 0 Nat -> 0 F Bool) ->
-    //         0 F List
-    // ) = {
-    //     #l.#f. unroll match l {
-    //         _u => { ret roll inj1 () }
-    //         c => {
-    //             let (h, t) = { ret c }
-    //             let t2 = {{force filter} t f}
-    //             if {{force f} h} {
-    //                 {{force cons} h t2}
-    //             } else {
-    //                 ret t2
-    //             }
-    //         }
-    //     }
-    // }
+    let rec filter:(
+        Thk[0]
+            foralli (X,Y):NmSet.
+            0 (Thk[0] 0 Nat -> 0 F Bool) ->
+            0 List[X][Y] ->
+        {{@!}X; Y%({@!}X)} F List[X][{@!}X]
+    ) = {
+        #f.#l. unroll match l {
+            _u => { ret roll inj1 () }
+            c => {
+                unpack (X1,X2,Y1,Y2) c = c
+                let (n, h, t) = { ret c }
+                let (rt2, t2) = {
+                    memo(n){{force filter} [X2][Y2] f {!t}}
+                }
+                if {{force f} h} {
+                    ret roll inj2
+                        pack (X1,X2,{@!}X1,{@!}X2) (n, h, rt2)
+                }
+                else {
+                    ret t2
+                }
+            }
+        }
+    }
 
-    // let rec map_filter:(
-    //     Thk[0]
-    //         0 List ->
-    //         0 (Thk[0] 0 Nat -> 0 F OpNat) ->
-    //         0 F List
-    // ) = {
-    //     #l. #f. unroll match l {
-    //         _u => { ret roll inj1 () }
-    //         c => {
-    //             let (h, t) = { ret c }
-    //             let t2 = {{force map_filter} t f}
-    //             let oh2 = {{force f} h}
-    //             match oh2 {
-    //                 _u => { ret t2 }
-    //                 h2 => {{force cons} h t2}
-    //             }
-    //         }
-    //     }
-    // }
+    let rec map_filter:(
+        Thk[0]
+            foralli (X,Y):NmSet.
+            0 (Thk[0] 0 Nat -> 0 F OpNat) ->
+            0 List[X][Y] ->
+        {{@!}X; Y%({@!}X)} F List[X][{@!}X]
+    ) = {
+        #f.#l. unroll match l {
+            _u => { ret roll inj1 () }
+            c => {
+                unpack (X1,X2,Y1,Y2) c = c
+                let (n, h, t) = { ret c }
+                let (rt2, t2) = {
+                    memo(n){{force map_filter} [X2][Y2] f {!t}}
+                }
+                let oh2 = {{force f} h}
+                match oh2 {
+                    _u => { ret t2 }
+                    h2 => {
+                        ret roll inj2
+                            pack (X1,X2,{@!}X1,{@!}X2) (n, h, rt2)
+                    }
+                }
+            }
+        }
+    }
 
     // let rec reverse:(
     //     Thk[0]
