@@ -98,6 +98,7 @@ its reference implementation; readers are encouraged to
 
 #[macro_use] extern crate adapton;
 
+extern crate regex;
 extern crate serde;
 extern crate serde_json;
 #[macro_use] extern crate serde_derive;

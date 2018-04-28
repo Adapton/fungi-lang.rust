@@ -136,6 +136,8 @@ macro_rules! fgi_listing_expect {
             use ast::*;
             use bitype::*;
             use vis::*;
+            use regex::Regex;
+            
 
             let bundle : Bundle = fgi_bundle![
                 $($e)+
@@ -145,7 +147,13 @@ macro_rules! fgi_listing_expect {
             // name (not line number), but this path name, but this
             // issue has been open for two years:
             // https://github.com/rust-lang/rfcs/issues/1743
-            let path = format!("target/{}:{}.fgb", module_path!(), line!());
+            //
+            // Also, can't use `::` on Windows, so using `.` instead:
+            // https://msdn.microsoft.com/en-us/library/aa365247
+            //
+            let re = Regex::new(r"::").unwrap();
+            let modp = re.replace_all(module_path!(), ".");
+            let path = format!("target/{}.{}.fgb", modp, line!());
             
             write_bundle(path.as_str(), &bundle);
             match ($($outcome)+, bundle.program.clas) {
