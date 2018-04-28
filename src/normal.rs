@@ -89,10 +89,14 @@ pub fn is_normal_idxtm(ctx:&Ctx, i:&IdxTm) -> bool {
     match *i {
         // identifiers are not normal
         IdxTm::Ident(_)   => false,
-        // variables and unit have no reduction rule; ditto for functions
-        IdxTm::Var(_)     => true,
-        IdxTm::Unit       => true,
+        // namesets are normal, by the way we construct them
         IdxTm::NmSet(_)   => true,
+        // variables are normal if there are no decompositions in the context
+        IdxTm::Var(ref x) => {
+            None == bitype::find_defs_for_idxtm_var(&ctx, &x)
+        }        
+        // unit has no reduction rule; ditto for functions
+        IdxTm::Unit       => true,
         IdxTm::WriteScope => true,
         IdxTm::Lam(_,_,_) => true,
         // Unions and pairs are normal if their sub-terms are normal
@@ -226,6 +230,10 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
         match i {
             IdxTm::Empty => {
                 IdxTm::NmSet(NmSet{cons:None, terms:vec![]})
+            }
+            IdxTm::Var(ref x) => {
+                let xdef = bitype::find_defs_for_idxtm_var(&ctx, x);
+                normal_idxtm(ctx, xdef.unwrap())
             }
             IdxTm::Sing(n) => {
                 let n = normal_nmtm(ctx, n);

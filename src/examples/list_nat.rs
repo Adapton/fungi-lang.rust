@@ -38,7 +38,7 @@ pub fn listing0 () { fgi_listing_expect![
             foralli (X,Y):NmSet.
             0 (Thk[0] 0 Nat -> 0 F Nat) ->
             0 List[X][Y] ->
-        {{@!}X; Y} F List[X][{@!}X]
+        {{@!}X; Y%({@!}X)} F List[X][{@!}X]
     ) = {
         #f.#l. unroll match l {
             _u => { ret roll inj1 () }
@@ -46,9 +46,9 @@ pub fn listing0 () { fgi_listing_expect![
                 unpack (X1,X2,Y1,Y2) c = c
                 let (n, h, t) = { ret c }
                 let h2 = {{force f} h}
-                let t2 = {{force map} [X2][Y2] f {!t}}
+                let t2 = {memo(n){{force map} [X2][Y2] f {!t}}}
                 ret roll inj2
-                    pack (X1,X2,Y1,Y2) (n, h2, t2)
+                    pack (X1,X2,{@!}X1,{@!}X2) (n, h2, t2)
             }
         }
     }

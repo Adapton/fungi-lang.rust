@@ -324,6 +324,21 @@ pub mod effect {
                 let ns2 = normal::NmSet{cons:None,terms:vec![normal::NmSetTm::Subset(j)]};
                 decide_nmset_subtraction(ctx, ns1, ns2)
             }
+            // (IdxTm::Map(n1, i1), IdxTm::Map(n2, i2)) => {
+            //     let sort = fgi_sort!("[Nm -> Nm]");
+            //     let n1 = panic!("XXX");
+            //     let n2 = panic!("XXX");
+            //     let n1_n2_equiv = equiv::decide_nmtm_equiv(&super::relctx_of_ctx(ctx), n1, n2, &sort);
+            //     match n1_n2_equiv.res {
+            //         Ok(true) => {
+            //             decide_idxtm_subtraction(ctx, (*i1).clone(), (*i2).clone())
+            //         }
+            //         _ => {
+            //             println!("^decide_idxtm_subtraction: Failure:\n From index term:\n\t{:?}\n We do not know how to subtract index term:\n\t{:?}", &i, &j);
+            //             Result::Err( Error::CannotSubtractFromIdxTm(i, j) )
+            //         }
+            //     }
+            // }
             (i, j) => {
                 println!("^decide_idxtm_subtraction: Failure:\n From index term:\n\t{:?}\n We do not know how to subtract index term:\n\t{:?}", &i, &j);
                 Result::Err( Error::CannotSubtractFromIdxTm(i, j) )
