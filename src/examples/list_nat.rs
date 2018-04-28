@@ -1,6 +1,6 @@
 #[test]
 pub fn listing0 () { fgi_listing_expect![
-    [Expect::Success]
+    [Expect::SuccessxXXX]
     
     decls {
         /// Lists of natural numbers
