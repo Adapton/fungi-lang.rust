@@ -36,7 +36,14 @@ pub fn listing0 () { fgi_listing_expect![
             pack (X1,X2,Y1,Y2) (n, h, t)
     }
 
-
+    //
+    // Allocates a ref cell, holding a cons cell, pointing at a list:
+    //
+    // ref         cons       ref     list
+    // |{@!}X1|--->|X1|_|*|-->|Y1|--> |...[X2][Y2]...|
+    //
+    // : Ref[{@!}X1](List[X1%X2][Y1%Y2])
+    //
     let ref_cons:(
         Thk[0]
             foralli (X,X1,X2):NmSet | ((X1%X2)=X:NmSet).
@@ -127,20 +134,29 @@ pub fn listing0 () { fgi_listing_expect![
 
     let rec reverse:(
         Thk[0]
-            foralli (X,Xa,Xb):NmSet | ((Xa%Xb)=X:NmSet).
-            foralli (Y,Ya,Yb):NmSet | ((Ya%Yb)=Y:NmSet).
+            foralli (X,Xa,Xb,Xc):NmSet | ((Xa%Xb%Xc)=X:NmSet).
+            foralli (Y,Ya,Yb1,Yb2):NmSet | ((Ya%Yb1%Yb2)=Y:NmSet).
             0 List[Xa][Ya] ->
-            0 List[Xb][Yb] ->
-        //{ {@!}(Xa % Xa*{@1}); {@!}(Xa*{@1}) % Y} F List
-        0 F List[X][Y]
+            0 Ref[Yb1](List[Xb][Yb2]) ->
+            0 Nm[Xc] ->
+        //
+        // TODO: Fix parse error here:
+        //        { {@!}(Xa % (Xa*{@1})) ;
+        //               {@!}(Xa*{@1}) % Y }
+            0
+            F Ref[{@!}Xc] List[Xa%Xb][Y]
     ) = {
-        #l.#r. unroll match l {
-            _u => { ret r }
+        #l.#r.#n. unroll match l {
+            _u => { let r = {get r}
+                    ref n r }
             c => {
                 unpack (Xa1,Xa2,Ya1,Ya2) c = c
                 let (n, h, t) = { ret c }
-                let r2 = {{force ref_cons}[_][_][_][_][_][_] n h t}
-                memo{n,(@1)}{{force reverse} {!t} r2}
+                let r2 = { {force ref_cons}
+                            [(Xa%Xb)][Xa][Xb][(Yb1%Yb2)][Yb1][Yb2]
+                            n h t}
+                let (_r,r) = {memo{n,(@1)}{{force reverse} {!t} r2}}
+                ret r
             }
         }
     }
