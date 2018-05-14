@@ -13,32 +13,32 @@ pub fn listing0 () { fgi_listing_expect![
 
     let nil:(
         Thk[0] 0 F List
-    ) = {            
+    ) = {
         ret thunk ret roll inj1 ()
     }
-    
+
     let cons:(
         Thk[0] 0 Nat -> 0 List -> 0 F List
-    ) = {            
+    ) = {
         ret thunk #h.#t. ret roll inj2 (h, t)
     }
 
     let nat_is_zero:(
-        Thk[0] 
+        Thk[0]
             0 Nat -> 0 F Nat
     ) = {
         ret thunk #n.
         {unsafe (1) trapdoor::nat_is_zero} n
     }
-    
+
     let nat_sub:(
-        Thk[0] 
+        Thk[0]
             0 Nat -> 0 Nat -> 0 F Nat
     ) = {
         ret thunk #n.#m.
         {unsafe (2) trapdoor::nat_sub} n m
     }
-    
+
     let rec gen:(
         Thk[0]
             0 Nat -> 0 F List
@@ -141,11 +141,11 @@ pub fn listing0 () { fgi_listing_expect![
             }
         }
     }
-    
+
     ret 0
 ]}
 
-// TODO (Hammer): 
+// TODO (Hammer):
 //
 // Once we have a fuller story for the module system, move these
 // natural number primmitives into an appropriate module for them.
@@ -156,31 +156,31 @@ pub mod trapdoor {
 
     pub fn nat_is_zero(args:Vec<RtVal>) -> ExpTerm {
         match &args[0] {
-            RtVal::Nat(n) => { 
-                ExpTerm::Ret(RtVal::Bool(n == &0)) 
+            RtVal::Nat(n) => {
+                ExpTerm::Ret(RtVal::Bool(n == &0))
             },
             v => panic!("expected a natural number, not: {:?}", v)
         }
     }
-    
+
     pub fn nat_is_odd(args:Vec<RtVal>) -> ExpTerm {
         match &args[0] {
-            RtVal::Nat(n) => { 
+            RtVal::Nat(n) => {
                 ExpTerm::Ret(RtVal::Bool(n.checked_rem(2) == Some(1)))
             },
             v => panic!("expected a natural number, not: {:?}", v)
         }
     }
-    
+
     pub fn nat_is_even(args:Vec<RtVal>) -> ExpTerm {
         match &args[0] {
-            RtVal::Nat(n) => { 
+            RtVal::Nat(n) => {
                 ExpTerm::Ret(RtVal::Bool(n.checked_rem(2) == None))
             },
             v => panic!("expected a natural number, not: {:?}", v)
         }
     }
-        
+
     pub fn nat_sub(args:Vec<RtVal>) -> ExpTerm {
         match (&args[0], &args[1]) {
             (RtVal::Nat(n), RtVal::Nat(m)) => {
@@ -188,7 +188,7 @@ pub mod trapdoor {
                 //println!("{:?} - {:?} = {:?}", n, m, n - m);
                 ExpTerm::Ret(RtVal::Nat(n - m))
             },
-            (v1, v2) => 
+            (v1, v2) =>
                 panic!("expected two natural numbers, not: {:?} and {:?}", v1, v2)
 
         }
@@ -202,33 +202,33 @@ pub mod tests {
         use std::rc::Rc;
         use ast::*;
         //use bitype::*;
-        
-        // TODO (Hammer): 
+
+        // TODO (Hammer):
         //
         // Use the module system to import (or somehow avoid
         // repeating) the definitions from above that are used below.
         //
-        let e = fgi_exp![ 
+        let e = fgi_exp![
             // COPY (from above)
             decls {
                 /// Lists of natural numbers
                 type List  = (+ Unit + (x Nat x List));
             }
-            // COPY (from above)            
+            // COPY (from above)
             let nil:(
                 Thk[0] 0 F List
-            ) = {            
+            ) = {
                 ret thunk ret roll inj1 ()
             }
             // COPY (from above)
             let cons:(
                 Thk[0] 0 Nat -> 0 List -> 0 F List
-            ) = {            
+            ) = {
                 ret thunk #h.#t. ret roll inj2 (h, t)
             }
             // COPY (from above, adjusted a bit)
             let nat_is_zero:(
-                Thk[0] 
+                Thk[0]
                     0 Nat -> 0 F Nat
             ) = {
                 ret thunk #n.
@@ -236,7 +236,7 @@ pub mod tests {
             }
             // COPY (from above, adjusted a bit)
             let nat_is_odd:(
-                Thk[0] 
+                Thk[0]
                     0 Nat -> 0 F Nat
             ) = {
                 ret thunk #n.
@@ -244,7 +244,7 @@ pub mod tests {
             }
             // COPY (from above, adjusted a bit)
             let nat_sub:(
-                Thk[0] 
+                Thk[0]
                     0 Nat -> 0 Nat -> 0 F Nat
             ) = {
                 ret thunk #n.#m.
@@ -299,7 +299,7 @@ pub mod tests {
                         }
                     }
                 }
-            }            
+            }
             // COPY (from above)
             let rec reverse:(
                 Thk[0]
@@ -316,7 +316,7 @@ pub mod tests {
                     }
                 }
             }
-            // COPY (from above)            
+            // COPY (from above)
             let rec fold:(
                 Thk[0]
                     0 List ->
@@ -349,8 +349,9 @@ pub mod tests {
                 ([4,3,2,1,0],
                  [5,4,3,2,1],
                  [5,3,1],
+                 [1,3,5],
                  9)
-             */                
+             */
         ];
         let t = reduce::reduce(vec![], vec![], e);
         println!("{:?}", t);
