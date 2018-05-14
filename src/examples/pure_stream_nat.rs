@@ -15,9 +15,9 @@ pub fn listing0 () { fgi_listing_test![
     }
 
     let cons:(
-        Thk[0] 0 Nat -> 0 Stream -> 0 F Stream
+        Thk[0] 0 Nat -> 0 Thk Stream -> 0 F Stream
     ) = {
-        ret thunk #h.#t. ret roll inj2 (h, thunk ret t)
+        ret thunk #h.#t. ret roll inj2 (h, t)
     }
 
     /*let rec map:(
@@ -29,9 +29,11 @@ pub fn listing0 () { fgi_listing_test![
         #f.#s. unroll match s {
             _u => { ret roll inj1 () }
             c => {
-                let (h, _t) = { ret c }
+                let (h, tt) = { ret c }
+                // tt is a Thk Stream, must force to get out Stream
+                let ft = {force tt}
                 let h2 = {{force f} h}
-                let t2 = {{force map} f {force _t}}
+                let t2 = {{force map} f ft}
                 {{force cons} h2 t2}
             }
         }
