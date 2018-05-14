@@ -56,7 +56,7 @@ pub fn listing0 () { fgi_listing_expect![
         ret thunk #n.#h.#t. ref n
             roll inj2 pack (X1,X2,Y1,Y2) (n, h, t)
     }
-    
+   
     let rec map:(
         Thk[0]
             foralli (X,Y):NmSet.
@@ -141,8 +141,8 @@ pub fn listing0 () { fgi_listing_expect![
             0 Nm[Xc] ->
         //
         // TODO: Fix parse error here:
-        //        { {@!}(Xa % (Xa*{@1})) ;
-        //               {@!}(Xa*{@1}) % Y }
+        //        { {@!}(Xa % (Xa*({@1}))) ;
+        //               {@!}(Xa*({@1})) % Y }
             0
             F Ref[{@!}Xc] List[Xa%Xb][Y]
     ) = {
