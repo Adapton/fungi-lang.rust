@@ -127,14 +127,18 @@ fn produce_value(c:&mut Config,
         Err(StepError::Halt(
             ExpTerm::Ret(v)))
     }
-    else { match c.stk.pop().unwrap().cont {
-        Cont::Let(x, e) => {
-            set_env(c, x, v);
-            c.exp = e;
-            Ok(())
+    else { 
+        let fr = c.stk.pop().unwrap();
+        match fr.cont {
+            Cont::Let(x, e) => {
+                c.env = fr.env;
+                set_env(c, x, v);
+                c.exp = e;
+                Ok(())
+            }
+            _ => stuck_err(Stuck::RetNonLetCont),
         }
-        _ => stuck_err(Stuck::RetNonLetCont),
-    }}
+    }
 }
 fn consume_value(c:&mut Config,
                  restore_env:Option<Env>,

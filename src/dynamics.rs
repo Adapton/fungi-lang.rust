@@ -243,7 +243,7 @@ pub fn close_val(env:&Env, v:&Val) -> RtVal {
                 } else {}
             };
             match v {
-                None => panic!("close_val: free variable: {}", x),
+                None => panic!("close_val: free variable: {}\n\tenv:{:?}", x, env),
                 Some(v) => v
             }
         }
