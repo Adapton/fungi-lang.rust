@@ -177,7 +177,7 @@ pub fn listing0 () { fgi_listing_expect![
     //         }
     //     }
     // }
-    
+        
     ret 0
 ]}
 
@@ -213,3 +213,190 @@ pub fn listing1 () { fgi_listing_expect![
 
     ret 0
 ]}
+
+pub mod tests {
+    #[test]
+    fn gen() {
+        use reduce;
+        use std::rc::Rc;
+        use ast::*;
+        //use bitype::*;
+        
+        // TODO (Hammer): 
+        //
+        // Use the module system to import (or somehow avoid
+        // repeating) the definitions from above that are used below.
+        //
+        let e = fgi_exp![ 
+            // COPY (from above)
+            decls {
+                /// Lists of natural numbers
+                type List  = (
+                    rec list. foralli (X,Y):NmSet.
+                        (+ Unit +
+                         (exists (X1,X2):NmSet | ((X1%X2)=X:NmSet).
+                          exists (Y1,Y2):NmSet | ((Y1%Y2)=Y:NmSet).
+                          x Nm[X1] x Nat x Ref[Y1](list[X2][Y2])
+                         ))
+                );
+            }
+
+            // COPY (from above)
+            //
+            // Allocates a ref cell, holding a cons cell, pointing at a list:
+            //
+            // ref         cons       ref     list
+            // |{@!}X1|--->|X1|_|*|-->|Y1|--> |...[X2][Y2]...|
+            //
+            // : Ref[{@!}X1](List[X1%X2][Y1%Y2])
+            //
+            let ref_cons:(
+                Thk[0]
+                    foralli (X,X1,X2):NmSet | ((X1%X2)=X:NmSet).
+                    foralli (Y,Y1,Y2):NmSet | ((Y1%Y2)=Y:NmSet).
+                    0 Nm[X1] ->
+                    0 Nat ->
+                    0 Ref[Y1](List[X2][Y2]) ->
+                {{@!}X;0} F Ref[{@!}X1](List[X1%X2][Y1%Y2])
+            ) = {            
+                ret thunk #n.#h.#t. ref n
+                    roll inj2 pack (X1,X2,Y1,Y2) (n, h, t)
+            }
+            
+            // COPY (from above, adjusted a bit)
+            let nat_is_zero:(
+                Thk[0] 
+                    0 Nat -> 0 F Nat
+            ) = {
+                ret thunk #n.
+                    {unsafe (1) super::trapdoor::nat_is_zero} n
+            }
+            
+            // COPY (from above, adjusted a bit)
+            let nat_sub:(
+                Thk[0] 
+                    0 Nat -> 0 Nat -> 0 F Nat
+            ) = {
+                ret thunk #n.#m.
+                    {unsafe (2) super::trapdoor::nat_sub} n m
+            }
+
+            // XXX -- This type is wrong.  TODO -- figure out how to
+            // ecode this type correctly, with existentials.
+            let name_of_nat:(
+                Thk[0] 
+                    foralli X:NmSet.
+                    0 Nat -> 0 F Nm[X]
+            ) = {
+                ret thunk #n.
+                    {unsafe (1) super::trapdoor::name_of_nat} n
+            }
+
+            // XXX -- This type is wrong.  TODO -- figure out how to
+            // ecode this type correctly, with existentials.  
+            //
+            // COPY (from above)
+            let rec gen:(
+                Thk[0]
+                    foralli (Y1,X1,Y2):NmSet.
+                    0 Nat -> 0 F Ref[Y1](List[X1][Y2])
+            ) = {
+                #n. if {{force nat_is_zero} n} {
+                    ref (@0) roll inj1 ()
+                } else {
+                    let nm = {{force name_of_nat} n}
+                    let p  = {{force nat_sub} n 1}
+                    let l  = {{force gen} p}
+                    {{force ref_cons}
+                     [X1][X1][X1][(Y1%Y2)][Y1][Y2]
+                     nm p l}
+                }
+            }
+
+            // ----------------------------------------
+            // the test script to run (via reduce)
+            //
+            let list1 = {{force gen} 5}
+
+            //let list2 = {{force map} (thunk #x. x + 1) list1}
+            //let list3 = {{force filter} nat_is_odd list2}
+            //let list4 = {{force reverse} list3 (roll inj1 ())}
+            //let sumodd = {{force fold} list4 0 (thunk #n.#m. n + m)}
+            //ret (list1, list2, list3, list4, sumodd)
+            
+            ret list1
+            
+            //
+            // Produces the tuple:
+            /*
+                ([4,3,2,1,0],
+                 [5,4,3,2,1],
+                 [5,3,1],
+                 9)
+             */
+        ];
+        let t = reduce::reduce(vec![], vec![], e);
+        println!("{:?}", t);
+        drop(t)
+    }
+}
+
+// TODO (Hammer): 
+//
+// Once we have a fuller story for the module system, move these
+// natural number primmitives into an appropriate module for them.
+
+pub mod trapdoor {
+    // This code essentially extends the Fungi evaluator
+    use ast::{Name};
+    use dynamics::{RtVal,ExpTerm};
+
+    pub fn name_of_nat(args:Vec<RtVal>) -> ExpTerm {
+        match &args[0] {
+            RtVal::Nat(n) => { 
+                ExpTerm::Ret(RtVal::Name(Name::Num(*n)))
+            }
+            v => panic!("expected a natural number, not: {:?}", v)
+        }
+    }
+
+    pub fn nat_is_zero(args:Vec<RtVal>) -> ExpTerm {
+        match &args[0] {
+            RtVal::Nat(n) => { 
+                ExpTerm::Ret(RtVal::Bool(n == &0)) 
+            },
+            v => panic!("expected a natural number, not: {:?}", v)
+        }
+    }
+    
+    pub fn nat_is_odd(args:Vec<RtVal>) -> ExpTerm {
+        match &args[0] {
+            RtVal::Nat(n) => { 
+                ExpTerm::Ret(RtVal::Bool(n.checked_rem(2) == Some(1)))
+            },
+            v => panic!("expected a natural number, not: {:?}", v)
+        }
+    }
+    
+    pub fn nat_is_even(args:Vec<RtVal>) -> ExpTerm {
+        match &args[0] {
+            RtVal::Nat(n) => { 
+                ExpTerm::Ret(RtVal::Bool(n.checked_rem(2) == None))
+            },
+            v => panic!("expected a natural number, not: {:?}", v)
+        }
+    }
+        
+    pub fn nat_sub(args:Vec<RtVal>) -> ExpTerm {
+        match (&args[0], &args[1]) {
+            (RtVal::Nat(n), RtVal::Nat(m)) => {
+                assert!(n >= m);
+                //println!("{:?} - {:?} = {:?}", n, m, n - m);
+                ExpTerm::Ret(RtVal::Nat(n - m))
+            },
+            (v1, v2) => 
+                panic!("expected two natural numbers, not: {:?} and {:?}", v1, v2)
+
+        }
+    }
+}

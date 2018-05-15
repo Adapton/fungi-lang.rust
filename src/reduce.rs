@@ -95,6 +95,7 @@ pub enum Stuck {
     NatPrim,
     NameBin,
     UnrollNonRoll,
+    UnpackNonPack,
     WriteScope,
     NameFnApp,
     RefThunkNonThunk,
@@ -334,8 +335,14 @@ pub fn step(c:&mut Config) -> Result<(),StepError> {
                 _ => stuck_err(Stuck::UnrollNonRoll)
             }
         }
-        Exp::Unpack(_i,_x,_v,_e) => {
-            unimplemented!()
+        Exp::Unpack(_i, x, v, e1) => {
+            match close_val(&c.env, &v) {
+                RtVal::Pack(v) => {
+                    set_env_rec(c, x, v);
+                    continue_rec(c, e1)
+                },
+                _ => stuck_err(Stuck::UnpackNonPack)
+            }                
         }
         Exp::Thunk(v, e1) => {
             match close_val(&c.env, &v) {
