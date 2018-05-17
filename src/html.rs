@@ -26,10 +26,10 @@ use adapton::reflect::trace::EffectEdge;
 /// versions of `Name`s, for giving the text of the name.
 #[derive(Debug,Clone)]
 pub struct Div {
-  pub tag:     String,
-  pub classes: Vec<String>,
-  pub extent:  Box<Vec<Div>>,
-  pub text:    Option<String>,
+    pub tag:     String,
+    pub classes: Vec<String>,
+    pub extent:  Box<Vec<Div>>,
+    pub text:    Option<String>,
 }
 
 // Questions:
@@ -49,78 +49,78 @@ pub struct Div {
 // `11.L.r.r` since a single `fork` operation produced them both.
 
 pub fn div_of_name (n:&Name) -> Div {
-  Div{ tag: String::from("name"),
-       // TODO: Remove illegal chars for CSS classes (check spec)
-       // classes: vec![ format!("{:?}", n) ],
-       classes: vec![ string_of_name(n) ],
-       extent: Box::new( vec![ ] ),
-       text: Some( format!("{}", string_of_name(n) ) ) }
+    Div{ tag: String::from("name"),
+         // TODO: Remove illegal chars for CSS classes (check spec)
+         // classes: vec![ format!("{:?}", n) ],
+         classes: vec![ string_of_name(n) ],
+         extent: Box::new( vec![ ] ),
+         text: Some( format!("{}", string_of_name(n) ) ) }
 }
 
 pub fn div_of_path (p:&Path) -> Div {
-  Div{ tag: String::from("path"),
-       //classes: vec![ format!("{:?}", p) ],
-       classes: vec![ ],
-       extent: Box::new(
-         p.iter().map( div_of_name ).collect()
-       ),
-       text: None }
+    Div{ tag: String::from("path"),
+         //classes: vec![ format!("{:?}", p) ],
+         classes: vec![ ],
+         extent: Box::new(
+             p.iter().map( div_of_name ).collect()
+         ),
+         text: None }
 }
 
 pub fn div_of_loc (l:&Loc) -> Div {
-  Div{ tag: String::from("loc"),
-       // TODO: Remove illegal chars for CSS classes (check spec)
-       //classes: vec![ format!("{:?}", l) ],
-       classes: vec![ ],       
-       extent: Box::new(vec![ div_of_path(&l.path), div_of_name(&l.name) ]),
-       //text: Some( format!("{:?}",l) )
-       text:None,
-  }
+    Div{ tag: String::from("loc"),
+         // TODO: Remove illegal chars for CSS classes (check spec)
+         //classes: vec![ format!("{:?}", l) ],
+         classes: vec![ ],       
+         extent: Box::new(vec![ div_of_path(&l.path), div_of_name(&l.name) ]),
+         //text: Some( format!("{:?}",l) )
+         text:None,
+    }
 }
 
 pub fn div_of_oploc (ol:&Option<Loc>) -> Div {
-  if true {
-    Div{ tag: String::from("oploc"), 
-         classes: vec![],
-         extent: Box::new(vec![]),
-         text: None,
+    if true {
+        Div{ tag: String::from("oploc"), 
+             classes: vec![],
+             extent: Box::new(vec![]),
+             text: None,
+        }
+    } else {
+        Div{ tag: String::from("oploc"),
+             classes: vec![],
+             extent: Box::new(match *ol { 
+                 None => vec![],
+                 Some(ref l) => vec![ div_of_loc(l)]}),
+             text: None
+        }
     }
-  } else {
-    Div{ tag: String::from("oploc"),
-         classes: vec![],
-         extent: Box::new(match *ol { 
-           None => vec![],
-           Some(ref l) => vec![ div_of_loc(l)]}),
-         text: None
-    }
-  }
 }
 
 pub fn div_of_succ (s:&Succ) -> Div {
-  Div{ tag: String::from("succ"),
-       classes: vec![
-         String::from(match s.effect {
-           Effect::Alloc => "succ-alloc",
-           Effect::Force => "succ-force"
-         }),
-         String::from(match s.dirty {
-           true  => "succ-dirty",
-           false => "succ-not-dirty"
-         }),
-       ],
-       text: None,
-       extent: Box::new(vec![
-         div_of_loc(&s.loc),
-       ])}
+    Div{ tag: String::from("succ"),
+         classes: vec![
+             String::from(match s.effect {
+                 Effect::Alloc => "succ-alloc",
+                 Effect::Force => "succ-force"
+             }),
+             String::from(match s.dirty {
+                 true  => "succ-dirty",
+                 false => "succ-not-dirty"
+             }),
+         ],
+         text: None,
+         extent: Box::new(vec![
+             div_of_loc(&s.loc),
+         ])}
 }
 
 pub fn div_of_edge (e:&trace::Edge) -> Div {
-  Div{ tag: String::from("edge"),
-       classes: vec![],
-       text: None,
-       extent: Box::new(
-         vec![ div_of_oploc(&e.loc),
-               div_of_succ(&e.succ) ]) }
+    Div{ tag: String::from("edge"),
+         classes: vec![],
+         text: None,
+         extent: Box::new(
+             vec![ div_of_oploc(&e.loc),
+                   div_of_succ(&e.succ) ]) }
 }
 
 pub fn div_of_effect_edge (e:&trace::EffectEdge) -> Div {
@@ -152,349 +152,349 @@ pub fn div_of_effect_edge (e:&trace::EffectEdge) -> Div {
 }
 
 pub fn div_of_value_tree (dcg:&DCG, visited:&mut HashMap<Loc, ()>, val:&Val) -> Div {
-  let div = Div {
-    tag: match *val {
-      Val::Constr(ref n, _) => { format!("val-constr constr-{}", string_of_name(n) ) },
-      Val::Struct(ref n, _) => { format!("val-struct struct-{}", string_of_name(n) ) },
-      Val::Const( ref c )     => { format!("val-const  const-{}" , match *c {
-        Const::Nat( ref n ) => format!("{}", n),
-        Const::Num( ref n ) => format!("{}", n),
-        Const::String( ref s ) => s.clone(),
-      })},
-      Val::Tuple(ref vs) => { format!("val-tuple tuple-{}", vs.len()) },
-      Val::Vec(ref vs) => { format!("val-vec vec-{}", vs.len()) },
-      Val::Art(ref loc, _) => { format!("val-art {}", string_of_loc( loc ) ) },
-      Val::ValTODO => { format!("val-TODO") },
-      Val::Name(ref n) => { format!("name val-name {}", string_of_name(n)) },
-    },
-    classes: vec![],
-    text: 
-      match *val {
-        Val::Constr(ref n, _) => { Some(string_of_name(n)) },
-        Val::Struct(ref n, _) => { Some(string_of_name(n)) },
-        Val::Const( ref c )     => Some(match *c {
-          Const::Nat( ref n ) => format!("{}", n),
-          Const::Num( ref n ) => format!("{}", n),
-          Const::String( ref s ) => format!("{:?}", s),
-        }),
-        Val::Tuple( _ ) => None,
-        Val::Vec( _ ) => None,
-        Val::ValTODO => None,
-        Val::Art( ref l, _ ) => {
-          Some(format!("{}", string_of_loc(l)))
-        }
-        Val::Name(ref n) => {
-          Some(format!("{}", string_of_name(n)))
-        }
-      },
-    
-    extent: Box::new(
-      match *val {
-        Val::Constr(_, ref vs) => { let ds : Vec<_> = vs.iter().map( |v| div_of_value_tree(dcg, visited,  v) ).collect() ; ds },
-        Val::Struct(_, ref fs) => { let ds : Vec<_> = fs.iter().map(  |&(ref _f, ref v) | 
-                                                                         div_of_value_tree(dcg, visited, &v) ).collect() ; ds },
-        Val::Tuple(ref vs) =>     { let ds : Vec<_> = vs.iter().map( |v| div_of_value_tree(dcg, visited,  v) ).collect() ; ds },
-        Val::Vec(ref vs) =>       { let ds : Vec<_> = vs.iter().map( |v| div_of_value_tree(dcg, visited,  v) ).collect() ; ds },
-        Val::Const( _ ) => vec![],
-        Val::ValTODO => vec![],
-        Val::Name(_) => vec![],
-        Val::Art( ref l, _ ) => vec![
-          div_of_loc(l), 
-          match dcg.table.get(l) {
-            None => Div{ tag: String::from("dangling"), 
-                         classes:vec![String::from("no-extent")], 
-                         text:Some(String::from("Dangling")), 
-                         extent:Box::new(vec![]),
-            },
-            Some(node) => {
-              match *node {
-                Node::Pure(ref p) => div_of_value_tree(dcg, visited, &p.value),
-                Node::Ref(ref n) => div_of_value_tree(dcg, visited, &n.value),
-                Node::Comp(ref n) => match n.value {
-                  None => 
-                    Div{ tag: String::from("Unevald"), 
-                         classes:vec![String::from("no-extent")], 
-                         text:Some(String::from("Uneval'd")), 
-                         extent:Box::new(vec![]),
-                    },
-                  Some(ref v) => div_of_value_tree(dcg, visited, v),
-                }
-              }
+    let div = Div {
+        tag: match *val {
+            Val::Constr(ref n, _) => { format!("val-constr constr-{}", string_of_name(n) ) },
+            Val::Struct(ref n, _) => { format!("val-struct struct-{}", string_of_name(n) ) },
+            Val::Const( ref c )     => { format!("val-const  const-{}" , match *c {
+                Const::Nat( ref n ) => format!("{}", n),
+                Const::Num( ref n ) => format!("{}", n),
+                Const::String( ref s ) => s.clone(),
+            })},
+            Val::Tuple(ref vs) => { format!("val-tuple tuple-{}", vs.len()) },
+            Val::Vec(ref vs) => { format!("val-vec vec-{}", vs.len()) },
+            Val::Art(ref loc, _) => { format!("val-art {}", string_of_loc( loc ) ) },
+            Val::ValTODO => { format!("val-TODO") },
+            Val::Name(ref n) => { format!("name val-name {}", string_of_name(n)) },
+        },
+        classes: vec![],
+        text: 
+        match *val {
+            Val::Constr(ref n, _) => { Some(string_of_name(n)) },
+            Val::Struct(ref n, _) => { Some(string_of_name(n)) },
+            Val::Const( ref c )     => Some(match *c {
+                Const::Nat( ref n ) => format!("{}", n),
+                Const::Num( ref n ) => format!("{}", n),
+                Const::String( ref s ) => format!("{:?}", s),
+            }),
+            Val::Tuple( _ ) => None,
+            Val::Vec( _ ) => None,
+            Val::ValTODO => None,
+            Val::Art( ref l, _ ) => {
+                Some(format!("{}", string_of_loc(l)))
             }
-          }
-        ],
-      }
-    )
-  }
-  ;
-  div
+            Val::Name(ref n) => {
+                Some(format!("{}", string_of_name(n)))
+            }
+        },
+        
+        extent: Box::new(
+            match *val {
+                Val::Constr(_, ref vs) => { let ds : Vec<_> = vs.iter().map( |v| div_of_value_tree(dcg, visited,  v) ).collect() ; ds },
+                Val::Struct(_, ref fs) => { let ds : Vec<_> = fs.iter().map(  |&(ref _f, ref v) | 
+                                                                                 div_of_value_tree(dcg, visited, &v) ).collect() ; ds },
+                Val::Tuple(ref vs) =>     { let ds : Vec<_> = vs.iter().map( |v| div_of_value_tree(dcg, visited,  v) ).collect() ; ds },
+                Val::Vec(ref vs) =>       { let ds : Vec<_> = vs.iter().map( |v| div_of_value_tree(dcg, visited,  v) ).collect() ; ds },
+                Val::Const( _ ) => vec![],
+                Val::ValTODO => vec![],
+                Val::Name(_) => vec![],
+                Val::Art( ref l, _ ) => vec![
+                    div_of_loc(l), 
+                    match dcg.table.get(l) {
+                        None => Div{ tag: String::from("dangling"), 
+                                     classes:vec![String::from("no-extent")], 
+                                     text:Some(String::from("Dangling")), 
+                                     extent:Box::new(vec![]),
+                        },
+                        Some(node) => {
+                            match *node {
+                                Node::Pure(ref p) => div_of_value_tree(dcg, visited, &p.value),
+                                Node::Ref(ref n) => div_of_value_tree(dcg, visited, &n.value),
+                                Node::Comp(ref n) => match n.value {
+                                    None => 
+                                        Div{ tag: String::from("Unevald"), 
+                                             classes:vec![String::from("no-extent")], 
+                                             text:Some(String::from("Uneval'd")), 
+                                             extent:Box::new(vec![]),
+                                        },
+                                    Some(ref v) => div_of_value_tree(dcg, visited, v),
+                                }
+                            }
+                        }
+                    }
+                ],
+            }
+        )
+    }
+    ;
+    div
 }
 
 pub fn div_of_force_tree (dcg:&DCG, visited:&mut HashMap<Loc, ()>, loc:&Loc) -> Div {  
-  let mut div = Div {
-    tag:String::from("force-tree"),
-    text:None,
-    classes: vec![],
-    extent: Box::new(vec![ div_of_loc( loc ) ]),
-  };
-  visited.insert( loc.clone(), () );
-  let no_extent = match dcg.table.get( loc ) {
-    None => panic!("dangling pointer in reflected DCG!"),
-    Some( nd ) => {
-      match succs_of_node( nd ) {
-        None => true, // No succs; E.g., ref cells have no succs
-        Some( succs ) => {
-          let mut no_extent = true;
-          for succ in succs {
-            if succ.effect == Effect::Force {
-              no_extent = false;
-              let succ_div = div_of_force_tree (dcg, visited, &succ.loc);
-              div.extent.push( succ_div )
+    let mut div = Div {
+        tag:String::from("force-tree"),
+        text:None,
+        classes: vec![],
+        extent: Box::new(vec![ div_of_loc( loc ) ]),
+    };
+    visited.insert( loc.clone(), () );
+    let no_extent = match dcg.table.get( loc ) {
+        None => panic!("dangling pointer in reflected DCG!"),
+        Some( nd ) => {
+            match succs_of_node( nd ) {
+                None => true, // No succs; E.g., ref cells have no succs
+                Some( succs ) => {
+                    let mut no_extent = true;
+                    for succ in succs {
+                        if succ.effect == Effect::Force {
+                            no_extent = false;
+                            let succ_div = div_of_force_tree (dcg, visited, &succ.loc);
+                            div.extent.push( succ_div )
+                        }
+                    };
+                    no_extent
+                }
             }
-          };
-          no_extent
         }
-      }
-    }
-  };
-  if no_extent {
-    div.classes.push(String::from("no-extent"))
-  };
-  div
+    };
+    if no_extent {
+        div.classes.push(String::from("no-extent"))
+    };
+    div
 }
 
 pub fn div_of_alloc_tree (dcg:&DCG, visited:&mut HashMap<Loc, ()>, loc:&Loc) -> Div {  
-  let mut div = Div {
-    tag:String::from("alloc-tree"),
-    text:None,
-    classes: vec![],
-    extent: Box::new(vec![ div_of_loc( loc ) ]),
-  };
-  visited.insert( loc.clone(), () );
-  let no_extent = match dcg.table.get( loc ) {
-    None => panic!("dangling pointer in reflected DCG!"),
-    Some( nd ) => {
-      match succs_of_node( nd ) {
-        None => true, // No succs; E.g., ref cells have no succs
-        Some( succs ) => {
-          let mut no_extent = true;
-          for succ in succs {
-            if succ.effect == Effect::Alloc {
-              no_extent = false;
-              let succ_div = div_of_alloc_tree (dcg, visited, &succ.loc);
-              div.extent.push( succ_div )
+    let mut div = Div {
+        tag:String::from("alloc-tree"),
+        text:None,
+        classes: vec![],
+        extent: Box::new(vec![ div_of_loc( loc ) ]),
+    };
+    visited.insert( loc.clone(), () );
+    let no_extent = match dcg.table.get( loc ) {
+        None => panic!("dangling pointer in reflected DCG!"),
+        Some( nd ) => {
+            match succs_of_node( nd ) {
+                None => true, // No succs; E.g., ref cells have no succs
+                Some( succs ) => {
+                    let mut no_extent = true;
+                    for succ in succs {
+                        if succ.effect == Effect::Alloc {
+                            no_extent = false;
+                            let succ_div = div_of_alloc_tree (dcg, visited, &succ.loc);
+                            div.extent.push( succ_div )
+                        }
+                    };
+                    no_extent
+                }
             }
-          };
-          no_extent
         }
-      }
-    }
-  };
-  if no_extent {
-    div.classes.push(String::from("no-extent"))
-  };
-  div
+    };
+    if no_extent {
+        div.classes.push(String::from("no-extent"))
+    };
+    div
 }
 
 
 pub fn class_of_dcg_node (nd:&Node) -> String {
-  match *nd {
-    Node::Comp(_) => String::from("dcg-node-comp"),
-    Node::Ref(_) => String::from("dcg-node-ref"),
-    Node::Pure(_) => String::from("dcg-node-pure"),
-  }
+    match *nd {
+        Node::Comp(_) => String::from("dcg-node-comp"),
+        Node::Ref(_) => String::from("dcg-node-ref"),
+        Node::Pure(_) => String::from("dcg-node-pure"),
+    }
 }
 
 pub fn div_of_dcg_alloc_edge (src:Option<&Loc>, loc:&Loc, nd:&Node, is_dirty:bool) -> Div {
-  let div = Div {
-    tag:String::from("dcg-alloc-edge"),
-    text:None,
-    classes: vec![ if is_dirty { String::from("dirty") } else { String::from("clean") },
-                   if src == None { String::from("editor-edge") } else { String::from("dcg-edge") },
-                   class_of_dcg_node( nd ) ],
-    extent: Box::new(vec![ div_of_loc( loc ) ]),
-  };
-  div
+    let div = Div {
+        tag:String::from("dcg-alloc-edge"),
+        text:None,
+        classes: vec![ if is_dirty { String::from("dirty") } else { String::from("clean") },
+                       if src == None { String::from("editor-edge") } else { String::from("dcg-edge") },
+                       class_of_dcg_node( nd ) ],
+        extent: Box::new(vec![ div_of_loc( loc ) ]),
+    };
+    div
 }
 
 pub fn div_of_dcg_succs (dcg:&DCG, visited:&mut HashMap<Loc, ()>, loc:Option<&Loc>, 
                          succs: &Vec<Succ>,
                          extent: &mut Vec<Div>) {  
-  for succ in succs {
-    match succ.effect {
-      Effect::Alloc => {
-        let node = dcg.table.get( &succ.loc ).unwrap();
-        let succ_div = div_of_dcg_alloc_edge (loc, &succ.loc, &node, succ.dirty);
-        extent.push( succ_div )
-      },
-      Effect::Force => {
-        let succ_div = div_of_dcg_force_edge (loc, dcg, visited, &succ.loc, succ.dirty, succ.is_dup);
-        extent.push( succ_div )
-      }
-    }     
-  }
+    for succ in succs {
+        match succ.effect {
+            Effect::Alloc => {
+                let node = dcg.table.get( &succ.loc ).unwrap();
+                let succ_div = div_of_dcg_alloc_edge (loc, &succ.loc, &node, succ.dirty);
+                extent.push( succ_div )
+            },
+            Effect::Force => {
+                let succ_div = div_of_dcg_force_edge (loc, dcg, visited, &succ.loc, succ.dirty, succ.is_dup);
+                extent.push( succ_div )
+            }
+        }     
+    }
 }
 
 pub fn div_of_dcg_force_edge (src:Option<&Loc>, dcg:&DCG, visited:&mut HashMap<Loc, ()>, 
                               loc:&Loc, is_dirty:bool, is_dup:bool) -> Div 
 {  
-  let mut div = Div {
-    tag:String::from("dcg-force-edge"),
-    text:None,
-    classes: vec![ 
-      if is_dup   { String::from("dup-edge") } else { String::from("not-dup-edge") },
-      if is_dirty { String::from("dirty") } else { String::from("clean") }, 
-      if src == None { String::from("editor-edge") } else { String::from("dcg-edge") },
-    ],    
-    extent: Box::new(vec![ div_of_loc( loc ) ]),
-  };
-  visited.insert( loc.clone(), () );
-  let no_extent = match dcg.table.get( loc ) {
-    None => panic!("dangling pointer in reflected DCG!"),
-    Some( nd ) => {
-      div.classes.push( class_of_dcg_node(nd) );
-      match succs_of_node( nd ) {
-        None => true, // No succs; E.g., ref cells have no succs
-        Some( succs ) => { 
-          div_of_dcg_succs(dcg, visited, Some(loc), succs, &mut div.extent);
-          false
+    let mut div = Div {
+        tag:String::from("dcg-force-edge"),
+        text:None,
+        classes: vec![ 
+            if is_dup   { String::from("dup-edge") } else { String::from("not-dup-edge") },
+            if is_dirty { String::from("dirty") } else { String::from("clean") }, 
+            if src == None { String::from("editor-edge") } else { String::from("dcg-edge") },
+        ],    
+        extent: Box::new(vec![ div_of_loc( loc ) ]),
+    };
+    visited.insert( loc.clone(), () );
+    let no_extent = match dcg.table.get( loc ) {
+        None => panic!("dangling pointer in reflected DCG!"),
+        Some( nd ) => {
+            div.classes.push( class_of_dcg_node(nd) );
+            match succs_of_node( nd ) {
+                None => true, // No succs; E.g., ref cells have no succs
+                Some( succs ) => { 
+                    div_of_dcg_succs(dcg, visited, Some(loc), succs, &mut div.extent);
+                    false
+                }
+            }
         }
-      }
-    }
-  };
-  if no_extent {
-    div.classes.push(String::from("no-extent"))
-  };
-  div
+    };
+    if no_extent {
+        div.classes.push(String::from("no-extent"))
+    };
+    div
 }
 
 pub fn div_of_trace (tr:&trace::Trace) -> Div {
-  // For linking to rustdoc documentation from the output HTML
-  let tr_eff_url = "https://docs.rs/adapton/0/adapton/reflect/trace/enum.Effect.html";
-  let mut div = 
-    Div{ 
-      tag: String::from("trace"),
-      text: None,
-      classes: vec![
-          match tr.effect {
-          trace::Effect::UserEffect(_, ref s) => format!("tr-user-{}",s),
-          trace::Effect::DebugLabel(Some(ref n),_) => format!("tr-db-{:?}",n),
-          trace::Effect::DebugLabel(None,_) => "tr-db".to_string(),
-          trace::Effect::CleanRec  => "tr-clean-rec".to_string(),
-          trace::Effect::CleanEval => "tr-clean-eval".to_string(),
-          trace::Effect::CleanEdge => "tr-clean-edge".to_string(),
-          trace::Effect::Dirty     => "tr-dirty".to_string(),
-          trace::Effect::Remove    => "tr-remove".to_string(),
-          trace::Effect::Alloc(trace::AllocCase::LocFresh,_)     => "tr-alloc-loc-fresh".to_string(),
-          trace::Effect::Alloc(trace::AllocCase::LocExists(trace::ChangeFlag::ContentSame),_) => "tr-alloc-loc-exists-same".to_string(),
-          trace::Effect::Alloc(trace::AllocCase::LocExists(trace::ChangeFlag::ContentDiff),_) => "tr-alloc-loc-exists-diff".to_string(),
-          //trace::Effect::Force(_) if tr.edge.succ.is_dup         => "tr-force-dup",
-          trace::Effect::Force(trace::ForceCase::CompCacheMiss)  => "tr-force-compcache-miss".to_string(),
-          trace::Effect::Force(trace::ForceCase::CompCacheHit)   => "tr-force-compcache-hit".to_string(),
-          trace::Effect::Force(trace::ForceCase::RefGet)         => "tr-force-refget".to_string(),
-        }
-      ],
-      extent: Box::new(
-        vec![
-          Div{ 
-            tag: String::from("tr-effect"),
-            text: Some(              
-              format!("<a href={:?}>{}</a>", tr_eff_url, match tr.effect {
-                trace::Effect::UserEffect(_,ref s) => format!("UserEffect({})",s),
-                trace::Effect::DebugLabel(None,ref s) => format!("DebugLabel(None,{})",s),
-                trace::Effect::DebugLabel(Some(ref n),ref s) => format!("DebugLabel({:?},{})",n,s),
-                trace::Effect::CleanRec  => "CleanRec".to_string(),
-                trace::Effect::CleanEval => "CleanEval".to_string(),
-                trace::Effect::CleanEdge => "CleanEdge".to_string(),
-                trace::Effect::Dirty     => "Dirty".to_string(),
-                trace::Effect::Remove    => "Remove".to_string(),
-                trace::Effect::Alloc(trace::AllocCase::LocFresh,_)     => "Alloc(LocFresh)".to_string(),
-                trace::Effect::Alloc(trace::AllocCase::LocExists(trace::ChangeFlag::ContentSame),_) => "Alloc(LocExists(SameContent))".to_string(),
-                trace::Effect::Alloc(trace::AllocCase::LocExists(trace::ChangeFlag::ContentDiff),_) => "Alloc(LocExists(DiffContent))".to_string(),
-                //trace::Effect::Force(_) if tr.edge.succ.is_dup         => "ForceDup",
-                trace::Effect::Force(trace::ForceCase::CompCacheMiss)  => "Force(CompCacheMiss)".to_string(),
-                trace::Effect::Force(trace::ForceCase::CompCacheHit)   => "Force(CompCacheHit)".to_string(),
-                trace::Effect::Force(trace::ForceCase::RefGet)         => "Force(RefGet)".to_string(),
-              })),
-            classes: vec![],
-            extent: Box::new(vec![]),
-          },
-          Div{
-            tag: String::from("tr-symbols"),
-            text: match tr.effect {
-              trace::Effect::Alloc(_,trace::AllocKind::RefCell) => Some(String::from("▣")),
-              trace::Effect::Alloc(_,trace::AllocKind::Thunk)   => Some(String::from("◯")),
-              _ => None,              
-            },
-            classes:vec![],
-            extent: Box::new(vec![]),
-          },            
-          div_of_effect_edge(&tr.edge)
+    // For linking to rustdoc documentation from the output HTML
+    let tr_eff_url = "https://docs.rs/adapton/0/adapton/reflect/trace/enum.Effect.html";
+    let mut div = 
+        Div{ 
+            tag: String::from("trace"),
+            text: None,
+            classes: vec![
+                match tr.effect {
+                    trace::Effect::UserEffect(_, ref s) => format!("tr-user-{}",s),
+                    trace::Effect::DebugLabel(Some(ref n),_) => format!("tr-db-{:?}",n),
+                    trace::Effect::DebugLabel(None,_) => "tr-db".to_string(),
+                    trace::Effect::CleanRec  => "tr-clean-rec".to_string(),
+                    trace::Effect::CleanEval => "tr-clean-eval".to_string(),
+                    trace::Effect::CleanEdge => "tr-clean-edge".to_string(),
+                    trace::Effect::Dirty     => "tr-dirty".to_string(),
+                    trace::Effect::Remove    => "tr-remove".to_string(),
+                    trace::Effect::Alloc(trace::AllocCase::LocFresh,_)     => "tr-alloc-loc-fresh".to_string(),
+                    trace::Effect::Alloc(trace::AllocCase::LocExists(trace::ChangeFlag::ContentSame),_) => "tr-alloc-loc-exists-same".to_string(),
+                    trace::Effect::Alloc(trace::AllocCase::LocExists(trace::ChangeFlag::ContentDiff),_) => "tr-alloc-loc-exists-diff".to_string(),
+                    //trace::Effect::Force(_) if tr.edge.succ.is_dup         => "tr-force-dup",
+                    trace::Effect::Force(trace::ForceCase::CompCacheMiss)  => "tr-force-compcache-miss".to_string(),
+                    trace::Effect::Force(trace::ForceCase::CompCacheHit)   => "tr-force-compcache-hit".to_string(),
+                    trace::Effect::Force(trace::ForceCase::RefGet)         => "tr-force-refget".to_string(),
+                }
+            ],
+            extent: Box::new(
+                vec![
+                    Div{ 
+                        tag: String::from("tr-effect"),
+                        text: Some(              
+                            format!("<a href={:?}>{}</a>", tr_eff_url, match tr.effect {
+                                trace::Effect::UserEffect(_,ref s) => format!("UserEffect({})",s),
+                                trace::Effect::DebugLabel(None,ref s) => format!("DebugLabel(None,{})",s),
+                                trace::Effect::DebugLabel(Some(ref n),ref s) => format!("DebugLabel({:?},{})",n,s),
+                                trace::Effect::CleanRec  => "CleanRec".to_string(),
+                                trace::Effect::CleanEval => "CleanEval".to_string(),
+                                trace::Effect::CleanEdge => "CleanEdge".to_string(),
+                                trace::Effect::Dirty     => "Dirty".to_string(),
+                                trace::Effect::Remove    => "Remove".to_string(),
+                                trace::Effect::Alloc(trace::AllocCase::LocFresh,_)     => "Alloc(LocFresh)".to_string(),
+                                trace::Effect::Alloc(trace::AllocCase::LocExists(trace::ChangeFlag::ContentSame),_) => "Alloc(LocExists(SameContent))".to_string(),
+                                trace::Effect::Alloc(trace::AllocCase::LocExists(trace::ChangeFlag::ContentDiff),_) => "Alloc(LocExists(DiffContent))".to_string(),
+                                //trace::Effect::Force(_) if tr.edge.succ.is_dup         => "ForceDup",
+                                trace::Effect::Force(trace::ForceCase::CompCacheMiss)  => "Force(CompCacheMiss)".to_string(),
+                                trace::Effect::Force(trace::ForceCase::CompCacheHit)   => "Force(CompCacheHit)".to_string(),
+                                trace::Effect::Force(trace::ForceCase::RefGet)         => "Force(RefGet)".to_string(),
+                            })),
+                        classes: vec![],
+                        extent: Box::new(vec![]),
+                    },
+                    Div{
+                        tag: String::from("tr-symbols"),
+                        text: match tr.effect {
+                            trace::Effect::Alloc(_,trace::AllocKind::RefCell) => Some(String::from("▣")),
+                            trace::Effect::Alloc(_,trace::AllocKind::Thunk)   => Some(String::from("◯")),
+                            _ => None,              
+                        },
+                        classes:vec![],
+                        extent: Box::new(vec![]),
+                    },            
+                    div_of_effect_edge(&tr.edge)
 
-            /*
-          // This is where the location (path and name) are DIV-ified
-          // If the effect is a CleanEval, then we should use the
-          // location at the *source* of the edge, which is the
-          // location we re-evaluate.
-          match (tr.effect.clone(), tr.edge.loc.clone()) {            
-            (trace::Effect::CleanEval, Some(loc)) => div_of_loc(&loc),
-            // TODO: Figure out why/when we get None here; seems like a reflection issue in the Engine
-            _ => div_of_edge(&tr.edge)
-          }*/
-        ])}
-  ;
-  match tr.effect {
-    trace::Effect::Alloc(_,trace::AllocKind::RefCell) => div.classes.push(String::from("alloc-kind-refcell")),
-    trace::Effect::Alloc(_,trace::AllocKind::Thunk)   => div.classes.push(String::from("alloc-kind-thunk")),
-    _ => ()
-  };
-  if tr.extent.len() > 0 {
-    div.classes.push( String::from("has-extent") );
-    div.extent.push(
-      Div{ tag: String::from("tr-extent"),
-           text: None,
-           classes: vec![],
-           extent: 
-           Box::new(tr.extent.iter().map(div_of_trace).collect())
-      }
-    )
-  } else {
-    div.classes.push( String::from("no-extent") );
-  };
-  return div
+                    /*
+                    // This is where the location (path and name) are DIV-ified
+                    // If the effect is a CleanEval, then we should use the
+                    // location at the *source* of the edge, which is the
+                    // location we re-evaluate.
+                        match (tr.effect.clone(), tr.edge.loc.clone()) {            
+                        (trace::Effect::CleanEval, Some(loc)) => div_of_loc(&loc),
+                    // TODO: Figure out why/when we get None here; seems like a reflection issue in the Engine
+                        _ => div_of_edge(&tr.edge)
+                }*/
+                ])}
+    ;
+    match tr.effect {
+        trace::Effect::Alloc(_,trace::AllocKind::RefCell) => div.classes.push(String::from("alloc-kind-refcell")),
+        trace::Effect::Alloc(_,trace::AllocKind::Thunk)   => div.classes.push(String::from("alloc-kind-thunk")),
+        _ => ()
+    };
+    if tr.extent.len() > 0 {
+        div.classes.push( String::from("has-extent") );
+        div.extent.push(
+            Div{ tag: String::from("tr-extent"),
+                 text: None,
+                 classes: vec![],
+                 extent: 
+                 Box::new(tr.extent.iter().map(div_of_trace).collect())
+            }
+        )
+    } else {
+        div.classes.push( String::from("no-extent") );
+    };
+    return div
 }
 
 pub trait WriteHTML {
-  fn write_html<Wr:Write>(&self, wr: &mut Wr);
+    fn write_html<Wr:Write>(&self, wr: &mut Wr);
 }
 
 impl WriteHTML for Div {
-  fn write_html<Wr:Write>(&self, wr: &mut Wr) {    
-    writeln!(wr, "<div class=\"{} {}\">", 
-             self.tag, 
-             self.classes.iter().fold(
-               String::new(), 
-               |mut cs,c|{cs.push_str(" ");
-                          cs.push_str(c.as_str()); cs}
-             )
-    ).unwrap();
-    match self.text {
-      None => (),
-      Some(ref text) => writeln!(wr, "{}", text).unwrap()
-    };
-    for div in self.extent.iter() {
-      div.write_html(wr);
-    };
-    writeln!(wr, "</div>").unwrap();
-  }
+    fn write_html<Wr:Write>(&self, wr: &mut Wr) {    
+        writeln!(wr, "<div class=\"{} {}\">", 
+                 self.tag, 
+                 self.classes.iter().fold(
+                     String::new(), 
+                     |mut cs,c|{cs.push_str(" ");
+                                cs.push_str(c.as_str()); cs}
+                 )
+        ).unwrap();
+        match self.text {
+            None => (),
+            Some(ref text) => writeln!(wr, "{}", text).unwrap()
+        };
+        for div in self.extent.iter() {
+            div.write_html(wr);
+        };
+        writeln!(wr, "</div>").unwrap();
+    }
 }
 
 impl<T:WriteHTML> WriteHTML for Vec<T> {
-  fn write_html<Wr:Write>(&self, wr:&mut Wr) {
-    for x in self.iter() {
-      x.write_html(wr);
+    fn write_html<Wr:Write>(&self, wr:&mut Wr) {
+        for x in self.iter() {
+            x.write_html(wr);
+        }
     }
-  }
 }
 
 // pub fn write_lab_results_summary
@@ -521,7 +521,7 @@ impl<T:WriteHTML> WriteHTML for Vec<T> {
 //     writeln!(&mut writer, "<div class={:?}>", "labsum-name").unwrap();
 //     write_lab_name(&mut writer, lab, false);
 //     writeln!(&mut writer, "</div>").unwrap();
-    
+
 //     writeln!(&mut writer, "<a class={:?} href=./{}/index.html>detailed results</a>", 
 //              "lab-details", 
 //              string_of_name(&lab.name())
@@ -556,12 +556,12 @@ impl<T:WriteHTML> WriteHTML for Vec<T> {
 
 /*
 pub fn write_dcg_tree<W:Write> (writer:&mut W, dcg:&DCG, traces:&Vec<trace::Trace>) {
-  let mut visited = HashMap::new();
-  let mut extent : Vec<_> = Vec::new();
-  let succs : Vec<_> = traces.iter().map(|t| t.edge.succ.clone()).collect();
-  div_of_dcg_succs(dcg, &mut visited, None, &succs, &mut extent);
-  for d in extent.iter() {
-    d.write_html(writer);
+let mut visited = HashMap::new();
+let mut extent : Vec<_> = Vec::new();
+let succs : Vec<_> = traces.iter().map(|t| t.edge.succ.clone()).collect();
+div_of_dcg_succs(dcg, &mut visited, None, &succs, &mut extent);
+for d in extent.iter() {
+d.write_html(writer);
   }
 }
 

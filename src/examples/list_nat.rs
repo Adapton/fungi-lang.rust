@@ -374,7 +374,7 @@ pub mod name_tests {
             // the test script to run (via reduce)
             //
   
-            let list1  = {{force gen} 5}
+            let list1  = {{force gen} 5} // list1 = [4,3,2,1,0]
             let refnil = {ref (@@nil) roll inj1 ()}
             let outs = { memo (@@archivist) {                
                 let list2 = {ws (@@map1) {memo (@@map1) {{force map} (thunk #x. x + 1) {!list1}}}}
@@ -388,7 +388,9 @@ pub mod name_tests {
             /*
                 ( [4,3,2,1,0]
                 , [5,4,3,2,1]
-                , [7,5,4,3,2] )
+                , [7,5,4,3,2]
+                , [0,1,2,3,4] 
+                )
              */
         ];
         
