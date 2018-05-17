@@ -68,6 +68,8 @@ pub enum RtVal {
     /// Thunks from Adapton engine; they each _evaluate to_ a terminal expression
     #[serde(skip_serializing)] // #[serde(with="ArtDef")]
     Thunk(engine::Art<ExpTerm>),
+    /// Existential packings; at run-time, we forget the choice of indices
+    Pack(RtValRec),
 }
 /// Run-time values
 pub type RtValRec = Rc<RtVal>;
@@ -266,7 +268,8 @@ pub fn close_val(env:&Env, v:&Val) -> RtVal {
         Inj1(ref v1) => RtVal::Inj1(close_val_rec(env, v1)),
         Inj2(ref v1) => RtVal::Inj2(close_val_rec(env, v1)),
         Roll(ref v1) => RtVal::Roll(close_val_rec(env, v1)),
-        Pack(ref _a, ref _v) => unimplemented!("eval pack"),
+        Pack(ref _a, ref v) => 
+            RtVal::Pack(close_val_rec(env, v)),
         Pair(ref v1, ref v2) =>
             RtVal::Pair(close_val_rec(env, v1),
                         close_val_rec(env, v2)),

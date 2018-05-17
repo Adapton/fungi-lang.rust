@@ -95,6 +95,7 @@ pub enum Stuck {
     NatPrim,
     NameBin,
     UnrollNonRoll,
+    UnpackNonPack,
     WriteScope,
     NameFnApp,
     RefThunkNonThunk,
@@ -109,11 +110,11 @@ fn debug_truncate<X:fmt::Debug>(x: &X) -> String {
     format!("`{:.80}{}", x, if x.len() > 80 { " ...`" } else { "`" } )
 }
 fn set_exp(c:&mut Config, e:Rc<Exp>) {
-    println!("set_exp: {}", debug_truncate(&e));
+    //println!("set_exp: {}", debug_truncate(&e));
     c.exp = (*e).clone()        
 }
 fn set_env(c:&mut Config, x:Var, v:RtVal) {
-    println!("set_env: {} := {}", x, debug_truncate(&v));
+    //println!("set_env: {} := {}", x, debug_truncate(&v));
     c.env.push((x,v))
 }
 fn set_env_rec(c:&mut Config, x:Var, v:Rc<RtVal>) {
@@ -334,8 +335,14 @@ pub fn step(c:&mut Config) -> Result<(),StepError> {
                 _ => stuck_err(Stuck::UnrollNonRoll)
             }
         }
-        Exp::Unpack(_i,_x,_v,_e) => {
-            unimplemented!()
+        Exp::Unpack(_i, x, v, e1) => {
+            match close_val(&c.env, &v) {
+                RtVal::Pack(v) => {
+                    set_env_rec(c, x, v);
+                    continue_rec(c, e1)
+                },
+                _ => stuck_err(Stuck::UnpackNonPack)
+            }                
         }
         Exp::Thunk(v, e1) => {
             match close_val(&c.env, &v) {
@@ -370,6 +377,15 @@ pub fn step(c:&mut Config) -> Result<(),StepError> {
         }
         Exp::WriteScope(v, e1) => {
             match close_val(&c.env, &v) {
+                RtVal::Name(n) => {
+                    let ns_name = engine_name_of_ast_name(n);
+                    let te = engine::ns(ns_name, ||{
+                        reduce(vec![],
+                               c.env.clone(),
+                               (*e1).clone())
+                    });
+                    continue_te(c, te)
+                },                                    
                 RtVal::NameFn(n) =>
                     match proj_namespace_name(nametm_eval(n)) {
                         None => stuck_err(Stuck::WriteScope),
@@ -445,7 +461,7 @@ pub fn step(c:&mut Config) -> Result<(),StepError> {
             fn val_of_retval (et:ExpTerm) -> RtVal {
                 match et {
                     ExpTerm::Ret(v) => v,
-                    _ => unreachable!()
+                    et => unreachable!("expected ExpTerm::Ret(_), but instead got: `{:?}`", et)
                 }
             };
             match close_val(&c.env, &v) {

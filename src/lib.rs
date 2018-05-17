@@ -135,6 +135,7 @@ pub mod reduce;
 // 
 #[macro_use]
 pub mod vis;
+pub mod html;
 pub mod serialize;
 
 // Note to readers: The standard library is a stale "sketch" of Fungi
