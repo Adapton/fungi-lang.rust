@@ -196,8 +196,8 @@ pub mod trapdoor {
 }
 
 pub mod tests {
-    #[test]
-    fn gen() {
+    //#[test]
+    fn purex() {
         use reduce;
         use std::rc::Rc;
         use ast::*;

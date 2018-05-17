@@ -214,12 +214,17 @@ pub fn listing1 () { fgi_listing_expect![
     ret 0
 ]}
 
-pub mod tests {
+pub mod name_tests {
     #[test]
     fn gen() {
         use reduce;
         use std::rc::Rc;
         use ast::*;
+        use adapton::engine;
+
+        // Initialize Adapton
+        engine::manage::init_dcg();
+
         //use bitype::*;
         
         // TODO (Hammer): 
@@ -312,32 +317,109 @@ pub mod tests {
                      nm p l}
                 }
             }
+            
+            // COPY (from above)
+            let rec map:(
+                Thk[0]
+                    foralli (X,Y):NmSet.
+                    0 (Thk[0] 0 Nat -> 0 F Nat) ->
+                    0 List[X][Y] ->
+                {{@!}X; Y%({@!}X)} F List[X][{@!}X]
+            ) = {
+                #f.#l. unroll match l {
+                    _u => { ret roll inj1 () }
+                    c => {
+                        unpack (X1,X2,Y1,Y2) c = c
+                            let (n, h, t) = { ret c }
+                        let h2 = {{force f} h}
+                        let (rt2,_t2) = {
+                            memo(n){{force map} [X2][Y2] f {!t}}
+                        }
+                        ret roll inj2
+                            pack (X1,X2,{@!}X1,{@!}X2) (n, h2, rt2)
+                    }
+                }
+            }
+
+            let rec reverse:(
+                Thk[0]
+                    foralli (X,Xa,Xb,Xc):NmSet | ((Xa%Xb%Xc)=X:NmSet).
+                    foralli (Y,Ya,Yb1,Yb2):NmSet | ((Ya%Yb1%Yb2)=Y:NmSet).
+                    0 List[Xa][Ya] ->
+                    0 Ref[Yb1](List[Xb][Yb2]) ->
+                    0 Nm[Xc] ->
+                //
+                // TODO: Fix parse error here:
+                //        { {@!}(Xa % (Xa*({@1}))) ;
+                //               {@!}(Xa*({@1})) % Y }
+                    0
+                    F Ref[{@!}Xc] List[Xa%Xb][Y]
+            ) = {
+                #l.#r.#rn. unroll match l {
+                    _u => { let r = {get r}
+                            ref rn r }
+                    c => {
+                        unpack (Xa1,Xa2,Ya1,Ya2) c = c
+                            let (n, h, t) = { ret c }
+                        let r2 = { {force ref_cons}
+                                    [(Xa%Xb)][Xa][Xb][(Yb1%Yb2)][Yb1][Yb2]
+                                    n h t}
+                        let (_r,r) = {memo{n,(@1)}{{force reverse} {!t} r2 rn}}
+                        ret r
+                    }
+                }
+            }
 
             // ----------------------------------------
             // the test script to run (via reduce)
             //
-            let list1 = {{force gen} 5}
-
-            //let list2 = {{force map} (thunk #x. x + 1) list1}
-            //let list3 = {{force filter} nat_is_odd list2}
-            //let list4 = {{force reverse} list3 (roll inj1 ())}
-            //let sumodd = {{force fold} list4 0 (thunk #n.#m. n + m)}
-            //ret (list1, list2, list3, list4, sumodd)
-            
-            ret list1
-            
+  
+            let list1  = {{force gen} 5}
+            let refnil = {ref (@@nil) roll inj1 ()}
+            let outs = { memo (@@archivist) {                
+                let list2 = {ws (@@map1) {memo (@@map1) {{force map} (thunk #x. x + 1) {!list1}}}}
+                let list3 = {ws (@@map2) {memo (@@map2) {{force map} (thunk #x. x + 2) {!list1}}}}
+                let list4 = {ws (@@rev)  {memo (@@rev)  {{{force reverse} {!list1} refnil (@@revres)}}}}
+                ret (list1, list2, list3, list4)
+            }}
+            ret outs
             //
             // Produces the tuple:
             /*
-                ([4,3,2,1,0],
-                 [5,4,3,2,1],
-                 [5,3,1],
-                 9)
+                ( [4,3,2,1,0]
+                , [5,4,3,2,1]
+                , [7,5,4,3,2] )
              */
         ];
-        let t = reduce::reduce(vec![], vec![], e);
-        println!("{:?}", t);
-        drop(t)
+        
+        // ------------------------------------
+        // Adapton trace-collection harness
+        // ------------------------------------
+        use html;
+        use adapton::reflect;
+        use adapton::reflect::trace;
+        use std::fs::File;
+        use std::io::BufWriter;
+        use std::io::Write;
+        use html::WriteHTML;
+
+        reflect::dcg_reflect_begin();
+        let result = {
+            // Run the Fungi program:
+            reduce::reduce(vec![], vec![], e)
+        };
+        let traces = reflect::dcg_reflect_end();
+        let count = trace::trace_count(&traces, None);
+        println!("{:?}", count);        
+        let f = File::create(format!("{}.html", module_path!())).unwrap();
+        let mut writer = BufWriter::new(f);
+        writeln!(writer, "{}", html::style_string()).unwrap();
+        writeln!(writer, "<div class=\"label\">Editor trace({}):</div>", traces.len()).unwrap();
+        writeln!(writer, "<div class=\"traces\">").unwrap();
+        for tr in traces {
+            html::div_of_trace(&tr).write_html(&mut writer);
+        };
+        println!("{:?}", result);
     }
 }
 
@@ -345,7 +427,7 @@ pub mod tests {
 //
 // Once we have a fuller story for the module system, move these
 // natural number primmitives into an appropriate module for them.
-
+//
 pub mod trapdoor {
     // This code essentially extends the Fungi evaluator
     use ast::{Name};
