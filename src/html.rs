@@ -377,9 +377,10 @@ pub fn div_of_trace (tr:&trace::Trace) -> Div {
             text: None,
             classes: vec![
                 match tr.effect {
-                    trace::Effect::UserEffect(_, ref s) => format!("tr-user-{}",s),
-                    trace::Effect::DebugLabel(Some(ref n),_) => format!("tr-db-{:?}",n),
-                    trace::Effect::DebugLabel(None,_) => "tr-db".to_string(),
+                    // UserEffect: Deprecated??
+                    trace::Effect::UserEffect(_, ref s) => format!("tr-user-{}",s),                     
+                    //trace::Effect::DebugLabel(Some(ref n),_) => format!("tr-db",n),
+                    trace::Effect::DebugLabel(_,_) => "tr-debuglabel".to_string(),
                     trace::Effect::CleanRec  => "tr-clean-rec".to_string(),
                     trace::Effect::CleanEval => "tr-clean-eval".to_string(),
                     trace::Effect::CleanEdge => "tr-clean-edge".to_string(),
@@ -395,14 +396,20 @@ pub fn div_of_trace (tr:&trace::Trace) -> Div {
                 }
             ],
             extent: Box::new(
-                vec![
+                vec![                    
                     Div{ 
-                        tag: String::from("tr-effect"),
+                        tag:
+                        // Special case of tag for debug labels, which we want to show independently of the other (more verbose) effects:
+                        match tr.effect {
+                            trace::Effect::DebugLabel(_,_) => String::from("debuglabel"),
+                            _ => String::from("tr-effect"),
+                        },
                         text: Some(              
                             format!("<a href={:?}>{}</a>", tr_eff_url, match tr.effect {
                                 trace::Effect::UserEffect(_,ref s) => format!("UserEffect({})",s),
-                                trace::Effect::DebugLabel(None,ref s) => format!("DebugLabel(None,{})",s),
-                                trace::Effect::DebugLabel(Some(ref n),ref s) => format!("DebugLabel({:?},{})",n,s),
+                                trace::Effect::DebugLabel(None,ref _s) => format!("DebugLabel(?)"),
+                                //trace::Effect::DebugLabel(Some(ref n),ref _s) => format!("DebugLabel({})",string_of_name(n)),
+                                trace::Effect::DebugLabel(Some(ref n),ref _s) => string_of_name(n),
                                 trace::Effect::CleanRec  => "CleanRec".to_string(),
                                 trace::Effect::CleanEval => "CleanEval".to_string(),
                                 trace::Effect::CleanEdge => "CleanEdge".to_string(),
@@ -419,28 +426,17 @@ pub fn div_of_trace (tr:&trace::Trace) -> Div {
                         classes: vec![],
                         extent: Box::new(vec![]),
                     },
-                    Div{
-                        tag: String::from("tr-symbols"),
-                        text: match tr.effect {
-                            trace::Effect::Alloc(_,trace::AllocKind::RefCell) => Some(String::from("▣")),
-                            trace::Effect::Alloc(_,trace::AllocKind::Thunk)   => Some(String::from("◯")),
-                            _ => None,              
-                        },
-                        classes:vec![],
-                        extent: Box::new(vec![]),
-                    },            
+                    // Div{
+                    //     tag: String::from("tr-symbols"),
+                    //     text: match tr.effect {
+                    //         trace::Effect::Alloc(_,trace::AllocKind::RefCell) => Some(String::from("▣")),
+                    //         trace::Effect::Alloc(_,trace::AllocKind::Thunk)   => Some(String::from("◯")),
+                    //         _ => None,              
+                    //     },
+                    //     classes:vec![],
+                    //     extent: Box::new(vec![]),
+                    // },            
                     div_of_effect_edge(&tr.edge)
-
-                    /*
-                    // This is where the location (path and name) are DIV-ified
-                    // If the effect is a CleanEval, then we should use the
-                    // location at the *source* of the edge, which is the
-                    // location we re-evaluate.
-                        match (tr.effect.clone(), tr.edge.loc.clone()) {            
-                        (trace::Effect::CleanEval, Some(loc)) => div_of_loc(&loc),
-                    // TODO: Figure out why/when we get None here; seems like a reflection issue in the Engine
-                        _ => div_of_edge(&tr.edge)
-                }*/
                 ])}
     ;
     match tr.effect {
@@ -496,352 +492,6 @@ impl<T:WriteHTML> WriteHTML for Vec<T> {
         }
     }
 }
-
-// pub fn write_lab_results_summary
-//   (_params:&LabParams, 
-//    labs:&Vec<Box<Lab>>, 
-//    results:&Vec<LabResults>) 
-// {
-//   // Create directories and files on local filesystem:
-//   fs::create_dir_all("lab-results").unwrap();
-//   let f = File::create(format!("lab-results/index.html")).unwrap();
-//   let mut writer = BufWriter::new(f);
-
-//   writeln!(writer, "{}", style_string()).unwrap();
-//   writeln!(writer, "<style> .tool-label-toggles {{ display: none }} </style>").unwrap();
-
-//   assert!( labs.len() == results.len() );
-
-//   writeln!(writer, "<div class={:?}>Lab results summary</div>", "labsum-title").unwrap();
-
-//   for ((_i,lab),(_j,_result)) in 
-//     labs.iter().enumerate().zip(results.iter().enumerate()) 
-//   {
-//     writeln!(&mut writer, "<div class={:?}>", "labsum-row").unwrap();
-//     writeln!(&mut writer, "<div class={:?}>", "labsum-name").unwrap();
-//     write_lab_name(&mut writer, lab, false);
-//     writeln!(&mut writer, "</div>").unwrap();
-
-//     writeln!(&mut writer, "<a class={:?} href=./{}/index.html>detailed results</a>", 
-//              "lab-details", 
-//              string_of_name(&lab.name())
-//     ).unwrap();
-
-//     writeln!(&mut writer, "</div>").unwrap();        
-//     write_cr(&mut writer);
-//   }
-// }
-
-// pub fn write_cr<W:Write>(writer:&mut W) {
-//   /// We style this with clear:both, and without any appearance
-//   writeln!(writer, "<hr/>").unwrap();
-// }
-
-// pub fn write_lab_name<W:Write>(writer:&mut W, lab:&Box<Lab>, is_title:bool) {
-//   let catalog_url = String::from("http://adapton.org/rustdoc/adapton_lab/catalog/index.html");
-
-//   let labname = string_of_name( &lab.name() );
-//   let laburl  = lab.url();
-
-//   writeln!(writer, "<div class={:?}><a href={:?} class={:?}>{}</a></div>", 
-//            "lab-name",
-//            match *laburl {
-//              Some(ref url) => url,
-//              None => & catalog_url
-//            },
-//            format!("lab-name {}", if is_title { "page-title" } else { "" }), 
-//            labname
-//   ).unwrap();
-// }
-
-/*
-pub fn write_dcg_tree<W:Write> (writer:&mut W, dcg:&DCG, traces:&Vec<trace::Trace>) {
-let mut visited = HashMap::new();
-let mut extent : Vec<_> = Vec::new();
-let succs : Vec<_> = traces.iter().map(|t| t.edge.succ.clone()).collect();
-div_of_dcg_succs(dcg, &mut visited, None, &succs, &mut extent);
-for d in extent.iter() {
-d.write_html(writer);
-  }
-}
-
-pub fn write_dcg_edge_tree<W:Write> (writer:&mut W, dcg:&DCG, traces:&Vec<trace::Trace>, effect:Effect) {
-  for tr in traces.iter() {
-    if tr.edge.succ.effect == effect {
-      match effect {
-        Effect::Alloc =>
-          div_of_alloc_tree(dcg, &mut HashMap::new(), &tr.edge.succ.loc)
-          .write_html(writer),
-        Effect::Force =>
-          div_of_force_tree(dcg,&mut HashMap::new(),  &tr.edge.succ.loc)
-          .write_html(writer),
-      }
-    }
-  }
-}
-*/
-
-// pub fn write_sample_dcg<W:Write>
-//   (writer:&mut W,
-//    prev_sample:Option<&Sample>,
-//    this_sample:&Sample)
-// {
-//   write_cr(writer)
-//     ;
-//   match this_sample.dcg_sample.process_input.reflect_dcg {
-//     None => { },
-//     Some(ref dcg_post_edit) => {
-//       match this_sample.dcg_sample.input {
-//         None => { },
-//         Some(ref input) => {
-//           writeln!(writer, "<div class=\"input-value\">").unwrap();
-//           writeln!(writer, "<div class=\"label\">{}</div>", "Input:").unwrap();
-//           div_of_value_tree(dcg_post_edit, &mut HashMap::new(), input)
-//             .write_html( writer );
-//           writeln!(writer, "</div>").unwrap();
-//         }
-//       }
-//     }
-//   }
-//   ;
-//   match this_sample.dcg_sample.compute_output.reflect_dcg {
-//     None => { },
-//     Some(ref dcg_post_update) => {      
-//       match this_sample.dcg_sample.output {
-//         None => { },
-//         Some(ref output) => {
-//           writeln!(writer, "<div class=\"output-value\">").unwrap();
-//           writeln!(writer, "<div class=\"label\">{}</div>", "Output:").unwrap();
-//           div_of_value_tree(dcg_post_update, &mut HashMap::new(), output)
-//             .write_html( writer );            
-//           writeln!(writer, "</div>").unwrap();            
-//         }
-//       }
-//     }
-//   }
-//   ;
-//   // Separate the input and output from the DCG trees, below
-//   write_cr(writer);
-//   ;
-//   match this_sample.dcg_sample.process_input.reflect_dcg {
-//     Some(ref dcg_post_edit) => {
-//       match prev_sample {
-//         Some(ref prev_sample) => {
-        
-//           // // 0/4: dcg for compute, after this edit, but before the update
-//           writeln!(writer, "<div class=\"archivist-dcg-tree-post-edit\">").unwrap();
-//           writeln!(writer, "<div class=\"label\">{}</div>", "DCG, post-edit:").unwrap();
-//           write_dcg_tree
-//             (writer, 
-//              dcg_post_edit,
-//              &prev_sample.dcg_sample.compute_output.reflect_traces,
-//             );
-//           writeln!(writer, "</div>").unwrap();
-          
-//           if false {
-//           // 1/4: alloc tree for compute, after this edit, but before the update
-//           writeln!(writer, "<div class=\"archivist-alloc-tree-post-edit\">").unwrap();
-//           writeln!(writer, "<div class=\"label\">{}</div>", "Allocs, post-edit:").unwrap();
-//           write_dcg_edge_tree
-//             (writer, 
-//              dcg_post_edit,
-//              &prev_sample.dcg_sample.compute_output.reflect_traces,
-//              Effect::Alloc
-//             );
-//           writeln!(writer, "</div>").unwrap();
-          
-//           // 2/4: force tree for compute, after this edit, but before the update
-//           writeln!(writer, "<div class=\"archivist-force-tree-post-edit\">").unwrap();
-//           writeln!(writer, "<div class=\"label\">{}</div>", "Forces, post-edit:").unwrap();
-//           write_dcg_edge_tree
-//             (writer, 
-//              dcg_post_edit,
-//              &prev_sample.dcg_sample.compute_output.reflect_traces,
-//              Effect::Force,         
-//             );
-//           writeln!(writer, "</div>").unwrap();
-//           }
-
-//         },    
-//         _ => {
-//           writeln!(writer,"<div class=\"archivist-alloc-tree-post-edit\"></div>").unwrap();
-//           writeln!(writer,"<div class=\"archivist-force-tree-post-edit\"></div>").unwrap();
-//         }}
-//     },    
-//     _ => {
-//       //writeln!(writer,"<div class=\"archivist-alloc-tree-post-edit\"></div>").unwrap();
-//       //writeln!(writer,"<div class=\"archivist-force-tree-post-edit\"></div>").unwrap();
-//     }
-//   }
-//   ;
-//   writeln!(writer,"<div class=\"archivist-update-sep\"></div>").unwrap();
- 
-//   match this_sample.dcg_sample.compute_output.reflect_dcg {
-//     Some(ref dcg_post_update) => {
-
-//       // // 0/4: dcg for compute, after this edit, but before the update
-//       writeln!(writer, "<div class=\"archivist-dcg-tree-post-update\">").unwrap();
-//       writeln!(writer, "<div class=\"label\">{}</div>", "DCG, post-compute:").unwrap();
-//       write_dcg_tree
-//         (writer, 
-//          dcg_post_update,
-//          &this_sample.dcg_sample.compute_output.reflect_traces,
-//         );
-//       writeln!(writer, "</div>").unwrap();
-      
-//       if false {
-//       // 3/4: alloc tree for compute, after the update
-//       writeln!(writer, "<div class=\"archivist-alloc-tree-post-update\">").unwrap();
-//       writeln!(writer, "<div class=\"label\">{}</div>", "Allocs, post-update:").unwrap();
-//       write_dcg_edge_tree
-//         (writer, 
-//          dcg_post_update,
-//          &this_sample.dcg_sample.compute_output.reflect_traces,
-//          Effect::Alloc
-//         );
-//       writeln!(writer, "</div>").unwrap();
-      
-//       // 4/4: force tree for compute, after the update
-//       writeln!(writer, "<div class=\"archivist-force-tree-post-update\">").unwrap();
-//       writeln!(writer, "<div class=\"label\">{}</div>", "Forces, post-update:").unwrap();
-//       write_dcg_edge_tree
-//         (writer, 
-//          dcg_post_update,
-//          &this_sample.dcg_sample.compute_output.reflect_traces,
-//          Effect::Force,         
-//         );
-//       writeln!(writer, "</div>").unwrap();
-//       }
-      
-//       write_cr(writer);
-//     },    
-//     _ => {
-//       //writeln!(writer,"<div class=\"archivist-alloc-tree-post-update\"></div>").unwrap();
-//       //writeln!(writer,"<div class=\"archivist-force-tree-post-update\"></div>").unwrap();
-//     }
-//   };
-
-// }
-
-// pub fn write_lab_results(params:&LabParams, lab:&Box<Lab>, results:&LabResults) {
-  
-//   // If we are reflecting the trace, do not bother writing out the
-//   // times; the purpose was probably visualization.
-//   // TODO: Make this logic better.
-//   let write_times = if params.sample_params.reflect_trace { false } else { true };    
-
-//   let labname = string_of_name( &lab.name() );
-//   //let laburl  = lab.url();
-
-//   // For linking to rustdoc documentation from the output HTML
-//   //let trace_url   = "http://adapton.org/rustdoc/adapton/engine/reflect/trace/struct.Trace.html";
-  
-//   // Create directories and files on local filesystem:
-//   fs::create_dir_all(format!("lab-results/{}/", labname)).unwrap();
-//   let f = File::create(format!("lab-results/{}/index.html", labname)).unwrap();
-//   let mut writer = BufWriter::new(f);
-//   writeln!(writer, "{}", style_string()).unwrap();  
-//   writeln!(writer, "<a href=\"../index.html\">↰ Results summary</a>").unwrap();
-//   write_cr(&mut writer);
-//   write_lab_name(&mut writer, lab, true);
-//   writeln!(writer, "<div style=\"font-size:12px\" class=\"batch-name\"> step</div>").unwrap();  
-//   if write_times {
-//     writeln!(writer, "<div style=\"font-size:20px\" class=\"editor\">Editor</div>").unwrap();
-//     writeln!(writer, "<div style=\"font-size:20px\" class=\"archivist\">Archivist</div>").unwrap();
-//   }  
-//   let mut prev_sample = None;
-//   for sample in results.samples.iter() {
-//     write_cr(&mut writer);
-//     // - - - - - - - 
-//     // 0. Write batch name (a counter); and write timing information for this edit batch.
-//     writeln!(writer, "<div class=\"batch-name-lab\">batch name<div class=\"batch-name\">{:?}</div></div>", 
-//              sample.batch_name).unwrap();
-    
-//     if write_times {
-//       writeln!(writer, "<div class=\"editor\">").unwrap();
-      
-//       writeln!(writer, "<div class=\"time-ns-lab\">time (ns): <div class=\"time-ns\">{:?}</div></div>", 
-//                sample.dcg_sample.process_input.time_ns).unwrap();    
-//       writeln!(writer, "</div>").unwrap();
-      
-//       writeln!(writer, "<div class=\"archivist\">").unwrap();
-      
-//       writeln!(writer, "<div class=\"row\">").unwrap();
-      
-//       writeln!(writer, "<div class=\"time-ns-lab\">Naive time (ns): <div class=\"time-ns\">{:?}</div></div>", 
-//                sample.naive_sample.compute_output.time_ns).unwrap();    
-      
-//       writeln!(writer, "<div class=\"time-ms-lab\">Naive time (ms): <div class=\"time-ms\">{:.*}</div></div>", 
-//                2, (sample.naive_sample.compute_output.time_ns as f64) / (1000_000 as f64)).unwrap();
-//       writeln!(writer, "</div>").unwrap();
-      
-//       writeln!(writer, "<div class=\"row\">").unwrap();
-//       writeln!(writer, "<div class=\"time-ns-lab\">DCG time (ns): <div class=\"time-ns\">{:?}</div></div>", 
-//                sample.dcg_sample.compute_output.time_ns).unwrap();    
-      
-//       writeln!(writer, "<div class=\"time-ms-lab\">DCG time (ms): <div class=\"time-ms\">{:.*}</div></div>", 
-//                2, (sample.dcg_sample.compute_output.time_ns as f64) / (1000_000 as f64)).unwrap();
-//       writeln!(writer, "</div>").unwrap();
-      
-//       if sample.naive_sample.compute_output.time_ns <
-//         sample.dcg_sample.compute_output.time_ns {
-//           writeln!(writer, "<div class=\"overhead-lab\">DCG Overhead: <div class=\"overhead\">{:.*}</div></div>", 
-//                    2, ( (sample.dcg_sample.compute_output.time_ns  as f64) / 
-//                          (sample.naive_sample.compute_output.time_ns as f64) )).unwrap();      
-//         } else {      
-//           writeln!(writer, "<div class=\"speedup-lab\">DCG Speedup: <div class=\"speedup\">{:.*}</div></div>", 
-//                    2, ( (sample.naive_sample.compute_output.time_ns  as f64) / 
-//                          (sample.dcg_sample.compute_output.time_ns as f64) )).unwrap();
-//         }    
-      
-//       writeln!(writer, "</div>").unwrap();
-//       write_cr(&mut writer);    
-//     }
-
-//     // 1. Write input,
-//     // 2. Write output,
-//     // 3. Write last DCG, after edit but before update.
-//     // 4. Write DCG of the update.
-//     write_sample_dcg(&mut writer, lab, prev_sample, sample);      
-    
-//     if sample.dcg_sample.compute_output.reflect_traces.len() == 0 {
-//       // 5 & 6. No traces to write.
-//     } else {
-//       // - - - - - - - 
-//       // 5. Write traces of editor
-      
-//       writeln!(writer, "<div class=\"traces-box\">").unwrap();
-//       // writeln!(writer, "<div class=\"time-ns-lab\">time (ns): <div class=\"time-ns\">{:?}</div></div>", 
-//       //          sample.dcg_sample.process_input.time_ns).unwrap();    
-//       // writeln!(writer, "<div class=\"traces-lab\">Traces (<a href={:?}>doc</a>)</div>", trace_url).unwrap();    
-//       writeln!(writer, "<div class=\"label\">{}</div>", "Editor trace:").unwrap();
-//       writeln!(writer, "<div class=\"traces\">").unwrap();
-//       for tr in sample.dcg_sample.process_input.reflect_traces.iter() {
-//         div_of_trace(tr).write_html(&mut writer)
-//       }
-//       writeln!(writer, "</div>").unwrap();   
-//       writeln!(writer, "</div>").unwrap();
-      
-//       // - - - - - - - 
-//       // 6. Write traces of archivist
-
-//       //writeln!(writer, "<div class=\"traces-lab\">Traces (<a href={:?}>doc</a>):</div>", trace_url).unwrap();
-//       writeln!(writer, "<div class=\"traces-box\">").unwrap();
-//       writeln!(writer, "<div class=\"label\">{}</div>", "Archivist trace:").unwrap();
-//       writeln!(writer, "<div class=\"traces\">").unwrap();
-//       for tr in sample.dcg_sample.compute_output.reflect_traces.iter() {
-//         div_of_trace(tr).write_html(&mut writer)
-//       }
-//       writeln!(writer, "</div>").unwrap();    
-//       writeln!(writer, "</div>").unwrap();
-//       write_cr(&mut writer);
-//     }    
-    
-//     // - - - - - - - - - - - - - - -       
-//     prev_sample = Some(sample) ; // Must be last!
-//   }
-//   writer.flush().unwrap();  
-// }
 
 pub fn style_string() -> &'static str {
 "
@@ -1081,6 +731,9 @@ hr {
   border-color: black;
 }
 
+.debuglabel { 
+  font-size: 10px;
+}
 .tr-effect { 
   display: inline;
   display: none;
@@ -1134,6 +787,12 @@ hr {
   border-width: 0px;
   padding: 0px;
   background: #666666;
+  display: none;
+}
+.tr-debuglabel {  
+  background: #ffffff;
+  border-color: #aaaaaa;
+  border-width: 1px; 
   display: none;
 }
 .tr-clean-rec {  
@@ -1260,6 +919,15 @@ hr {
 </style>
 
 <script>
+function toggleLabels() {
+ var selection = document.getElementById(\"checkbox-0\");
+ if (selection.checked) {
+   $('.tr-debuglabel').css('display', 'inline-block')
+ } else {
+   $('.tr-debuglabel').css('display', 'none')
+ }
+}
+
 function togglePaths() {
  var selection = document.getElementById(\"checkbox-1\");
  if (selection.checked) {
@@ -1302,12 +970,18 @@ function toggleDupForces() {
 
 <fieldset class=\"tool-label-toggles\">
  <legend>Toggle labels: </legend>
+ <label for=\"show-debuglabels-checkbox\">debug labels</label>
+ <input type=\"checkbox\" name=\"show-debuglabels-checkbox\" id=\"checkbox-0\" onchange=\"toggleLabels()\">
+ </br>
  <label for=\"show-paths-checkbox\">paths</label>
  <input type=\"checkbox\" name=\"show-paths-checkbox\" id=\"checkbox-1\" onchange=\"togglePaths()\">
+ </br>
  <label for=\"show-names-checkbox\">names</label>
  <input type=\"checkbox\" name=\"show-names-checkbox\" id=\"checkbox-2\" onchange=\"toggleNames()\">
+ </br>
  <label for=\"show-effects-checkbox\">effects</label>
  <input type=\"checkbox\" name=\"show-effects-checkbox\" id=\"checkbox-3\" onchange=\"toggleEffects()\">
+ </br>
  <label for=\"show-effects-checkbox\">duplicate forces</label>
  <input type=\"checkbox\" name=\"show-effects-checkbox\" id=\"checkbox-4\" onchange=\"toggleDupForces()\">
 </fieldset>

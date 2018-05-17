@@ -398,6 +398,7 @@ pub mod name_tests {
         // Adapton trace-collection harness
         // ------------------------------------
         use html;
+        use vis;
         use adapton::reflect;
         use adapton::reflect::trace;
         use std::fs::File;
@@ -407,16 +408,19 @@ pub mod name_tests {
 
         reflect::dcg_reflect_begin();
         let result = {
+            let mut lab = 0;
+            // Label the sub-expressions of the Fungi program:
+            let e = vis::label_exp(e, &mut lab);
             // Run the Fungi program:
             reduce::reduce(vec![], vec![], e)
         };
         let traces = reflect::dcg_reflect_end();
         let count = trace::trace_count(&traces, None);
-        println!("{:?}", count);        
+        println!("{:?}", count);
         let f = File::create(format!("{}.html", module_path!())).unwrap();
         let mut writer = BufWriter::new(f);
         writeln!(writer, "{}", html::style_string()).unwrap();
-        writeln!(writer, "<div class=\"label\">Editor trace({}):</div>", traces.len()).unwrap();
+        //writeln!(writer, "<div class=\"label\">Editor trace({}):</div>", traces.len()).unwrap();
         writeln!(writer, "<div class=\"traces\">").unwrap();
         for tr in traces {
             html::div_of_trace(&tr).write_html(&mut writer);
