@@ -62,6 +62,7 @@ pub mod op_nat;
 pub mod pure_list_nat;
 
 
+/*
 /// Find the maximum element in a sequence
 ///
 /// [Fungi listing](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/seq_max.rs.html)
@@ -77,7 +78,7 @@ pub mod seq_filter;
 pub mod list_nat;
 pub mod set_join;
 pub mod trie;
-
+*/
 
 // --- Regression tests
 pub mod basic_read_effects;
