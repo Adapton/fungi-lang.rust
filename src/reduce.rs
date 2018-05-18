@@ -105,6 +105,7 @@ fn stuck_err<X>(s:Stuck) -> Result<X,StepError> {
     Err(StepError::Stuck(s))
 }
 
+#[allow(unused)]
 fn debug_truncate<X:fmt::Debug>(x: &X) -> String {
     let x = format!("{:?}", x);
     format!("`{:.80}{}", x, if x.len() > 80 { " ...`" } else { "`" } )

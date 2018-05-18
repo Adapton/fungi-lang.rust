@@ -127,15 +127,15 @@ fgi_mod!{
         }
     }
 }
-    
-pub mod dynamic_test1 {
-    #[test]
-    fn gen() {
+
+pub mod dynamic_tests {
+    #[test]    
+    pub fn listing1() {
         use reduce;
         use std::rc::Rc;
         use ast::*;
         use adapton::engine;
-
+        
         // ----------------------------------------------------
         // Fungi program (expression) to reduce, and visualize;
         //
@@ -162,7 +162,7 @@ pub mod dynamic_test1 {
                 , [5,4,3,2,1]
                 , [7,5,4,3,2]
                 , [0,1,2,3,4] 
-                )
+        )
              */
         ];
         
@@ -177,13 +177,13 @@ pub mod dynamic_test1 {
         use std::io::BufWriter;
         use std::io::Write;
         use html::WriteHTML;
-
+        
         // Initialize Adapton
         engine::manage::init_dcg();
         // Record a debugging trace of Adapton's behavior
         reflect::dcg_reflect_begin();
         // Run our Fungi program:
-        let result = {
+        let _result = {
             let mut lab = 0;
             // Label the sub-expressions of the Fungi program:
             let e = vis::label_exp(e, &mut lab);
@@ -213,7 +213,7 @@ pub mod trapdoor {
     // This code essentially extends the Fungi evaluator
     use ast::{Name};
     use dynamics::{RtVal,ExpTerm};
-
+    
     pub fn name_of_nat(args:Vec<RtVal>) -> ExpTerm {
         match &args[0] {
             RtVal::Nat(n) => { 
@@ -222,7 +222,7 @@ pub mod trapdoor {
             v => panic!("expected a natural number, not: {:?}", v)
         }
     }
-
+    
     pub fn nat_is_zero(args:Vec<RtVal>) -> ExpTerm {
         match &args[0] {
             RtVal::Nat(n) => { 
@@ -249,7 +249,7 @@ pub mod trapdoor {
             v => panic!("expected a natural number, not: {:?}", v)
         }
     }
-        
+    
     pub fn nat_sub(args:Vec<RtVal>) -> ExpTerm {
         match (&args[0], &args[1]) {
             (RtVal::Nat(n), RtVal::Nat(m)) => {
@@ -259,28 +259,29 @@ pub mod trapdoor {
             },
             (v1, v2) => 
                 panic!("expected two natural numbers, not: {:?} and {:?}", v1, v2)
-
+                
         }
     }
 }
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 #[test]
 pub fn listing1 () { fgi_listing_expect![
     [Expect::FailurexXXX]
-
+        
         decls {
             /// Lists of natural numbers
-        type List  = (
-            rec list. foralli (X,Y):NmSet.
-            (+ Unit +
-             (exists (X1,X2):NmSet | ((X1%X2)=X:NmSet).
-              exists (Y1,Y2):NmSet | ((Y1%Y2)=Y:NmSet).
-              x Nm[X1] x Nat x Ref[Y1](list[X2][Y2])
-             ))
-        );
-    }
-
+            type List  = (
+                rec list. foralli (X,Y):NmSet.
+                    (+ Unit +
+                     (exists (X1,X2):NmSet | ((X1%X2)=X:NmSet).
+                      exists (Y1,Y2):NmSet | ((Y1%Y2)=Y:NmSet).
+                      x Nm[X1] x Nat x Ref[Y1](list[X2][Y2])
+                     ))
+            );
+        }
+    
     let cons:(
         Thk[0]
             foralli (X1,X2):NmSet. // <-- forgot to insist that X1%X2
@@ -293,10 +294,9 @@ pub fn listing1 () { fgi_listing_expect![
         ret thunk #n.#h.#t. ret roll inj2
             pack (X1,X2,Y1,Y2) (n, h, t)
     }
-
+    
     ret 0
 ]}
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 // OLD STUFF -- The following is stale, as of Friday, 2018.05.18
