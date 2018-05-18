@@ -100,8 +100,9 @@ its reference implementation; readers are encouraged to
 
 extern crate regex;
 extern crate serde;
-extern crate serde_json;
+extern crate serde_xml_rs;
 #[macro_use] extern crate serde_derive;
+#[macro_use] extern crate nom;
 
 // // Source language (IODyn)
 // // ------------------------

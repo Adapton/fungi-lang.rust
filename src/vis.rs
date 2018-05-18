@@ -12,6 +12,7 @@ use std::fs::File;
 use std::io::Write;
 
 //use serde_json;
+use serde_xml_rs;
 
 pub fn label_exp(e: Exp, ct: &mut usize) -> Exp {
     rewrite_exp(&e, ct)
@@ -208,8 +209,9 @@ where F: FnOnce() -> dynamics::ExpTerm {
 }
 
 pub fn write_bundle(filename: &str, bundle: &Bundle) {
-    let data = format!("{:?}", bundle);
+    // let data = format!("{:?}", bundle);
     // let data = serde_json::to_string(bundle).expect("Could not convert bundle to JSON");
+    let data = serde_xml_rs::serialize(bundle).expect("Could not convert bundle to XML");
     let mut f = File::create(filename).expect("Could not create bundle file");
     f.write_all(data.as_bytes()).expect("Could not write bundle data");
     f.flush().expect("Could not flush bundle output");
