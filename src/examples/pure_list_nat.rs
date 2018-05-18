@@ -195,9 +195,10 @@ pub mod trapdoor {
     }
 }
 
-pub mod tests {
-    //#[test]
-    fn purex() {
+pub mod dynamic_tests {
+
+    #[test]
+    fn listing1() {
         use reduce;
         use std::rc::Rc;
         use ast::*;

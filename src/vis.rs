@@ -25,6 +25,8 @@ fn rewrite_val_rec(v: &Rc<Val>, ct: &mut usize) -> Rc<Val> {
     Rc::new(rewrite_val(&**v, ct))
 }
 
+#[allow(unused)]
+#[allow(unused_variables, unused_mut)]
 fn rewrite_decls(decls: &Decls, ct: &mut usize) -> Decls {
     // XXX/TODO -- actually rewrite the expressions (the function
     // declarations) in this structure
