@@ -110,6 +110,10 @@ extern crate serde_json;
 // pub mod prims;
 // pub mod eval;
 
+// Utilities that are common across various test harnesses
+#[macro_use]
+#[doc(hidden)] pub mod util; 
+
 // === Syntax ===
 //
 pub mod ast;
@@ -140,7 +144,7 @@ pub mod serialize;
 
 // Note to readers: The standard library is a stale "sketch" of Fungi
 // code; see `examples` modules for up-to-date examples.
-#[doc(hidden)] pub mod stdlib; 
+#[doc(hidden)] pub mod stdlib;
 
 pub mod examples;
 

@@ -120,6 +120,44 @@ fn set_env(c:&mut Config, x:Var, v:RtVal) {
 fn set_env_rec(c:&mut Config, x:Var, v:Rc<RtVal>) {
     set_env(c, x, (*v).clone())
 }
+fn use_all(c:&mut Config, d:UseAllModule) {
+    update_env_with_decls(c, ((*d.module).decls).clone())
+}
+fn update_env_with_decls(c:&mut Config, d:Decls) {
+    let mut decls = d;
+    loop {
+        match decls {
+            Decls::End => { break }
+            Decls::NoParse(s) => { panic!("cannot process unparsed decls:\n\t`{}`", s) }
+            Decls::Doc(_, d) |
+            Decls::NmTm(_, _, d) |
+            Decls::IdxTm(_, _, d) |
+            Decls::Type(_, _, d) => {
+                decls = (*d).clone();
+                continue;
+            }
+            Decls::UseAll(uam, d) => {
+                use_all(c, uam);
+                decls = (*d).clone();
+                continue;
+            }
+            Decls::Val(x,_,v,d) => {
+                let v = close_val(&c.env, &v);
+                set_env(c, x, v);
+                decls = (*d).clone();
+                continue;
+            }
+            Decls::Fn(x,_,e,d) => {
+                let fnv = Val::ThunkAnon(Rc::new(Exp::Fix(x.clone(),Rc::new(e))));
+                let v = close_val(&c.env, &fnv);
+                set_env(c, x, v);
+                decls = (*d).clone();
+                continue;
+            }
+        }
+    }
+}
+
 fn produce_value(c:&mut Config,
                  v:RtVal)
                  -> Result<(),StepError>
@@ -225,11 +263,17 @@ pub fn step(c:&mut Config) -> Result<(),StepError> {
         Exp::DefType(_, _, e)  |
         Exp::AnnoC(e, _)       |
         Exp::AnnoE(e, _)       |
-        Exp::UseAll(_, e)      |
-        Exp::IdxApp(e, _)      |
-        Exp::Decls(_, e)      =>
-        { continue_rec(c, e) }
-        
+        Exp::IdxApp(e, _)    => {
+            continue_rec(c, e)
+        }
+        Exp::Decls(d, e) => {
+            update_env_with_decls(c, (*d).clone());
+            continue_rec(c, e)
+        }
+        Exp::UseAll(m, e) => {
+            use_all(c, m);
+            continue_rec(c, e)            
+        }        
         Exp::Fix(f, e1) => {
             let t = RtVal::ThunkAnon(c.env.clone(), c.exp.clone());
             set_env(c, f, t);

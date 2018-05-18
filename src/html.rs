@@ -5,8 +5,10 @@ use std::io::prelude::*;
 //use std::fs::File;
 use std::collections::HashMap;
 
+use dynamics;
+
 use adapton::engine::Name;
-use adapton::reflect::*;
+use adapton::reflect::{string_of_name,succs_of_node,trace,Node,Loc,Path,Succ,Effect,DCG};
 use adapton::reflect::trace::EffectEdge;
 
 //use adapton::engine::reflect::{trace, string_of_name, string_of_loc};
@@ -151,84 +153,120 @@ pub fn div_of_effect_edge (e:&trace::EffectEdge) -> Div {
     }
 }
 
-pub fn div_of_value_tree (dcg:&DCG, visited:&mut HashMap<Loc, ()>, val:&Val) -> Div {
-    let div = Div {
-        tag: match *val {
-            Val::Constr(ref n, _) => { format!("val-constr constr-{}", string_of_name(n) ) },
-            Val::Struct(ref n, _) => { format!("val-struct struct-{}", string_of_name(n) ) },
-            Val::Const( ref c )     => { format!("val-const  const-{}" , match *c {
-                Const::Nat( ref n ) => format!("{}", n),
-                Const::Num( ref n ) => format!("{}", n),
-                Const::String( ref s ) => s.clone(),
-            })},
-            Val::Tuple(ref vs) => { format!("val-tuple tuple-{}", vs.len()) },
-            Val::Vec(ref vs) => { format!("val-vec vec-{}", vs.len()) },
-            Val::Art(ref loc, _) => { format!("val-art {}", string_of_loc( loc ) ) },
-            Val::ValTODO => { format!("val-TODO") },
-            Val::Name(ref n) => { format!("name val-name {}", string_of_name(n)) },
-        },
+pub fn div_of_env_pair(
+    var:&String, 
+    val:&dynamics::RtVal) -> Div
+{
+    Div {
+        tag: "fgi-env-pair".to_string(),
         classes: vec![],
-        text: 
-        match *val {
-            Val::Constr(ref n, _) => { Some(string_of_name(n)) },
-            Val::Struct(ref n, _) => { Some(string_of_name(n)) },
-            Val::Const( ref c )     => Some(match *c {
-                Const::Nat( ref n ) => format!("{}", n),
-                Const::Num( ref n ) => format!("{}", n),
-                Const::String( ref s ) => format!("{:?}", s),
-            }),
-            Val::Tuple( _ ) => None,
-            Val::Vec( _ ) => None,
-            Val::ValTODO => None,
-            Val::Art( ref l, _ ) => {
-                Some(format!("{}", string_of_loc(l)))
-            }
-            Val::Name(ref n) => {
-                Some(format!("{}", string_of_name(n)))
-            }
-        },
-        
-        extent: Box::new(
-            match *val {
-                Val::Constr(_, ref vs) => { let ds : Vec<_> = vs.iter().map( |v| div_of_value_tree(dcg, visited,  v) ).collect() ; ds },
-                Val::Struct(_, ref fs) => { let ds : Vec<_> = fs.iter().map(  |&(ref _f, ref v) | 
-                                                                                 div_of_value_tree(dcg, visited, &v) ).collect() ; ds },
-                Val::Tuple(ref vs) =>     { let ds : Vec<_> = vs.iter().map( |v| div_of_value_tree(dcg, visited,  v) ).collect() ; ds },
-                Val::Vec(ref vs) =>       { let ds : Vec<_> = vs.iter().map( |v| div_of_value_tree(dcg, visited,  v) ).collect() ; ds },
-                Val::Const( _ ) => vec![],
-                Val::ValTODO => vec![],
-                Val::Name(_) => vec![],
-                Val::Art( ref l, _ ) => vec![
-                    div_of_loc(l), 
-                    match dcg.table.get(l) {
-                        None => Div{ tag: String::from("dangling"), 
-                                     classes:vec![String::from("no-extent")], 
-                                     text:Some(String::from("Dangling")), 
-                                     extent:Box::new(vec![]),
-                        },
-                        Some(node) => {
-                            match *node {
-                                Node::Pure(ref p) => div_of_value_tree(dcg, visited, &p.value),
-                                Node::Ref(ref n) => div_of_value_tree(dcg, visited, &n.value),
-                                Node::Comp(ref n) => match n.value {
-                                    None => 
-                                        Div{ tag: String::from("Unevald"), 
-                                             classes:vec![String::from("no-extent")], 
-                                             text:Some(String::from("Uneval'd")), 
-                                             extent:Box::new(vec![]),
-                                        },
-                                    Some(ref v) => div_of_value_tree(dcg, visited, v),
-                                }
-                            }
-                        }
-                    }
-                ],
-            }
-        )
+        text: None,
+        extent:Box::new(vec![
+            Div {
+                tag: "fgi-env-var noextent".to_string(),
+                classes: vec![],
+                text: Some(var.clone()),
+                extent:Box::new(vec![])
+            },
+            Div {
+                tag: "fgi-env-val".to_string(),
+                classes: vec![],
+                text: Some(format!("{:?}", val)),
+                extent:Box::new(vec![])
+            },
+        ])
     }
-    ;
-    div
 }
+
+pub fn div_of_env (env:&dynamics::Env) -> Div {
+    Div {
+        tag: "fgi-env".to_string(),
+        classes: vec![],
+        text: None,
+        extent:Box::new(
+            env.iter().map(|(ref x, ref v)| 
+                           div_of_env_pair(x,v)).collect())
+    }
+}
+
+// pub fn div_of_value_tree (dcg:&DCG, visited:&mut HashMap<Loc, ()>, val:&Val) -> Div {
+//     let div = Div {
+//         tag: match *val {
+//             Val::Constr(ref n, _) => { format!("val-constr constr-{}", string_of_name(n) ) },
+//             Val::Struct(ref n, _) => { format!("val-struct struct-{}", string_of_name(n) ) },
+//             Val::Const( ref c )     => { format!("val-const  const-{}" , match *c {
+//                 Const::Nat( ref n ) => format!("{}", n),
+//                 Const::Num( ref n ) => format!("{}", n),
+//                 Const::String( ref s ) => s.clone(),
+//             })},
+//             Val::Tuple(ref vs) => { format!("val-tuple tuple-{}", vs.len()) },
+//             Val::Vec(ref vs) => { format!("val-vec vec-{}", vs.len()) },
+//             Val::Art(ref loc, _) => { format!("val-art {}", string_of_loc( loc ) ) },
+//             Val::ValTODO => { format!("val-TODO") },
+//             Val::Name(ref n) => { format!("name val-name {}", string_of_name(n)) },
+//         },
+//         classes: vec![],
+//         text: 
+//         match *val {
+//             Val::Constr(ref n, _) => { Some(string_of_name(n)) },
+//             Val::Struct(ref n, _) => { Some(string_of_name(n)) },
+//             Val::Const( ref c )     => Some(match *c {
+//                 Const::Nat( ref n ) => format!("{}", n),
+//                 Const::Num( ref n ) => format!("{}", n),
+//                 Const::String( ref s ) => format!("{:?}", s),
+//             }),
+//             Val::Tuple( _ ) => None,
+//             Val::Vec( _ ) => None,
+//             Val::ValTODO => None,
+//             Val::Art( ref l, _ ) => {
+//                 Some(format!("{}", string_of_loc(l)))
+//             }
+//             Val::Name(ref n) => {
+//                 Some(format!("{}", string_of_name(n)))
+//             }
+//         },
+        
+//         extent: Box::new(
+//             match *val {
+//                 Val::Constr(_, ref vs) => { let ds : Vec<_> = vs.iter().map( |v| div_of_value_tree(dcg, visited,  v) ).collect() ; ds },
+//                 Val::Struct(_, ref fs) => { let ds : Vec<_> = fs.iter().map(  |&(ref _f, ref v) | 
+//                                                                                  div_of_value_tree(dcg, visited, &v) ).collect() ; ds },
+//                 Val::Tuple(ref vs) =>     { let ds : Vec<_> = vs.iter().map( |v| div_of_value_tree(dcg, visited,  v) ).collect() ; ds },
+//                 Val::Vec(ref vs) =>       { let ds : Vec<_> = vs.iter().map( |v| div_of_value_tree(dcg, visited,  v) ).collect() ; ds },
+//                 Val::Const( _ ) => vec![],
+//                 Val::ValTODO => vec![],
+//                 Val::Name(_) => vec![],
+//                 Val::Art( ref l, _ ) => vec![
+//                     div_of_loc(l), 
+//                     match dcg.table.get(l) {
+//                         None => Div{ tag: String::from("dangling"), 
+//                                      classes:vec![String::from("no-extent")], 
+//                                      text:Some(String::from("Dangling")), 
+//                                      extent:Box::new(vec![]),
+//                         },
+//                         Some(node) => {
+//                             match *node {
+//                                 Node::Pure(ref p) => div_of_value_tree(dcg, visited, &p.value),
+//                                 Node::Ref(ref n) => div_of_value_tree(dcg, visited, &n.value),
+//                                 Node::Comp(ref n) => match n.value {
+//                                     None => 
+//                                         Div{ tag: String::from("Unevald"), 
+//                                              classes:vec![String::from("no-extent")], 
+//                                              text:Some(String::from("Uneval'd")), 
+//                                              extent:Box::new(vec![]),
+//                                         },
+//                                     Some(ref v) => div_of_value_tree(dcg, visited, v),
+//                                 }
+//                             }
+//                         }
+//                     }
+//                 ],
+//             }
+//         )
+//     }
+//     ;
+//     div
+// }
 
 pub fn div_of_force_tree (dcg:&DCG, visited:&mut HashMap<Loc, ()>, loc:&Loc) -> Div {  
     let mut div = Div {

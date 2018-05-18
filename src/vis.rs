@@ -2,7 +2,7 @@
 
 use std::rc::Rc;
 
-use ast::{Name, Exp, Val, PrimApp};
+use ast::{Name, Exp, Val, PrimApp, Decls};
 use bitype;
 use dynamics;
 use adapton::reflect;
@@ -25,8 +25,15 @@ fn rewrite_val_rec(v: &Rc<Val>, ct: &mut usize) -> Rc<Val> {
     Rc::new(rewrite_val(&**v, ct))
 }
 
+fn rewrite_decls(decls: &Decls, ct: &mut usize) -> Decls {
+    // XXX/TODO -- actually rewrite the expressions (the function
+    // declarations) in this structure
+    decls.clone()
+}
+
+
 fn rewrite_exp(exp: &Exp, ct: &mut usize) -> Exp {
-    println!("{}", ct);
+    //println!("{}", ct);
     let new_exp = match *exp {
         Exp::AnnoC(ref e, ref t) => Exp::AnnoC(rewrite_exp_rec(e, ct), t.clone()),
         Exp::AnnoE(ref e, ref t) => Exp::AnnoE(rewrite_exp_rec(e, ct), t.clone()),
@@ -49,8 +56,8 @@ fn rewrite_exp(exp: &Exp, ct: &mut usize) -> Exp {
         Exp::NameFnApp(ref v1, ref v2) => Exp::NameFnApp(rewrite_val(v1, ct), rewrite_val(v2, ct)),
         Exp::PrimApp(ref p) => Exp::PrimApp(rewrite_prim_app(p, ct)),
         Exp::DebugLabel(ref on, ref s, ref e) => Exp::DebugLabel(on.clone(), s.clone(), rewrite_exp_rec(e, ct)),
-        Exp::UseAll(ref m, ref e) => Exp::UseAll(m.clone(), rewrite_exp_rec(e, ct)), // <-- TODO: Descend into module and rewrite, if not already rewritten.
-        Exp::Decls(ref d, ref e) => Exp::Decls(d.clone(), rewrite_exp_rec(e, ct)), // <-- TODO: Descend into decls and rewrite, if not already rewritten.
+        Exp::UseAll(ref m, ref e) => Exp::UseAll(m.clone(), rewrite_exp_rec(e, ct)), // <-- TODO/XXX: Descend into module and rewrite, if not already rewritten.
+        Exp::Decls(ref d, ref e) => Exp::Decls(d.clone(), rewrite_exp_rec(e, ct)), // <-- TODO/XXX: Descend into decls and rewrite, if not already rewritten.
         Exp::Unpack(ref x, ref y, ref v, ref e) => Exp::Unpack(x.clone(), y.clone(), rewrite_val(v, ct), rewrite_exp_rec(e, ct)),
         Exp::IdxApp(ref e, ref i) => Exp::IdxApp(rewrite_exp_rec(e, ct), i.clone()),
         Exp::Unimp => Exp::Unimp,
@@ -142,26 +149,13 @@ macro_rules! fgi_listing_expect {
             use ast::*;
             use bitype::*;
             use vis::*;
-            use regex::Regex;
-            
 
             let bundle : Bundle = fgi_bundle![
                 $($e)+
             ];
 
-            // Aside: I'd really, really prefer to use the function
-            // name (not line number), but this path name, but this
-            // issue has been open for two years:
-            // https://github.com/rust-lang/rfcs/issues/1743
-            //
-            // Also, can't use `::` on Windows, so using `.` instead:
-            // https://msdn.microsoft.com/en-us/library/aa365247
-            //
-            let re = Regex::new(r"::").unwrap();
-            let modp = re.replace_all(module_path!(), ".");
-            let path = format!("target/{}.{}.fgb", modp, line!());
-            
-            write_bundle(path.as_str(), &bundle);
+            let filename = format!("target/{}.{}.fgb", filename_of_module_path!(), line!());
+            write_bundle(filename.as_str(), &bundle);
             match ($($outcome)+, bundle.program.clas) {
                 (Expect::Success,     Ok(_))     => { return Ok(()) },
                 (Expect::FailurexXXX, Ok(_))     => { return Ok(()) },
