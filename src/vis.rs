@@ -2,7 +2,7 @@
 
 use std::rc::Rc;
 
-use ast::{Name, Exp, Val, PrimApp, Decls};
+use ast::{Name, Exp, Val, PrimApp, UseAllModule, Module, Decls};
 use bitype;
 use dynamics;
 use adapton::reflect;
@@ -26,12 +26,34 @@ fn rewrite_val_rec(v: &Rc<Val>, ct: &mut usize) -> Rc<Val> {
     Rc::new(rewrite_val(&**v, ct))
 }
 
-#[allow(unused)]
-#[allow(unused_variables, unused_mut)]
+fn rewrite_decls_rec(d: &Rc<Decls>, ct: &mut usize) -> Rc<Decls> {
+    Rc::new(rewrite_decls(&**d, ct))
+}
+
+fn rewrite_useall(useall: &UseAllModule, ct: &mut usize) -> UseAllModule {
+    let mut u = useall.clone();
+    u.module = Rc::new(rewrite_module(&*u.module, ct));
+    u
+}
+
+fn rewrite_module(module: &Module, ct: &mut usize) -> Module {
+    let mut m = module.clone();
+    m.decls = rewrite_decls(&m.decls, ct);
+    m
+}
+
 fn rewrite_decls(decls: &Decls, ct: &mut usize) -> Decls {
-    // XXX/TODO -- actually rewrite the expressions (the function
-    // declarations) in this structure
-    decls.clone()
+    match *decls {
+        Decls::UseAll(ref u, ref d) => Decls::UseAll(rewrite_useall(u, ct), rewrite_decls_rec(d, ct)),
+        Decls::Doc(ref s, ref d) => Decls::Doc(s.clone(), rewrite_decls_rec(d, ct)),
+        Decls::NmTm(ref s, ref n, ref d) => Decls::NmTm(s.clone(), n.clone(), rewrite_decls_rec(d, ct)),
+        Decls::IdxTm(ref s, ref i, ref d) => Decls::IdxTm(s.clone(), i.clone(), rewrite_decls_rec(d, ct)),
+        Decls::Type(ref s, ref t, ref d) => Decls::Type(s.clone(), t.clone(), rewrite_decls_rec(d, ct)),
+        Decls::Val(ref s, ref ot, ref v, ref d) => Decls::Val(s.clone(), ot.clone(), rewrite_val(v, ct), rewrite_decls_rec(d, ct)),
+        Decls::Fn(ref s, ref t, ref e, ref d) => Decls::Fn(s.clone(), t.clone(), rewrite_exp(e, ct), rewrite_decls_rec(d, ct)),
+        Decls::End => Decls::End,
+        Decls::NoParse(ref s) => Decls::NoParse(s.clone()),
+    }
 }
 
 
@@ -59,8 +81,8 @@ fn rewrite_exp(exp: &Exp, ct: &mut usize) -> Exp {
         Exp::NameFnApp(ref v1, ref v2) => Exp::NameFnApp(rewrite_val(v1, ct), rewrite_val(v2, ct)),
         Exp::PrimApp(ref p) => Exp::PrimApp(rewrite_prim_app(p, ct)),
         Exp::DebugLabel(ref on, ref s, ref e) => Exp::DebugLabel(on.clone(), s.clone(), rewrite_exp_rec(e, ct)),
-        Exp::UseAll(ref m, ref e) => Exp::UseAll(m.clone(), rewrite_exp_rec(e, ct)), // <-- TODO/XXX: Descend into module and rewrite, if not already rewritten.
-        Exp::Decls(ref d, ref e) => Exp::Decls(d.clone(), rewrite_exp_rec(e, ct)), // <-- TODO/XXX: Descend into decls and rewrite, if not already rewritten.
+        Exp::UseAll(ref u, ref e) => Exp::UseAll(rewrite_useall(u, ct), rewrite_exp_rec(e, ct)),
+        Exp::Decls(ref d, ref e) => Exp::Decls(Rc::new(rewrite_decls(&*d, ct)), rewrite_exp_rec(e, ct)),
         Exp::Unpack(ref x, ref y, ref v, ref e) => Exp::Unpack(x.clone(), y.clone(), rewrite_val(v, ct), rewrite_exp_rec(e, ct)),
         Exp::IdxApp(ref e, ref i) => Exp::IdxApp(rewrite_exp_rec(e, ct), i.clone()),
         Exp::Unimp => Exp::Unimp,
@@ -205,10 +227,13 @@ where F: FnOnce() -> dynamics::ExpTerm {
 }
 
 pub fn write_bundle(filename: &str, bundle: &Bundle) {
-    // let data = format!("{:?}", bundle);
-    // let data = serde_json::to_string(bundle).expect("Could not convert bundle to JSON");
-    let data = serde_xml_rs::serialize(bundle).expect("Could not convert bundle to XML");
+    let data = format!("{:?}", bundle);
+    
+    // let mut buffer = vec![];
+    // serde_xml_rs::serialize(&bundle, &mut buffer).expect("Could not convert bundle to XML");
+    
     let mut f = File::create(filename).expect("Could not create bundle file");
+    // f.write_all(&buffer[..]).expect("Could not write bundle data");
     f.write_all(data.as_bytes()).expect("Could not write bundle data");
     f.flush().expect("Could not flush bundle output");
 }
