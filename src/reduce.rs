@@ -14,6 +14,7 @@ See also:
 */
 use std::rc::Rc;
 use std::fmt;
+use std::env as std_env;
 
 use adapton::macros::*;
 use adapton::engine::{thunk,NameChoice};
@@ -38,9 +39,17 @@ pub enum Cont {
     Let(Var,Exp),    
 }
 
+/// System configuration: global flags, etc
+#[derive(Clone,Debug,Eq,PartialEq,Hash)]
+pub struct SysCfg {
+    pub verbose: bool,
+}
+
 /// Configuration for reduction: A stack, environment and expression.
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub struct Config {
+    /// System configuration, for global flags, etc
+    pub sys: SysCfg,
     /// The Stack continues the expression with local continuations (one per frame)
     pub stk: Vec<Frame>,
     /// The environment closes the expression's free variables
@@ -104,18 +113,12 @@ pub enum Stuck {
 fn stuck_err<X>(s:Stuck) -> Result<X,StepError> {
     Err(StepError::Stuck(s))
 }
-
-#[allow(unused)]
-fn debug_truncate<X:fmt::Debug>(x: &X) -> String {
-    let x = format!("{:?}", x);
-    format!("`{:.80}{}", x, if x.len() > 80 { " ...`" } else { "`" } )
-}
 fn set_exp(c:&mut Config, e:Rc<Exp>) {
-    //println!("set_exp: {}", debug_truncate(&e));
+    debug_set_exp(c, &e);
     c.exp = (*e).clone()        
 }
 fn set_env(c:&mut Config, x:Var, v:RtVal) {
-    //println!("set_env: {} := {}", x, debug_truncate(&v));
+    debug_set_env(c, &x, &v);
     c.env = env_push(&c.env, &x, v)
 }
 fn set_env_rec(c:&mut Config, x:Var, v:Rc<RtVal>) {
@@ -236,6 +239,17 @@ fn continue_te(c:&mut Config, te:ExpTerm) -> Result<(),StepError> {
     }
 }
 
+pub fn system_config() -> SysCfg {
+    SysCfg{
+        verbose: {
+            match std_env::var("FUNGI_VERBOSE_REDUCE") {
+                Ok(ref s) if s == "1" => true,
+                _ => false
+            }
+        }
+    }
+}
+
 /// Perform reduction steps (via `step`) until irreducible.
 ///
 /// Reduces the current configuration until it is irreducible.  This
@@ -244,7 +258,12 @@ fn continue_te(c:&mut Config, te:ExpTerm) -> Result<(),StepError> {
 /// before returning control.
 ///
 pub fn reduce(stk:Vec<Frame>, env:EnvRec, exp:Exp) -> ExpTerm {
-    let mut c = Config{stk:stk, env:env, exp:exp};
+    let mut c = Config{
+        sys:system_config(),
+        stk:stk,
+        env:env,
+        exp:exp
+    };
     loop {
         match step(&mut c) {
             Err(StepError::Halt(t)) => return t,
@@ -520,5 +539,30 @@ pub fn step(c:&mut Config) -> Result<(),StepError> {
                 _ => stuck_err(Stuck::RefThunkNonThunk)
             }
         }
+    }
+}
+
+//////////////////////////////////////////////////////////////////////
+// Pretty VT100-style Debugging output
+// (Enable with `export FUNGI_VERBOSE_REDUCE=1` at shell)
+//////////////////////////////////////////////////////////////////////
+
+fn debug_truncate<X:fmt::Debug>(x: &X, color_code:usize) -> String {
+    let x = format!("{:?}", x);
+    format!("\x1B[1;{}m{:.80}{}\x1B[0;0m",
+            color_code,
+            x,
+            if x.len() > 80 { "\x1B[2m..." } else { "" }
+    )
+}
+fn debug_set_exp(c:&mut Config, e:&Rc<Exp>) {
+    if c.sys.verbose {
+        println!("\x1B[2mset_exp: {}", debug_truncate(e, 35))
+    }    
+}
+fn debug_set_env(c:&mut Config, x:&Var, v:&RtVal) {
+    if c.sys.verbose {
+        println!("\x1B[1;33mset_env:\x1B[1;36m {}\x1B[1;37m :=\x1B[0;0m {}",
+                 x, debug_truncate(v, 34))
     }
 }
