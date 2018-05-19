@@ -250,6 +250,7 @@ pub enum IdxTm {
     /// ```    
     FlatMapStar(IdxTmRec, IdxTmRec),
     NoParse(String),
+    Unknown,
 }
 pub type IdxTmRec = Rc<IdxTm>;
 

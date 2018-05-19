@@ -82,7 +82,7 @@ fgi_mod!{
     ) = {
         #n.#h.#r.
         let l1 = {get r}
-        let l2 = {{force cons_ref} [XX][XX][XX][XX] n h l1}
+        let l2 = {{force cons_ref} [?][?][?][?] n h l1}
         {force ref_update} r l2
     }
 
@@ -103,9 +103,9 @@ fgi_mod!{
                 unpack (X1,X2,Y1,Y2) c = c
                 let (n, h, t) = { ret c }
                 if {{force name_eq} n n1 } {
-                    {force insert}[XX][XX][XX][XX] n2 h t
+                    {force insert}[?][?][?][?] n2 h t
                 } else {
-                    let _u = {{force insert_after}[XX] n1 n2 h {!t}}
+                    let _u = {{force insert_after}[?] n1 n2 h {!t}}
                     ret true
                 }
             }
@@ -235,7 +235,7 @@ pub mod dynamic_tests {
             }}
             let outs_1 = {force t}
             let _u = {
-                {force insert_after}[XX] (@5) (@666) 666 {!list1}
+                {force insert_after}[?] (@5) (@666) 666 {!list1}
             }
             let outs_2 = {force t}           
             ret outs_1
