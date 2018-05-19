@@ -25,8 +25,7 @@ fgi_mod!{
         unsafe (2) trapdoor::ref_update
     }
 
-    // XXX: This type is wrong.  TODO: figure out how to ecode this
-    // type correctly, with existentials.
+    // Test if two names are equal.
     fn name_eq:(
         Thk[0] 
             foralli (X,Y):NmSet.
@@ -171,10 +170,14 @@ fgi_mod!{
     fn nat_is_zero:(Thk[0] 0 Nat -> 0 F Bool)
         = { unsafe (1) trapdoor::nat_is_zero }
 
+    // Return true if the given natural number is odd, false otherwise.
+    fn nat_is_odd:(Thk[0] 0 Nat -> 0 F Bool)
+        = { unsafe (1) trapdoor::nat_is_odd }
+
     // Return the difference of two natural numbers, as a natural number.
     fn nat_sub:(Thk[0] 0 Nat -> 0 Nat -> 0 F Nat)
         = { unsafe (2) trapdoor::nat_sub }
-    
+   
     // XXX -- This type is wrong.  TODO -- figure out how to
     // ecode this type correctly, with existentials.
     fn name_of_nat:(
@@ -258,6 +261,75 @@ fgi_mod!{
             }
         }
     }
+
+    fn filter:(
+        Thk[0]
+            foralli (X,Y):NmSet.
+            0 (Thk[0] 0 Nat -> 0 F Bool) ->
+            0 List[X][Y] ->
+        {{@!}X; Y%({@!}X)} F List[X][{@!}X]
+    ) = {
+        #f.#l. unroll match l {
+            _u => { ret roll inj1 () }
+            c => {
+                unpack (X1,X2,Y1,Y2) c = c
+                let (n, h, t) = { ret c }
+                let (rt2, t2) = {
+                    memo(n){{force filter} [X2][Y2] f {!t}}
+                }
+                if {{force f} h} {
+                    ret roll inj2
+                        pack (X1,X2,{@!}X1,{@!}X2) (n, h, rt2)
+                }
+                else {
+                    ret t2
+                }
+            }
+        }
+    }
+
+    /// Optional natural numbers
+    type OpNat  = (+ Unit + Nat );
+
+    /// If the given number is even, return its successor
+    fn nat_succ_even:(
+        Thk[0]
+            0 Thk[0] 0 Nat -> 0 F OpNat
+    ) = {
+        #n. if {{force nat_is_odd} n} {
+            let m = {n + 1}
+            ret inj2 m
+        } else {
+            ret inj1 ()
+        }
+    }
+    
+    fn map_filter:(
+        Thk[0]
+            foralli (X,Y):NmSet.
+            0 (Thk[0] 0 Nat -> 0 F OpNat) ->
+            0 List[X][Y] ->
+        {{@!}X; Y%({@!}X)} F List[X][{@!}X]
+    ) = {
+        #f.#l. unroll match l {
+            _u => { ret roll inj1 () }
+            c => {
+                unpack (X1,X2,Y1,Y2) c = c
+                let (n, h, t) = { ret c }
+                let (rt2, t2) = {
+                    memo(n){{force map_filter} [X2][Y2] f {!t}}
+                }
+                let oh2 = {{force f} h}
+                match oh2 {
+                    _u => { ret t2 }
+                    h2 => {
+                        ret roll inj2
+                            pack (X1,X2,{@!}X1,{@!}X2) (n, h, rt2)
+                    }
+                }
+            }
+        }
+    }
 }
 
 pub mod dynamic_tests {
@@ -282,10 +354,12 @@ pub mod dynamic_tests {
             let list1  = {{force gen} 10}
             let refnil = {ref (@@nil) roll inj1 ()}
             let t = { thk (@@archivist) {
-                let list2 = {ws (@@map1) {memo (@@map1) {{force map} (thunk #x. x + 1) {!list1}}}}
-                let list3 = {ws (@@map2) {memo (@@map2) {{force map} (thunk #x. x + 2) {!list1}}}}
-                let list4 = {ws (@@rev)  {memo (@@rev)  {{{force reverse} {!list1} refnil (@@revres)}}}}
-                ret (list1, list2, list3, list4)
+                let list2 = {ws (@@map1)   {memo (@@map1)   {{force map} (thunk #x. x + 1) {!list1}}}}
+                let list3 = {ws (@@map2)   {memo (@@map2)   {{force map} (thunk #x. x + 2) {!list1}}}}
+                let list4 = {ws (@@rev)    {memo (@@rev)    {{{force reverse} {!list1} refnil (@@revres)}}}}
+                let list5 = {ws (@@filter) {memo (@@filter) {{force filter} nat_is_odd {!list1}}}}
+                let list6 = {ws (@@mapftr) {memo (@@mapftr) {{force map_filter} nat_succ_even {!list1}}}}
+                ret (list1, list2, list3, list4, list5, list6)
             }}
             let outs_1 = {force t}
             let b1 = {
