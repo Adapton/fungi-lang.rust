@@ -237,3 +237,56 @@ pub fn write_bundle(filename: &str, bundle: &Bundle) {
     f.write_all(data.as_bytes()).expect("Could not write bundle data");
     f.flush().expect("Could not flush bundle output");
 }
+
+#[macro_export]
+macro_rules! fgi_dynamic_trace {
+    { $($e:tt)+ } => {{
+        use reduce;
+        use dynamics;
+        use std::rc::Rc;
+        use ast::*;
+        use adapton::engine;
+        
+        // ----------------------------------------------------
+        // Fungi program (expression) to reduce, and visualize;
+        // ----------------------------------------------------
+        let e = fgi_exp![ $($e)+ ];
+        
+        // --------------------------------------
+        // Fungi/Adapton trace-collection harness
+        // ---------------------------------------
+        use html;
+        use vis;
+        use adapton::reflect;
+        //use adapton::reflect::trace;
+        use std::fs::File;
+        use std::io::BufWriter;
+        use std::io::Write;
+        use html::WriteHTML;
+        
+        // Initialize Adapton
+        engine::manage::init_dcg();
+        // Record a debugging trace of Adapton's behavior
+        reflect::dcg_reflect_begin();
+        // Run our Fungi program:
+        let result = {
+            let mut lab = 0;
+            // Label the sub-expressions of the Fungi program:
+            let e = vis::label_exp(e, &mut lab);
+            // Run the Fungi program:
+            reduce::reduce(vec![], dynamics::env_emp(), e)
+        };
+        println!("{}:{}: result: {:?}", module_path!(), line!(), result);
+        let traces = reflect::dcg_reflect_end();
+        //let count = trace::trace_count(&traces, None);
+        //println!("{:?}", count);
+        let f = File::create(format!("target/{}.{}.html", filename_of_module_path!(), line!())).unwrap();
+        let mut writer = BufWriter::new(f);
+        writeln!(writer, "{}", html::style_string()).unwrap();
+        writeln!(writer, "<div class=\"traces\">").unwrap();
+        for tr in traces {
+            html::div_of_trace(&tr).write_html(&mut writer);
+        };
+        writeln!(writer, "</div>").unwrap();
+    }}
+}
