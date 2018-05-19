@@ -19,10 +19,10 @@ fgi_mod!{
             0 Ref[X]A ->
             0 A ->
         {X; 0} // <-- TODO: An editor-level operation only; we don't
-               // have effect notation for this yet, but should.
+        // have effect notation for this yet, but should.
         F Unit
     ) = {
-        #r.#x. {unsafe (2) trapdoor::ref_update} r x
+        unsafe (2) trapdoor::ref_update
     }
 
     // XXX: This type is wrong.  TODO: figure out how to ecode this
@@ -32,10 +32,10 @@ fgi_mod!{
             foralli (X,Y):NmSet.
             0 Nm[X] -> 0 Nm[Y] -> 0 F Bool
     ) = {
-        #n1.#n2. {unsafe (2) trapdoor::name_eq} n1 n2
+        unsafe (2) trapdoor::name_eq
     }
         
-    // Allocates a ref cell, holding a cons cell, pointing at a list:
+    // Allocate a Ref cell, holding a Cons cell, pointing at a list:
     //
     // ref         cons       ref     list
     // |{@!}X1|--->|X1|_|*|-->|Y1|--> |...[X2][Y2]...|
@@ -70,6 +70,8 @@ fgi_mod!{
         ret roll inj2 pack (X1,X2,({@!}X1),Y2) (n, h, rt)
     }
 
+    // Insert a Cons cell into a list, at the given Ref cell.
+    //
     // XXX: Technically, this operation is only permitted by the editor:
     fn insert:(
         Thk[0]
@@ -86,6 +88,34 @@ fgi_mod!{
         {force ref_update} r l2
     }
 
+    // Remove the Cons cell within a Ref cell.  Return true if this
+    // Cons cell was removed, and false otherwise, if the Ref cell
+    // holds an empty list.
+    //
+    // XXX: Technically, this operation is only permitted by the editor:
+    fn remove:(
+        Thk[0]
+            foralli (X1,X2,Y1,Y2):NmSet.
+            0 Ref[Y1](List[X1%X2][Y2]) ->
+        {Y1; Y1} // <-- XXX/TODO: An editor-level operation only
+        F Bool
+    ) = {
+        #r.
+        let l1 = {get r}
+        unroll match l1 {
+            _u => { ret false }
+            c => {
+                unpack (X1,X2,Y1,Y2) c = c
+                let (n, h, t) = { ret c }
+                let l2 = {get t}
+                let _u = {{force ref_update} r l2}
+                ret true
+            }
+        }
+    }
+
+    // Insert a Cons cell after a given name in a given list.
+    // Return true if successful, and false otherwise.
     fn insert_after:(
         Thk[0]
             foralli (X):NmSet.
@@ -93,7 +123,7 @@ fgi_mod!{
             0 Nm[X2] ->
             0 Nat ->
             0 List[X2%X3][Y] ->
-        {Y;Y}
+        {Y;Y} // <-- XXX/TODO: An editor-level operation only
         F Bool
     ) = {
         #n1.#n2.#h.#l.
@@ -103,28 +133,47 @@ fgi_mod!{
                 unpack (X1,X2,Y1,Y2) c = c
                 let (n, h, t) = { ret c }
                 if {{force name_eq} n n1 } {
-                    {force insert}[?][?][?][?] n2 h t
-                } else {
-                    let _u = {{force insert_after}[?] n1 n2 h {!t}}
+                    let _u = {{force insert}[?][?][?][?] n2 h t}
                     ret true
+                } else {
+                    {force insert_after}[?] n1 n2 h {!t}
                 }
             }
         }
     }
-    
-    fn nat_is_zero:(
-        Thk[0] 
-            0 Nat -> 0 F Nat
+
+    // Remove the Cons cell after a given name in a given list.
+    // Return true if successful, and false otherwise.
+    fn remove_after:(
+        Thk[0]
+            foralli (X):NmSet.
+            0 Nm[X1] ->
+            0 List[X2%X3][Y] ->
+        {Y;Y} // <-- XXX/TODO: An editor-level operation only
+        F Bool
     ) = {
-        #n. {unsafe (1) trapdoor::nat_is_zero} n
+        #n1.#l.
+        unroll match l {
+            _u => { ret false }
+            c => {
+                unpack (X1,X2,Y1,Y2) c = c
+                let (n, h, t) = { ret c }
+                if {{force name_eq} n n1 } {
+                    {force remove}[?][?][?][?] t
+                } else {
+                    {force remove_after}[?] n1 {!t}
+                }
+            }
+        }
     }
-    
-    fn nat_sub:(
-        Thk[0] 
-            0 Nat -> 0 Nat -> 0 F Nat
-    ) = {
-        #n.#m. {unsafe (2) trapdoor::nat_sub} n m
-    }
+
+    // Return true if the given natural number is zero, false otherwise.
+    fn nat_is_zero:(Thk[0] 0 Nat -> 0 F Bool)
+        = { unsafe (1) trapdoor::nat_is_zero }
+
+    // Return the difference of two natural numbers, as a natural number.
+    fn nat_sub:(Thk[0] 0 Nat -> 0 Nat -> 0 F Nat)
+        = { unsafe (2) trapdoor::nat_sub }
     
     // XXX -- This type is wrong.  TODO -- figure out how to
     // ecode this type correctly, with existentials.
@@ -133,7 +182,7 @@ fgi_mod!{
             foralli X:NmSet.
             0 Nat -> 0 F Nm[X]
     ) = {
-        #n. {unsafe (1) trapdoor::name_of_nat} n
+        unsafe (1) trapdoor::name_of_nat
     }
     
     // XXX -- This type is wrong.  TODO -- figure out how to
@@ -154,7 +203,9 @@ fgi_mod!{
              nm p l}
         }
     }
-    
+
+    // Map a list of natural numbers, using a given function from
+    // naturals to naturals.
     fn map:(
         Thk[0]
             foralli (X,Y):NmSet.
@@ -176,7 +227,9 @@ fgi_mod!{
             }
         }
     }
-    
+
+    // Reverse a list of natural numbers, using the given accumulator
+    // value (a Ref cell holding a reversed list prefix).
     fn reverse:(
         Thk[0]
             foralli (X,Xa,Xb,Xc):NmSet | ((Xa%Xb%Xc)=X:NmSet).
@@ -234,11 +287,15 @@ pub mod dynamic_tests {
                 ret (list1, list2, list3, list4)
             }}
             let outs_1 = {force t}
-            let _u = {
+            let b1 = {
                 {force insert_after}[?] (@5) (@666) 666 {!list1}
             }
-            let outs_2 = {force t}           
-            ret outs_1
+            let outs_2 = {force t}
+            let b2 = {
+                {force remove_after}[?] (@5) {!list1}
+            }
+            let outs_3 = {force t}
+            ret (b1, b2)
         ];
         
         // --------------------------------------
@@ -258,13 +315,14 @@ pub mod dynamic_tests {
         // Record a debugging trace of Adapton's behavior
         reflect::dcg_reflect_begin();
         // Run our Fungi program:
-        let _result = {
+        let result = {
             let mut lab = 0;
             // Label the sub-expressions of the Fungi program:
             let e = vis::label_exp(e, &mut lab);
             // Run the Fungi program:
             reduce::reduce(vec![], vec![], e)
         };
+        println!("{:?}", result);
         let traces = reflect::dcg_reflect_end();
         //let count = trace::trace_count(&traces, None);
         //println!("{:?}", count);
@@ -293,7 +351,7 @@ pub mod trapdoor {
     pub fn ref_update(args:Vec<RtVal>) -> ExpTerm {
         match (&args[0], &args[1]) {
             (RtVal::Ref(r), v) => {
-                println!("ref_update: {:?} <-- {:?}", r, v);
+                //println!("ref_update: {:?} <-- {:?}", r, v);
                 engine::set(r, v.clone());
                 ExpTerm::Ret(RtVal::Unit)
             },

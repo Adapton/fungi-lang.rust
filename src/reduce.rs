@@ -111,11 +111,11 @@ fn debug_truncate<X:fmt::Debug>(x: &X) -> String {
     format!("`{:.80}{}", x, if x.len() > 80 { " ...`" } else { "`" } )
 }
 fn set_exp(c:&mut Config, e:Rc<Exp>) {
-    println!("set_exp: {}", debug_truncate(&e));
+    //println!("set_exp: {}", debug_truncate(&e));
     c.exp = (*e).clone()        
 }
 fn set_env(c:&mut Config, x:Var, v:RtVal) {
-    println!("set_env: {} := {}", x, debug_truncate(&v));
+    //println!("set_env: {} := {}", x, debug_truncate(&v));
     c.env.push((x,v))
 }
 fn set_env_rec(c:&mut Config, x:Var, v:Rc<RtVal>) {
