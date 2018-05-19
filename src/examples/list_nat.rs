@@ -264,6 +264,7 @@ pub mod dynamic_tests {
     #[test]    
     pub fn listing1() {
         use reduce;
+        use dynamics;
         use std::rc::Rc;
         use ast::*;
         use adapton::engine;
@@ -320,7 +321,7 @@ pub mod dynamic_tests {
             // Label the sub-expressions of the Fungi program:
             let e = vis::label_exp(e, &mut lab);
             // Run the Fungi program:
-            reduce::reduce(vec![], vec![], e)
+            reduce::reduce(vec![], dynamics::env_emp(), e)
         };
         println!("{:?}", result);
         let traces = reflect::dcg_reflect_end();

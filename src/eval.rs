@@ -94,7 +94,7 @@ pub enum EvalTyErr {
     PrimAppNatPlus(RtVal,RtVal),
 }
 
-fn eval_type_error<A>(err:EvalTyErr, env:Env, e:Exp) -> A {
+fn eval_type_error<A>(err:EvalTyErr, env:EnvRec, e:Exp) -> A {
     panic!("eval_type_error: {:?}:\n\tenv:{:?}\n\te:{:?}\n", err, env, e)
 }
 
@@ -117,7 +117,7 @@ fn eval_type_error<A>(err:EvalTyErr, env:Env, e:Exp) -> A {
 // recursive calls to `eval`. In CBV style, many more cases would
 // require multiple recursive calls to eval.
 //
-pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
+pub fn eval(env:EnvRec, e:Exp) -> ExpTerm {
     match e.clone() {
         // basecase 1a: lambdas are terminal computations
         Exp::Lam(x, e)   => { ExpTerm::Lam(env, x, e) }
@@ -138,13 +138,13 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
         // save a copy of e as thunk f in e
         Exp::Fix(f,e1) => {
             let env_saved = env.clone();
-            env.push((f, RtVal::ThunkAnon(env_saved, e)));
+            let env = env_push(&env, &f, RtVal::ThunkAnon(env_saved, e));
             return eval(env, (*e1).clone())
         }
         Exp::Unroll(v, x, e1) => {
             match close_val(&env, &v) {
                 RtVal::Roll(v) => {
-                    env.push((x,(*v).clone()));
+                    let env = env_push(&env, &x, (*v).clone());
                     return eval(env, (*e1).clone())
                 },
                 v => eval_type_error(EvalTyErr::UnrollNonRoll(v), env, e)
@@ -176,7 +176,7 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
         Exp::Let(x,e1,e2) => {
             match eval(env.clone(), (*e1).clone()) {
                 ExpTerm::Ret(v) => {
-                    env.push((x, v));
+                    let env = env_push(&env, &x, v);
                     return eval(env, (*e2).clone())
                 },
                 term => eval_type_error(EvalTyErr::LetNonRet(term), env, e)
@@ -186,7 +186,7 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
             let v = close_val(&env, &v);
             match eval(env.clone(), (*e1).clone()) {
                 ExpTerm::Lam(mut env, x, e2) => {
-                    env.push((x, v));
+                    let env = env_push(&env, &x, v);
                     return eval(env, (*e2).clone())
                 },
                 ExpTerm::HostFn(hef, mut args) => {
@@ -208,8 +208,8 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
         Exp::Split(v, x, y, e1) => {
             match close_val(&env, &v) {
                 RtVal::Pair(v1, v2) => {
-                    env.push((x, (*v1).clone()));
-                    env.push((y, (*v2).clone()));
+                    let env = env_push(&env, &x, (*v1).clone());
+                    let env = env_push(&env, &y, (*v2).clone());
                     return eval(env, (*e1).clone())
                 },
                 v => eval_type_error(EvalTyErr::SplitNonPair(v), env, e)
@@ -227,11 +227,11 @@ pub fn eval(mut env:Env, e:Exp) -> ExpTerm {
         Exp::Case(v, x, ex, y, ey) => {
             match close_val(&env, &v) {
                 RtVal::Inj1(v) => {
-                    env.push((x, (*v).clone()));
+                    let env = env_push(&env, &x, (*v).clone());
                     return eval(env, (*ex).clone())
                 },
                 RtVal::Inj2(v) => {
-                    env.push((y, (*v).clone()));
+                    let env = env_push(&env, &y, (*v).clone());
                     return eval(env, (*ey).clone())
                 },
                 v => eval_type_error(EvalTyErr::SplitNonPair(v), env, e)

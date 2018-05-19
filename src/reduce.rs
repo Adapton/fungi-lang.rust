@@ -25,7 +25,7 @@ use dynamics::*;
 /// Stack frame
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
 pub struct Frame {
-    pub env: Env,
+    pub env: EnvRec,
     pub cont: Cont,
 }
 
@@ -44,7 +44,7 @@ pub struct Config {
     /// The Stack continues the expression with local continuations (one per frame)
     pub stk: Vec<Frame>,
     /// The environment closes the expression's free variables
-    pub env: Env,
+    pub env: EnvRec,
     /// The expression gives the "active program"
     ///
     /// This "active program" is closed by the environment, and
@@ -116,7 +116,7 @@ fn set_exp(c:&mut Config, e:Rc<Exp>) {
 }
 fn set_env(c:&mut Config, x:Var, v:RtVal) {
     //println!("set_env: {} := {}", x, debug_truncate(&v));
-    c.env.push((x,v))
+    c.env = env_push(&c.env, &x, v)
 }
 fn set_env_rec(c:&mut Config, x:Var, v:Rc<RtVal>) {
     set_env(c, x, (*v).clone())
@@ -181,13 +181,13 @@ fn produce_value(c:&mut Config,
     }
 }
 fn consume_value(c:&mut Config,
-                 restore_env:Option<Env>,
+                 restore_env:Option<EnvRec>,
                  x:Var, e:Rc<Exp>)
                  -> Result<(),StepError>
 {
     if c.stk.is_empty() {
         Err(StepError::Halt(
-            ExpTerm::Lam(restore_env.unwrap_or(vec![]), x, e)))
+            ExpTerm::Lam(restore_env.unwrap_or(env_emp()), x, e)))
     }
     else { match c.stk.pop().unwrap().cont {
         Cont::App(v) => {
@@ -243,7 +243,7 @@ fn continue_te(c:&mut Config, te:ExpTerm) -> Result<(),StepError> {
 /// stack; it will entirely consume the initial stack frames, if any,
 /// before returning control.
 ///
-pub fn reduce(stk:Vec<Frame>, env:Env, exp:Exp) -> ExpTerm {
+pub fn reduce(stk:Vec<Frame>, env:EnvRec, exp:Exp) -> ExpTerm {
     let mut c = Config{stk:stk, env:env, exp:exp};
     loop {
         match step(&mut c) {
