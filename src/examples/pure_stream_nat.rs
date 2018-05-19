@@ -3,6 +3,7 @@ pub fn listing0 () { fgi_listing_test![
     decls {
         //Nat stream
         type Stream = (+ Unit + (x Nat x Thk Stream));
+        //type Stream = ( rec stream. (+ Unit + (x Nat x Thk stream)) );
 
         //Optional natural numbers
         type OpNat = (+ Unit + Nat);
@@ -20,7 +21,7 @@ pub fn listing0 () { fgi_listing_test![
         ret thunk #h.#t. ret roll inj2 (h, t)
     }
 
-    /*let rec map:(
+    let rec map:(
         Thk[0]
             0 (Thk[0] 0 Nat -> 0 F Nat) ->
             0 Stream ->
@@ -31,13 +32,13 @@ pub fn listing0 () { fgi_listing_test![
             c => {
                 let (h, tt) = { ret c }
                 // tt is a Thk Stream, must force to get out Stream
-                let ft = {force tt}
+                //let ft = {force tt}
                 let h2 = {{force f} h}
-                let t2 = {{force map} f ft}
+                let t2 : Stream = {{force map} f tt}
                 {{force cons} h2 t2}
             }
         }
-    }*/
+    }
 
     ret 0
 ]}
