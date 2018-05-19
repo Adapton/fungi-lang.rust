@@ -12,7 +12,29 @@ fgi_mod!{
              )
             )
     );
-    
+
+    // XXX: Technically, this operation is only permitted by the editor (?)
+    fn ref_update:(
+        Thk[0] foralli X:NmSet. forall A.
+            0 Ref[X]A ->
+            0 A ->
+        {X; 0} // <-- TODO: An editor-level operation only; we don't
+               // have effect notation for this yet, but should.
+        F Unit
+    ) = {
+        #r.#x. {unsafe (2) trapdoor::ref_update} r x
+    }
+
+    // XXX: This type is wrong.  TODO: figure out how to ecode this
+    // type correctly, with existentials.
+    fn name_eq:(
+        Thk[0] 
+            foralli (X,Y):NmSet.
+            0 Nm[X] -> 0 Nm[Y] -> 0 F Bool
+    ) = {
+        #n1.#n2. {unsafe (2) trapdoor::name_eq} n1 n2
+    }
+        
     // Allocates a ref cell, holding a cons cell, pointing at a list:
     //
     // ref         cons       ref     list
@@ -27,10 +49,67 @@ fgi_mod!{
             0 Nm[X1] ->
             0 Nat ->
             0 Ref[Y1](List[X2][Y2]) ->
-        {{@!}X;0} F Ref[{@!}X1](List[X1%X2][Y1%Y2])
+        {{@!}X1;0} F Ref[{@!}X1](List[X1%X2][Y1%Y2])
     ) = {            
         #n.#h.#t. ref n
         roll inj2 pack (X1,X2,Y1,Y2) (n, h, t)
+    }
+    
+    // Create a cons cell with a new ref cell tail, holding the given list.
+    fn cons_ref:(
+        Thk[0]
+            foralli (X,X1,X2):NmSet | ((X1%X2)=X:NmSet).
+            foralli (Y2):NmSet.
+            0 Nm[X1] ->
+            0 Nat ->
+            0 List[X2][Y2] ->
+        {{@!}X1;0} F (List[X1%X2][({@!}X1)%Y2])
+    ) = {            
+        #n.#h.#t.
+        let rt = {ref n t}
+        ret roll inj2 pack (X1,X2,({@!}X1),Y2) (n, h, rt)
+    }
+
+    // XXX: Technically, this operation is only permitted by the editor:
+    fn insert:(
+        Thk[0]
+            foralli (X1,X2,Y1,Y2):NmSet.
+            0 Nm[X1] ->
+            0 Nat ->
+            0 Ref[Y1](List[X1%X2][Y2]) ->
+        {Y1; Y1} // <-- XXX/TODO: An editor-level operation only
+        F Unit
+    ) = {
+        #n.#h.#r.
+        let l1 = {get r}
+        let l2 = {{force cons_ref} [XX][XX][XX][XX] n h l1}
+        {force ref_update} r l2
+    }
+
+    fn insert_after:(
+        Thk[0]
+            foralli (X):NmSet.
+            0 Nm[X1] ->
+            0 Nm[X2] ->
+            0 Nat ->
+            0 List[X2%X3][Y] ->
+        {Y;Y}
+        F Bool
+    ) = {
+        #n1.#n2.#h.#l.
+        unroll match l {
+            _u => { ret false }
+            c => {
+                unpack (X1,X2,Y1,Y2) c = c
+                let (n, h, t) = { ret c }
+                if {{force name_eq} n n1 } {
+                    {force insert}[XX][XX][XX][XX] n2 h t
+                } else {
+                    let _u = {{force insert_after}[XX] n1 n2 h {!t}}
+                    ret true
+                }
+            }
+        }
     }
     
     fn nat_is_zero:(
@@ -146,24 +225,20 @@ pub mod dynamic_tests {
         let e = fgi_exp![
             use super::*;
             
-            let list1  = {{force gen} 5} // list1 = [4,3,2,1,0]
+            let list1  = {{force gen} 10}
             let refnil = {ref (@@nil) roll inj1 ()}
-            let outs = { memo (@@archivist) {
+            let t = { thk (@@archivist) {
                 let list2 = {ws (@@map1) {memo (@@map1) {{force map} (thunk #x. x + 1) {!list1}}}}
                 let list3 = {ws (@@map2) {memo (@@map2) {{force map} (thunk #x. x + 2) {!list1}}}}
                 let list4 = {ws (@@rev)  {memo (@@rev)  {{{force reverse} {!list1} refnil (@@revres)}}}}
                 ret (list1, list2, list3, list4)
             }}
-            ret outs
-            //
-            // Produces the tuple:
-            /*
-                ( [4,3,2,1,0]
-                , [5,4,3,2,1]
-                , [7,5,4,3,2]
-                , [0,1,2,3,4] 
-        )
-             */
+            let outs_1 = {force t}
+            let _u = {
+                {force insert_after}[XX] (@5) (@666) 666 {!list1}
+            }
+            let outs_2 = {force t}           
+            ret outs_1
         ];
         
         // --------------------------------------
@@ -191,8 +266,8 @@ pub mod dynamic_tests {
             reduce::reduce(vec![], vec![], e)
         };
         let traces = reflect::dcg_reflect_end();
-        let count = trace::trace_count(&traces, None);
-        println!("{:?}", count);
+        //let count = trace::trace_count(&traces, None);
+        //println!("{:?}", count);
         let f = File::create(format!("target/{}.html", filename_of_module_path!())).unwrap();
         let mut writer = BufWriter::new(f);
         writeln!(writer, "{}", html::style_string()).unwrap();
@@ -213,6 +288,18 @@ pub mod trapdoor {
     // This code essentially extends the Fungi evaluator
     use ast::{Name};
     use dynamics::{RtVal,ExpTerm};
+    use adapton::engine;
+
+    pub fn ref_update(args:Vec<RtVal>) -> ExpTerm {
+        match (&args[0], &args[1]) {
+            (RtVal::Ref(r), v) => {
+                println!("ref_update: {:?} <-- {:?}", r, v);
+                engine::set(r, v.clone());
+                ExpTerm::Ret(RtVal::Unit)
+            },
+            (r, v) => panic!("expected a reference cell and value, not: {:?} and {:?}", r, v)
+        }
+    }
     
     pub fn name_of_nat(args:Vec<RtVal>) -> ExpTerm {
         match &args[0] {
@@ -220,6 +307,15 @@ pub mod trapdoor {
                 ExpTerm::Ret(RtVal::Name(Name::Num(*n)))
             }
             v => panic!("expected a natural number, not: {:?}", v)
+        }
+    }
+
+    pub fn name_eq(args:Vec<RtVal>) -> ExpTerm {
+        match (&args[0],&args[1]) {
+            (RtVal::Name(n1), RtVal::Name(n2)) => {
+                ExpTerm::Ret(RtVal::Bool(n1 == n2))
+            }
+            (v1, v2) => panic!("expected two names, not: {:?} and {:?}", v1, v2)
         }
     }
     

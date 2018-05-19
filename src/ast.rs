@@ -407,8 +407,9 @@ impl Debug for HostEvalFn {
     }
 }
 impl PartialEq for HostEvalFn {
-    fn eq(&self, _other:&Self) -> bool {
-        panic!("XXX")        
+    fn eq(&self, other:&Self) -> bool {
+        // TODO: FIX THIS; make this (more) sound, somehow.
+        self.path == other.path
     }
 }
 impl Eq for HostEvalFn { }
