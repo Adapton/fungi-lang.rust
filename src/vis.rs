@@ -240,7 +240,7 @@ pub fn write_bundle(filename: &str, bundle: &Bundle) {
 
 #[macro_export]
 macro_rules! fgi_dynamic_trace {
-    { $($e:tt)+ } => {{
+    { [ $($expect:tt)+ ] $($e:tt)+ } => {{
         use reduce;
         use dynamics;
         use std::rc::Rc;
@@ -296,6 +296,6 @@ macro_rules! fgi_dynamic_trace {
         // TODO: Integrate the trace above into the bundle below, so
         // we can view both, together, in HFI.
         //
-        fgi_listing_expect![ [ Expect::Success ] $($e)+ ]
+        fgi_listing_expect![ [ $($expect)+ ] $($e)+ ]
     }}
 }
