@@ -27,11 +27,12 @@ pub type Id = u64;
 /// abundant sharing via many shared Rc<_>s leads to exponential "blow
 /// up" in terms of serialized space and time.
 ///
+#[derive(Clone)]
 pub struct Shared<T> {
     ptr:SharedPtr<T>
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 enum SharedPtr<T> {
     /// Outside of serialized representations of a Shared<T>, the
     /// constructor Rc is the only valid inhabitant of this type.
@@ -76,7 +77,6 @@ impl<T:'static+Hash> Hash for Shared<T> {
         self.id().hash(state)
     }
 }
-
 
 impl<T:Debug> fmt::Debug for Shared<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -187,4 +187,59 @@ fn table_get<T:'static>(id:&Id) -> Option<Rc<T>> {
 /// operation.
 pub fn clear<T:'static>() {
     TABLE.with(|t| { t.borrow_mut().clear() })
+}
+
+
+//////////////////////////////////////////////////////////////////////////////
+
+mod list_example {
+    use super::Shared;
+    
+    #[derive(Hash,Clone)]
+    enum List {
+        Nil,
+        Cons(usize, Shared<List>)
+    }
+    
+    fn nil() -> List {
+        List::Nil
+    }
+
+    fn cons(h:usize, t:List) -> List {
+        List::Cons(h, Shared::new(t))
+    }
+
+    #[allow(unused)]
+    fn sum(l:&List) -> usize {
+        match *l {
+            List::Nil => 0,
+            List::Cons(ref h, ref t) => {
+                h + sum(&*t)
+            }
+        }
+    }
+
+    #[allow(unused)]
+    fn from_vec(v:&Vec<usize>) -> List {
+        let mut l = nil();
+        for x in v.iter() {
+            l = cons(*x, l);
+        }
+        return l
+    }
+
+    #[test]
+    fn test_elim() {
+        let x = from_vec(&vec![1,2,3]);
+        assert_eq!(1+2+3, sum(&x))
+    }
+    
+    #[test]
+    fn test_intro() {
+        let x = nil();
+        let x = cons(1, x);
+        let y = cons(2, x.clone());
+        let z = cons(3, x.clone());
+        drop((x,y,z))
+    }
 }
