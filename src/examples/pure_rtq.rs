@@ -1,5 +1,7 @@
 #[test]
-pub fn listing0 () { fgi_listing_test![
+pub fn listing0 () { fgi_listing_expect![
+    [Expect::SuccessxXXX]
+
     decls {
         /// Lists of natural numbers
         type List  = (+ Unit + (x Nat x List));
