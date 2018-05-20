@@ -247,14 +247,14 @@ macro_rules! fgi_dynamic_trace {
         use ast::*;
         use adapton::engine;
         
-        // ----------------------------------------------------
-        // Fungi program (expression) to reduce, and visualize;
-        // ----------------------------------------------------
+        // --------------------------------------------------------------
+        // 1. Parse fungi program (expression) to reduce, and visualize
+        // --------------------------------------------------------------
         let e = fgi_exp![ $($e)+ ];
-        
-        // --------------------------------------
-        // Fungi/Adapton trace-collection harness
-        // ---------------------------------------
+
+        // --------------------------------------------------------------
+        // 2. Run fungi program, and collect its Adapton trace
+        // --------------------------------------------------------------
         use html;
         use vis;
         use adapton::reflect;
@@ -288,5 +288,14 @@ macro_rules! fgi_dynamic_trace {
             html::div_of_trace(&tr).write_html(&mut writer);
         };
         writeln!(writer, "</div>").unwrap();
+
+        // ---------------------------------------------------------------------------
+        // 3. Type-check fungi program, and collect a "bundle" for HFI interactions
+        // ---------------------------------------------------------------------------
+        //
+        // TODO: Integrate the trace above into the bundle below, so
+        // we can view both, together, in HFI.
+        //
+        fgi_listing_expect![ [ Expect::Success ] $($e)+ ]
     }}
 }
