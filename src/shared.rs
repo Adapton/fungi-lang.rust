@@ -176,7 +176,8 @@ fn table_put<T:Any+'static>(id:Id, x:Rc<T>) {
     TABLE.with(|t| {
         match t.borrow_mut().insert(id, Box::new(x)) {
             None => (),
-            Some(_) => panic!("expected at most one copy of each Shared object")
+            Some(_) => ()
+                //panic!("expected at most one copy of each Shared object")
         }
     })
 }
@@ -186,9 +187,11 @@ fn table_get<T:'static>(id:&Id) -> Option<Rc<T>> {
     TABLE.with(|t| {
         match t.borrow().get(id) {
             Some(ref brc) => {
-                let x  : Option<&Rc<T>> = brc.downcast_ref();
-                let rc : Rc<T> = x.unwrap().clone();
-                Some(rc)
+                let orct : Option<&Rc<T>> = brc.downcast_ref();
+                match orct {
+                    None => None,
+                    Some(ref rct) => Some((*rct).clone())
+                }
             }
             None => None,
         }
@@ -202,7 +205,7 @@ fn table_get<T:'static>(id:&Id) -> Option<Rc<T>> {
 /// structures are no longer needed by the Rust program, their
 /// reference count will not drop to zero without first using this
 /// operation.
-pub fn clear<T:'static>() {
+pub fn clear() {
     TABLE.with(|t| { t.borrow_mut().clear() })
 }
 
@@ -271,11 +274,15 @@ mod list_example {
             (x,y,z)
         };
         
-        let value = tuple.0.clone();
+        let value = tuple.clone();
         
         let serialized = serde_json::to_string(&value).unwrap();
+        super::clear();
+            
         println!("{}", serialized);
-        let deserialized: List = serde_json::from_str(&serialized[..]).unwrap();
+        let deserialized: (List,List,List) =
+            serde_json::from_str(&serialized[..]).unwrap();
+        
         assert_eq!(deserialized, value);
         
         drop(tuple)
