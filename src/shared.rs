@@ -27,11 +27,12 @@ pub type Id = u64;
 /// abundant sharing via many shared Rc<_>s leads to exponential "blow
 /// up" in terms of serialized space and time.
 ///
+#[derive(Clone)]
 pub struct Shared<T> {
     ptr:SharedPtr<T>
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 enum SharedPtr<T> {
     /// Outside of serialized representations of a Shared<T>, the
     /// constructor Rc is the only valid inhabitant of this type.
@@ -67,6 +68,23 @@ impl<T:Hash+'static> Shared<T> {
     }
 }
 
+impl<T:PartialEq+'static> PartialEq for Shared<T> {
+    fn eq(&self, other:&Self) -> bool {
+        match (&self.ptr, &other.ptr) {
+            (&SharedPtr::Rc(ref id1, ref rc1),
+             &SharedPtr::Rc(ref id2, ref rc2)) => {
+                if false {
+                    id1 == id2
+                } else {
+                    rc1 == rc2
+                }
+            },
+            _ => unreachable!()
+        }
+    }
+}
+impl<T:PartialEq+'static> Eq for Shared<T> { }
+
 impl<T:'static+Hash> Hash for Shared<T> {
     fn hash<H>(&self, state: &mut H) where H: Hasher {
         // The Merkle-tree-like structure of a SharedPtr<T> avoids
@@ -76,7 +94,6 @@ impl<T:'static+Hash> Hash for Shared<T> {
         self.id().hash(state)
     }
 }
-
 
 impl<T:Debug> fmt::Debug for Shared<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -187,4 +204,83 @@ fn table_get<T:'static>(id:&Id) -> Option<Rc<T>> {
 /// operation.
 pub fn clear<T:'static>() {
     TABLE.with(|t| { t.borrow_mut().clear() })
+}
+
+
+//////////////////////////////////////////////////////////////////////////////
+
+mod list_example {
+    use super::Shared;
+   
+    #[derive(Hash,Clone,Debug,PartialEq,Eq,Serialize,Deserialize)]
+    enum List {
+        Nil,
+        Cons(usize, Shared<List>)
+    }
+    
+    fn nil() -> List {
+        List::Nil
+    }
+
+    fn cons(h:usize, t:List) -> List {
+        List::Cons(h, Shared::new(t))
+    }
+
+    #[allow(unused)]
+    fn sum(l:&List) -> usize {
+        match *l {
+            List::Nil => 0,
+            List::Cons(ref h, ref t) => {
+                h + sum(&*t)
+            }
+        }
+    }
+
+    #[allow(unused)]
+    fn from_vec(v:&Vec<usize>) -> List {
+        let mut l = nil();
+        for x in v.iter() {
+            l = cons(*x, l);
+        }
+        return l
+    }
+
+    #[test]
+    fn test_elim() {
+        let x = from_vec(&vec![1,2,3]);
+        assert_eq!(1+2+3, sum(&x))
+    }
+    
+    #[test]
+    fn test_intro() {
+        let x = nil();
+        let x = cons(1, x);
+        let y = cons(2, x.clone());
+        let z = cons(3, x.clone());
+        drop((x,y,z))
+    }
+
+    #[test]
+    fn test_serde() {
+        use serde_xml_rs;
+        let tuple = {
+            let x = nil();
+            let x = cons(1, x);
+            let y = cons(2, x.clone());
+            let z = cons(3, x.clone());
+            (x,y,z)
+        };
+
+        /* This is broken:
+
+        let mut buffer = Vec::new();
+        serde_xml_rs::serialize(&tuple.0, &mut buffer).unwrap();
+        let serialized = String::from_utf8(buffer).unwrap();
+        println!("{}", serialized);
+        let deserialized: (List,List,List) = panic!();
+        assert_eq!(deserialized, tuple)
+         
+         */
+        drop(tuple)
+    }
 }
