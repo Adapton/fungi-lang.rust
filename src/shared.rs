@@ -42,8 +42,8 @@ enum SharedPtr<T> {
     /// representations_ of a Shared<T> instance; it _never_ occurs in
     /// the deserialized, in-memory versions of this type.  We rely on
     /// this invariant to avoid keeping around a lookup table after
-    /// deserialization, and to avoid doing table lookups any deref of
-    /// the shared pointer.
+    /// deserialization, and to avoid doing table lookups for any
+    /// deref of a SharedPtr<_>.
     Copy(Id),
 }
 
@@ -133,6 +133,7 @@ impl<T:Serialize+Hash+'static> Serialize for Shared<T> {
                 self.ptr.serialize(serializer)
             }
             (&SharedPtr::Rc(ref id, ref _rc1), Some(ref _rc2)) => {
+                table_inc_copy_count();
                 let ptr_copy:SharedPtr<T> = SharedPtr::Copy(id.clone());
                 ptr_copy.serialize(serializer)
             }
@@ -149,6 +150,7 @@ impl<'de,T:Deserialize<'de>+Hash+'static> Deserialize<'de> for Shared<T> {
                 match table_get(&id) {
                     None => unreachable!(),
                     Some(rc) => {
+                        table_inc_copy_count();
                         Ok(Shared{ptr:SharedPtr::Rc(id, rc)})
                     }
                 }
@@ -164,21 +166,33 @@ impl<'de,T:Deserialize<'de>+Hash+'static> Deserialize<'de> for Shared<T> {
 
 /////////////////////////////////////////////////////////////////////////////////////
 
+struct Table {
+    copy_count:usize,
+    table:HashMap<Id,Box<Rc<Any>>>
+}
+
 /// Global table of serialized objects; permits us to avoid multiple
 /// serialized copies of a single, shared object.
 thread_local!(static TABLE:
-              RefCell<HashMap<Id,Box<Rc<Any>>>> =
-              RefCell::new(HashMap::new()));
+              RefCell<Table> =
+              RefCell::new(Table{
+                  copy_count:0,
+                  table:HashMap::new()
+              }));
 
 /// Put a reference-counted object into the table of serialized objects
 fn table_put<T:Any+'static>(id:Id, x:Rc<T>) {
     TABLE.with(|t| {
-        match t.borrow_mut().insert(id, Box::new(x)) {
-            None => (),
-            Some(_) => ()
-                //panic!("expected at most one copy of each Shared object")
-        }
+        drop(t.borrow_mut().table.insert(id, Box::new(x)))
     })
+}
+
+/// Increment the copy count associated with the table; used by
+/// regression tests and other diagnostics.
+fn table_inc_copy_count() {
+    TABLE.with(|t| {
+        t.borrow_mut().copy_count += 1;
+    })    
 }
 
 /// Get a reference-counted object from the table of serialized objects
@@ -188,7 +202,7 @@ fn table_put<T:Any+'static>(id:Id, x:Rc<T>) {
 ///
 fn table_get<T:'static>(id:&Id) -> Option<Rc<T>> {
     TABLE.with(|t| {
-        match t.borrow().get(id) {
+        match t.borrow().table.get(id) {
             Some(ref brc) => {
                 let x : &Rc<Any> = &**brc;
                 let y : Result<Rc<T>, Rc<Any>> = (x.clone()).downcast::<T>();
@@ -204,15 +218,27 @@ fn table_get<T:'static>(id:&Id) -> Option<Rc<T>> {
     })
 }
 
-/// Reclaim the space used to serialize large structures
+/// Reclaim the space used to serialize large structures.  Returns the
+/// "copy count" of the table.
 ///
-/// This operation is essential for memory-sensitive programs that
-/// dump their structures to external storage: when these serialized
-/// structures are no longer needed by the Rust program, their
-/// reference count will not drop to zero without first using this
-/// operation.
-pub fn clear() {
-    TABLE.with(|t| { t.borrow_mut().clear() })
+/// We use this "copy count" for regression tests, to ensure that we
+/// get the compactness that we expect in these tests.
+///
+/// This clear operation is essential for memory-sensitive programs
+/// that dump their structures to external storage: when these
+/// serialized structures are no longer needed by the Rust program,
+/// their reference count will not drop to zero without first using
+/// this operation.
+///
+pub fn clear() -> usize {
+    let copy_count = 
+        TABLE.with(|t| {
+            let c = t.borrow().copy_count;
+            t.borrow_mut().table.clear();
+            t.borrow_mut().copy_count = 0;
+            c
+        });
+    copy_count
 }
 
 
@@ -272,25 +298,28 @@ mod list_example {
     #[test]
     fn test_serde() {
         use serde_json;
-        let tuple = {
+        let (value, expected_copy_count) = {
             let x = nil();
             let x = cons(1, x);
             let y = cons(2, x.clone());
             let z = cons(3, x.clone());
-            (x,y,z)
+            ((x,y,z), 2)
         };
-        
-        let value = tuple.clone();
-        
+               
         let serialized = serde_json::to_string(&value).unwrap();
-        super::clear();
+        let copy_count1 = super::clear();
             
-        println!("{}", serialized);
+        println!("serialized = {}", serialized);
+        println!("copy_count1 = {}", copy_count1);        
+        assert_eq!(copy_count1, expected_copy_count);
+        
         let deserialized: (List,List,List) =
             serde_json::from_str(&serialized[..]).unwrap();
+        let copy_count2 = super::clear();
+        
+        println!("copy_count2 = {}", copy_count2);
+        assert_eq!(copy_count2, expected_copy_count);
         
         assert_eq!(deserialized, value);
-        
-        drop(tuple)
     }
 }
