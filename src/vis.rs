@@ -239,3 +239,65 @@ pub fn write_bundle(filename: &str, bundle: &Bundle) {
     f.write_all(data.as_bytes()).expect("Could not write bundle data");
     f.flush().expect("Could not flush bundle output");
 }
+
+#[macro_export]
+macro_rules! fgi_dynamic_trace {
+    { [ $($expect:tt)+ ] $($e:tt)+ } => {{
+        use reduce;
+        use dynamics;
+        use std::rc::Rc;
+        use ast::*;
+        use adapton::engine;
+        
+        // --------------------------------------------------------------
+        // 1. Parse fungi program (expression) to reduce, and visualize
+        // --------------------------------------------------------------
+        let e = fgi_exp![ $($e)+ ];
+
+        // --------------------------------------------------------------
+        // 2. Run fungi program, and collect its Adapton trace
+        // --------------------------------------------------------------
+        use html;
+        use vis;
+        use adapton::reflect;
+        //use adapton::reflect::trace;
+        use std::fs::File;
+        use std::io::BufWriter;
+        use std::io::Write;
+        use html::WriteHTML;
+        
+        // Initialize Adapton
+        engine::manage::init_dcg();
+        // Record a debugging trace of Adapton's behavior
+        reflect::dcg_reflect_begin();
+        // Run our Fungi program:
+        let result = {
+            let mut lab = 0;
+            // Label the sub-expressions of the Fungi program:
+            let e = vis::label_exp(e, &mut lab);
+            // Run the Fungi program:
+            reduce::reduce(vec![], dynamics::env_emp(), e)
+        };
+        println!("{}:{}: result: {:?}", module_path!(), line!(), result);
+        let traces = reflect::dcg_reflect_end();
+        //let count = trace::trace_count(&traces, None);
+        //println!("{:?}", count);
+        let f = File::create(format!("target/{}.{}.html", filename_of_module_path!(), line!())).unwrap();
+        let mut writer = BufWriter::new(f);
+        writeln!(writer, "{}", html::style_string()).unwrap();
+        writeln!(writer, "<div class=\"traces\">").unwrap();
+        for tr in traces {
+            html::div_of_trace(&tr).write_html(&mut writer);
+        };
+        writeln!(writer, "</div>").unwrap();
+
+        // ---------------------------------------------------------------------------
+        // 3. Type-check fungi program, and collect a "bundle" for HFI interactions
+        // ---------------------------------------------------------------------------
+        //
+        // TODO: Integrate the trace above into the bundle below, so
+        // we can view both, together, in HFI.
+        //
+        fgi_listing_expect![ [ $($expect)+ ] $($e)+ ]
+    }}
+}

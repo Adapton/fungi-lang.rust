@@ -75,6 +75,7 @@ pub fn fv_of_nmtm(n:&NameTm, bound:Vec<Term>, out:&mut Vec<Term>) {
 pub fn fv_of_idxtm(i:&IdxTm, bound:Vec<Term>, out:&mut Vec<Term>) {
     use ast::IdxTm::*;
     match i {
+        &Unknown => { },          
         &Var(ref _x) => {
             let x = Term::IdxTm(i.clone());
             if let Some(_) = bound.iter().position(|y| &x == y) { /* x is bound. */ }
@@ -426,6 +427,7 @@ pub fn subst_term_idxtm(t:Term, x:&String, i:IdxTm) -> IdxTm {
     // Types never appear in index terms
     if term_is_type(&t) { i.clone() } else { match i {
         // Variables and identifiers are lexically distinct
+        IdxTm::Unknown => IdxTm::Unknown,
         IdxTm::Ident(y) => IdxTm::Ident(y),
         IdxTm::WriteScope => {
             if x == idxtm_writescope_var_str() { match t {

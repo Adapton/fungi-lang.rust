@@ -190,6 +190,7 @@ pub fn expand_idxtm_rec(ctx:&Ctx, i:Rc<IdxTm>) -> Rc<IdxTm> {
 /// Substitute terms into index terms
 pub fn expand_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
     match i {
+        IdxTm::Unknown => IdxTm::Unknown,
         // Variables and identifiers are lexically distinct
         IdxTm::Ident(y) => {
             match ctx.lookup_idxtm_def(&y) {

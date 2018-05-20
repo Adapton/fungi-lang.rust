@@ -96,8 +96,11 @@ its reference implementation; readers are encouraged to
 #![doc(html_logo_url = "http://adapton.org/fungi-lang-logo/Fungi-lang-logo.png",
        html_root_url = "https://docs.rs/fungi-lang/")]
 
+#![feature(rc_downcast)]
+
 #[macro_use] extern crate adapton;
 
+extern crate core;
 extern crate regex;
 extern crate serde;
 extern crate serde_xml_rs;
@@ -114,6 +117,7 @@ extern crate serde_xml_rs;
 // Utilities that are common across various test harnesses
 #[macro_use]
 #[doc(hidden)] pub mod util; 
+pub mod shared;
 
 // === Syntax ===
 //

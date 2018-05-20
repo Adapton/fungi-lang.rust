@@ -88,6 +88,7 @@ pub fn is_normal_nmtm(_ctx:&Ctx, n:&NameTm) -> bool {
 pub fn is_normal_idxtm(ctx:&Ctx, i:&IdxTm) -> bool {
     match *i {
         // identifiers are not normal
+        IdxTm::Unknown    => true,
         IdxTm::Ident(_)   => false,
         // namesets are normal, by the way we construct them
         IdxTm::NmSet(_)   => true,

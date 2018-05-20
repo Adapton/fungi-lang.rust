@@ -178,6 +178,7 @@ pub fn div_of_env_pair(
     }
 }
 
+/*
 pub fn div_of_env (env:&dynamics::Env) -> Div {
     Div {
         tag: "fgi-env".to_string(),
@@ -188,6 +189,7 @@ pub fn div_of_env (env:&dynamics::Env) -> Div {
                            div_of_env_pair(x,v)).collect())
     }
 }
+ */
 
 // pub fn div_of_value_tree (dcg:&DCG, visited:&mut HashMap<Loc, ()>, val:&Val) -> Div {
 //     let div = Div {

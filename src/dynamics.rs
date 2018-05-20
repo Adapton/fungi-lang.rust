@@ -25,7 +25,33 @@ use std::rc::Rc;
 //use serde::Serialize;
 
 /// TODO-Sometime: Prune the environments (using free variables as filters)
-pub type Env = Vec<(String,RtVal)>;
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
+pub enum Env {
+    Empty,
+    Cons(Var,RtVal,EnvRec)
+}
+pub type EnvRec = Rc<Env>;
+
+pub fn env_emp() -> EnvRec {
+    Rc::new(Env::Empty)
+}
+
+pub fn env_find(env:&EnvRec, x:&Var) -> Option<RtVal> {
+    match **env {
+        Env::Empty => None,
+        Env::Cons(ref y, ref v, ref env) => {
+            if x == y {
+                return Some(v.clone())
+            } else {
+                return env_find(&*env, x)
+            }
+        }
+    }
+}
+
+pub fn env_push(env:&EnvRec, x:&Var, v:RtVal) -> EnvRec {
+    Rc::new(Env::Cons(x.clone(), v, env.clone()))
+}
 
 /// Run-time values. Compare to [ast::Val](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Val.html).
 ///
@@ -59,7 +85,7 @@ pub enum RtVal {
     /// Boolean
     Bool(bool),    
     /// Special-case thunk values: For implementing `fix` with environment-passing style
-    ThunkAnon(Env, Exp),
+    ThunkAnon(EnvRec, Exp),
     /// AST Names; we convert to Adapton engine names when we use the engine API
     Name(Name),
     /// Refs from Adapton engine; they each contain a run-time value
@@ -79,7 +105,7 @@ pub type RtValRec = Rc<RtVal>;
 #[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum ExpTerm {
     /// Lambda expression, with a closing environment
-    Lam(Env, Var, Rc<Exp>),
+    Lam(EnvRec, Var, Rc<Exp>),
     /// Rust-level lambda function, with Fungi-level argument values
     HostFn(HostEvalFn, Vec<RtVal>),
     /// Produce the given run-time value
@@ -231,20 +257,12 @@ pub fn engine_name_of_ast_name(n:Name) -> engine::Name {
 ///
 /// panics if the environment fails to close the given value's
 /// variables.
-pub fn close_val(env:&Env, v:&Val) -> RtVal {
+pub fn close_val(env:&EnvRec, v:&Val) -> RtVal {
     use ast::Val::*;
     match *v {
         // variable case:
         Var(ref x) => {
-            let mut v = None;
-            // most-recently pushed binding is "in scope" (others are shadowed)
-            for &(ref y, ref vy) in env.iter().rev() {
-                if x == y {
-                    v = Some(vy.clone());
-                    break;
-                } else {}
-            };
-            match v {
+            match env_find(env, x) {
                 None => panic!("close_val: free variable: {}\n\tenv:{:?}", x, env),
                 Some(v) => v
             }
@@ -281,6 +299,6 @@ pub fn close_val(env:&Env, v:&Val) -> RtVal {
 }
 
 /// See `close_val`
-pub fn close_val_rec(env:&Env, v:&Rc<Val>) -> Rc<RtVal> {
+pub fn close_val_rec(env:&EnvRec, v:&Rc<Val>) -> Rc<RtVal> {
     Rc::new(close_val(env, &**v))
 }
