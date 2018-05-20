@@ -100,8 +100,9 @@ its reference implementation; readers are encouraged to
 
 extern crate regex;
 extern crate serde;
-extern crate serde_json;
+extern crate serde_xml_rs;
 #[macro_use] extern crate serde_derive;
+#[macro_use] extern crate nom;
 
 // // Source language (IODyn)
 // // ------------------------
@@ -109,6 +110,10 @@ extern crate serde_json;
 // pub mod bitype;
 // pub mod prims;
 // pub mod eval;
+
+// Utilities that are common across various test harnesses
+#[macro_use]
+#[doc(hidden)] pub mod util; 
 
 // === Syntax ===
 //
@@ -140,7 +145,7 @@ pub mod serialize;
 
 // Note to readers: The standard library is a stale "sketch" of Fungi
 // code; see `examples` modules for up-to-date examples.
-#[doc(hidden)] pub mod stdlib; 
+#[doc(hidden)] pub mod stdlib;
 
 pub mod examples;
 

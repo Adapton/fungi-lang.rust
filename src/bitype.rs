@@ -337,6 +337,7 @@ pub enum IdxTmRule {
     FlatMap(IdxTmDer, IdxTmDer),
     FlatMapStar(IdxTmDer, IdxTmDer),
     NoParse(String),
+    Unknown,
     /// For normal::NmSet index terms
     NmSet,
 }
@@ -522,6 +523,7 @@ impl<R:HasClas+debug::DerRule> Dir<R> {
 /// Typing error
 #[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum TypeError {
+    UnknownIdxTm,
     VarNotInScope(String),
     IdentNotInScope(String),
     NoParse(String),
@@ -569,6 +571,7 @@ fn debug_truncate<X:fmt::Debug>(x: &X) -> String {
 impl fmt::Display for TypeError {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
         let s = match *self {
+            TypeError::UnknownIdxTm => format!("unknown index term"),
             TypeError::VarNotInScope(ref s) => format!("variable {} not in scope",s),
             TypeError::IdentNotInScope(ref i) => format!("identifier {} not in scope",i),
             TypeError::NoParse(ref s) => format!("term did not parse: `{}`",s),
@@ -624,6 +627,7 @@ fn wrap_inside_error(err:&TypeError) -> TypeError {
 
 fn error_is_local(err:&TypeError) -> bool {
     match *err {
+        TypeError::UnknownIdxTm => true,
         TypeError::VarNotInScope(_) => true,
         TypeError::IdentNotInScope(_) => true,
         TypeError::NoParse(_) => true,
@@ -751,6 +755,10 @@ pub fn synth_idxtm(ext:&Ext, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer {
     let fail_inside = |r:IdxTmRule, err:&TypeError| { fail(r, wrap_inside_error(err)) }
     ;
     match idxtm {
+        &IdxTm::Unknown => {
+            fail(IdxTmRule::Unknown,
+                 TypeError::UnknownIdxTm)
+        }
         &IdxTm::Ident(ref x) => {
             let rule = IdxTmRule::Var(x.clone());
             match ctx.lookup_idxtm_def(x) {
@@ -2503,7 +2511,8 @@ pub mod debug {
         fn term_desc() -> &'static str { "index-term" }
         fn short(&self) -> &str {
             match *self {
-                IdxTmRule::Var(_) => "Var",
+                IdxTmRule::Unknown => "Unknown",
+                IdxTmRule::Var(_) => "Var",                
                 IdxTmRule::Sing(_) => "Sing",
                 IdxTmRule::Empty => "Empty",
                 IdxTmRule::Apart(_, _) => "Apart",

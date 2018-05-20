@@ -12,11 +12,11 @@ use fungi_lang::vis;
 
 
 fn eval_closed_exp(e:Exp) -> dynamics::ExpTerm {
-    eval::eval(vec![], e)
+    eval::eval(dynamics::env_emp(), e)
 }
 
 fn reduce_closed_exp(e:Exp) -> dynamics::ExpTerm {
-    reduce::reduce(vec![], vec![], e)
+    reduce::reduce(vec![], dynamics::env_emp(), e)
 }
 
 fn eval_test_equiv(e1:Exp, e2:Exp) {

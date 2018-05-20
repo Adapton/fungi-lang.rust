@@ -61,7 +61,9 @@ pub mod op_nat;
 /// [Fungi listing](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/pure_list_nat.rs.html)
 pub mod pure_list_nat;
 
+pub mod list_nat;
 
+/*
 /// Find the maximum element in a sequence
 ///
 /// [Fungi listing](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/seq_max.rs.html)
@@ -71,10 +73,9 @@ pub mod seq_max;
 ///
 /// [Fungi listing](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/seq_filter.rs.html)
 pub mod seq_filter;
-
+*/
 
 // --- In progress:
-pub mod list_nat;
 pub mod set_join;
 pub mod trie;
 pub mod pure_stream_nat;

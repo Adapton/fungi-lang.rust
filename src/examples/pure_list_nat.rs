@@ -195,10 +195,12 @@ pub mod trapdoor {
     }
 }
 
-pub mod tests {
-    //#[test]
-    fn purex() {
+pub mod dynamic_tests {
+
+    #[test]
+    fn listing1() {
         use reduce;
+        use dynamics;
         use std::rc::Rc;
         use ast::*;
         //use bitype::*;
@@ -353,7 +355,7 @@ pub mod tests {
                  9)
              */
         ];
-        let t = reduce::reduce(vec![], vec![], e);
+        let t = reduce::reduce(vec![], dynamics::env_emp(), e);
         println!("{:?}", t);
         drop(t)
     }
