@@ -1,5 +1,6 @@
-#[test]
-pub fn listing0 () { fgi_listing_test![
+/*#[test]
+pub fn listing0 () { fgi_listing_expect![
+    [Expect::FailurexXXX]
     decls {
         /// Lists of natural numbers
         type List  = (+ Unit + (x Nat x List));
@@ -15,5 +16,5 @@ pub fn listing0 () { fgi_listing_test![
         ret thunk ret (ret roll inj1 ret thunk (), ret roll inj1 (), ret roll inj1 ret thunk ())
     }
 
-
 ]}
+*/
