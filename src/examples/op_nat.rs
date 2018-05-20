@@ -3,7 +3,7 @@ pub fn listing0 () { fgi_listing_test![
     decls {
         /// Optional natural numbers
         type OpNat  = (+ Unit + Nat );
-        
+
         /// Optional pairs of natural numbers
         type Op2Nat = (+ Unit + (x Nat x Nat));
     }
@@ -11,7 +11,7 @@ pub fn listing0 () { fgi_listing_test![
     // Split an optional pair of natural into a pair of optional naturals
     let opnat_split:(
         Thk[0] 0 Op2Nat -> 0 F (x OpNat x OpNat)
-    ) = {            
+    ) = {
         ret thunk #xyo. match (xyo) {
             _u => {
                 ret (inj1 (), inj1 ())
@@ -35,7 +35,7 @@ pub fn listing0 () { fgi_listing_test![
             }}
         }
     }
-    
+
     // Filter an optional natural number, using a natural number predicate
     let opnat_filter_nat:(
         Thk[0] 0 OpNat ->
@@ -61,7 +61,7 @@ pub fn listing0 () { fgi_listing_test![
         }
     }
 
-    
+
     // Compute the maximum optional natural number (among a pair)
     let opnat_max:(
         Thk[0] 0 OpNat -> 0 OpNat -> 0 F OpNat

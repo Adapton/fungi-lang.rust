@@ -28,7 +28,7 @@ Basic patterns from functional programming (FP), in the _"pure"_ fragment of Fun
 ### Sequences
 
 Sequences of natural numbers, represented as probabilistically-balanced binary trees (level trees):
-- [`seq_max`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/seq_max.rs.html) 
+- [`seq_max`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/seq_max.rs.html)
 --- finds the maximum element in a sequence.
  - [`seq_filter`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/seq_filter.rs.html)
 --- filters a sequence of elements, producing a new (smaller) sequence.
@@ -38,7 +38,7 @@ Sequences of natural numbers, represented as probabilistically-balanced binary t
 _In progress_
 
 Sets of natural numbers, represented as probabilistically-balanced binary hash tries:
-- [`trie_join`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/trie.rs.html) 
+- [`trie_join`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/trie.rs.html)
 --- joins two sets (as tries) into a single set (as a trie).
  - [`trie_of_seq`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/trie.rs.html)
 --- builds a set of elements (as a hash trie) from a sequence of elements (as a level tree).
@@ -73,12 +73,14 @@ pub mod seq_max;
 ///
 /// [Fungi listing](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/seq_filter.rs.html)
 pub mod seq_filter;
-
+*/
 
 // --- In progress:
 pub mod set_join;
 pub mod trie;
-*/
+pub mod pure_stream_nat;
+pub mod pure_rtq;
+
 
 // --- Regression tests
 pub mod basic_read_effects;
@@ -86,4 +88,3 @@ pub mod basic_write_effects;
 pub mod basic_write_scope;
 pub mod basic_subtyping;
 pub mod basic_existentials;
-
