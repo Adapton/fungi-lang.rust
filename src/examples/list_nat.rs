@@ -343,7 +343,7 @@ fgi_mod!{
 pub mod dynamic_tests {
 
     #[test]
-    pub fn short() { fgi_dynamic_trace!{
+    pub fn short() { fgi_dynamic_trace!{ [Expect::SuccessxXXX]
         use super::*;
         
         let list1  = {{force gen} 10}
@@ -365,7 +365,7 @@ pub mod dynamic_tests {
     }}
     
     #[test]    
-    pub fn long() { fgi_dynamic_trace!{
+    pub fn long() { fgi_dynamic_trace!{ [Expect::SuccessxXXX]
         use super::*;
         
         let list1  = {{force gen} 10}
