@@ -3,6 +3,7 @@
 use std::rc::Rc;
 
 use ast::{Name, Exp, Val, PrimApp, UseAllModule, Module, Decls};
+use eval;
 use bitype;
 use dynamics;
 use adapton::reflect;
@@ -115,14 +116,6 @@ fn rewrite_prim_app(prim: &PrimApp, ct: &mut usize) -> PrimApp {
     }
 }
 
-#[derive(Clone,Debug,Serialize)]
-pub struct Bundle {
-    pub input: String,
-    pub program: bitype::ExpDer,
-    // #[serde(with="TraceVecDef")]
-    // pub traces: Vec<reflect::trace::Trace>,
-}
-
 /// Expectations for examples and tests
 #[derive(Clone,Debug)]
 pub enum Expect {
@@ -136,6 +129,15 @@ pub enum Expect {
     SuccessxXXX,
 }
 
+#[derive(Clone,Debug,Serialize)]
+pub struct Bundle {
+    pub input: String,
+    pub program: bitype::ExpDer,
+    // #[serde(with="TraceVecDef")]
+    #[serde(skip_serializing)]
+    pub traces: Vec<reflect::trace::Trace>,
+}
+
 impl Bundle {
     pub fn exp_rule(&self) -> bitype::ExpRule {
         (*self.program.rule).clone()
@@ -147,12 +149,12 @@ macro_rules! fgi_bundle {
     [$($e:tt)+] => {{
         let exp = label_exp(fgi_exp![$($e)+], &mut 0);
         let program = synth_exp(&Ext::empty(), &Ctx::Empty, &exp);
-        // let (term, traces) = capture_traces(move || eval(vec![], exp));
+        // let traces = capture_traces(|| eval::eval(vec![], exp)).1;
         Bundle {
             input: stringify!($($e)+).to_owned(),
             program: program,
             // traces: traces,
-            // traces: vec![],
+            traces: vec![],
         }
     }}
 }
@@ -230,7 +232,7 @@ pub fn write_bundle(filename: &str, bundle: &Bundle) {
     let data = format!("{:?}", bundle);
     
     // let mut buffer = vec![];
-    // serde_xml_rs::serialize(&bundle, &mut buffer).expect("Could not convert bundle to XML");
+    // serde_xml_rs::serialize(bundle, &mut buffer).expect("Could not convert bundle to XML");
     
     let mut f = File::create(filename).expect("Could not create bundle file");
     // f.write_all(&buffer[..]).expect("Could not write bundle data");

@@ -180,7 +180,7 @@ fn trace_simple() {
     let vis_exp = vis::label_exp(exp, &mut 0);
     println!("Exp: {:?}\n\n", vis_exp);
     
-    let (_term, traces) = vis::capture_traces(move || eval_closed_exp(vis_exp));
+    let (_term, traces) = vis::capture_traces(|| eval_closed_exp(vis_exp));
     println!("Traces: {:?}\n\n", traces);
     
     assert_eq!(traces.len(), 6);
