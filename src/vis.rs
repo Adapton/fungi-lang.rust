@@ -3,7 +3,6 @@
 use std::rc::Rc;
 
 use ast::{Name, Exp, Val, PrimApp, UseAllModule, Module, Decls};
-use eval;
 use bitype;
 use dynamics;
 use adapton::reflect;
@@ -12,8 +11,7 @@ use adapton::engine::manage;
 use std::fs::File;
 use std::io::Write;
 
-//use serde_json;
-use serde_xml_rs;
+// use serde_json;
 
 pub fn label_exp(e: Exp, ct: &mut usize) -> Exp {
     rewrite_exp(&e, ct)

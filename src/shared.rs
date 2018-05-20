@@ -262,7 +262,7 @@ mod list_example {
 
     #[test]
     fn test_serde() {
-        use serde_xml_rs;
+        use serde_json;
         let tuple = {
             let x = nil();
             let x = cons(1, x);
@@ -270,17 +270,14 @@ mod list_example {
             let z = cons(3, x.clone());
             (x,y,z)
         };
-
-        /* This is broken:
-
-        let mut buffer = Vec::new();
-        serde_xml_rs::serialize(&tuple.0, &mut buffer).unwrap();
-        let serialized = String::from_utf8(buffer).unwrap();
+        
+        let value = tuple.0.clone();
+        
+        let serialized = serde_json::to_string(&value).unwrap();
         println!("{}", serialized);
-        let deserialized: (List,List,List) = panic!();
-        assert_eq!(deserialized, tuple)
-         
-         */
+        let deserialized: List = serde_json::from_str(&serialized[..]).unwrap();
+        assert_eq!(deserialized, value);
+        
         drop(tuple)
     }
 }

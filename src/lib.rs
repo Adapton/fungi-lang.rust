@@ -103,8 +103,7 @@ its reference implementation; readers are encouraged to
 extern crate core;
 extern crate regex;
 extern crate serde;
-//extern crate serde_json;
-extern crate serde_xml_rs;
+extern crate serde_json;
 #[macro_use] extern crate serde_derive;
 #[macro_use] extern crate nom;
 
