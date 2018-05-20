@@ -69,6 +69,7 @@ pub fn listing0 () { fgi_listing_expect![
         }
     }
 
+    //broken: args to thunk swapped
     let rec filter:(
         Thk[0]
             0 List ->
