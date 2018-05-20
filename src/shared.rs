@@ -139,7 +139,6 @@ impl<T:Serialize+Hash+'static> Serialize for Shared<T> {
         }
     }
 }
-
 impl<'de,T:Deserialize<'de>+Hash+'static> Deserialize<'de> for Shared<T> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -183,14 +182,21 @@ fn table_put<T:Any+'static>(id:Id, x:Rc<T>) {
 }
 
 /// Get a reference-counted object from the table of serialized objects
+///
+/// For documentation for rc_downcast feature, see this:
+/// https://github.com/rust-lang/rust/blob/71d3dac4a86d192c2c80948621859da3b363fa50/src/liballoc/rc.rs#L621
+///
 fn table_get<T:'static>(id:&Id) -> Option<Rc<T>> {
     TABLE.with(|t| {
         match t.borrow().get(id) {
             Some(ref brc) => {
-                let orct : Option<&Rc<T>> = brc.downcast_ref();
-                match orct {
-                    None => None,
-                    Some(ref rct) => Some((*rct).clone())
+                let x : &Rc<Any> = &**brc;
+                let y : Result<Rc<T>, Rc<Any>> = (x.clone()).downcast::<T>();
+                match y {
+                    Err(_) => {
+                        panic!("downcast failed for id {:?}", id)
+                    }
+                    Ok(ref rc) => Some((*rc).clone())
                 }
             }
             None => None,
