@@ -4,8 +4,9 @@ use ast::*;
 use std::fmt;
 use std::rc::Rc;
 
+use shared::Shared;
 use serde::Serialize;
-
+    
 use normal;
 use decide;
 use subst;
@@ -56,7 +57,8 @@ pub enum Ctx {
     /// Assume a proposition is true
     PropTrue(CtxRec,Prop),
 }
-pub type CtxRec = Rc<Ctx>;
+//pub type CtxRec = Rc<Ctx>;
+pub type CtxRec = Shared<Ctx>;
 
 /// Type terms; each can be defined by a module declaration,
 /// and carried (by identifier name) in the typing context, and used
@@ -72,34 +74,34 @@ pub enum Term {
 impl Ctx {
     /// define a term
     pub fn def(&self,v:Var,t:Term) -> Ctx {
-        Ctx::Def(Rc::new(self.clone()),v,t)
+        Ctx::Def(Shared::new(self.clone()),v,t)
     }
     /// bind a var and type
     pub fn var(&self,v:Var,t:Type) -> Ctx {
-        Ctx::Var(Rc::new(self.clone()),v,t)
+        Ctx::Var(Shared::new(self.clone()),v,t)
     }
     /// bind a index var and sort
     pub fn ivar(&self,v:Var,s:Sort) -> Ctx {
-        Ctx::IVar(Rc::new(self.clone()),v,s)
+        Ctx::IVar(Shared::new(self.clone()),v,s)
     }
     /// bind a type var and kind
     pub fn tvar(&self,v:Var,k:Kind) -> Ctx {
-        Ctx::TVar(Rc::new(self.clone()),v,k)
+        Ctx::TVar(Shared::new(self.clone()),v,k)
     }
     /// assume an index equivalence
     pub fn equiv(&self,i1:IdxTm,i2:IdxTm,s:Sort) -> Ctx {
-        Ctx::Equiv(Rc::new(self.clone()),i1,i2,s)
+        Ctx::Equiv(Shared::new(self.clone()),i1,i2,s)
     }
     /// assume an index apartness
     pub fn apart(&self,i1:IdxTm,i2:IdxTm,s:Sort) -> Ctx {
-        Ctx::Apart(Rc::new(self.clone()),i1,i2,s)
+        Ctx::Apart(Shared::new(self.clone()),i1,i2,s)
     }
     /// assume a proposition is true
     pub fn prop(&self,p:Prop) -> Ctx {
         match p {
             // Avoid adding the trivial prop to the context, to make them smaller/shorter
             Prop::Tt => self.clone(),
-            _ => Ctx::PropTrue(Rc::new(self.clone()),p)
+            _ => Ctx::PropTrue(Shared::new(self.clone()),p)
         }
     }
     // append another context to the given one
@@ -115,8 +117,8 @@ impl Ctx {
             Ctx::Apart(ref c, ref i, ref j, ref g) => Ctx::Apart(c.append_rec(other), i.clone(), j.clone(), g.clone()),
         }
     }
-    pub fn append_rec(&self,other:&Ctx) -> Rc<Ctx> {
-        Rc::new(self.append(other))
+    pub fn append_rec(&self,other:&Ctx) -> CtxRec {
+        Shared::new(self.append(other))
     }
 }
 
@@ -406,7 +408,7 @@ pub enum ItemRule {
 /// Module typing derivation
 pub struct ModuleDer {
     /// untyped AST of the module
-    pub ast: Rc<Module>,
+    pub ast: Shared<Module>,
     /// typing sub-derivations for each module item: each `ModuleVar` is unique
     pub tds: Vec<ItemRule>,
     /// the context exported by this module to modules that use it
@@ -1566,7 +1568,7 @@ pub fn synth_items(ext:&Ext, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
 }
 
 /// Synthesize a typing derivation for a module, given the module AST.
-pub fn synth_module(ext:&Ext, m:&Rc<Module>) -> ModuleDer {
+pub fn synth_module(ext:&Ext, m:&Shared<Module>) -> ModuleDer {
     let (item_tds, ctx) = synth_items(ext, &Ctx::Empty, &m.decls);
     ModuleDer{
         ast: m.clone(),

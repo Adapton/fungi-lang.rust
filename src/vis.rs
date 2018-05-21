@@ -1,5 +1,6 @@
 //! Visualization of ASTs, typings, evaluation, etc.
 
+use shared::Shared;
 use std::rc::Rc;
 
 use ast::{Name, Exp, Val, PrimApp, UseAllModule, Module, Decls};
@@ -31,7 +32,7 @@ fn rewrite_decls_rec(d: &Rc<Decls>, ct: &mut usize) -> Rc<Decls> {
 
 fn rewrite_useall(useall: &UseAllModule, ct: &mut usize) -> UseAllModule {
     let mut u = useall.clone();
-    u.module = Rc::new(rewrite_module(&*u.module, ct));
+    u.module = Shared::new(rewrite_module(&*u.module, ct));
     u
 }
 
@@ -258,7 +259,7 @@ macro_rules! fgi_dynamic_trace {
         use html;
         use vis;
         use adapton::reflect;
-        //use adapton::reflect::trace;
+        use adapton::reflect::trace;
         use std::fs::File;
         use std::io::BufWriter;
         use std::io::Write;
@@ -278,8 +279,8 @@ macro_rules! fgi_dynamic_trace {
         };
         println!("{}:{}: result: {:?}", module_path!(), line!(), result);
         let traces = reflect::dcg_reflect_end();
-        //let count = trace::trace_count(&traces, None);
-        //println!("{:?}", count);
+        let count = trace::trace_count(&traces, None);
+        println!("{:?}", count);
         let f = File::create(format!("target/{}.{}.html", filename_of_module_path!(), line!())).unwrap();
         let mut writer = BufWriter::new(f);
         writeln!(writer, "{}", html::style_string()).unwrap();
@@ -296,6 +297,6 @@ macro_rules! fgi_dynamic_trace {
         // TODO: Integrate the trace above into the bundle below, so
         // we can view both, together, in HFI.
         //
-        fgi_listing_expect![ [ $($expect)+ ] $($e)+ ]
+        //fgi_listing_expect![ [ $($expect)+ ] $($e)+ ]
     }}
 }

@@ -341,7 +341,14 @@ fgi_mod!{
 
 
 pub mod dynamic_tests {
-
+    /* 
+     * Try the following at the command line:
+     * 
+     *  $ export FUNGI_VERBOSE_REDUCE=1
+     *
+     *  $ cargo test examples::list_nat::dynamic_tests::short -- --nocapture | less -R
+     *
+     */
     #[test]
     pub fn short() { fgi_dynamic_trace!{ [Expect::SuccessxXXX]
         use super::*;

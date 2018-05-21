@@ -1365,12 +1365,13 @@ macro_rules! parse_fgi_split {
 macro_rules! fgi_mod {
     { $($decls:tt)+ } => {
         use std::rc::Rc;
+        use shared::Shared;
         use ast::*;
-        pub fn fgi_module () -> Rc<Module> {
+        pub fn fgi_module () -> Shared<Module> {
             //let complete_parse_marker = ();
-            Rc::new( fgi_module![ $($decls)+
-                                  //^^ complete_parse_marker ] )
-                                  ] )
+            Shared::new( fgi_module![ $($decls)+
+                                      //^^ complete_parse_marker ] )
+            ] )
         }
     };
 }
@@ -1386,8 +1387,9 @@ macro_rules! fgi_inner_mod {
     { ( $name:ident ) $($decls:tt)+ } => {    
         mod $name {
             use std::rc::Rc;
+            use shared::Shared;
             use fungi_lang::ast::*;
-            pub fn fgi_module () -> Rc<Module> {
+            pub fn fgi_module () -> Shared<Module> {
                 Rc::new( fgi_module![ $($decls)+ ] )
             }
         }
@@ -1395,8 +1397,9 @@ macro_rules! fgi_inner_mod {
     { pub ( $name:ident ) $($decls:tt)+ } => {
         pub mod $name {
             use std::rc::Rc;
+            use shared::Shared;
             use fungi_lang::ast::*;
-            pub fn fgi_module () -> Rc<Module> {
+            pub fn fgi_module () -> Shared<Module> {
                 Rc::new( fgi_module![ $($decls)+ ] )
             }
         }
