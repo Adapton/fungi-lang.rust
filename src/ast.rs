@@ -398,8 +398,8 @@ pub struct HostEvalFn {
     pub eval:Rc<Fn(Vec<dynamics::RtVal>) -> dynamics::ExpTerm>
 }
 impl Hash for HostEvalFn {
-    fn hash<H:Hasher>(&self, _hasher: &mut H) {
-        panic!("XXX")
+    fn hash<H:Hasher>(&self, hasher: &mut H) {
+        self.path.hash(hasher)        
     }
 }
 impl Debug for HostEvalFn {
