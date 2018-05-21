@@ -25,19 +25,20 @@ use std::rc::Rc;
 //use serde::Serialize;
 
 /// TODO-Sometime: Prune the environments (using free variables as filters)
-#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
+#[derive(Clone,Eq,PartialEq,Hash,Debug,Serialize)]
 pub enum Env {
     Empty,
     Cons(Var,RtVal,EnvRec)
 }
-pub type EnvRec = Rc<Env>;
+#[derive(Clone,Eq,PartialEq,Hash,Serialize)]
+pub struct EnvRec { rec:Rc<Env> }
 
 pub fn env_emp() -> EnvRec {
-    Rc::new(Env::Empty)
+    EnvRec{rec:Rc::new(Env::Empty)}
 }
 
 pub fn env_find(env:&EnvRec, x:&Var) -> Option<RtVal> {
-    match **env {
+    match *env.rec {
         Env::Empty => None,
         Env::Cons(ref y, ref v, ref env) => {
             if x == y {
@@ -50,7 +51,7 @@ pub fn env_find(env:&EnvRec, x:&Var) -> Option<RtVal> {
 }
 
 pub fn env_push(env:&EnvRec, x:&Var, v:RtVal) -> EnvRec {
-    Rc::new(Env::Cons(x.clone(), v, env.clone()))
+    EnvRec{rec:Rc::new(Env::Cons(x.clone(), v, env.clone()))}
 }
 
 /// Run-time values. Compare to [ast::Val](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Val.html).
@@ -301,4 +302,30 @@ pub fn close_val(env:&EnvRec, v:&Val) -> RtVal {
 /// See `close_val`
 pub fn close_val_rec(env:&EnvRec, v:&Rc<Val>) -> Rc<RtVal> {
     Rc::new(close_val(env, &**v))
+}
+
+///////////////////////////////////////////////////
+use std::cell::RefCell;
+use std::fmt::{self,Debug};
+use std::env as std_env;
+
+thread_local!(static FUNGI_VERBOSE_ENVREC:
+              bool =
+              match std_env::var("FUNGI_VERBOSE_ENVREC") {
+                  Ok(ref s) if s == "1" => true,
+                  _ => false
+              });
+
+impl fmt::Debug for EnvRec {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        FUNGI_VERBOSE_ENVREC.with(|b| {
+            if *b {
+                // use the verbose (default, derived) formatter
+                self.rec.fmt(f)
+            } else {                
+                // do not recur; save space/time
+                write!(f, "...")
+            }
+        })
+    }
 }
