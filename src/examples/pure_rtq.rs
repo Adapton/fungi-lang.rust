@@ -1,4 +1,4 @@
-#[test]
+/*#[test]
 pub fn listing0 () { fgi_listing_expect![
     [Expect::SuccessxXXX]
 
@@ -17,5 +17,5 @@ pub fn listing0 () { fgi_listing_expect![
         ret thunk ret (ret roll inj1 ret thunk (), ret roll inj1 (), ret roll inj1 ret thunk ())
     }
 
-
 ]}
+*/
