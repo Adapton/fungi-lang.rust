@@ -2,7 +2,7 @@
 pub fn listing0 () { fgi_listing_test![
     decls {
         //Nat stream
-        type Stream = (+ Unit + (x Nat x (Thk[0] 0 Unit -> 0 F Stream)));
+        type Stream = (+ Unit + (x Nat x (Thk[0] 0 F Stream)));
         //type Stream = ( rec stream. (+ Unit + (x Nat x Thk stream)) );
 
         //Optional natural numbers
@@ -16,9 +16,12 @@ pub fn listing0 () { fgi_listing_test![
     }
 
     let cons:(
-        Thk[0] 0 Nat -> 0 Stream -> 0 F Stream
+        Thk[0]
+            0 Nat ->
+            0 (Thk[0] 0 F Stream) ->
+            0 F Stream
     ) = {
-        ret thunk #h.#t. ret roll inj2 (h, thunk #u. ret t)
+        ret thunk #h.#s. ret roll inj2 (h, s)
     }
 
     let rec map:(
@@ -32,10 +35,9 @@ pub fn listing0 () { fgi_listing_test![
             c => {
                 let (h, tt) = { ret c }
                 // tt is a Thk Stream, must force to get out Stream
-                let ft = {{force tt} ()}
+                let ft = {force tt}
                 let h2 = {{force f} h}
-                let t2 : Stream = {{force map} f ft}
-                {{force cons} h2 t2}
+                {{force cons} h2 (thunk {{force map} f ft})}
             }
         }
     }
@@ -50,12 +52,12 @@ pub fn listing0 () { fgi_listing_test![
             _u => { ret roll inj1 () }
             c => {
                 let (h, tt) = { ret c }
-                let ft = {{force tt} ()}
+                let ft = {force tt}
                 let t2 = {{force filter} f ft}
                 if {{force f} h} {
-                    {{force cons} h t2}
+                    {{force cons} h (thunk {{force filter} f ft})}
                 } else {
-                    ret t2
+                    {{force filter} f ft} //TODO: is this the right lazy behavior?
                 }
             }
         }
@@ -71,12 +73,11 @@ pub fn listing0 () { fgi_listing_test![
             _u => { ret roll inj1 () }
             c => {
                 let (h, tt) = { ret c }
-                let ft = {{force tt} ()}
-                let t2 = {{force map_filter} f ft}
+                let ft = {force tt}
                 let oh2 = {{force f} h}
                 match oh2 {
-                    _u => { ret t2 }
-                    h2 => {{force cons} h2 t2}
+                    _u => {{force map_filter} f ft}
+                    h2 => {{force cons} h2 (thunk {{force map_filter} f ft})}
                 }
             }
         }
@@ -92,9 +93,9 @@ pub fn listing0 () { fgi_listing_test![
             _u => { ret r }
             c => {
                 let (h, tt) = { ret c }
-                let r2 = {{force cons} h r}
-                let ft = {{force tt} ()}
-                {{force reverse} ft r2}
+                let r2 = {{force cons} h (thunk ret r)}
+                let ft = {force tt}
+                {{force reverse} ft r2} //TODO: this doesn't feel lazy
             }
         }
     }
@@ -111,7 +112,7 @@ pub fn listing0 () { fgi_listing_test![
             c => {
                 let (h, tt) = { ret c }
                 let a2 = {{force f} a h}
-                let ft = {{force tt} ()}
+                let ft = {force tt}
                 {{force fold} ft a2 f}
             }
         }
@@ -119,7 +120,7 @@ pub fn listing0 () { fgi_listing_test![
 
     ret 0
 ]}
-
+/*TODO: re-implement dynamic list tests for streams
 pub mod dynamic_tests {
 
     #[test]
@@ -132,3 +133,4 @@ pub mod dynamic_tests {
 
     }
 }
+*/
