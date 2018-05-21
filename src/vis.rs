@@ -1,5 +1,6 @@
 //! Visualization of ASTs, typings, evaluation, etc.
 
+use shared::Shared;
 use std::rc::Rc;
 
 use ast::{Name, Exp, Val, PrimApp, UseAllModule, Module, Decls};
@@ -31,7 +32,7 @@ fn rewrite_decls_rec(d: &Rc<Decls>, ct: &mut usize) -> Rc<Decls> {
 
 fn rewrite_useall(useall: &UseAllModule, ct: &mut usize) -> UseAllModule {
     let mut u = useall.clone();
-    u.module = Rc::new(rewrite_module(&*u.module, ct));
+    u.module = Shared::new(rewrite_module(&*u.module, ct));
     u
 }
 

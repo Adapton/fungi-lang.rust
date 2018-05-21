@@ -1568,10 +1568,10 @@ pub fn synth_items(ext:&Ext, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
 }
 
 /// Synthesize a typing derivation for a module, given the module AST.
-pub fn synth_module(ext:&Ext, m:&Rc<Module>) -> ModuleDer {
+pub fn synth_module(ext:&Ext, m:&Shared<Module>) -> ModuleDer {
     let (item_tds, ctx) = synth_items(ext, &Ctx::Empty, &m.decls);
     ModuleDer{
-        ast: Shared::from_rc(m.clone()),
+        ast: m.clone(),
         tds: item_tds,
         ctx_out: ctx,
     } 
