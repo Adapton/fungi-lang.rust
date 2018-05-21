@@ -17,7 +17,8 @@ pub type Id = u64;
 /// that, when a structure holding multiple (shared) instances of T is
 /// serialized, this serialized output holds only _one_ occurrence of
 /// a T's serialized representation; the other occurrences merely
-/// consist of the T's unique identifier (a single machine word).
+/// consist of the T's unique identifier (the serialization of an
+/// `Id`, single machine word on modern machines).
 ///
 /// In particular, a shared T has a unique ID permitting table-based
 /// indirection, via temporary storage used by serialization and
@@ -73,7 +74,12 @@ impl<T:PartialEq+'static> PartialEq for Shared<T> {
         match (&self.ptr, &other.ptr) {
             (&SharedPtr::Rc(ref id1, ref rc1),
              &SharedPtr::Rc(ref id2, ref rc2)) => {
-                if false {
+                if true {
+                    // Shallow O(1) comparison, via unique IDs.  This
+                    // is "sound" to the extent that hashing avoids
+                    // collisions.  If you feel paranoid, follow the
+                    // other implementation, which compares the
+                    // content of the two Rc<_>s.
                     id1 == id2
                 } else {
                     rc1 == rc2
@@ -224,7 +230,7 @@ fn table_get<T:'static>(id:&Id) -> Option<Rc<T>> {
 /// We use this "copy count" for regression tests, to ensure that we
 /// get the compactness that we expect in these tests.
 ///
-/// This clear operation is essential for memory-sensitive programs
+/// This `clear` operation is essential for memory-sensitive programs
 /// that dump their structures to external storage: when these
 /// serialized structures are no longer needed by the Rust program,
 /// their reference count will not drop to zero without first using
@@ -281,13 +287,13 @@ mod list_example {
     }
 
     #[test]
-    fn test_elim() {
+    fn test_elim_forms() {
         let x = from_vec(&vec![1,2,3]);
         assert_eq!(1+2+3, sum(&x))
     }
     
     #[test]
-    fn test_intro() {
+    fn test_intro_forms() {
         let x = nil();
         let x = cons(1, x);
         let y = cons(2, x.clone());
