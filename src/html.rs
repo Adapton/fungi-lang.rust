@@ -417,10 +417,7 @@ pub fn div_of_trace (tr:&trace::Trace) -> Div {
             text: None,
             classes: vec![
                 match tr.effect {
-                    // UserEffect: Deprecated??
-                    trace::Effect::UserEffect(_, ref s) => format!("tr-user-{}",s),                     
-                    //trace::Effect::DebugLabel(Some(ref n),_) => format!("tr-db",n),
-                    trace::Effect::DebugLabel(_,_) => "tr-debuglabel".to_string(),
+                    trace::Effect::Debug(_,_) => "tr-debug".to_string(),
                     trace::Effect::CleanRec  => "tr-clean-rec".to_string(),
                     trace::Effect::CleanEval => "tr-clean-eval".to_string(),
                     trace::Effect::CleanEdge => "tr-clean-edge".to_string(),
@@ -441,15 +438,15 @@ pub fn div_of_trace (tr:&trace::Trace) -> Div {
                         tag:
                         // Special case of tag for debug labels, which we want to show independently of the other (more verbose) effects:
                         match tr.effect {
-                            trace::Effect::DebugLabel(_,_) => String::from("debuglabel"),
+                            trace::Effect::Debug(_,_) => String::from("debug"),
                             _ => String::from("tr-effect"),
                         },
                         text: Some(              
                             format!("<a href={:?}>{}</a>", tr_eff_url, match tr.effect {
-                                trace::Effect::UserEffect(_,ref s) => format!("UserEffect({})",s),
-                                trace::Effect::DebugLabel(None,ref _s) => format!("DebugLabel(?)"),
-                                //trace::Effect::DebugLabel(Some(ref n),ref _s) => format!("DebugLabel({})",string_of_name(n)),
-                                trace::Effect::DebugLabel(Some(ref n),ref _s) => string_of_name(n),
+                                //trace::Effect::UserEffect(ref s) => format!("UserEffect({})",s),
+                                trace::Effect::Debug(None,ref _s) => format!("Debug(?)"),
+                                //trace::Effect::Debug(Some(ref n),ref _s) => format!("Debug({})",string_of_name(n)),
+                                trace::Effect::Debug(Some(ref n),ref _s) => string_of_name(n),
                                 trace::Effect::CleanRec  => "CleanRec".to_string(),
                                 trace::Effect::CleanEval => "CleanEval".to_string(),
                                 trace::Effect::CleanEdge => "CleanEdge".to_string(),
@@ -771,7 +768,7 @@ hr {
   border-color: black;
 }
 
-.debuglabel { 
+.debug { 
   font-size: 10px;
 }
 .tr-effect { 
@@ -829,7 +826,7 @@ hr {
   background: #666666;
   display: none;
 }
-.tr-debuglabel {  
+.tr-debug {  
   background: #ffffff;
   border-color: #aaaaaa;
   border-width: 1px; 
@@ -962,9 +959,9 @@ hr {
 function toggleLabels() {
  var selection = document.getElementById(\"checkbox-0\");
  if (selection.checked) {
-   $('.tr-debuglabel').css('display', 'inline-block')
+   $('.tr-debug').css('display', 'inline-block')
  } else {
-   $('.tr-debuglabel').css('display', 'none')
+   $('.tr-debug').css('display', 'none')
  }
 }
 
@@ -1010,8 +1007,8 @@ function toggleDupForces() {
 
 <fieldset class=\"tool-label-toggles\">
  <legend>Toggle labels: </legend>
- <label for=\"show-debuglabels-checkbox\">debug labels</label>
- <input type=\"checkbox\" name=\"show-debuglabels-checkbox\" id=\"checkbox-0\" onchange=\"toggleLabels()\">
+ <label for=\"show-debug-checkbox\">debug labels</label>
+ <input type=\"checkbox\" name=\"show-debug-checkbox\" id=\"checkbox-0\" onchange=\"toggleLabels()\">
  </br>
  <label for=\"show-paths-checkbox\">paths</label>
  <input type=\"checkbox\" name=\"show-paths-checkbox\" id=\"checkbox-1\" onchange=\"togglePaths()\">
