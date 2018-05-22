@@ -80,6 +80,7 @@ pub mod seq_filter;
 //pub mod trie;
 
 pub mod pure_stream_nat;
+pub mod pure_lazylist;
 pub mod pure_rtq;
 
 
