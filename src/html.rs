@@ -856,7 +856,9 @@ function toggleDupForces() {
  <label for=\"show-names-checkbox\">names</label>
  <input type=\"checkbox\" name=\"show-names-checkbox\" id=\"checkbox-2\" onchange=\"toggleNames()\">
  </br>
- <label for=\"show-effects-checkbox\">effects</label>
+ <label for=\"show-effects-checkbox\">
+ <a href=\"https://docs.rs/adapton/0/adapton/reflect/trace/enum.Effect.html\">effects</a>
+ </label>
  <input type=\"checkbox\" name=\"show-effects-checkbox\" id=\"checkbox-3\" onchange=\"toggleEffects()\">
  </br>
  <label for=\"show-effects-checkbox\">duplicate forces</label>
