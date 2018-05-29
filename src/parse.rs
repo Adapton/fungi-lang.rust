@@ -978,6 +978,12 @@ macro_rules! fgi_exp {
             eval:Rc::new($rustfn),
         })
     };
+    // documentation
+    { # [ doc = $doc:tt ] $($d:tt)* } => {
+        Exp::Doc( { use util;
+                    util::string_of_rust_raw_str(stringify![$doc]) },
+                  Rc::new( fgi_exp![ $($d)* ] ))
+    };
     //     use x :: * ; e                  (all decls in module x made "local" to e)
     { use $path:ident :: * ; $($e:tt)* } => {
         Exp::UseAll(

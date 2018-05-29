@@ -454,6 +454,7 @@ pub enum PrimApp {
 /// Expressions (aka, computation terms)
 #[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum Exp {
+    Doc(String, ExpRec),
     UseAll(UseAllModule, ExpRec),
     Decls(DeclsRec, ExpRec),
     AnnoE(ExpRec,CEffect),

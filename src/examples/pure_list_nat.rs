@@ -4,8 +4,8 @@ pub fn listing0 () { fgi_listing_expect![
 
     decls {
         /// Lists of natural numbers
-        //type List  = ( rec list. (+ Unit + (x Nat x list)) );
-        type List  = (+ Unit + (x Nat x List));
+        type List  = ( rec list. (+ Unit + (x Nat x list)) );
+        //type List  = (+ Unit + (x Nat x List));
 
         /// Optional natural numbers
         type OpNat  = (+ Unit + Nat );

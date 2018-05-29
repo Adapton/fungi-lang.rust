@@ -28,3 +28,10 @@ macro_rules! filename_of_module_path {
         filename_of_module_path_(module_path!())
     }}
 }
+
+// Convert rust doc "raw" strings into strings without double quotes or 'r' prefix
+pub fn string_of_rust_raw_str(s:&str) -> String {
+    let re1 = Regex::new("^r\" ").unwrap();
+    let re2 = Regex::new("\"$").unwrap();
+    format!("{}", re2.replace_all(format!("{}", re1.replace_all(s, "")).as_str(), ""))
+}

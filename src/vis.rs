@@ -80,6 +80,7 @@ fn rewrite_exp(exp: &Exp, ct: &mut usize) -> Exp {
         Exp::WriteScope(ref v, ref e) => Exp::WriteScope(rewrite_val(v, ct), rewrite_exp_rec(e, ct)),
         Exp::NameFnApp(ref v1, ref v2) => Exp::NameFnApp(rewrite_val(v1, ct), rewrite_val(v2, ct)),
         Exp::PrimApp(ref p) => Exp::PrimApp(rewrite_prim_app(p, ct)),
+        Exp::Doc(ref s, ref e) => Exp::Doc(s.clone(), rewrite_exp_rec(e, ct)),
         Exp::DebugLabel(ref on, ref s, ref e) => Exp::DebugLabel(on.clone(), s.clone(), rewrite_exp_rec(e, ct)),
         Exp::UseAll(ref u, ref e) => Exp::UseAll(rewrite_useall(u, ct), rewrite_exp_rec(e, ct)),
         Exp::Decls(ref d, ref e) => Exp::Decls(Rc::new(rewrite_decls(&*d, ct)), rewrite_exp_rec(e, ct)),

@@ -423,6 +423,10 @@ pub fn step(c:&mut Config) -> Result<(),StepError> {
                 _ => stuck_err(Stuck::ThunkNonName)
             }
         }
+        Exp::Doc(doc, e) => {
+            engine::reflect_dcg::debug_effect(None, Some(doc));
+            continue_rec(c, e)            
+        }
         Exp::DebugLabel(label, msg, e) => {
             let label : Option<engine::Name> =
                 label.map( engine_name_of_ast_name );

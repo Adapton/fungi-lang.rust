@@ -372,11 +372,14 @@ pub mod dynamic_tests {
     }}
     
     #[test]    
-    pub fn long() { fgi_dynamic_trace!{ [Expect::SuccessxXXX]
+    pub fn long() { fgi_dynamic_trace!{
+        [Expect::SuccessxXXX]            
         use super::*;
-        
+        /// Generate input
         let list1  = {{force gen} 10}
-        let refnil = {ref (@@nil) roll inj1 ()}
+        /// Generate nil
+        let refnil = {ref (@@nil) roll inj1 ()}        
+        /// Allocate archivist thunk
         let t = { thk (@@archivist) {
             let list2 = {ws (@@map1)   {memo (@@map1)   {{force map} (thunk #x. x + 1) {!list1}}}}
             let list3 = {ws (@@map2)   {memo (@@map2)   {{force map} (thunk #x. x + 2) {!list1}}}}
@@ -385,14 +388,19 @@ pub mod dynamic_tests {
             let list6 = {ws (@@mapftr) {memo (@@mapftr) {{force map_filter} nat_succ_even {!list1}}}}
             ret (list1, list2, list3, list4, list5, list6)
         }}
+        /// Initial run
         let outs_1 = {force t}
+        /// First change: insert name @666, element 666 after name @5
         let b1 = {
             {force insert_after}[?] (@5) (@666) 666 {!list1}
         }
+        /// Change propagation
         let outs_2 = {force t}
+        /// Second change: rename name @666 and element 666 (after name @5)
         let b2 = {
             {force remove_after}[?] (@5) {!list1}
         }
+        /// Change propagation
         let outs_3 = {force t}
         ret (b1, b2)
     }}
