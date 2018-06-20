@@ -1,4 +1,4 @@
-fgi_mod{
+fgi_mod!{
     type Stream = (
         rec stream. Thk[?] (
                 {?;?} F
