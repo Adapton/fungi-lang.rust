@@ -424,6 +424,7 @@ pub fn step(c:&mut Config) -> Result<(),StepError> {
             }
         }
         Exp::Doc(doc, e) => {
+            debug_doc(c, &doc);
             engine::reflect_dcg::debug_effect(None, Some(doc));
             continue_rec(c, e)            
         }
@@ -551,6 +552,11 @@ pub fn step(c:&mut Config) -> Result<(),StepError> {
 // (Enable with `export FUNGI_VERBOSE_REDUCE=1` at shell)
 //////////////////////////////////////////////////////////////////////
 
+fn debug_doc(c:&mut Config, s:&String) {
+    if c.sys.verbose {
+        println!("\x1B[1;4;37m# {}\x1B[0;0m", s)
+    }
+}
 fn debug_truncate<X:fmt::Debug>(x: &X, color_code:usize) -> String {
     let x = format!("{:?}", x);
     format!("\x1B[1;{}m{:.80}{}\x1B[0;0m",
