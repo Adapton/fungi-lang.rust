@@ -131,6 +131,9 @@ pub fn eval(env:EnvRec, e:Exp) -> ExpTerm {
         Exp::AnnoC(e1,_ct)       => { return eval(env, (*e1).clone()) }
         Exp::AnnoE(e1,_et)       => { return eval(env, (*e1).clone()) }
 
+        // ignore doc at run time:        
+        Exp::Doc(_,e1)           => { return eval(env, (*e1).clone()) }
+
         // XXX/TODO: Extend context with values/thunks from these definitions:
         Exp::UseAll(_, e)        => { return eval(env, (*e).clone()) }
         Exp::Decls(_, e)         => { return eval(env, (*e).clone()) }

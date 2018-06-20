@@ -456,6 +456,7 @@ impl HasClas for DeclRule {
 /// Expression typing rule
 #[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum ExpRule {
+    Doc(String, ExpDer),
     UseAll(UseAllModuleDer,ExpDer),
     Decls(Vec<ItemRule>,ExpDer),
     AnnoC(ExpDer,CType),
@@ -1305,7 +1306,14 @@ pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
             ), TypeError::AnnoMism) }
         },
         &Val::Roll(ref v) => {
-            let vd = check_val(ext, ctx, v, typ);
+            let (ur_typ, success) = normal::unroll_type(&typ);
+            let vd = if success {
+                check_val(ext, ctx, v, &ur_typ)
+            } else {
+                // TODO: more specific error message here: We expected
+                // to unroll the type, but could not.
+                check_val(ext, ctx, v, typ)
+            };
             let vt = vd.clas.clone();
             propagate(Dir::Check(typ.clone()), ext,
                       ctx, val.clone(), ValRule::Roll(vd), vt)
@@ -1585,6 +1593,15 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
         propagate(Dir::Synth, ext, ctx, exp.clone(), r, res)
     };
     match exp {
+        &Exp::Doc(ref doc, ref e) => {
+            let td2 = synth_exp(ext, ctx, e);
+            let typ2 = td2.clas.clone();
+            let td = ExpRule::Doc(doc.clone(),td2);
+            match typ2 {
+                Err(ref err) => fail(td, wrap_later_error(err)),
+                Ok(ty) => succ(td, ty),
+            }
+        }
         &Exp::Decls(ref decls, ref exp) => {
             let (ds_der, ds_ctx) = synth_items(ext, ctx, &decls);
             let ctx = &ds_ctx;
@@ -2152,7 +2169,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 }
                 Ok(v_ty) => {
                     let v_ty = normal::normal_type(ctx, &v_ty);
-                    let v_ty = normal::unroll_type(&v_ty);
+                    let (v_ty,_) = normal::unroll_type(&v_ty);
                     let new_ctx = ctx.var(x.clone(), v_ty);
                     let td0 = check_exp(ext, &new_ctx, e, ceffect);
                     let td0_typ = td0.clas.clone();
@@ -2590,6 +2607,7 @@ pub mod debug {
                 ExpRule::PrimApp(ref p) => p.short(),
                 ExpRule::Unimp => "Unimp",
                 ExpRule::DebugLabel(_,_,_) => "DebugLabel",
+                ExpRule::Doc(_,_) => "Doc",
                 ExpRule::NoParse(_) => "NoParse",
             }
         }

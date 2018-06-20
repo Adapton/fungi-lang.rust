@@ -305,8 +305,7 @@ pub fn close_val_rec(env:&EnvRec, v:&Rc<Val>) -> Rc<RtVal> {
 }
 
 ///////////////////////////////////////////////////
-use std::cell::RefCell;
-use std::fmt::{self,Debug};
+use std::fmt;
 use std::env as std_env;
 
 thread_local!(static FUNGI_VERBOSE_ENVREC:

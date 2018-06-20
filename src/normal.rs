@@ -1060,10 +1060,7 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
         }}
         &Type::TypeApp(ref a, ref b) => {
             let a = normal_type(ctx, a);
-            let a = match a {
-                Type::Rec(_,_) => unroll_type(&a),
-                _ => a,
-            };
+            let (a, _) = unroll_type(&a);
             let b = normal_type(ctx, b);
             match a {
                 Type::TypeFn(ref x, ref _k, ref body) => {
@@ -1079,10 +1076,7 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
         }
         &Type::IdxApp(ref a, ref i) => {
             let a = normal_type(ctx, a);
-            let a = match a {
-                Type::Rec(_,_) => unroll_type(&a),
-                _ => a,
-            };
+            let (a, _) = unroll_type(&a);
             match a {
                 Type::IdxFn(ref x, ref _g, ref body) => {
                     let body = subst::subst_idxtm_type(i.clone(),x,(**body).clone());
@@ -1190,17 +1184,17 @@ x 1 2 3
 ///     `)`  
 ///
 ///
-pub fn unroll_type(typ:&Type) -> Type {
+pub fn unroll_type(typ:&Type) -> (Type, bool) {
     match typ {
         // case: rec x.A =>
         &Type::Rec(ref x, ref a) => {
             // [(rec x.A)/x]A
-            subst::subst_type_type(typ.clone(), x, (**a).clone())
+            (subst::subst_type_type(typ.clone(), x, (**a).clone()), true)
         }
         // error
         _ => {
             //println!("error: not a recursive type; did not unroll it: {:?}", typ);
-            typ.clone()
+            (typ.clone(), false)
         }
     }
 }

@@ -410,13 +410,14 @@ pub fn div_of_dcg_force_edge (src:Option<&Loc>, dcg:&DCG, visited:&mut HashMap<L
 
 pub fn div_of_trace (tr:&trace::Trace) -> Div {
     // For linking to rustdoc documentation from the output HTML
-    let tr_eff_url = "https://docs.rs/adapton/0/adapton/reflect/trace/enum.Effect.html";
+    let _tr_eff_url = "https://docs.rs/adapton/0/adapton/reflect/trace/enum.Effect.html";
     let mut div = 
         Div{ 
             tag: String::from("trace"),
             text: None,
             classes: vec![
                 match tr.effect {
+                    trace::Effect::Debug(None,Some(_)) => "tr-doc".to_string(),
                     trace::Effect::Debug(_,_) => "tr-debug".to_string(),
                     trace::Effect::CleanRec  => "tr-clean-rec".to_string(),
                     trace::Effect::CleanEval => "tr-clean-eval".to_string(),
@@ -438,15 +439,16 @@ pub fn div_of_trace (tr:&trace::Trace) -> Div {
                         tag:
                         // Special case of tag for debug labels, which we want to show independently of the other (more verbose) effects:
                         match tr.effect {
-                            trace::Effect::Debug(_,_) => String::from("debug"),
+                            trace::Effect::Debug(Some(_),None   ) => String::from("debug"),
+                            trace::Effect::Debug(None,   Some(_)) => String::from("doc"),
                             _ => String::from("tr-effect"),
                         },
                         text: Some(              
-                            format!("<a href={:?}>{}</a>", tr_eff_url, match tr.effect {
-                                //trace::Effect::UserEffect(ref s) => format!("UserEffect({})",s),
-                                trace::Effect::Debug(None,ref _s) => format!("Debug(?)"),
-                                //trace::Effect::Debug(Some(ref n),ref _s) => format!("Debug({})",string_of_name(n)),
-                                trace::Effect::Debug(Some(ref n),ref _s) => string_of_name(n),
+                            match tr.effect {
+                                trace::Effect::Debug(None,       None) => "Debug(None,None)".to_string(),
+                                trace::Effect::Debug(None,       Some(ref s)) => s.clone(),
+                                trace::Effect::Debug(Some(ref n),None       ) => string_of_name(n),
+                                trace::Effect::Debug(Some(ref n),Some(ref s)) => format!("{}: {}", string_of_name(n), s),
                                 trace::Effect::CleanRec  => "CleanRec".to_string(),
                                 trace::Effect::CleanEval => "CleanEval".to_string(),
                                 trace::Effect::CleanEdge => "CleanEdge".to_string(),
@@ -459,7 +461,7 @@ pub fn div_of_trace (tr:&trace::Trace) -> Div {
                                 trace::Effect::Force(trace::ForceCase::CompCacheMiss)  => "Force(CompCacheMiss)".to_string(),
                                 trace::Effect::Force(trace::ForceCase::CompCacheHit)   => "Force(CompCacheHit)".to_string(),
                                 trace::Effect::Force(trace::ForceCase::RefGet)         => "Force(RefGet)".to_string(),
-                            })),
+                            }),
                         classes: vec![],
                         extent: Box::new(vec![]),
                     },
@@ -566,168 +568,10 @@ hr {
   border: none;
 }
 
-.lab-name {
-  color: #ccaadd;
-  margin: 1px;
-  padding: 1px;
-}
-.lab-name:visited {  
-  color: #ccaadd;
-}
-.lab-name:hover {
-  color: white;
-}
-
-.row {
+.toggles {
+  blackground: #653276;
   display: block;
 }
-
-.labsum-title {
-  display: block;
-  margin: 8px;
-  font-size: 20px;
-}
-.labsum-row {
-  display: block;
-}
-.labsum-name {
-  display: table-cell;
-  margin: 8px;
-  padding: 2px;
-  width: 70%;
-}
-.lab-details {
-  display: table-cell;
-  font-size: 14px;
-  color: #ddbbee;
-  border: solid white 1px;
-  padding: 2px;
-  background-color: #441155;
-  margin: 3px;
-}
-
-.batch-name-lab {
-  font-size: 0px;
-  color: black;
-}
-.batch-name {
-  color: black;
-  font-size: 16px;
-  border: solid;
-  display: inline;
-  padding: 3px;
-  margin: 3px;
-  float: left;
-  background: #aa88aa;
-  width: 32px;
-}
-.time-ns {
-  font-size: 12px;
-  display: inline;
-}
-.time-ms {
-  font-size: 20px;
-  display: inline;
-}
-.overhead {
-  font-size: 30px;
-  display: inline;
-  color: #880000;
-  background: #ffcccc;
-  border: solid 1px red;
-}
-.speedup {
-  font-size: 30px;
-  display: inline;
-  color: #008800;
-  background: #ccffcc;
-  border: solid 1px green;
-}
-.time-ms {
-  font-size: 20px;
-  display: inline;
-}
-.editor {
-  color: black;
-  font-size: 14px;
-  border: solid;
-  display: block;
-  padding: 1px;
-  margin: 1px;
-  float: left;
-  width: 10%;
-  background: #aaaaaa;
-}
-.archivist {
-  color: black;
-  font-size: 14px;
-  border: solid;
-  display: block;
-  padding: 1px;
-  margin: 1px;
-  float: left;
-  width: 85%;
-  background: #dddddd;
-}
-.traces {
-  color: black;
-  font-size: 8px;
-  border: solid 0px;
-  display: block;
-  margin: 0px;
-  float: left;
-  width: 100%;
-}
-.traces:visited {
-  color: black;
-}
-
-.input-value, 
-.output-value,
-.archivist-dcg-tree-post-edit,
-.archivist-dcg-tree-post-update,
-.traces-box,
-.archivist-alloc-tree-post-edit,
-.archivist-force-tree-post-edit, 
-.archivist-alloc-tree-post-update, 
-.archivist-force-tree-post-update  
-{
-  display: inline;
-  float: left;
-
-  padding: 0px;
-  margin: 2px;
-
-  color: #dd88ff;
-  background: #331144;
-  border-radius: 5px;
-  border-style: solid;
-  border-width: 0px;
-  border-color: #dd88ff;
-}
-
-.input-value, 
-.output-value {
-  width: 49%;
-}
-.traces-box {
-  width: 99%;
-}
-.archivist-dcg-tree-post-edit,
-.archivist-dcg-tree-post-update {
-  width: 49%;
-}
-.archivist-alloc-tree-post-edit,
-.archivist-force-tree-post-edit, 
-.archivist-alloc-tree-post-update, 
-.archivist-force-tree-post-update {
-  width: 24%;
-}
-.tool-label-toggles {
-  display: block;
-  float: right;
-}
-
 
 .trace, .force-tree, .alloc-tree, .dcg-alloc-edge, .dcg-force-edge {
   color: black;
@@ -741,35 +585,8 @@ hr {
   border-radius: 5px;
 }
 
-.dcg-force-edge {
-  border-color: blue;
-  border-width: 1px;
-}
-.dcg-node-comp {
-  background: #ccccff;
-  padding: 0px;
-}
-.dcg-node-ref {
-  border-radius: 0px;
-}
-.dcg-alloc-edge {
-  border-color: green;
-  background: #ccffcc;
-  border-width: 1px;
-  padding: 3px;
-}
-.dirty {
-  border-width: 2px;
-  border-color: red;
-  background: #ffcccc;
-}
-.editor-edge {
-  border-width: 2px;
-  border-color: black;
-}
-
 .debug { 
-  font-size: 10px;
+  font-size: 0px;
 }
 .tr-effect { 
   display: inline;
@@ -826,10 +643,22 @@ hr {
   background: #666666;
   display: none;
 }
+.tr-doc {  
+  color: black;
+  background: white;
+  border-color: black;
+  border-width: 3px; 
+  margin: 1px;
+  padding: 2px;
+  display: block;
+  font-size: 20px;
+}
 .tr-debug {  
-  background: #ffffff;
-  border-color: #aaaaaa;
+  background: white;
+  border-color: black;
   border-width: 1px; 
+  margin: 0px;
+  padding: 1px;
   display: none;
 }
 .tr-clean-rec {  
@@ -956,12 +785,21 @@ hr {
 </style>
 
 <script>
-function toggleLabels() {
- var selection = document.getElementById(\"checkbox-0\");
+function toggleDebug() {
+ var selection = document.getElementById(\"checkbox-debug\");
  if (selection.checked) {
    $('.tr-debug').css('display', 'inline-block')
  } else {
    $('.tr-debug').css('display', 'none')
+ }
+}
+
+function toggleDebugText() {
+ var selection = document.getElementById(\"checkbox-debug-text\");
+ if (selection.checked) {
+   $('.debug').css('font-size', '10')
+ } else {
+   $('.debug').css('font-size', '0')
  }
 }
 
@@ -1004,11 +842,13 @@ function toggleDupForces() {
 </head>
 
 <body>
-
-<fieldset class=\"tool-label-toggles\">
- <legend>Toggle labels: </legend>
- <label for=\"show-debug-checkbox\">debug labels</label>
- <input type=\"checkbox\" name=\"show-debug-checkbox\" id=\"checkbox-0\" onchange=\"toggleLabels()\">
+<fieldset class=\"toggles\">
+ <legend>Toggles:</legend>
+ <label for=\"show-debug-checkbox\">debug steps</label>
+ <input type=\"checkbox\" name=\"show-debug-checkbox\" id=\"checkbox-debug\" onchange=\"toggleDebug()\">
+ </br>
+ <label for=\"show-debug-checkbox\">debug step names</label>
+ <input type=\"checkbox\" name=\"show-debug-text-checkbox\" id=\"checkbox-debug-text\" onchange=\"toggleDebugText()\">
  </br>
  <label for=\"show-paths-checkbox\">paths</label>
  <input type=\"checkbox\" name=\"show-paths-checkbox\" id=\"checkbox-1\" onchange=\"togglePaths()\">
@@ -1016,7 +856,9 @@ function toggleDupForces() {
  <label for=\"show-names-checkbox\">names</label>
  <input type=\"checkbox\" name=\"show-names-checkbox\" id=\"checkbox-2\" onchange=\"toggleNames()\">
  </br>
- <label for=\"show-effects-checkbox\">effects</label>
+ <label for=\"show-effects-checkbox\">
+ <a href=\"https://docs.rs/adapton/0/adapton/reflect/trace/enum.Effect.html\">effects</a>
+ </label>
  <input type=\"checkbox\" name=\"show-effects-checkbox\" id=\"checkbox-3\" onchange=\"toggleEffects()\">
  </br>
  <label for=\"show-effects-checkbox\">duplicate forces</label>
