@@ -419,7 +419,7 @@ pub mod dynamic_tests {
         /// Change propagation
         let outs_2 = {force t}
 
-        /// Second change: rename name @666 and element 666 (after name @5)
+        /// Second change: remove name @666 and element 666 (after name @5)
         let b2 = {
             {force remove_after}[?] (@5) {!list1}
         }

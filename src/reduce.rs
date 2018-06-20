@@ -161,7 +161,7 @@ fn update_env_with_decls(c:&mut Config, d:Decls) {
         }
     }
 }
-
+// do a let-like thing
 fn produce_value(c:&mut Config,
                  v:RtVal)
                  -> Result<(),StepError>
@@ -183,6 +183,7 @@ fn produce_value(c:&mut Config,
         }
     }
 }
+// do a lambda-like thing
 fn consume_value(c:&mut Config,
                  restore_env:Option<EnvRec>,
                  x:Var, e:Rc<Exp>)
@@ -203,6 +204,7 @@ fn consume_value(c:&mut Config,
         _ => stuck_err(Stuck::LamNonAppCont),
     }}
 }
+// do a lambda-like thing
 fn do_hostevalfn(c:&mut Config,
                  hef:HostEvalFn,
                  mut args:Vec<RtVal>) -> Result<(),StepError>
@@ -223,14 +225,12 @@ fn do_hostevalfn(c:&mut Config,
         }
     }
 }
+// continue by updating the next expression to run
 fn continue_rec(c:&mut Config, e:Rc<Exp>) -> Result<(),StepError> {
     set_exp(c, e);
     Ok(())
 }
-fn continue_with(c:&mut Config, e:Exp) -> Result<(),StepError> {
-    c.exp = e;
-    Ok(())
-}
+// continue reduction by using a terminal expression and its reduction context
 fn continue_te(c:&mut Config, te:ExpTerm) -> Result<(),StepError> {
     match te {
         ExpTerm::Ret(v) => produce_value(c, v),
@@ -352,7 +352,7 @@ pub fn step(c:&mut Config) -> Result<(),StepError> {
                 },
                 RtVal::ThunkAnon(env, e) => {
                     c.env = env;
-                    continue_with(c, e)
+                    continue_rec(c, e)
                 }
                 _ => stuck_err(Stuck::ForceNonThunk)
             }
