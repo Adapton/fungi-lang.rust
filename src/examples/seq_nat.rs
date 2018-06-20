@@ -2,15 +2,15 @@
 // Fungi module: linked lists with names, holding natural numbers
 //
 fgi_mod!{
-    /// Lists of natural numbers
-    type List  = (
-        rec list. foralli (X,Y):NmSet.
-            (+ Unit +
-             (exists (X1,X2):NmSet | ((X1%X2)=X:NmSet).
-              x Nm[X1] x Nat x Ref[Y](list[X2][Y])
-             )
-            )
-    );
+    // /// Lists of natural numbers
+    // type List  = (
+    //     rec list. foralli (X,Y):NmSet.
+    //         (+ Unit +
+    //          (exists (X1,X2):NmSet | ((X1%X2)=X:NmSet).
+    //           x Nm[X1] x Nat x Ref[Y](list[X2][Y])
+    //          )
+    //         )
+    // );
 
     type Lev = (Nat);
     
