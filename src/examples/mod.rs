@@ -56,12 +56,20 @@ Computes the convex hull, in sorted order, of an unordered sequence of points in
 /// [Fungi listing](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/op_nat.rs.html)
 pub mod op_nat;
 
+/// Primitive utilities:
+pub mod nat;
+pub mod name;
+
 /// Lists of natural numbers, without names, and with pure operations.
 ///
 /// [Fungi listing](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/pure_list_nat.rs.html)
 pub mod pure_list_nat;
 
 pub mod list_nat;
+
+pub mod seq_nat;
+pub mod seq_nat_gen;
+pub mod seq_nat_dfs;
 
 /*
 /// Find the maximum element in a sequence

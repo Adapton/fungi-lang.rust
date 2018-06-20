@@ -352,7 +352,7 @@ pub fn step(c:&mut Config) -> Result<(),StepError> {
                 },
                 RtVal::ThunkAnon(env, e) => {
                     c.env = env;
-                    continue_rec(c, e)
+                    continue_rec(c, Rc::new(e))
                 }
                 _ => stuck_err(Stuck::ForceNonThunk)
             }
