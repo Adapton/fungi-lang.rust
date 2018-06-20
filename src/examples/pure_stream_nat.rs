@@ -57,7 +57,7 @@ pub fn listing0 () { fgi_listing_test![
                 if {{force f} h} {
                     {{force cons} h (thunk {{force filter} f ft})}
                 } else {
-                    {{force filter} f ft} //TODO: is this the right lazy behavior?
+                    {{force filter} f ft}
                 }
             }
         }
