@@ -294,7 +294,7 @@ pub fn close_val(env:&EnvRec, v:&Val) -> RtVal {
                         close_val_rec(env, v2)),
         // Forget annotation
         Anno(ref v,_) => close_val(env, v),
-        NoParse(_) => unreachable!(),
+        NoParse(ref s) => unreachable!("closing value consists of unparsed text: `{}`", s),
 
     }
 }

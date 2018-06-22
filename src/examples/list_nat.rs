@@ -353,7 +353,7 @@ pub mod dynamic_tests {
     pub fn short() { fgi_dynamic_trace!{
         [Expect::SuccessxXXX]
         use super::*;
-
+        
         /// Generate input
         let list1  = {{force gen} 10}
 
