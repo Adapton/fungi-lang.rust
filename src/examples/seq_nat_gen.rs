@@ -10,7 +10,7 @@ fgi_mod!{
     /// Generate a sequence of natural numbers
     //
     // XXX -- This type is wrong.  TODO -- figure out how to
-    // ecode this type correctly, with existentials.  
+    // ecode this type correctly, with existentials.
     fn seq_gen:(
         Thk[0]
             foralli (Y1,X1,Y2):NmSet.
@@ -22,10 +22,11 @@ fgi_mod!{
             let nm = {{force name_of_nat} n}
             let pred = {{force nat_sub} n 1}
             let seq_ref = {{force seq_gen} pred}
-            let nil_ref = {ref {nm,(@1)} roll inj1 ()}
-            ref nm
+            let leaf_ref = {ref nm roll inj2 inj1 (nm, n)}
+            let nmb = {nm,(@@bin)}
+            ref nmb
                 roll inj2 inj2 pack (?,?,?)
-                (nm, n, nil_ref, seq_ref)
+                (nmb, n, leaf_ref, seq_ref)
         }
     }
 }

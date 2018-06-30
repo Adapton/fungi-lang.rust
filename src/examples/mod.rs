@@ -72,6 +72,7 @@ pub mod seq_nat_gen;
 pub mod seq_nat_dfs;
 pub mod seq_nat_bfs;
 
+pub mod seq_nat_dfs_lazy;
 pub mod stream_nat;
 
 /*

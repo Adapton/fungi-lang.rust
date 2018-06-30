@@ -1,34 +1,5 @@
 use examples::seq_nat;
-use examples::list_nat;
-
-fgi_mod!{
-    use list_nat::*;
-    use seq_nat::*;
-
-    fn seq_dfs:(
-        Thk[0]
-            0 Ref[?](Seq[?][?]) ->
-            0 Ref[?](Stream[?][?]) ->
-        {?;?}
-        F Ref[?](List[?][?])
-    ) = {
-        #seq. #res.
-        let s = {get seq}
-        unroll match s {
-            _nil => { ret res }
-            leaf => {
-                let (nm, x) = leaf
-                {force ref_cons} [?][?][?][?] nm x res
-            }
-            bin => {
-                unpack (X1,X2,Y) bin = bin
-                let (nm, lev, left, right) = bin
-                let res = {{force seq_dfs} right res}
-                {{force seq_dfs} left res}
-            }
-        }
-    }
-}
+use examples::stream_nat;
 
 pub mod dynamic_tests {
     use examples::seq_nat_gen;
@@ -52,9 +23,48 @@ pub mod dynamic_tests {
 
         /// Perform the DFS
         let nil = {ref (@@nil) inj1 ()}
-        let l = {{force seq_dfs} s nil}
+        let l = { ws(@@dfs){ memo(@@dfs){{force seq_dfs_lazy} s nil} } }
 
         /// All done
         ret (s, l)
     }}
+}
+
+fgi_mod!{
+    use stream_nat::*;
+    use seq_nat::*;
+
+    fn seq_dfs_lazy:(
+        Thk[0]
+            0 Ref[?](Seq[?][?]) ->
+            0 (Stream[?][?]) ->
+        {?;?}
+        F (Stream[?][?])
+    ) = {
+        #seq. #res.
+        let s = {get seq}
+        unroll match s {
+            _nil => {
+                /// Enter NIL
+                ret res
+            }
+            leaf => {
+                /// Enter Leaf
+                let (nm, x) = leaf
+                /// FUBAR
+                {force cons_stream} [?][?][?][?] nm x res
+            }
+            bin => {
+                /// Enter BIN
+                unpack (X1,X2,Y) bin = bin
+                let (nm, lev, left, right) = bin
+                let res = { thk nm {
+                    let intres = {{force seq_dfs_lazy} right res}
+                    force intres
+                } }
+                {{force seq_dfs_lazy} left res}
+                //need thunk force here to ensure laziness
+            }
+        }
+    }
 }

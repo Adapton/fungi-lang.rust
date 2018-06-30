@@ -108,10 +108,9 @@ pub fn listing0 () { fgi_listing_test![
                     _u => { ret scons } //base case
                     d => {
                         let (x, xs) = { ret d }
-                        ret scons
                         //TODO: this is stack overflowing
-                        /*let rtl = {{force rotate} xs ys scons}
-                        {{force cons_ll} x rtl}*/
+                        let rtl = {{force rotate} xs ys scons}
+                        {{force cons_ll} x rtl}
                     }
                 }
             }
