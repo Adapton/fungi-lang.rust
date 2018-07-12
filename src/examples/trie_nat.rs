@@ -18,7 +18,7 @@ pub mod dynamic_tests {
         use list_nat::*;
         
         /// Generate input
-        let list1  = {{force gen} 64}
+        let list1  = {{force gen} 20}
 
         /// Allocate nil ref cell
         let refnil = {ref (@@nil) roll inj1 ()}
@@ -37,7 +37,7 @@ pub mod dynamic_tests {
 
         /// First change: Insert element
         let b1 = {
-            {force insert_after}[?] (@61) (@666) 100 {!list1}
+            {force insert_after}[?] (@19) (@666) 100 {!list1}
         }
 
         /// Re-force archivist; Precipitates change propagation
@@ -45,7 +45,7 @@ pub mod dynamic_tests {
 
         /// Second change: Remove inserted element
         let b2 = {
-            {force remove_after}[?] (@61) {!list1}
+            {force remove_after}[?] (@19) {!list1}
         }
 
         /// Re-force archivist; Precipitates change propagation
