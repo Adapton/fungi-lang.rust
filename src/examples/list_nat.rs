@@ -131,7 +131,7 @@ fgi_mod!{
             _u => { ret false }
             c => {
                 unpack (X1,X2,Y1,Y2) c = c
-                let (n, h, t) = { ret c }
+                let (n, _ch, t) = { ret c }
                 if {{force name_eq} n n1 } {
                     let _u = {{force insert}[?][?][?][?] n2 h t}
                     ret true

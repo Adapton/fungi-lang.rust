@@ -18,7 +18,7 @@ pub mod dynamic_tests {
         use list_nat::*;
         
         /// Generate input
-        let list1  = {{force gen} 16}
+        let list1  = {{force gen} 64}
 
         /// Allocate nil ref cell
         let refnil = {ref (@@nil) roll inj1 ()}
@@ -37,7 +37,7 @@ pub mod dynamic_tests {
 
         /// First change: Insert element
         let b1 = {
-            {force insert_after}[?] (@14) (@666) 100 {!list1}
+            {force insert_after}[?] (@61) (@666) 100 {!list1}
         }
 
         /// Re-force archivist; Precipitates change propagation
@@ -45,7 +45,7 @@ pub mod dynamic_tests {
 
         /// Second change: Remove inserted element
         let b2 = {
-            {force remove_after}[?] (@15) {!list1}
+            {force remove_after}[?] (@61) {!list1}
         }
 
         /// Re-force archivist; Precipitates change propagation
@@ -275,6 +275,7 @@ fgi_mod!{
             c => {
                 unpack (X1,X2,Y1,Y2) c = c
                 let (x, y, ys) = {ret c}
+                //let _x = {{force nat_print} y}
                 let (tx, b) = { ws(@@t){ {force trie_replace}[?][?] t x y }}
                 let (_r,r) = { memo{(@@dd),x}{ {force dedup}[?][?] {!ys} tx} }
                 if ( b ) { 
