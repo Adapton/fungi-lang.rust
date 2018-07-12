@@ -34,7 +34,7 @@ pub mod dynamic_tests {
 
         /// First change: Insert element
         let b1 = {
-            {force insert_after}[?] (@19) (@666) 100 {!list1}
+            {force insert_after}[?] (@19) (@666) 2 {!list1}
         }
 
         /// Re-force archivist; Precipitates change propagation
@@ -108,7 +108,28 @@ fgi_mod!{
             }
         }
     }
+    
+    /// Like child fn, but returns both children, and the fact that
+    /// the names in the pair of children are apart.
+    fn children:(
+        Thk[0] forall (X,Y):NmSet. 
+            0 Trie[X][Y] ->
+        {0;Y} F exists (X1,X2):NmSet|((X1%X2):NmSet). 
+            (x Trie[X1][Y] 
+             x Trie[X1][Y]
+            )
+    ) = { 
+        let emp = {ref (@@trie_emp) roll inj1 ()}
+        #t.
+        let tt = {get t}
+        unroll match tt {
+            _emp => { ret pack (0,0) (emp, emp) }
+            leaf => { ret pack (0,0) (emp, emp) }
+            bin  => { ret bin }
+        }
+    }
 
+    /// True if the given trie is a leaf holding the given nat
     fn is_leaf_with_nat:(
         Thk[0] forall (X,Y):NmSet. 
             0 Trie[X][Y] -> 0 Nat -> {0;Y} F Bool
@@ -120,6 +141,14 @@ fgi_mod!{
             leaf => { 
                 let (_x, y) = {ret leaf}
                 let b = {n == y}
+                let _x = {
+                    if (b) {
+                        {force nat_print} y
+                        ret ()
+                    } else { 
+                        ret () 
+                    }
+                }
                 ret b
             }
             bin => { IMPOSSIBLE }
@@ -134,7 +163,7 @@ fgi_mod!{
             0 Nat -> 
             0 Nat -> 
             0 Nm[{ni}] -> 
-        {0;0}
+        {?; ?}
         F Trie[X1 % X2][Y U ({Trie} X1)]
     ) = {
         #t. #x. #y. #i. #ni.
@@ -145,20 +174,21 @@ fgi_mod!{
             // Insrec: recursive case
             let j  = {i + 1}
             let nj = {(name []),ni}
+            let tc = {{force children} t}
+            unpack (Xl, Xr) tc = tc
+            let (lc,rc) = {ret tc}
             let b  = {{force nat_hash_bit} y i}
-            let tc = {{force child} t b}         
-            let tx = {{force trie_insrec} tc x y j nj}
-            let lr = {
+            let lx = {                
                 if ( b ) {
-                    let right = {{force child} t false}
-                    ret (tx, right)
+                    let tx = {{force trie_insrec}[?][?][?] lc x y j nj}
+                    ret pack (Xl % X2, Xr) (tx, rc)
                 } else {
-                    let left = {{force child} t true}
-                    ret (left, tx)
+                    let tx = {{force trie_insrec}[?][?][?] rc x y j nj}
+                    ret pack (Xl, Xr % X2) (tx, rc)
                 }
-            }
+            }            
             // Insrec: introduce binary trie constructor
-            ref {x,ni} roll inj2 inj2 pack (?,?) lr
+            ref {x,ni} roll inj2 inj2 pack (X1 % X2, ?) lx
         }
     }
 
@@ -168,8 +198,8 @@ fgi_mod!{
             0 Trie[X1][Y] -> 
             0 Nm[X2] -> 
             0 Nat -> 
-        {0;0}
-        F Trie[X1 % X2][Y U ({Trie} X1)]
+        {?; ?}
+        F Trie[X1 % X2][Y U ({WS_Trie} X1)]
     ) = {
         #t.#x.#y. {force trie_insrec} t x y 0 (name [])
     }
@@ -177,7 +207,7 @@ fgi_mod!{
     fn build:(
         Thk[0] forall (X,Y):NmSet.
             0 List[X][Y] -> 
-            {0;0}
+            {?; ?}
         F Trie[X][{Trie} X]
     ) = {
         let emp = {ref (@@trie_emp) roll inj1 ()}
@@ -186,7 +216,8 @@ fgi_mod!{
             c => {
                 unpack (X1,X2,Y1,Y2) c = c
                 let (x, y, ys) = {ret c}
-                let (_t,t) = { memo{(@@build),x}{ {force build}[?][?] {!ys} } }                
+                //let (_t,t) = { memo{(@@build),x}{ {force build}[?][?] {!ys} } }
+                let (_t,t) = { {force build}[?][?] {!ys} }
                 {force trie_insert}[?][?] t x y
             }
         }
@@ -200,8 +231,8 @@ fgi_mod!{
             0 Nat -> 
             0 Nat -> 
             0 Nm[{ni}] -> 
-        {0;0}
-        F (x Trie[X1 % X2][Y U ({Trie} X1)]
+        {{WS_Trie} X1; Y}
+        F (x Trie[X1 % X2][Y U ({WS_Trie} X1)]
            x Bool)
     ) = {
         #t. #x. #y. #i. #ni.
@@ -214,21 +245,20 @@ fgi_mod!{
             // recursive case
             let j   = {i + 1}
             let nj  = {(name []),ni}
+            let tc = {{force children} t}
+            unpack (Xl, Xr) tc = tc
+            let (lc,rc) = {ret tc}
             let bit = {{force nat_hash_bit} y i}
-            let tc  = {{force child} t bit}
-            let (tx, b) = {
-                {force trie_replrec} tc x y j nj
-            }
-            let lr = {
+            let (lr, b) = {
                 if ( bit ) {
-                    let right = {{force child} t false}
-                    ret (tx, right)
+                    let (tx, b) = {{force trie_replrec}[?][?][?] lc x y j nj}
+                    ret (pack (Xl % X2, Xr) (tx, rc), b)
                 } else {
-                    let left = {{force child} t true}
-                    ret (left, tx)
+                    let (tx, b) = {{force trie_replrec}[?][?][?] rc x y j nj}
+                    ret (pack (Xl, Xr % X2) (tx, rc), b)
                 }
             }
-            let r = { ref {x,ni} roll inj2 inj2 pack (?,?) lr }
+            let r = { ref {x,ni} roll inj2 inj2 lr }
             ret (r, b)
         }
     }
@@ -239,8 +269,8 @@ fgi_mod!{
             0 Trie[X1][Y] -> 
             0 Nm[X2] -> 
             0 Nat -> 
-        {0;0}
-        F (x Trie[X1 % X2][Y U ({Trie} X1)] 
+        {{WS_Trie} X; Y}
+        F (x Trie[X1 % X2][Y U ({WS_Trie} X1)] 
            x Bool)
     ) = {
         #t.#x.#y. {force trie_replrec} t x y 0 (name [])
@@ -250,22 +280,22 @@ fgi_mod!{
         Thk[0] forall (X1,X2,Y):NmSet.
             0 List[X1][Y] -> 
             0 Trie[X2][Y] ->
-            {0;0}
+            {{WS_Dedup} X; Y}
         F List[X1][{@!}X1] [{@!}X1]
     ) = {
-        let emp = {ref (@@trie_emp) roll inj1 ()}
         #l. #t. unroll match l {
-            _u => {ret emp}
+            _u => { ret l }
             c => {
-                unpack (X1,X2,Y1,Y2) c = c
+                unpack (X1a,X1b,Y1,Y2) c = c
                 let (x, y, ys) = {ret c}
                 //let _x = {{force nat_print} y}
-                let (tx, b) = { ws(@@t){ {force trie_replace}[?][?] t x y }}
-                let (_r,r) = { memo{(@@dd),x}{ {force dedup}[?][?] {!ys} tx} }
+                let _x = {{force nat_print} y}
+                let (tx, b) = { ws(@@t){ {force trie_replace}[X1a][Y] t x y }}
+                let (_r,r) = { memo{(@@dd),x}{ {force dedup}[X1b][Y2] {!ys} tx} }
                 if ( b ) { 
                     ret r 
                 } else {
-                    ref {(@@r),x} roll inj2 pack (?,?,?,?) (x, y, r)
+                    ref {(@@r),x} roll inj2 pack (X1a,X1b,?,?) (x, y, r)
                 }
             }
         }
