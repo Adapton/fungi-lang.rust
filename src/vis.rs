@@ -147,7 +147,11 @@ impl Bundle {
 #[macro_export]
 macro_rules! fgi_bundle {
     [$($e:tt)+] => {{
-        let exp = label_exp(fgi_exp![$($e)+], &mut 0);
+        let exp = if false {
+            label_exp(fgi_exp![$($e)+], &mut 0)
+        } else { 
+            fgi_exp![$($e)+]
+        };
         let program = synth_exp(&Ext::empty(), &Ctx::Empty, &exp);
         // let traces = capture_traces(|| eval::eval(vec![], exp)).1;
         Bundle {

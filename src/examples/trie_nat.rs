@@ -1,6 +1,4 @@
 pub mod dynamic_tests {
-    use examples::list_nat;
-    //use examples::seq_nat_gen;
 
     /* 
      * Try the following at the command line:
@@ -11,10 +9,9 @@ pub mod dynamic_tests {
      *
      */
     #[test]
-    pub fn short() { fgi_dynamic_trace!{
+    pub fn short() { use examples::list_nat; fgi_dynamic_trace!{
         [Expect::SuccessxXXX]
         use super::*;
-        //use seq_nat_gen::*;
         use list_nat::*;
         
         /// Generate input
@@ -277,9 +274,9 @@ fgi_mod!{
 
 pub mod trapdoor {
     // This code essentially extends the Fungi evaluator
-    use ast::{Name};
+    //use ast::{Name};
     use dynamics::{RtVal,ExpTerm};
-    use adapton::engine;
+    //use adapton::engine;
 
     pub fn hash_usize(x:usize) -> u64 {
         use std::collections::hash_map::DefaultHasher;

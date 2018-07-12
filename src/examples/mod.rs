@@ -72,10 +72,10 @@ pub mod trie_nat;
 pub mod seq_nat;
 pub mod seq_nat_gen;
 pub mod seq_nat_dfs;
-//pub mod seq_nat_bfs;
+pub mod seq_nat_bfs;
 
-//pub mod seq_nat_dfs_lazy;
-//pub mod stream_nat;
+pub mod seq_nat_dfs_lazy;
+pub mod stream_nat;
 
 /*
 /// Find the maximum element in a sequence
@@ -93,10 +93,10 @@ pub mod seq_filter;
 //pub mod set_join;
 //pub mod trie;
 
-//pub mod pure_stream_nat;
-//pub mod pure_lazylist;
-//pub mod pure_rtq;
-//pub mod fifo;
+pub mod pure_stream_nat;
+pub mod pure_lazylist;
+pub mod pure_rtq;
+pub mod fifo;
 
 
 // --- Regression tests
