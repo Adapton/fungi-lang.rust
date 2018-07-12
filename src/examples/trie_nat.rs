@@ -123,19 +123,6 @@ fgi_mod!{
             leaf => { 
                 let (_x, y) = {ret leaf}
                 let b = {n == y}
-                // let _x = {
-                //     if ( b ) { 
-                //         /// Duplicate!
-                //         let _x = {{force nat_print} n}
-                //         let _x = {{force nat_print} y}
-                //         ret ()
-                //     } else {
-                //         /// Unique
-                //         let _x = {{force nat_print} n}
-                //         let _x = {{force nat_print} y}
-                //         ret ()
-                //     }
-                // }
                 ret b
             }
             bin => { IMPOSSIBLE }
