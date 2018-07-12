@@ -69,6 +69,8 @@ pub mod pure_list_nat;
 pub mod list_nat;
 pub mod trie_nat;
 
+pub mod list_nat_dedup;
+
 pub mod seq_nat;
 pub mod seq_nat_gen;
 pub mod seq_nat_dfs;

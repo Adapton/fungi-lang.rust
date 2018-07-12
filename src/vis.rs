@@ -302,6 +302,6 @@ macro_rules! fgi_dynamic_trace {
         // TODO: Integrate the trace above into the bundle below, so
         // we can view both, together, in HFI.
         //
-        //fgi_listing_expect![ [ $($expect)+ ] $($e)+ ]
+        fgi_listing_expect![ [ $($expect)+ ] $($e)+ ]
     }}
 }
