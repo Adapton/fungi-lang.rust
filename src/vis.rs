@@ -274,7 +274,7 @@ macro_rules! fgi_dynamic_trace {
         let result = {
             let mut lab = 0;
             // Label the sub-expressions of the Fungi program:
-            let e = vis::label_exp(e, &mut lab);
+            let e = if false { vis::label_exp(e, &mut lab) } else { e };
             // Run the Fungi program:
             reduce::reduce(vec![], dynamics::env_emp(), e)
         };

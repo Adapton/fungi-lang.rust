@@ -33,23 +33,24 @@ Sequences of natural numbers, represented as probabilistically-balanced binary t
  - [`seq_filter`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/seq_filter.rs.html)
 --- filters a sequence of elements, producing a new (smaller) sequence.
 
-### Sets
-
-_In progress_
-
-Sets of natural numbers, represented as probabilistically-balanced binary hash tries:
-- [`trie_join`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/trie.rs.html)
---- joins two sets (as tries) into a single set (as a trie).
- - [`trie_of_seq`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/trie.rs.html)
---- builds a set of elements (as a hash trie) from a sequence of elements (as a level tree).
-
-### Quickhull
-
-Computes the convex hull, in sorted order, of an unordered sequence of points in 2D space.
-
-**TODO**
-
 */
+
+// ### Sets
+
+// _In progress_
+
+// Sets of natural numbers, represented as probabilistically-balanced binary hash tries:
+// - [`trie_join`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/trie.rs.html)
+// --- joins two sets (as tries) into a single set (as a trie).
+//  - [`trie_of_seq`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/trie.rs.html)
+// --- builds a set of elements (as a hash trie) from a sequence of elements (as a level tree).
+
+// ### Quickhull
+
+// Computes the convex hull, in sorted order, of an unordered sequence of points in 2D space.
+
+// **TODO**
+
 
 /// Optional natural numbers
 ///
@@ -66,6 +67,7 @@ pub mod name;
 pub mod pure_list_nat;
 
 pub mod list_nat;
+pub mod trie_nat;
 
 pub mod seq_nat;
 pub mod seq_nat_gen;

@@ -50,13 +50,19 @@ pub struct Div {
 // names in the lineage.  E.g., `11.L.r.L` is likely related to
 // `11.L.r.r` since a single `fork` operation produced them both.
 
+pub fn html_string_of_name (n:&Name) -> String {
+    use regex::Regex;
+    let re = Regex::new(r"▲").unwrap();
+    format!("{}", re.replace_all(&string_of_name(n), "leaf"))
+}
+
 pub fn div_of_name (n:&Name) -> Div {
     Div{ tag: String::from("name"),
          // TODO: Remove illegal chars for CSS classes (check spec)
          // classes: vec![ format!("{:?}", n) ],
-         classes: vec![ string_of_name(n) ],
+         classes: vec![ html_string_of_name(n) ],
          extent: Box::new( vec![ ] ),
-         text: Some( format!("{}", string_of_name(n) ) ) }
+         text: Some( format!("{}", html_string_of_name(n) ) ) }
 }
 
 pub fn div_of_path (p:&Path) -> Div {
