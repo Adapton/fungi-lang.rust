@@ -212,6 +212,22 @@ fgi_mod!{
         }
     }
 
+    fn len:(
+        Thk[0]
+            foralli (X,Y):NmSet.
+            0 List[X][Y] -> {0;Y} F Nat
+    ) = {
+        #l. unroll match l {
+            _u => {ret 0}
+            c => {
+                unpack (X1,X2,Y1,Y2) c = c
+                let (x,y,ys) = {ret c}
+                let lenys = {{force len} {!ys}}
+                lenys + 1
+            }
+        }
+    }
+
     /// Map a list of natural numbers, using a given function from
     /// naturals to naturals.
     fn map:(
