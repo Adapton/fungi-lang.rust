@@ -112,6 +112,7 @@ pub fn fv_of_idxtm(i:&IdxTm, bound:Vec<Term>, out:&mut Vec<Term>) {
                 };
             }
         }
+        &NmTm(ref n) => { fv_of_nmtm(n, bound, out) }
         &Apart(ref i, ref j)   |
         &Union(ref i, ref j)   |
         &Bin(ref i, ref j)     |
@@ -450,6 +451,9 @@ pub fn subst_term_idxtm(t:Term, x:&String, i:IdxTm) -> IdxTm {
         }
         IdxTm::Sing(n) => {
             IdxTm::Sing(subst_term_nmtm(t,x,n))
+        },
+        IdxTm::NmTm(n) => {
+            IdxTm::NmTm(subst_term_nmtm(t,x,n))
         },
         IdxTm::Unit  => IdxTm::Unit,
         IdxTm::Empty => IdxTm::Empty,

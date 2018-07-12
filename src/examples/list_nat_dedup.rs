@@ -124,16 +124,16 @@ fgi_mod!{
     );
     
     // Names as natural numbers
-    idxtm Zero = ([]);
-    idxtm Succ = (#x:Nm.[],x);
+    nmtm Zero  = ([]);
+    idxtm Succ = (#x:Nm.{[],x});
     idxtm Gte  = (#x:Nm. (Succ)^* {x});
-    idxtm Nat  = ({Gte} Zero);
+    idxtm Nat  = ({Gte} (nmtm []));
 
     // Names for trie (path) insertion
     idxtm Ins = (#X:NmSet. X * Nat);
     
     // Write sets for Trie and Dedup:
-    idxtm WS_Trie  = (#X:NmSet. {@!} ({Ins} x));
+    idxtm WS_Trie  = (#X:NmSet. {@!} ({Ins} X));
     idxtm WS_Dedup = (#X:NmSet. {WS_Trie} X);
 
     // let emp : Trie[0][{@@trie_emp}] = { 
@@ -162,29 +162,6 @@ fgi_mod!{
         Thk[0] 0 Nat -> 0 F Unit
     ) = {
         unsafe (1) trapdoor::print_found_duplicate
-    }
-
-    /// Get the left or right child of a trie, giving back the empty
-    /// trie (reference cell) when no such child exists.
-    fn child:(
-        Thk[0] forall (X,Y):NmSet. 
-            0 Trie[X][Y] -> 0 Bool -> {0;Y} F Trie[X][Y]
-    ) = {
-        #t. #b.
-        let tt = {get t}
-        unroll match tt {
-            _emp => { ret t }
-            leaf => { ret emp }
-            bin => {
-                unpack (X1,X2) bin = bin
-                let (tl,tr) = { ret bin }
-                if ( b ) {
-                    ret tl
-                } else {
-                    ret tr
-                }
-            }
-        }
     }
     
     /// Like child fn, but returns both children, and the fact that
@@ -219,18 +196,18 @@ fgi_mod!{
             leaf => { 
                 let (_x, y) = {ret leaf}
                 let b = {n == y}
-                let _x = {
-                    if (b) {
-                        let _x = {{force print_found_duplicate} y}
-                        ret ()
-                    } else { 
-                        let (a, b) = {ret (n,y)}
-                        Error: HASH COLLISION
-                    }
-                }
+                // let _x = {
+                //     if (b) {
+                //         let _x = {{force print_found_duplicate} y}
+                //         ret ()
+                //     } else { 
+                //         let (a, b) = {ret (n,y)}
+                //         Error: HASH COLLISION
+                //     }
+                // }
                 ret b
             }
-            bin => { Error: IMPOSSIBLE }
+            bin => { ret false }
         }
     }
             
@@ -284,7 +261,7 @@ fgi_mod!{
         F (x Trie[X1 % X2][Y U ({WS_Trie} X1)] 
            x Bool)
     ) = {
-        #t.#x.#y. {force trie_replrec} t x y 0 (name [])
+        #t.#x.#y. {force trie_replrec}[X1][X2][Y] t x y 0 (name [])
     }
 
     fn dedup:(
@@ -302,7 +279,7 @@ fgi_mod!{
                 //let _x = {{force nat_print} y}
                 //let _x = {{force nat_print} y}
                 let (tx, b) = { ws(@@t){ {force trie_replace}[X1a][Y] t x y }}
-                let (_r,r) = { memo{(@@dd),x}{ {force dedup}[X1b][Y2] ys tx} }
+                let (_r,r) = { memo{(@@dd),x}{ {force dedup}[X1b][(X1a%X2)][Y2] ys tx} }
                 if ( b ) { 
                     ret r 
                 } else {

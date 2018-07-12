@@ -249,8 +249,14 @@ pub enum IdxTm {
     /// ----------------------- :: FlatMapStar
     ///  Γ ⊢ (i)^* j : NmSet
     /// ```    
-    FlatMapStar(IdxTmRec, IdxTmRec),
-    NoParse(String),
+    FlatMapStar(IdxTmRec, IdxTmRec),    
+    /// ```text
+    /// Γ ⊢ M : g
+    /// --------------- :: nmtm
+    /// Γ ⊢ nmtm M : g
+    /// ```
+    NmTm(NameTm),
+    NoParse(String),    
     Unknown,
 }
 pub type IdxTmRec = Rc<IdxTm>;

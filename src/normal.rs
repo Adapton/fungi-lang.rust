@@ -90,6 +90,7 @@ pub fn is_normal_idxtm(ctx:&Ctx, i:&IdxTm) -> bool {
         // identifiers are not normal
         IdxTm::Unknown    => true,
         IdxTm::Ident(_)   => false,
+        IdxTm::NmTm(ref n) => is_normal_nmtm(ctx, n),
         // namesets are normal, by the way we construct them
         IdxTm::NmSet(_)   => true,
         // variables are normal if there are no decompositions in the context
@@ -241,6 +242,9 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                 IdxTm::NmSet(NmSet{cons:None, terms:vec![
                     NmSetTm::Single( n )                        
                 ]})
+            }
+            IdxTm::NmTm(n) => {
+                IdxTm::NmTm(normal_nmtm(ctx, n))
             }
 
             IdxTm::Ident(ref ident) => {

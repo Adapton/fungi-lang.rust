@@ -323,6 +323,7 @@ impl HasClas for NmTmRule {
 pub enum IdxTmRule {
     Var(Var),
     Sing(NmTmDer),
+    NmTm(NmTmDer),
     Empty,
     Apart(IdxTmDer, IdxTmDer),
     Union(IdxTmDer, IdxTmDer),
@@ -784,6 +785,15 @@ pub fn synth_idxtm(ext:&Ext, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer {
                 Err(ref e) => fail_inside(td, e),
                 Ok(ref t) if *t == Sort::Nm => succ(td, Sort::NmSet),
                 Ok(_) => fail(td, TypeError::ParamMism(0)),
+            }
+        },
+        &IdxTm::NmTm(ref nt) => {
+            let td0 = synth_nmtm(ext,ctx,nt);
+            let ty0 = td0.clas.clone();
+            let td = IdxTmRule::NmTm(td0);
+            match ty0 {
+                Err(ref e) => fail_inside(td, e),
+                Ok(ref t) => succ(td, t.clone()),
             }
         },
         &IdxTm::Empty => {
@@ -2533,6 +2543,7 @@ pub mod debug {
                 IdxTmRule::Unknown => "Unknown",
                 IdxTmRule::Var(_) => "Var",                
                 IdxTmRule::Sing(_) => "Sing",
+                IdxTmRule::NmTm(_) => "NmTm",
                 IdxTmRule::Empty => "Empty",
                 IdxTmRule::Apart(_, _) => "Apart",
                 IdxTmRule::Union(_, _) => "Union",

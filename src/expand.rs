@@ -211,6 +211,9 @@ pub fn expand_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
         IdxTm::Sing(n) => {
             IdxTm::Sing(expand_nmtm(ctx,n))
         },
+        IdxTm::NmTm(n) => {
+            IdxTm::NmTm(expand_nmtm(ctx,n))
+        },
         IdxTm::Unit  => IdxTm::Unit,
         IdxTm::Empty => IdxTm::Empty,
         IdxTm::NmSet(s) => {

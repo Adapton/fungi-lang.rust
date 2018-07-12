@@ -175,6 +175,7 @@ macro_rules! parse_fgi_name_bin {
 /// ```text
 /// i,j,X,Y ::=
 ///     fromast ast (inject ast nodes)
+///     nmtm M      (name term, as an index term)
 ///     @!          (write scope function, lifted to name sets)
 ///     (i)         (parens)
 ///     {N}         (singleton name set)
@@ -200,10 +201,12 @@ macro_rules! fgi_index {
     { ^       $ast:expr } => { $ast };
     //     ?           (unknown)
     { ? } => { IdxTm::Unknown };
+    //     nmtm M      (name term)
+    { nmtm $($nmtm:tt)+ } => { IdxTm::NmTm(fgi_nametm![$($nmtm)+]) };
     //     (i)         (parens)
     { ($($i:tt)+) } => { fgi_index![$($i)+] };
     //     {N}         (singleton name set)
-    { {$($nmtm:tt)+} } => { IdxTm::Sing(fgi_nametm![$($nmtm)+])};
+    { {$($nmtm:tt)+} } => { IdxTm::Sing(fgi_nametm![$($nmtm)+]) };
     //     @!          (write scope function, lifted to name sets)
     { @! } => { IdxTm::WriteScope };
     //     0           (empty set)
