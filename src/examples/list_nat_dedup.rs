@@ -176,7 +176,7 @@ fgi_mod!{
     fn children:(
         Thk[0] foralli (X,Y):NmSet. 
             0 Trie[X][Y] ->
-        {0;Y} F exists (X1,X2):NmSet|((X1%X2):NmSet). 
+        {0;Y} F exists (X1,X2):NmSet|((X1%X2)=X:NmSet).
             (x Trie[X1][Y] 
              x Trie[X2][Y]
             )
@@ -235,15 +235,17 @@ fgi_mod!{
             0 Nat -> 
             0 Nat -> 
             0 Nm[{ni}] -> 
-        {{WS_Trie} X1; Y}
-        F (x Trie[X1 % X2][Y U ({WS_Trie} X1)]
+        {{WS_Trie} X2; Y}
+        F (x Trie[X1 % X2][Y U ({WS_Trie} X2)]
            x Bool)
     ) = {
         #t. #x. #y. #i. #ni.
         if {i == 12} {
             // base case: create trie leaf node
             let b = {{force is_leaf_with_nat}[X1][Y] t y}
-            let r = {ref {x,ni} roll inj2 inj1 (x, y)}
+            let r : (Trie[X2][{WS_Trie} X2]) = {
+                ref {x,ni} roll inj2 inj1 (x, y)
+            }
             ret (r, b)
         } else {
             // recursive case
@@ -253,17 +255,19 @@ fgi_mod!{
             unpack (Xl, Xr) tc = tc
             let (lc,rc) = {ret tc}
             let bit = {{force nat_hash_bit} y i}
-            let (lr, b) = {
-                if ( bit ) {
-                    let (tx, b) = {{force trie_replrec}[X1][X2][Y] lc x y j nj}
-                    ret (pack (Xl % X2, Xr) (tx, rc), b)
-                } else {
-                    let (tx, b) = {{force trie_replrec}[X1][X2][Y] rc x y j nj}
-                    ret (pack (Xl, Xr % X2) (lc, tx), b)
+            if ( bit ) {
+                let (tx, b) = {{force trie_replrec}[X1][X2][Y][{[],ni}] lc x y j nj}
+                let r : (Trie[X1 % X2][Y U ({WS_Trie} X2)]) = {
+                    ref {x,ni} (pack (Xl % X2, Xr) (tx, rc))
                 }
+                ret (r, b)
+            } else {
+                let (tx, b) = {{force trie_replrec}[X1][X2][Y][{[],ni}] rc x y j nj}
+                let r : (Trie[X1 % X2][Y U ({WS_Trie} X2)]) = {
+                    ref {x,ni} (pack (Xl % X2, Xr) (lc, tx))
+                }
+                ret (r, b)
             }
-            let r = { ref {x,ni} roll inj2 inj2 lr }
-            ret (r, b)
         }
     }
 

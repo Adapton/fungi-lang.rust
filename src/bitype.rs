@@ -1952,6 +1952,28 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                 _ => fail(td, TypeError::ParamMism(0)),
             }
         },        
+        &Exp::PrimApp(PrimApp::NatPlus(ref v0,ref v1)) => {
+            let td0 = synth_val(ext, ctx, v0);
+            let td1 = synth_val(ext, ctx, v1);
+            let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
+            let td = ExpRule::PrimApp(PrimAppRule::NatPlus(td0,td1));
+            match (typ0,typ1) {
+                (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
+                (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
+                (Ok(Type::Ident(ref n0)), Ok(Type::Ident(ref n1)))
+                if (n0 == "Nat") && (n1 == "Nat") => {
+                    let ce = CEffect::Cons(
+                        CType::Lift(Type::Ident("Nat".to_string())),
+                        Effect::WR(IdxTm::Empty, IdxTm::Empty),
+                    );
+                    succ(td, ce)
+                },
+                (Ok(Type::Ident(ref n0)),_) if n0 == "Nat" => {
+                    fail(td, TypeError::ParamMism(1))
+                },
+                _ => fail(td, TypeError::ParamMism(0))
+            }
+        },
         &Exp::PrimApp(PrimApp::NatLt(ref v0,ref v1)) => {
             let td0 = synth_val(ext, ctx, v0);
             let td1 = synth_val(ext, ctx, v1);
@@ -2090,13 +2112,6 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let td0 = synth_val(ext, ctx, v0);
             let td1 = synth_val(ext, ctx, v1);
             let td = ExpRule::PrimApp(PrimAppRule::NatLte(td0,td1));
-            // TODO: implement
-            fail(td, TypeError::Unimplemented)
-        },
-        &Exp::PrimApp(PrimApp::NatPlus(ref v0,ref v1)) => {
-            let td0 = synth_val(ext, ctx, v0);
-            let td1 = synth_val(ext, ctx, v1);
-            let td = ExpRule::PrimApp(PrimAppRule::NatPlus(td0,td1));
             // TODO: implement
             fail(td, TypeError::Unimplemented)
         },
