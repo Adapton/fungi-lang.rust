@@ -154,17 +154,17 @@ fgi_mod!{
         unsafe (2) trapdoor::nat_hash_bit
     }
     
-    // fn nat_print:(
-    //     Thk[0] 0 Nat -> 0 F Unit
-    // ) = {
-    //     unsafe (1) trapdoor::nat_print
-    // }
+    fn nat_print:(
+        Thk[0] 0 Nat -> 0 F Unit
+    ) = {
+        unsafe (1) trapdoor::nat_print
+    }
     
-    // fn nat_print2:(
-    //     Thk[0] 0 Nat -> 0 Nat -> 0 F Unit
-    // ) = {
-    //     unsafe (2) trapdoor::nat_print2
-    // }
+    fn nat_print2:(
+        Thk[0] 0 Nat -> 0 Nat -> 0 F Unit
+    ) = {
+        unsafe (2) trapdoor::nat_print2
+    }
 
     fn print_found_duplicate:(
         Thk[0] 0 Nat -> 0 F Unit
@@ -259,13 +259,13 @@ fgi_mod!{
             if ( bit ) {
                 let (tx, b) = {{force trie_replrec}[X1][X2][Y][{[],ni}] lc x y j nj}
                 let r : (Trie[X1 % X2][Y U ({WS_Trie} X2)]) = {
-                    ref {x,ni} roll pack (Xl % X2, Xr) (tx, rc)
+                    ref {x,ni} roll inj2 inj2 pack (Xl % X2, Xr) (tx, rc)
                 }
                 ret (r, b)
             } else {
                 let (tx, b) = {{force trie_replrec}[X1][X2][Y][{[],ni}] rc x y j nj}
                 let r : (Trie[X1 % X2][Y U ({WS_Trie} X2)]) = {
-                    ref {x,ni} roll pack (Xl % X2, Xr) (lc, tx)
+                    ref {x,ni} roll inj2 inj2 pack (Xl % X2, Xr) (lc, tx)
                 }
                 ret (r, b)
             }

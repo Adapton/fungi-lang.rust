@@ -295,6 +295,8 @@ macro_rules! fgi_dynamic_trace {
         };
         writeln!(writer, "</div>").unwrap();
 
+        // UPDATE: Use fgi_listing_expect directly, instead.
+        //
         // ---------------------------------------------------------------------------
         // 3. Type-check fungi program, and collect a "bundle" for HFI interactions
         // ---------------------------------------------------------------------------
@@ -302,6 +304,6 @@ macro_rules! fgi_dynamic_trace {
         // TODO: Integrate the trace above into the bundle below, so
         // we can view both, together, in HFI.
         //
-        let _ = fgi_listing_expect![ [ $($expect)+ ] $($e)+ ];
+        // let _ = fgi_listing_expect![ [ $($expect)+ ] $($e)+ ];
     }}
 }
