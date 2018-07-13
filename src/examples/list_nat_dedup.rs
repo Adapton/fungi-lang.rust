@@ -174,8 +174,8 @@ fgi_mod!{
              x Trie[X1][Y]
             )
     ) = { 
-        let emp = {ref (@@trie_emp) roll inj1 ()}
         #t.
+        let emp : (Trie[0][0]) = {ref (@@trie_emp) roll inj1 ()}
         let tt = {get t}
         unroll match tt {
             _emp => { ret pack (0,0) (emp, emp) }

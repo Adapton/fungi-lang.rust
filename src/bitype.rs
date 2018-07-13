@@ -1635,18 +1635,27 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
         }
         &Exp::AnnoC(ref e, ref ctyp) => {
             // XXX/TODO: this is a hack, depending on what you expect it to mean.
+            //println!("AnnoC: Checking against: {:?}", ctyp);
             let noeffect = Effect::WR(IdxTm::Empty, IdxTm::Empty);
             let td0 = check_exp(ext, ctx, e, &CEffect::Cons(ctyp.clone(),noeffect));
+            //println!("AnnoC: ctyp={:?}", ctyp.clone());
             let typ0 = td0.clas.clone();
             let td = ExpRule::AnnoC(td0, ctyp.clone());
             match typ0 {
-                Err(_) => fail(td, TypeError::ParamNoCheck(0)),
+                Err(_) => { 
+                    //println!("AnnoC: Err: {:?}", ctyp.clone());
+                    fail(td, TypeError::ParamNoCheck(0))
+                },
                 Ok(CEffect::Cons(ct,eff)) => {
+                    //println!("AnnoC: Ok: ctyp={:?}", ctyp.clone());
                     // TODO: Type equality may be more complex than this test (e.g. alpha equivalent types should be equal)
                     if *ctyp == ct { succ(td, CEffect::Cons(ct,eff)) }
                     else { fail(td, TypeError::AnnoMism) }
                 },
-                _ => fail(td, TypeError::ExpNotCons)
+                _ => { 
+                    //println!("AnnoC: Fail: typ0={:?}", typ0);
+                    fail(td, TypeError::ExpNotCons)
+                }
             }
         },
         &Exp::AnnoE(ref e,ref et) => {
@@ -1661,6 +1670,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             }
         },
         &Exp::Ref(ref v1,ref v2) => {
+            println!("Ref synth rule.");
             let td0 = synth_val(ext, ctx, v1);
             let td1 = synth_val(ext, ctx, v2);
             let (tp0,typ1) = (td0.clas.clone(),td1.clas.clone());
@@ -2395,10 +2405,14 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
             ),TypeError::AnnoMism)}
         },
         &Exp::Ref(ref v1,ref v2) => {
-            if let &CEffect::Cons(
+            let nceffect = normal::normal_ceffect(ctx, ceffect.clone());
+            //println!("Ref check rule; ceffect is {:?}", ceffect);
+            //println!("Ref check rule; normal(ceffect) is {:?}", &nceffect);
+            if let CEffect::Cons(
                 CType::Lift(Type::Ref(ref _rf_idx,ref a)),
                 Effect::WR(ref _w, ref _r)
-            ) = ceffect {
+            ) = nceffect {
+                //println!("Ref check rule; value type is {:?}", a);
                 let td0 = synth_val(ext, ctx, v1);
                 let td0ty = td0.clas.clone();
                 let td1 = check_val(ext, ctx, v2, a);
@@ -2412,7 +2426,10 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                     Ok(_) => fail(td, TypeError::Mismatch),
                     Err(ref err) => fail(td, TypeError::Inside(Rc::new(err.clone())))
                 }
-            } else { fail(ExpRule::Ref(
+            } else { 
+                println!("Ref check rule cannot work; ceffect does match pattern: {:?}", 
+                         nceffect);
+                fail(ExpRule::Ref(
                 synth_val(ext, ctx, v1),
                 synth_val(ext, ctx, v2),
             ),TypeError::AnnoMism)}
@@ -2453,7 +2470,6 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
         //   &Exp::DefType(ref x,Type,ref e) => {},
         //   &Exp::AnnoC(ref e,ref ct) => {},
         //   &Exp::AnnoE(ref e,ref et) => {},      
-        //   &Exp::Ref(ref v1,ref v2) => {},
         //   &Exp::PrimApp(PrimApp) => {},
         //   &Exp::NameFnApp(ref v1,ref v2) => {},
         //

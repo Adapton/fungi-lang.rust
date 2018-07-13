@@ -252,6 +252,15 @@ macro_rules! fgi_dynamic_trace {
         use std::rc::Rc;
         use ast::*;
         use adapton::engine;
+
+        // ---------------------------------------------------------------------------
+        // 3. Type-check fungi program, and collect a "bundle" for HFI interactions
+        // ---------------------------------------------------------------------------
+        //
+        // TODO: Integrate the trace above into the bundle below, so
+        // we can view both, together, in HFI.
+        //
+        let _ = fgi_listing_expect![ [ $($expect)+ ] $($e)+ ];
         
         // --------------------------------------------------------------
         // 1. Parse fungi program (expression) to reduce, and visualize
@@ -295,13 +304,6 @@ macro_rules! fgi_dynamic_trace {
         };
         writeln!(writer, "</div>").unwrap();
 
-        // ---------------------------------------------------------------------------
-        // 3. Type-check fungi program, and collect a "bundle" for HFI interactions
-        // ---------------------------------------------------------------------------
-        //
-        // TODO: Integrate the trace above into the bundle below, so
-        // we can view both, together, in HFI.
-        //
-        fgi_listing_expect![ [ $($expect)+ ] $($e)+ ]
+
     }}
 }

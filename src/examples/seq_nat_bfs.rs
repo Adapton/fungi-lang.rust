@@ -24,8 +24,6 @@ fgi_mod!{
 }
 
 pub mod dynamic_tests {
-    use examples::seq_nat_gen;
-
     /*
      * Try the following at the command line:
      *
@@ -35,7 +33,7 @@ pub mod dynamic_tests {
      *
      */
     #[test]
-    pub fn short() { fgi_dynamic_trace!{
+    pub fn short() { use examples::*; fgi_dynamic_trace!{
         [Expect::SuccessxXXX]
         use super::*;
         use seq_nat_gen::*;
