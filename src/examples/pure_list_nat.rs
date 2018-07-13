@@ -160,6 +160,7 @@ pub mod dynamic_tests {
         let sumodd = {{force fold} list4 0 (thunk #n.#m. n + m)}
         ret (list1, list2, list3, list4, sumodd)
     }}
+    // TODO: Assert that the output of the listing above is correct.
 }
 
 // TODO (Hammer):
