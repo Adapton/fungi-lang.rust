@@ -460,6 +460,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                 ns1.cons.clone(), &mut terms,
                                 bin_tm(ctx, tm1.clone(), NmSetTm::Subset(IdxTm::Var(y.clone()))));
                         }
+                        //println!("match bin DONE");
                         IdxTm::NmSet(NmSet{
                             cons:ns1.cons,
                             terms:terms
@@ -477,12 +478,16 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                     bin_tm(ctx, tm1.clone(), tm2.clone()));
                             }
                         }
+                        //println!("match bin DONE");
                         IdxTm::NmSet(NmSet{
                             cons:ns1.cons,
                             terms:terms
                         })                        
                     },
-                    (i, j) => IdxTm::Bin(Rc::new(i), Rc::new(j))
+                    (i, j) => {
+                        //println!("match bin DONE");
+                        IdxTm::Bin(Rc::new(i), Rc::new(j))
+                    }
                 }
             }                
 
@@ -503,10 +508,16 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                                     ) ) ) )
                                         },
                                         NmSetTm::Subset(ref i) => {
-                                            let i = normal_idxtm(
-                                                ctx, IdxTm::App(
-                                                    Rc::new( IdxTm::WriteScope ),
-                                                    Rc::new(i.clone())));
+                                            let i = 
+                                                if false {
+                                                    // Causing infinite regression:
+                                                    normal_idxtm(
+                                                        ctx, IdxTm::App(
+                                                            Rc::new( IdxTm::WriteScope ),
+                                                            Rc::new(i.clone())))
+                                                } else { 
+                                                    i.clone()
+                                                };
                                             nmset_terms_add(
                                                 ns.cons.clone(),
                                                 &mut terms,
@@ -516,7 +527,10 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                     }
                                 }
                                 ns.terms = terms;
-                                normal_idxtm(ctx, IdxTm::NmSet(ns))
+                                //println!("App BEGIN 2");
+                                let r = normal_idxtm(ctx, IdxTm::NmSet(ns));
+                                //println!("App END 2");
+                                r
                             },
                             i2 => {
                                 normal_idxtm(ctx, IdxTm::Map(Rc::new(NameTm::WriteScope), Rc::new(i2)))
@@ -614,7 +628,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
             }
 
             IdxTm::MapStar(n1, i2) => {
-                println!("Here?");
+                //println!("BEGIN normal(MapStar {:?} {:?}) = ", n1, i2);
                 let n1 = normal_nmtm_rec(ctx, n1);
                 let i2 = normal_idxtm_rec(ctx, i2);
                 match ((*n1).clone(), (*i2).clone()) {
@@ -634,7 +648,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                     match t {
                                         &NmSetTm::Single(ref n) => {
                                             let tm = normal_idxtm(ctx, IdxTm::MapStar(n1.clone(), Rc::new(IdxTm::Sing(n.clone()))));
-                                            nmset_terms_add(ns.cons.clone(), &mut terms, NmSetTm::Subset(tm))
+                                            nmset_terms_add(ns.cons.clone(), &mut terms, NmSetTm::Subset(tm));
                                         }
                                         &NmSetTm::Subset(ref i) => {
                                             let tm = normal_idxtm(ctx, IdxTm::MapStar(n1.clone(), Rc::new(i.clone())));
@@ -663,6 +677,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                             })
                         } else {
                             let mut terms = vec![];
+                            //println!("Begin: Terms are {:?}", ns2.terms);
                             for tm2 in ns2.terms.iter() {
                                 use self::NmSetTm::*;
                                 let mapped_tm = match tm2.clone() {
@@ -674,7 +689,8 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                     }
                                 };
                                 nmset_terms_add(ns2.cons.clone(), &mut terms, mapped_tm)
-                            };                            
+                            };                   
+                            //println!("Done: New terms are {:?}", terms);
                             IdxTm::NmSet(NmSet{
                                 cons:ns2.cons.clone(),
                                 terms:terms
@@ -682,12 +698,14 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                         }
                     },                            
                     (n1, i2) => {
+                        //println!("Done: Terms are UNCHANGED: {:?} {:?}", n1, i2);
                         IdxTm::MapStar(Rc::new(n1), Rc::new(i2))
                     }
                 }
             }
             
             IdxTm::FlatMap(i1, i2) => {
+                //println!("BEGIN normal(FlatMap {:?} {:?}) = ", i1, i2);
                 let i1 = normal_idxtm_rec(ctx, i1);
                 let i2 = normal_idxtm_rec(ctx, i2);
                 match ((*i1).clone(), (*i2).clone()) {
@@ -771,6 +789,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                     // the function and re-expose this set structure.
                     (IdxTm::Lam(x,gx,body), j) => { match (*body).clone() {
                         IdxTm::Sing(body_nmtm) => {
+                            //println!("XXX Lam Sing");
                             //println!(" ************** \n Name term body:\n\t{:?}", body_nmtm);
                             normal_idxtm(
                                 ctx,
@@ -869,6 +888,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                     // the function and re-expose this set structure.
                     (IdxTm::Lam(x,gx,body),_) => { match (*body).clone() {
                         IdxTm::Sing(body_nmtm) => {
+                            //println!("Here? -- normalize MapStar");
                             //println!(" ************** \n Name term body:\n\t{:?}", body_nmtm);
                             normal_idxtm(
                                 ctx,
@@ -912,7 +932,9 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
             }
 
             // In all other cases, do nothing:
-            i_othercase => i_othercase
+            i_othercase => {
+                i_othercase
+            }
         }
     }
 }

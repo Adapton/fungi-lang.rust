@@ -242,33 +242,28 @@ fgi_mod!{
         #t. #x. #y. #i. #ni.
         if {i == 12} {
             // base case: create trie leaf node
-            let r = {ret ()}
-            let r = {ret ()}
-            let r = {ret ()}
             let b = {{force is_leaf_with_nat}[X1][Y] t y}
-            let r = {ret ()}
-            //let r = {ref {x,ni} roll inj2 inj1 (x, y)}
-            ret ()
+            let r = {ref {x,ni} roll inj2 inj1 (x, y)}
+            ret (r, b)
         } else {
             // recursive case
-            //let j   = {i + 1}
-            //let nj  = {(name []),ni}
-            //let tc = {{force children}[X1][Y] t}
-            // unpack (Xl, Xr) tc = tc
-            // let (lc,rc) = {ret tc}
-            // let bit = {{force nat_hash_bit} y i}
-            // let (lr, b) = {
-            //     if ( bit ) {
-            //         let (tx, b) = {{force trie_replrec}[X1][X2][Y] lc x y j nj}
-            //         ret (pack (Xl % X2, Xr) (tx, rc), b)
-            //     } else {
-            //         let (tx, b) = {{force trie_replrec}[X1][X2][Y] rc x y j nj}
-            //         ret (pack (Xl, Xr % X2) (lc, tx), b)
-            //     }
-            // }
-            // let r = { ref {x,ni} roll inj2 inj2 lr }
-            // ret (r, b)
-            ret ()
+            let j   = {i + 1}
+            let nj  = {(name []),ni}
+            let tc = {{force children}[X1][Y] t}
+            unpack (Xl, Xr) tc = tc
+            let (lc,rc) = {ret tc}
+            let bit = {{force nat_hash_bit} y i}
+            let (lr, b) = {
+                if ( bit ) {
+                    let (tx, b) = {{force trie_replrec}[X1][X2][Y] lc x y j nj}
+                    ret (pack (Xl % X2, Xr) (tx, rc), b)
+                } else {
+                    let (tx, b) = {{force trie_replrec}[X1][X2][Y] rc x y j nj}
+                    ret (pack (Xl, Xr % X2) (lc, tx), b)
+                }
+            }
+            let r = { ref {x,ni} roll inj2 inj2 lr }
+            ret (r, b)
         }
     }
 
