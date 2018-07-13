@@ -396,7 +396,11 @@ pub fn step(c:&mut Config) -> Result<(),StepError> {
                     set_env_rec(c, x, v);
                     continue_rec(c, e1)
                 },
-                _ => stuck_err(Stuck::UnrollNonRoll)
+                v => {
+                    // XXX: Sometimes, we may "unroll" earlier?
+                    set_env(c, x, v);
+                    continue_rec(c, e1)
+                }
             }
         }
         Exp::Unpack(_i, x, v, e1) => {

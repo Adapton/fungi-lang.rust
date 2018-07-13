@@ -94,7 +94,7 @@ pub mod dynamic_tests {
         let b2 = {
             {force remove_after}[?] (@62) {!list1}
         }
-
+        
         /// Re-force archivist; Precipitates change propagation
         let outs_3 = {force t}
 
@@ -121,12 +121,13 @@ fgi_mod!{
     /// elements, not the hashes of the names.
     ///
     type Trie  = (
-        rec trie. foralli (X,Y):NmSet. 
-            Ref[Y]( + Unit 
-                    + (x Nm[X] x Nat)
-                    + (exists (X1,X2):NmSet| ((X1%X2)=X:NmSet).
-                       (x trie[X1][Y] x trie[X2][Y])
-                    )
+        foralli (X,Y):NmSet. Ref[Y] rec trie.
+            ( + Unit 
+                + (x Nm[X] x Nat)
+                + (exists (X1,X2):NmSet| ((X1%X2)=X:NmSet).
+                   (x (Ref[Y](trie[X1][Y]))
+                    x (Ref[Y](trie[X2][Y])))
+                )
             )
     );
     
@@ -258,13 +259,13 @@ fgi_mod!{
             if ( bit ) {
                 let (tx, b) = {{force trie_replrec}[X1][X2][Y][{[],ni}] lc x y j nj}
                 let r : (Trie[X1 % X2][Y U ({WS_Trie} X2)]) = {
-                    ref {x,ni} (pack (Xl % X2, Xr) (tx, rc))
+                    ref {x,ni} roll pack (Xl % X2, Xr) (tx, rc)
                 }
                 ret (r, b)
             } else {
                 let (tx, b) = {{force trie_replrec}[X1][X2][Y][{[],ni}] rc x y j nj}
                 let r : (Trie[X1 % X2][Y U ({WS_Trie} X2)]) = {
-                    ref {x,ni} (pack (Xl % X2, Xr) (lc, tx))
+                    ref {x,ni} roll pack (Xl % X2, Xr) (lc, tx)
                 }
                 ret (r, b)
             }
