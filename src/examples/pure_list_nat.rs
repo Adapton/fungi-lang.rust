@@ -1,7 +1,7 @@
 #[test]
 pub fn listing0 () { fgi_listing_expect![
-    [Expect::SuccessxXXX]
-
+    [Expect::Success]
+        
     decls {
         /// Lists of natural numbers
         type List  = ( rec list. (+ Unit + (x Nat x list)) );
@@ -10,6 +10,9 @@ pub fn listing0 () { fgi_listing_expect![
         /// Optional natural numbers
         type OpNat  = (+ Unit + Nat );
     }
+
+    let nat_is_zero:(Thk[0] 0 Nat -> 0 F Bool) = { unsafe (1) trapdoor::nat_is_zero }
+    let nat_sub:(Thk[0] 0 Nat -> 0 Nat -> 0 F Nat) = { unsafe (2) trapdoor::nat_sub }
 
     let nil:(
         Thk[0] 0 F List
@@ -23,25 +26,8 @@ pub fn listing0 () { fgi_listing_expect![
         ret thunk #h.#t. ret roll inj2 (h, t)
     }
 
-    let nat_is_zero:(
-        Thk[0]
-            0 Nat -> 0 F Nat
-    ) = {
-        ret thunk #n.
-        {unsafe (1) trapdoor::nat_is_zero} n
-    }
-
-    let nat_sub:(
-        Thk[0]
-            0 Nat -> 0 Nat -> 0 F Nat
-    ) = {
-        ret thunk #n.#m.
-        {unsafe (2) trapdoor::nat_sub} n m
-    }
-
     let rec gen:(
-        Thk[0]
-            0 Nat -> 0 F List
+        Thk[0] 0 Nat -> 0 F List
     ) = {
         #n. if {{force nat_is_zero} n} {
             force nil
@@ -69,11 +55,10 @@ pub fn listing0 () { fgi_listing_expect![
         }
     }
 
-    //broken: args to thunk swapped
     let rec filter:(
         Thk[0]
-            0 List ->
             0 (Thk[0] 0 Nat -> 0 F Bool) ->
+            0 List ->
             0 F List
     ) = {
         #f. #l. unroll match l {
@@ -195,6 +180,17 @@ pub mod trapdoor {
         }
     }
 }
+
+/* Run as (shortened version):
+   cargo test examples::pure_list_nat::static 2>&1 | less -R
+*/
+// pub mod static_tests {
+//     #[test]
+//     pub fn typing() { fgi_listing_test!{
+//         use super::*;
+//         ret 0
+//     }}
+// }
 
 pub mod dynamic_tests {
 

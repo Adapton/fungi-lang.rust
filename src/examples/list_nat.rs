@@ -222,7 +222,7 @@ fgi_mod!{
             c => {
                 unpack (X1,X2,Y1,Y2) c = c
                 let (x,y,ys) = {ret c}
-                let lenys = {{force len} {!ys}}
+                let lenys = {{force len}[X2][Y2] {!ys}}
                 lenys + 1
             }
         }
@@ -316,7 +316,7 @@ fgi_mod!{
     /// If the given number is even, return its successor
     fn nat_succ_even:(
         Thk[0]
-            0 Thk[0] 0 Nat -> 0 F OpNat
+            0 Nat -> 0 F OpNat
     ) = {
         #n. if {{force nat_is_odd} n} {
             let m = {n + 1}
@@ -355,6 +355,9 @@ fgi_mod!{
     }
 }
 
+/* Run as (shortened version):
+   cargo test examples::list_nat::static 2>&1 | less -R
+*/
 pub mod static_tests {
     #[test]
     pub fn typing() { fgi_listing_test!{
