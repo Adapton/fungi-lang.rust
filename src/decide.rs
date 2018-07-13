@@ -299,10 +299,10 @@ pub mod effect {
     ///
     /// TODO: "Verify" the results using our decision procedures; return those derivations with the term that we find
     pub fn decide_idxtm_subtraction(ctx:&Ctx, i:IdxTm, j:IdxTm) -> Result<IdxTm, Error> {
-        //println!("decide_idxtm_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &i, &j);
+        println!("decide_idxtm_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &i, &j);
         let ni = normal::normal_idxtm(ctx, i);
         let nj = normal::normal_idxtm(ctx, j);
-        //println!("^decide_idxtm_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &ni, &nj);
+        println!("^decide_idxtm_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &ni, &nj);
         match (ni, nj) {
             (IdxTm::Var(x), j) => {
                 let xdef = bitype::find_defs_for_idxtm_var(&ctx, &x);
@@ -358,7 +358,9 @@ pub mod effect {
             //println!("decide_effect_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &eff1, &eff2);
             match (eff1.clone(), eff2.clone()) {
                 (Effect::WR(wr1, rd1), Effect::WR(wr2, rd2)) => {
+                    println!("BEGIN decide_idxtm_subtraction");
                     let wr3 = decide_idxtm_subtraction(ctx, wr1, wr2);
+                    println!("END decide_idxtm_subtraction");
                     use super::subset;
                     let rdsub = subset::decide_idxtm_subset(
                         &super::relctx_of_ctx(ctx),
@@ -929,6 +931,7 @@ pub mod subset {
         Map(equiv::NmTmDec, IdxTmDec),
         FlatMap(IdxTmDec, IdxTmDec),
         FlatMapStar(IdxTmDec, IdxTmDec),
+        EmptySet,
         // - - - - - - - - - - - - - - - - -
         SubsetRefl(normal::NmSetTm),
         Subset(normal::NmSet, normal::NmSet),
@@ -1026,7 +1029,32 @@ pub mod subset {
 
         let b     = normal::normal_idxtm(&ctx2, j.clone());
         let b_bit = bitype::synth_idxtm(&Ext::empty(), &ctx2, &b);
-
+        
+        // Basecase: If `a` is the empty set, and `b` is anything with
+        // sort NmSet, then the subset holds.
+        {
+            //println!("testing {:?} =?= emptyset", a);
+            let (ctx1, _) = ctxs_of_relctx(ctx.clone());
+            let ed = bitype::synth_idxtm(&Ext::empty(), &ctx1, 
+                                         &normal::normal_idxtm(&ctx1, IdxTm::Empty));
+            let ad = bitype::synth_idxtm(&Ext::empty(), &ctx1, &a);
+            let ad = equiv::decide_idxtm_equiv(&ctx, &ad, &ed, &Sort::NmSet);
+            match ad.res {
+                Result::Ok(true) => {
+                    //println!("testing found: {:?} = emptyset", a);
+                    return Dec{
+                        ctx:ctx.clone(),
+                        rule:Rc::new(IdxTmRule::EmptySet),
+                        clas:Sort::NmSet,
+                        res:Ok(true)
+                    }
+                },
+                _ => {
+                    //println!("testing found: {:?} =/= emptyset", a);
+                }
+            }
+        }
+            
         // Basecase: "On the nose" equality.
         //
         // TODO: Use equiv module instead, to relate alpha-equiv terms.
@@ -1174,7 +1202,7 @@ pub mod subset {
                     }
                     // Subcase 5: "Other: Say 'No'"
                     a => {
-                        if true {
+                        if false {
                             println!("======================================================= BEGIN");
                             println!("decide_idxtm_subset: Cannot decide subset:");
                             println!(" Superset (candidate):\n\t{:?}", &b);

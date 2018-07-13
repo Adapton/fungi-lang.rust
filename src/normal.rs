@@ -614,6 +614,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
             }
 
             IdxTm::MapStar(n1, i2) => {
+                println!("Here?");
                 let n1 = normal_nmtm_rec(ctx, n1);
                 let i2 = normal_idxtm_rec(ctx, i2);
                 match ((*n1).clone(), (*i2).clone()) {
@@ -1025,6 +1026,7 @@ pub fn idxtm_of_nmsettms(tms:&NmSetTms) -> IdxTm {
 ///  8. type applications in head normal form.
 /// 
 pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
+    //println!("normal_type: {:?}", typ);
     match typ {
         // normal forms:
         &Type::Unit         |

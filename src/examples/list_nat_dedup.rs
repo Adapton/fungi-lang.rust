@@ -1,5 +1,4 @@
 pub mod dynamic_tests {
-
     /* 
      * Try the following at the command line:
      * 
@@ -104,6 +103,14 @@ pub mod dynamic_tests {
     }}
 }
 
+pub mod static_tests {
+    #[test]
+    pub fn typing() { fgi_listing_test!{
+        use super::*;
+        ret 0
+    }}
+}
+
 //
 // Fungi module: hash tries with names, holding natural numbers
 //
@@ -146,17 +153,17 @@ fgi_mod!{
         unsafe (2) trapdoor::nat_hash_bit
     }
     
-    fn nat_print:(
-        Thk[0] 0 Nat -> 0 F Unit
-    ) = {
-        unsafe (1) trapdoor::nat_print
-    }
+    // fn nat_print:(
+    //     Thk[0] 0 Nat -> 0 F Unit
+    // ) = {
+    //     unsafe (1) trapdoor::nat_print
+    // }
     
-    fn nat_print2:(
-        Thk[0] 0 Nat -> 0 Nat -> 0 F Unit
-    ) = {
-        unsafe (2) trapdoor::nat_print2
-    }
+    // fn nat_print2:(
+    //     Thk[0] 0 Nat -> 0 Nat -> 0 F Unit
+    // ) = {
+    //     unsafe (2) trapdoor::nat_print2
+    // }
 
     fn print_found_duplicate:(
         Thk[0] 0 Nat -> 0 F Unit
@@ -167,26 +174,35 @@ fgi_mod!{
     /// Like child fn, but returns both children, and the fact that
     /// the names in the pair of children are apart.
     fn children:(
-        Thk[0] forall (X,Y):NmSet. 
+        Thk[0] foralli (X,Y):NmSet. 
             0 Trie[X][Y] ->
         {0;Y} F exists (X1,X2):NmSet|((X1%X2):NmSet). 
             (x Trie[X1][Y] 
-             x Trie[X1][Y]
+             x Trie[X2][Y]
             )
     ) = { 
         #t.
-        let emp : (Trie[0][0]) = {ref (@@trie_emp) roll inj1 ()}
         let tt = {get t}
         unroll match tt {
-            _emp => { ret pack (0,0) (emp, emp) }
-            leaf => { ret pack (0,0) (emp, emp) }
-            bin  => { ret bin }
+            _emp => { 
+                let emp : (Trie[0][0]) = {
+                    ref (@@trie_emp) roll inj1 ()
+                }
+                ret pack (0,0) (emp, emp)
+            }
+            leaf => { 
+                let emp : (Trie[0][0]) = {
+                    ref (@@trie_emp) roll inj1 ()
+                }
+                ret pack (0,0) (emp, emp)
+            }
+            bin => { ret bin }
         }
     }
 
     /// True if the given trie is a leaf holding the given nat
     fn is_leaf_with_nat:(
-        Thk[0] forall (X,Y):NmSet. 
+        Thk[0] foralli (X,Y):NmSet. 
             0 Trie[X][Y] -> 0 Nat -> {0;Y} F Bool
     ) = {
         #t. #n.
@@ -212,8 +228,8 @@ fgi_mod!{
     }
             
     fn trie_replrec:(
-        Thk[0] forall (X1,X2,Y):NmSet | ((X1%X2)=X:NmSet).
-            forall ni:Nm.
+        Thk[0] foralli (X1,X2,Y):NmSet | ((X1%X2)=X:NmSet).
+            foralli ni:Nm.
             0 Trie[X1][Y] -> 
             0 Nm[X2] -> 
             0 Nat -> 
@@ -226,71 +242,76 @@ fgi_mod!{
         #t. #x. #y. #i. #ni.
         if {i == 12} {
             // base case: create trie leaf node
-            let b = {{force is_leaf_with_nat} t y}
-            let r = {ref {x,ni} roll inj2 inj1 (x, y)}
-            ret (r, b)
+            let r = {ret ()}
+            let r = {ret ()}
+            let r = {ret ()}
+            let b = {{force is_leaf_with_nat}[X1][Y] t y}
+            let r = {ret ()}
+            //let r = {ref {x,ni} roll inj2 inj1 (x, y)}
+            ret ()
         } else {
             // recursive case
-            let j   = {i + 1}
-            let nj  = {(name []),ni}
-            let tc = {{force children} t}
-            unpack (Xl, Xr) tc = tc
-            let (lc,rc) = {ret tc}
-            let bit = {{force nat_hash_bit} y i}
-            let (lr, b) = {
-                if ( bit ) {
-                    let (tx, b) = {{force trie_replrec}[X1][X2][Y] lc x y j nj}
-                    ret (pack (Xl % X2, Xr) (tx, rc), b)
-                } else {
-                    let (tx, b) = {{force trie_replrec}[X1][X2][Y] rc x y j nj}
-                    ret (pack (Xl, Xr % X2) (lc, tx), b)
-                }
-            }
-            let r = { ref {x,ni} roll inj2 inj2 lr }
-            ret (r, b)
+            //let j   = {i + 1}
+            //let nj  = {(name []),ni}
+            //let tc = {{force children}[X1][Y] t}
+            // unpack (Xl, Xr) tc = tc
+            // let (lc,rc) = {ret tc}
+            // let bit = {{force nat_hash_bit} y i}
+            // let (lr, b) = {
+            //     if ( bit ) {
+            //         let (tx, b) = {{force trie_replrec}[X1][X2][Y] lc x y j nj}
+            //         ret (pack (Xl % X2, Xr) (tx, rc), b)
+            //     } else {
+            //         let (tx, b) = {{force trie_replrec}[X1][X2][Y] rc x y j nj}
+            //         ret (pack (Xl, Xr % X2) (lc, tx), b)
+            //     }
+            // }
+            // let r = { ref {x,ni} roll inj2 inj2 lr }
+            // ret (r, b)
+            ret ()
         }
     }
 
-    fn trie_replace:(
-        Thk[0] forall (X1,X2,Y):NmSet | ((X1%X2)=X:NmSet).
-            forall ni:Nm.
-            0 Trie[X1][Y] -> 
-            0 Nm[X2] -> 
-            0 Nat -> 
-        {{WS_Trie} X; Y}
-        F (x Trie[X1 % X2][Y U ({WS_Trie} X1)] 
-           x Bool)
-    ) = {
-        #t.#x.#y. {force trie_replrec}[X1][X2][Y] t x y 0 (name [])
-    }
+    // fn trie_replace:(
+    //     Thk[0] foralli (X1,X2,Y):NmSet | ((X1%X2)=X:NmSet).
+    //         foralli ni:Nm.
+    //         0 Trie[X1][Y] -> 
+    //         0 Nm[X2] -> 
+    //         0 Nat -> 
+    //     {{WS_Trie} X; Y}
+    //     F (x Trie[X1 % X2][Y U ({WS_Trie} X1)] 
+    //        x Bool)
+    // ) = {
+    //     #t.#x.#y. {force trie_replrec}[X1][X2][Y] t x y 0 (name [])
+    // }
 
-    fn dedup:(
-        Thk[0] forall (X1,X2,Y):NmSet.
-            0 RefList[X1][Y] -> 
-            0 RefTrie[X2][Y] ->
-            {{WS_Dedup} X; Y}
-        F RefList[X1][{@!}X1] [{@!}X1]
-    ) = {
-        #l. #t. let ln = {get l} unroll match ln {
-            _u => { ret l }
-            c => {
-                unpack (X1a,X1b,Y1,Y2) c = c
-                let (x, y, ys) = {ret c}
-                //let _x = {{force nat_print} y}
-                //let _x = {{force nat_print} y}
-                let (tx, b) = { ws(@@t){ {force trie_replace}[X1a][Y] t x y }}
-                let (_r,r) = { memo{(@@dd),x}{ {force dedup}[X1b][(X1a%X2)][Y2] ys tx} }
-                if ( b ) { 
-                    ret r 
-                } else {
-                    ref {(@@r),x} 
-                    roll inj2 
-                        pack (X1a,X1b,{WS_Dedup} X1a, {WS_Dedup} X1b) 
-                        (x, y, r)
-                }
-            }
-        }
-    }
+    // fn dedup:(
+    //     Thk[0] foralli (X1,X2,Y):NmSet.
+    //         0 RefList[X1][Y] -> 
+    //         0 RefTrie[X2][Y] ->
+    //         {{WS_Dedup} X; Y}
+    //     F RefList[X1][{@!}X1] [{@!}X1]
+    // ) = {
+    //     #l. #t. let ln = {get l} unroll match ln {
+    //         _u => { ret l }
+    //         c => {
+    //             unpack (X1a,X1b,Y1,Y2) c = c
+    //             let (x, y, ys) = {ret c}
+    //             //let _x = {{force nat_print} y}
+    //             //let _x = {{force nat_print} y}
+    //             let (tx, b) = { ws(@@t){ {force trie_replace}[X1a][Y] t x y }}
+    //             let (_r,r) = { memo{(@@dd),x}{ {force dedup}[X1b][(X1a%X2)][Y2] ys tx} }
+    //             if ( b ) { 
+    //                 ret r 
+    //             } else {
+    //                 ref {(@@r),x} 
+    //                 roll inj2 
+    //                     pack (X1a,X1b,{WS_Dedup} X1a, {WS_Dedup} X1b) 
+    //                     (x, y, r)
+    //             }
+    //         }
+    //     }
+    // }
 }
 
 pub mod trapdoor {

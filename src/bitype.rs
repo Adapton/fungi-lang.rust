@@ -1786,8 +1786,10 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             match (ed.clas.clone(), id.clas.clone())  {
                 (Ok(ec), Ok(_is)) => { match ec {
                     CEffect::ForallIdx(x, _g, p, ce) => {
+                        //println!("BEGIN: subst");
                         let _p = subst::subst_term_prop(Term::IdxTm(i.clone()), &x, p);
                         let ce = subst::subst_term_ceffect(Term::IdxTm(i.clone()), &x, (*ce).clone());
+                        //println!("END: subst");
                         // XXX/TODO need to prove (decide) that p is true
                         let td = ExpRule::IdxApp(ed,id);
                         succ(td, ce)
@@ -1806,7 +1808,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let td0 = synth_val(ext, ctx, v);
             let typ0 = td0.clas.clone();
             let td = ExpRule::Get(td0);
-            match typ0 {
+            match typ0.map(|a| normal::normal_type(ctx, &a)) {
                 Err(_) => fail(td, TypeError::SynthFailVal(v.clone())),
                 Ok(Type::Ref(ref idx,ref ty)) => succ(td, CEffect::Cons(
                     CType::Lift((**ty).clone()),
@@ -1972,6 +1974,28 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                 _ => fail(td, TypeError::ParamMism(0))
             }
         },
+        &Exp::PrimApp(PrimApp::NatEq(ref v0,ref v1)) => {
+            let td0 = synth_val(ext, ctx, v0);
+            let td1 = synth_val(ext, ctx, v1);
+            let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
+            let td = ExpRule::PrimApp(PrimAppRule::NatEq(td0,td1));
+            match (typ0,typ1) {
+                (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
+                (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
+                (Ok(Type::Ident(ref n0)), Ok(Type::Ident(ref n1)))
+                if (n0 == "Nat") && (n1 == "Nat") => {
+                    let ce = CEffect::Cons(
+                        CType::Lift(Type::Ident("Bool".to_string())),
+                        Effect::WR(IdxTm::Empty, IdxTm::Empty),
+                    );
+                    succ(td, ce)
+                },
+                (Ok(Type::Ident(ref n0)),_) if n0 == "Nat" => {
+                    fail(td, TypeError::ParamMism(1))
+                },
+                _ => fail(td, TypeError::ParamMism(0))
+            }
+        },
         &Exp::Unimp => {
             let td = ExpRule::Unimp;
             fail(td, TypeError::NoSynthRule)
@@ -2059,13 +2083,6 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let td0 = synth_val(ext, ctx, v0);
             let td1 = synth_val(ext, ctx, v1);
             let td = ExpRule::NameFnApp(td0,td1);
-            // TODO: implement
-            fail(td, TypeError::Unimplemented)
-        },
-        &Exp::PrimApp(PrimApp::NatEq(ref v0,ref v1)) => {
-            let td0 = synth_val(ext, ctx, v0);
-            let td1 = synth_val(ext, ctx, v1);
-            let td = ExpRule::PrimApp(PrimAppRule::NatEq(td0,td1));
             // TODO: implement
             fail(td, TypeError::Unimplemented)
         },
@@ -2163,6 +2180,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
             }
             let (ctx, ceffect) = strip_foralls(ctx, ceffect);            
             if let CEffect::Cons(CType::Arrow(ref at,ref et),ref _ef) = ceffect {
+                println!("Lam {} : {:?}", x, at);
                 let new_ctx = ctx.var(x.clone(),at.clone());
                 let td1 = check_exp(ext, &new_ctx, e, et);
                 let typ1 = td1.clas.clone();
@@ -2173,7 +2191,10 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 // }
                 match typ1 {
                     Err(_) => fail(td, TypeError::CheckFailCEffect(ceffect.clone())),
-                    Ok(_) => succ(td, ceffect.clone()),
+                    Ok(_) => {
+                        println!("OK: Lam {} : {:?}", x, at);
+                        succ(td, ceffect.clone())
+                    },
                 }
             } else { fail(ExpRule::Lam(
                 x.clone(), synth_exp(ext, &ctx, e)
@@ -2278,6 +2299,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
         &Exp::Let(ref x, ref e1, ref e2) => {
             if let CEffect::Cons(ref ctyp, ref eff3) = *ceffect {
                 let td1 = synth_exp(ext, ctx, e1);
+                println!("Let {} : {:?} in ... <= {:?}", x, td1.clas.clone(), ceffect);
                 let typ1 = td1.clas.clone();
                 match typ1 {
                     Err(ref err) => {
@@ -2286,6 +2308,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                         synth_exp(ext, ctx, e2)
                     ), err.clone()) },
                     Ok(CEffect::Cons(CType::Lift(ref ct1), ref eff1)) => {
+                        println!("Decide subtraction: BEGIN...");
                         match decide::effect::decide_effect_subtraction(
                             ctx,
                             /* TODO: Get role from ext structure */
@@ -2293,6 +2316,8 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                             eff3.clone(), eff1.clone())
                         {
                             Ok(eff2) => {
+                                println!("Decide subtraction: OK.");
+
                                 let new_ctx = ctx.var(x.clone(),ct1.clone());
                                 let typ2 = CEffect::Cons(ctyp.clone(), eff2);
                                 let td2 = check_exp(ext, &new_ctx, e2, &typ2);
@@ -2304,6 +2329,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                                 }
                             }
                             Err(err) => {
+                                println!("Decide subtraction: Effect Error.");
                                 fail(ExpRule::Let(
                                     x.clone(), td1,
                                     synth_exp(ext,ctx,e2)
@@ -2367,8 +2393,12 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
         },
         &Exp::IfThenElse(ref v, ref e1, ref e2) => {
             let td0 = synth_val(ext, ctx, v);
+            println!("IfThenElse: Check Then: BEGIN");
             let td1 = check_exp(ext, ctx, e1, ceffect);
+            println!("IfThenElse: Check Then: END");
+            println!("IfThenElse: Check Else: BEGIN");
             let td2 = check_exp(ext, ctx, e2, ceffect);
+            println!("IfThenElse: Check Else: END");
             let v_ty = td0.clas.clone().map(|a| normal::normal_type(ctx, &a));
             let (_t0,t1,t2) = (td0.clas.clone(),td1.clas.clone(),td2.clas.clone());
             let td = ExpRule::IfThenElse(td0,td1,td2);
@@ -2377,6 +2407,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 (_,Err(_),_) => fail(td, TypeError::ParamNoCheck(1)),
                 (_,_,Err(_)) => fail(td, TypeError::ParamNoCheck(2)),
                 (Ok(Type::Ident(ref b)),_,_) if b == "Bool" => {
+                    println!("OK: IfThenElse");
                     // the exps are correct, because of the check above
                     succ(td, ceffect.clone())
                 },
