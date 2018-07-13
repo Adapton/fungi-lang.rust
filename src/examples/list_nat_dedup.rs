@@ -271,46 +271,46 @@ fgi_mod!{
         }
     }
 
-    // fn trie_replace:(
-    //     Thk[0] foralli (X1,X2,Y):NmSet | ((X1%X2)=X:NmSet).
-    //         foralli ni:Nm.
-    //         0 Trie[X1][Y] -> 
-    //         0 Nm[X2] -> 
-    //         0 Nat -> 
-    //     {{WS_Trie} X; Y}
-    //     F (x Trie[X1 % X2][Y U ({WS_Trie} X1)] 
-    //        x Bool)
-    // ) = {
-    //     #t.#x.#y. {force trie_replrec}[X1][X2][Y] t x y 0 (name [])
-    // }
+    fn trie_replace:(
+        Thk[0] foralli (X1,X2,Y):NmSet | ((X1%X2)=X:NmSet).
+            foralli ni:Nm.
+            0 Trie[X1][Y] -> 
+            0 Nm[X2] -> 
+            0 Nat -> 
+        {{WS_Trie} X; Y}
+        F (x Trie[X1 % X2][Y U ({WS_Trie} X1)] 
+           x Bool)
+    ) = {
+        #t.#x.#y. {force trie_replrec}[X1][X2][Y] t x y 0 (name [])
+    }
 
-    // fn dedup:(
-    //     Thk[0] foralli (X1,X2,Y):NmSet.
-    //         0 RefList[X1][Y] -> 
-    //         0 RefTrie[X2][Y] ->
-    //         {{WS_Dedup} X; Y}
-    //     F RefList[X1][{@!}X1] [{@!}X1]
-    // ) = {
-    //     #l. #t. let ln = {get l} unroll match ln {
-    //         _u => { ret l }
-    //         c => {
-    //             unpack (X1a,X1b,Y1,Y2) c = c
-    //             let (x, y, ys) = {ret c}
-    //             //let _x = {{force nat_print} y}
-    //             //let _x = {{force nat_print} y}
-    //             let (tx, b) = { ws(@@t){ {force trie_replace}[X1a][Y] t x y }}
-    //             let (_r,r) = { memo{(@@dd),x}{ {force dedup}[X1b][(X1a%X2)][Y2] ys tx} }
-    //             if ( b ) { 
-    //                 ret r 
-    //             } else {
-    //                 ref {(@@r),x} 
-    //                 roll inj2 
-    //                     pack (X1a,X1b,{WS_Dedup} X1a, {WS_Dedup} X1b) 
-    //                     (x, y, r)
-    //             }
-    //         }
-    //     }
-    // }
+    fn dedup:(
+        Thk[0] foralli (X1,X2,Y):NmSet.
+            0 RefList[X1][Y] -> 
+            0 RefTrie[X2][Y] ->
+            {{WS_Dedup} X; Y}
+        F RefList[X1][{@!}X1] [{@!}X1]
+    ) = {
+        #l. #t. let ln = {get l} unroll match ln {
+            _u => { ret l }
+            c => {
+                unpack (X1a,X1b,Y1,Y2) c = c
+                let (x, y, ys) = {ret c}
+                //let _x = {{force nat_print} y}
+                //let _x = {{force nat_print} y}
+                let (tx, b) = { ws(@@t){ {force trie_replace}[X1a][Y] t x y }}
+                let (_r,r) = { memo{(@@dd),x}{ {force dedup}[X1b][(X1a%X2)][Y2] ys tx} }
+                if ( b ) { 
+                    ret r 
+                } else {
+                    ref {(@@r),x} 
+                    roll inj2 
+                        pack (X1a,X1b,{WS_Dedup} X1a, {WS_Dedup} X1b) 
+                        (x, y, r)
+                }
+            }
+        }
+    }
 }
 
 pub mod trapdoor {
