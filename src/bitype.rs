@@ -682,7 +682,11 @@ fn failure<R:HasClas+debug::DerRule>
     if let Some(lbl) = ext.last_label.clone() {print!("After {}, ", lbl)}
     let is_local_err = error_is_local(&err);
     
-    println!("Failed to {} {} {}, error: {}", dir.short(), R::term_desc(), n.short(), err);
+    println!("{}Failed to {} {} {}, error: {}{}",
+             {if is_local_err { "\x1B[1;31m" }
+              else            { "\x1B[2;31m" }},
+             dir.short(), R::term_desc(), n.short(), 
+             err, "\x1B[0;0m");
     if is_local_err {
         println!("  Failure term: {}", debug_truncate(&tm));
     }
@@ -2313,9 +2317,9 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
          */
         &Exp::Let(ref x, ref e1, ref e2) => {
             if let CEffect::Cons(ref ctyp, ref eff3) = *ceffect {
-                println!("\x1B[1;33mlet\x1B[2m {} : ?\x1B[0;0m", x);
+                println!("\x1B[1;33mlet\x1B[2m {} = ... \x1B[1m==> ?\x1B[0;0m", x);
                 let td1 = synth_exp(ext, ctx, e1);
-                println!("\x1B[1;33mlet\x1B[2m {} : \n\t\x1B[1;32m{:?}\n\t\x1B[1;33min ...<= {:?}\x1B[0;0m", 
+                println!("\x1B[1;33mlet\x1B[2m {} = ... \x1B[0;1m==>\n\t\x1B[1;32m{:?}\n  \x1B[1;33min\x1B[0;0m ... \x1B[1m<==\x1B[2;35m {:?}\x1B[0;0m", 
                          x, td1.clas.clone(), ceffect);
                 let typ1 = td1.clas.clone();
                 match typ1 {

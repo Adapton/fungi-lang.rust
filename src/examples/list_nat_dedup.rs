@@ -121,14 +121,15 @@ fgi_mod!{
     /// elements, not the hashes of the names.
     ///
     type Trie  = (
-        foralli (X,Y):NmSet. Ref[Y] rec trie.
-            ( + Unit 
-                + (x Nm[X] x Nat)
-                + (exists (X1,X2):NmSet| ((X1%X2)=X:NmSet).
-                   (x (Ref[Y](trie[X1][Y]))
-                    x (Ref[Y](trie[X2][Y])))
-                )
-            )
+        foralli (Z1,Z2):NmSet. Ref[Z2] 
+            (rec trie. foralli (X,Y):NmSet.
+             ( + Unit 
+                 + (x Nm[X] x Nat)
+                 + (exists (X1,X2):NmSet| ((X1%X2)=X:NmSet).
+                    (x (Ref[Y](trie[X1][Y]))
+                     x (Ref[Y](trie[X2][Y])))
+                 )
+             ))[Z1][Z2]
     );
     
     // Names as natural numbers
