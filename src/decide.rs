@@ -295,35 +295,61 @@ pub mod effect {
         Result::Ok(i_minus_j)
     }
     
+    pub fn test_idxtm_equiv(ctx:&Ctx, i:&IdxTm, j:&IdxTm) -> bool {
+        let id = bitype::synth_idxtm(&Ext::empty(), ctx, i);
+        let jd = bitype::synth_idxtm(&Ext::empty(), ctx, j);       
+        match id.clas {
+            Result::Ok(ref sort) => {
+                let rctx = super::relctx_of_ctx(ctx);
+                let eq = equiv::decide_idxtm_equiv(&rctx, &id, &jd, sort);
+                match eq.res {
+                    Result::Ok(true) => true,
+                    _ => false
+                }
+            }
+            _ => false
+        }
+    }
+
+    pub fn test_idxtm_empty(ctx:&Ctx, i:&IdxTm) -> bool {
+        test_idxtm_equiv(ctx, i, &IdxTm::Empty)
+    }
+
     /// Tactic to find an index term `j2` such that `i = j % j2`
     ///
     /// TODO: "Verify" the results using our decision procedures; return those derivations with the term that we find
     pub fn decide_idxtm_subtraction(ctx:&Ctx, i:IdxTm, j:IdxTm) -> Result<IdxTm, Error> {
-        println!("decide_idxtm_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &i, &j);
-        let eq = {
-            let id = bitype::synth_idxtm(&Ext::empty(), ctx, &i);
-            let jd = bitype::synth_idxtm(&Ext::empty(), ctx, &j);       
-            match id.clas {
-                Result::Ok(ref sort) => {
-                    let rctx = super::relctx_of_ctx(ctx);
-                    let eq = equiv::decide_idxtm_equiv(&rctx, &id, &jd, sort);
-                    match eq.res {
-                        Result::Ok(true) => true,
-                        _ => false
-                    }
-                }
-                _ => false
-            }
+        println!("\x1B[0;1mdecide_idxtm_subtraction:\x1B[0;0m\n From:\n\t{:?}\n Subtract:\n\t{:?}", &i, &j);
+        if test_idxtm_empty(ctx, &j) {
+            // Special (but common) case: The second index is the empty name set. The result is the first index.
+            println!("decide_idxtm_subtraction:\n\tEmpty second term.");
+            return Result::Ok(i)
         };
-        if eq {
+        if test_idxtm_equiv(ctx, &i, &j) {
             // Special (but common) case: They are equal.  
             // The result is the emptyset.
+            println!("decide_idxtm_subtraction:\n\tEqual.");
             return Result::Ok(IdxTm::Empty)
+        } else {
+            println!("^decide_idxtm_subtraction:\n\tNot (yet) apparently equal.");
         };
-        // Next, try normalizing, and testing more cases
-        let ni = normal::normal_idxtm(ctx, i);
+        // Next, try normalizing, and testing equality again, and then failing that, more cases
+        let ni = normal::normal_idxtm(ctx, i.clone());
         let nj = normal::normal_idxtm(ctx, j);
-        println!("^decide_idxtm_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &ni, &nj);
+        println!("^decide_idxtm_subtraction (after normalizing each term):\n From:\n\t{:?}\n Subtract:\n\t{:?}", &ni, &nj);
+        if test_idxtm_empty(ctx, &nj) {
+            // Special (but common) case: The second index is the empty name set. The result is the first index.
+            println!("decide_idxtm_subtraction:\n\tEmpty second term.");
+            return Result::Ok(i)
+        };
+        if test_idxtm_equiv(ctx, &ni, &nj) {
+            // Special (but common) case: They are equal.  
+            // The result is the emptyset.
+            println!("decide_idxtm_subtraction:\n\tEqual.");
+            return Result::Ok(IdxTm::Empty)
+        } else {
+            println!("^decide_idxtm_subtraction:\n\tNot (apparently) equal.");
+        };
         match (ni, nj) {
             (IdxTm::Var(x), j) => {
                 let xdef = bitype::find_defs_for_idxtm_var(&ctx, &x);
@@ -376,12 +402,12 @@ pub mod effect {
             Result::Ok(eff1.clone())
         }
         else {
-            //println!("decide_effect_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &eff1, &eff2);
+            println!("\x1B[0;1mdecide_effect_subtraction:\x1B[0;0m\n From:\n\t{:?}\n Subtract:\n\t{:?}", &eff1, &eff2);
             match (eff1.clone(), eff2.clone()) {
                 (Effect::WR(wr1, rd1), Effect::WR(wr2, rd2)) => {
-                    println!("BEGIN decide_idxtm_subtraction");
+                    //println!("BEGIN decide_idxtm_subtraction");
                     let wr3 = decide_idxtm_subtraction(ctx, wr1, wr2);
-                    println!("END decide_idxtm_subtraction");
+                    //println!("END decide_idxtm_subtraction");
                     use super::subset;
                     let rdsub = subset::decide_idxtm_subset(
                         &super::relctx_of_ctx(ctx),

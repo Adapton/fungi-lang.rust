@@ -1682,7 +1682,6 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             }
         },
         &Exp::Ref(ref v1,ref v2) => {
-            println!("Ref synth rule.");
             let td0 = synth_val(ext, ctx, v1);
             let td1 = synth_val(ext, ctx, v2);
             let (tp0,typ1) = (td0.clas.clone(),td1.clas.clone());
@@ -1851,9 +1850,9 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
         
          */
         &Exp::Let(ref x, ref e1, ref e2) => {
-            println!("\x1B[1;33mlet\x1B[2m {} = ... \x1B[1m==> ?\x1B[0;0m", x);
+            println!("\x1B[1;33mlet\x1B[2;36m {}\x1B[0;1m = ... \x1B[0;1m==> ?\x1B[0;0m", x);
             let td1 = synth_exp(ext, ctx, e1);
-            println!("\x1B[1;33mlet\x1B[2m {} = ... \x1B[0;1m==>\n\t\x1B[1;32m{:?}\n  \x1B[1;33min\x1B[0;0m ... \x1B[1m==>\x1B[2;35m ?\x1B[0;0m",
+            println!("\x1B[1;33mlet\x1B[1;36m {}\x1B[0;1m = ... \x1B[0;1m==>\n\t\x1B[1;32m{:?}\n  \x1B[1;33min\x1B[0;0m ... \x1B[1m==>\x1B[2;35m ?\x1B[0;0m",
                      x, td1.clas.clone());
             match td1.clas.clone() {
                 Err(_) => fail(ExpRule::Let(x.clone(),td1,
@@ -2196,10 +2195,12 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
             fn strip_foralls (ctx:&Ctx, ceffect:&CEffect) -> (Ctx, CEffect) {
                 match ceffect {
                     &CEffect::ForallType(ref a, ref k, ref ceffect) => {
+                        println!("\x1B[1;33mforall\x1B[1;36m {} \x1B[0;1m: \x1B[2;35m{:?}\x1B[0;0m", a, k);
                         let ctx = ctx.tvar(a.clone(), k.clone());
                         strip_foralls(&ctx, ceffect)
                     },
                     &CEffect::ForallIdx(ref a, ref g, ref p, ref ceffect) => {
+                        println!("\x1B[1;33mforalli\x1B[1;36m {} \x1B[0;1m: \x1B[2;35m{:?}\x1B[0;0m", a, g);
                         let ctx = ctx.ivar(a.clone(),g.clone());
                         let ctx = ctx.prop(p.clone());
                         strip_foralls(&ctx, ceffect)
@@ -2210,7 +2211,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
             }
             let (ctx, ceffect) = strip_foralls(ctx, ceffect);            
             if let CEffect::Cons(CType::Arrow(ref at,ref et),ref _ef) = ceffect {
-                println!("\x1B[1;33mlam\x1B[2m {} : \x1B[2;35m{:?}\x1B[0;0m", x, at);
+                println!("\x1B[1;33mlam\x1B[1;36m {} \x1B[0;1m: \x1B[2;35m{:?}\x1B[0;0m", x, at);
                 let new_ctx = ctx.var(x.clone(),at.clone());
                 let td1 = check_exp(ext, &new_ctx, e, et);
                 let typ1 = td1.clas.clone();
@@ -2327,9 +2328,9 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
          */
         &Exp::Let(ref x, ref e1, ref e2) => {
             if let CEffect::Cons(ref ctyp, ref eff3) = *ceffect {
-                println!("\x1B[1;33mlet\x1B[2m {} = ... \x1B[1m==> ?\x1B[0;0m", x);
+                println!("\x1B[1;33mlet\x1B[1;36m {}\x1B[0;1m = ... ==> ?\x1B[0;0m", x);
                 let td1 = synth_exp(ext, ctx, e1);
-                println!("\x1B[1;33mlet\x1B[2m {} = ... \x1B[0;1m==>\n\t\x1B[1;32m{:?}\n  \x1B[1;33min\x1B[0;0m ... \x1B[1m<==\x1B[2;35m {:?}\x1B[0;0m", 
+                println!("\x1B[1;33mlet\x1B[1;36m {}\x1B[0;1m = ... ==>\n\t\x1B[1;32m{:?}\n  \x1B[1;33min\x1B[0;0m ... \x1B[1m<==\x1B[2;35m {:?}\x1B[0;0m", 
                          x, td1.clas.clone(), ceffect);
                 let typ1 = td1.clas.clone();
                 match typ1 {
@@ -2339,7 +2340,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                         synth_exp(ext, ctx, e2)
                     ), err.clone()) },
                     Ok(CEffect::Cons(CType::Lift(ref ct1), ref eff1)) => {
-                        println!("Decide subtraction: BEGIN...");
+                        println!("\x1B[0;1mDecide effect subtraction: Begin\x1B[0;0m...");
                         match decide::effect::decide_effect_subtraction(
                             ctx,
                             /* TODO: Get role from ext structure */
@@ -2347,7 +2348,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                             eff3.clone(), eff1.clone())
                         {
                             Ok(eff2) => {
-                                println!("Decide subtraction: OK.");
+                                println!("\x1B[0;1mDecide effect subtraction: \x1B[0;1;32mOK\x1B[0;1m.");
 
                                 let new_ctx = ctx.var(x.clone(),ct1.clone());
                                 let typ2 = CEffect::Cons(ctyp.clone(), eff2);
@@ -2360,7 +2361,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                                 }
                             }
                             Err(err) => {
-                                println!("Decide subtraction: Effect Error.");
+                                println!("\x1B[0;1mDecide effect subtraction: \x1B[0;1;31mError\x1B[0;1m.");
                                 fail(ExpRule::Let(
                                     x.clone(), td1,
                                     synth_exp(ext,ctx,e2)
