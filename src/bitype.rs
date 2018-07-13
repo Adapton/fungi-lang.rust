@@ -2313,8 +2313,10 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
          */
         &Exp::Let(ref x, ref e1, ref e2) => {
             if let CEffect::Cons(ref ctyp, ref eff3) = *ceffect {
+                println!("\x1B[1;33mlet\x1B[2m {} : ?\x1B[0;0m", x);
                 let td1 = synth_exp(ext, ctx, e1);
-                println!("Let {} : {:?} in ... <= {:?}", x, td1.clas.clone(), ceffect);
+                println!("\x1B[1;33mlet\x1B[2m {} : \n\t\x1B[1;32m{:?}\n\t\x1B[1;33min ...<= {:?}\x1B[0;0m", 
+                         x, td1.clas.clone(), ceffect);
                 let typ1 = td1.clas.clone();
                 match typ1 {
                     Err(ref err) => {
