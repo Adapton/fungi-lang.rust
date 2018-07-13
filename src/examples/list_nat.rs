@@ -355,6 +355,13 @@ fgi_mod!{
     }
 }
 
+pub mod static_tests {
+    #[test]
+    pub fn typing() { fgi_listing_test!{
+        use super::*;
+        ret 0
+    }}
+}
 
 pub mod dynamic_tests {
     /* 

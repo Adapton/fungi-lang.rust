@@ -1567,6 +1567,7 @@ pub fn synth_items(ext:&Ext, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
                 decls = d;
             }
             &Decls::Fn(ref f, ref a, ref e, ref d) => {
+                println!("\x1B[1;4;37mfn \x1B[2;33m{}\x1B[0;1m Begin check...\x1B[0;0m", f);
                 let v : Val = fgi_val![ thunk fix ^f. ^e.clone() ];
                 let a2 = a.clone();
                 let der = check_val(ext, &ctx, &v, a);
@@ -1579,6 +1580,13 @@ pub fn synth_items(ext:&Ext, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
                                DeclRule::Fn(f.clone(), der),
                                der_typ.map(|_| DeclClas::Type(a2)))
                 };
+                println!("\x1B[1;4;37mfn \x1B[1;33m{}\x1B[0;1m Done (\x1B[0;0m{}\x1B[0;1m).", f,
+                         if let Ok(_) = der.der.clas.clone() {
+                             "\x1B[1;32mCheck OK"
+                         } else {
+                             "\x1B[1;31mCheck error"
+                         }
+                );
                 ctx = ctx.var(f.clone(), a.clone());
                 tds.push(ItemRule::Bind(der));
                 doc = None;
@@ -2199,7 +2207,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
             }
             let (ctx, ceffect) = strip_foralls(ctx, ceffect);            
             if let CEffect::Cons(CType::Arrow(ref at,ref et),ref _ef) = ceffect {
-                println!("Lam {} : {:?}", x, at);
+                println!("\x1B[1;33mlam\x1B[2m {} : \x1B[2;35m{:?}\x1B[0;0m", x, at);
                 let new_ctx = ctx.var(x.clone(),at.clone());
                 let td1 = check_exp(ext, &new_ctx, e, et);
                 let typ1 = td1.clas.clone();
@@ -2211,7 +2219,6 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 match typ1 {
                     Err(_) => fail(td, TypeError::CheckFailCEffect(ceffect.clone())),
                     Ok(_) => {
-                        println!("OK: Lam {} : {:?}", x, at);
                         succ(td, ceffect.clone())
                     },
                 }
