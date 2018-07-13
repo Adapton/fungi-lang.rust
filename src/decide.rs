@@ -300,6 +300,27 @@ pub mod effect {
     /// TODO: "Verify" the results using our decision procedures; return those derivations with the term that we find
     pub fn decide_idxtm_subtraction(ctx:&Ctx, i:IdxTm, j:IdxTm) -> Result<IdxTm, Error> {
         println!("decide_idxtm_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &i, &j);
+        let eq = {
+            let id = bitype::synth_idxtm(&Ext::empty(), ctx, &i);
+            let jd = bitype::synth_idxtm(&Ext::empty(), ctx, &j);       
+            match id.clas {
+                Result::Ok(ref sort) => {
+                    let rctx = super::relctx_of_ctx(ctx);
+                    let eq = equiv::decide_idxtm_equiv(&rctx, &id, &jd, sort);
+                    match eq.res {
+                        Result::Ok(true) => true,
+                        _ => false
+                    }
+                }
+                _ => false
+            }
+        };
+        if eq {
+            // Special (but common) case: They are equal.  
+            // The result is the emptyset.
+            return Result::Ok(IdxTm::Empty)
+        };
+        // Next, try normalizing, and testing more cases
         let ni = normal::normal_idxtm(ctx, i);
         let nj = normal::normal_idxtm(ctx, j);
         println!("^decide_idxtm_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &ni, &nj);
