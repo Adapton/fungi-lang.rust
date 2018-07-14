@@ -425,7 +425,7 @@ pub mod effect {
                         (Err(err),_) => Result::Err(err),
                         // TODO-someday: gather all errors together
                         (_,Err(err)) => {
-                            if false {
+                            if true {
                                 println!("======================================================= BEGIN");
                                 println!("decide_effect_subtraction: Cannot decide read subset:");
                                 println!(" Error: {:?}\n", err);

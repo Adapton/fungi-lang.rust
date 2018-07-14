@@ -66,7 +66,10 @@ pub mod name;
 /// [Fungi listing](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/pure_list_nat.rs.html)
 pub mod pure_list_nat;
 
+pub mod ref_edit;
+
 pub mod list_nat;
+pub mod list_nat_edit;
 pub mod trie_nat;
 
 pub mod list_nat_dedup;

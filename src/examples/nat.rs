@@ -15,10 +15,7 @@ fgi_mod!{
     type OpNat  = (+ Unit + Nat );
 
     /// If the given number is even, return its successor
-    fn nat_succ_even:(
-        Thk[0]
-            0 Thk[0] 0 Nat -> 0 F OpNat
-    ) = {
+    fn nat_succ_even:(Thk[0] 0 Nat -> 0 F OpNat) = {
         #n. if {{force nat_is_odd} n} {
             let m = {n + 1}
             ret inj2 m

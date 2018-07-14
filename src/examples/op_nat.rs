@@ -1,18 +1,21 @@
-#[test]
-pub fn listing0 () { fgi_listing_test![
-    decls {
-        /// Optional natural numbers
-        type OpNat  = (+ Unit + Nat );
+use examples::nat;
+//
+// Fungi module: Optional natural numbers
+//
+fgi_mod!{
+    use nat::*;
 
-        /// Optional pairs of natural numbers
-        type Op2Nat = (+ Unit + (x Nat x Nat));
-    }
+    /// Optional natural numbers
+    type OpNat  = (+ Unit + Nat );
+    
+    /// Optional pairs of natural numbers
+    type Op2Nat = (+ Unit + (x Nat x Nat));
 
     // Split an optional pair of natural into a pair of optional naturals
-    let opnat_split:(
+    fn opnat_split:(
         Thk[0] 0 Op2Nat -> 0 F (x OpNat x OpNat)
     ) = {
-        ret thunk #xyo. match (xyo) {
+        #xyo. match (xyo) {
             _u => {
                 ret (inj1 (), inj1 ())
             }
@@ -23,10 +26,10 @@ pub fn listing0 () { fgi_listing_test![
     }
 
     // Pair two optional naturals into an optional pair of naturals
-    let opnat_pair:(
+    fn opnat_pair:(
         Thk[0] 0 (x OpNat x OpNat) -> 0 F (Op2Nat)
     ) = {
-        ret thunk #xoyo. let (xo,yo) = { ret xoyo }
+        #xoyo. let (xo,yo) = { ret xoyo }
         match (xo) {
             _u => { ret inj1 () }
             x  => { match (yo) {
@@ -37,12 +40,12 @@ pub fn listing0 () { fgi_listing_test![
     }
 
     // Filter an optional natural number, using a natural number predicate
-    let opnat_filter_nat:(
+    fn opnat_filter_nat:(
         Thk[0] 0 OpNat ->
             0 (Thk[0] 0 Nat -> 0 F Bool) ->
             0 F OpNat
     ) = {
-        ret thunk #opnat.#pred.
+        #opnat.#pred.
         match opnat {
             _u => {
                 // no number to filter
@@ -63,10 +66,10 @@ pub fn listing0 () { fgi_listing_test![
 
 
     // Compute the maximum optional natural number (among a pair)
-    let opnat_max:(
+    fn opnat_max:(
         Thk[0] 0 OpNat -> 0 OpNat -> 0 F OpNat
     ) = {
-        ret thunk #xo.#yo.
+        #xo.#yo.
         match (xo) {
             _u  => { ret yo }
             x => { match (yo) {
@@ -79,5 +82,24 @@ pub fn listing0 () { fgi_listing_test![
         }
     }
 
-    ret 0
-]}
+    /// If the given number is even, return its successor
+    fn nat_succ_even:(
+        Thk[0]
+            0 Nat -> 0 F OpNat
+    ) = {
+        #n. if {{force nat_is_odd} n} {
+            let m = {n + 1}
+            ret inj2 m
+        } else {
+            ret inj1 ()
+        }
+    }
+}
+
+pub mod static_tests {
+    #[test]
+    pub fn typing() { fgi_listing_test!{
+        use super::*;
+        ret 0
+    }}
+}

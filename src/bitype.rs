@@ -1567,7 +1567,7 @@ pub fn synth_items(ext:&Ext, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
                 decls = d;
             }
             &Decls::Fn(ref f, ref a, ref e, ref d) => {
-                println!("\x1B[1;4;37mfn \x1B[2;33m{}\x1B[0;1m Begin check...\x1B[0;0m", f);
+                println!("\x1B[1;33mfn \x1B[1;36;4;m{}\x1B[0;1m Begin check...\x1B[0;0m", f);
                 let v : Val = fgi_val![ thunk fix ^f. ^e.clone() ];
                 let a2 = a.clone();
                 let der = check_val(ext, &ctx, &v, a);
@@ -1580,7 +1580,7 @@ pub fn synth_items(ext:&Ext, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
                                DeclRule::Fn(f.clone(), der),
                                der_typ.map(|_| DeclClas::Type(a2)))
                 };
-                println!("\x1B[1;4;37mfn \x1B[1;33m{}\x1B[0;1m Done (\x1B[0;0m{}\x1B[0;1m).", f,
+                println!("\x1B[1;33mfn \x1B[1;36;4;m{}\x1B[0;1m Done (\x1B[0;0m{}\x1B[0;1m).", f,
                          if let Ok(_) = der.der.clas.clone() {
                              "\x1B[1;32mCheck OK"
                          } else {

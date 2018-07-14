@@ -20,6 +20,7 @@ use ast::*;
 use adapton::engine;
 // use serialize::ArtDef;
 
+use shared::Shared;
 use std::rc::Rc;
 
 //use serde::Serialize;
@@ -31,10 +32,11 @@ pub enum Env {
     Cons(Var,RtVal,EnvRec)
 }
 #[derive(Clone,Eq,PartialEq,Hash,Serialize)]
-pub struct EnvRec { rec:Rc<Env> }
+//pub struct EnvRec { rec:Rc<Env> }
+pub struct EnvRec { rec:Shared<Env> }
 
 pub fn env_emp() -> EnvRec {
-    EnvRec{rec:Rc::new(Env::Empty)}
+    EnvRec{rec:Shared::new(Env::Empty)}
 }
 
 pub fn env_find(env:&EnvRec, x:&Var) -> Option<RtVal> {
@@ -51,7 +53,7 @@ pub fn env_find(env:&EnvRec, x:&Var) -> Option<RtVal> {
 }
 
 pub fn env_push(env:&EnvRec, x:&Var, v:RtVal) -> EnvRec {
-    EnvRec{rec:Rc::new(Env::Cons(x.clone(), v, env.clone()))}
+    EnvRec{rec:Shared::new(Env::Cons(x.clone(), v, env.clone()))}
 }
 
 /// Run-time values. Compare to [ast::Val](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Val.html).
