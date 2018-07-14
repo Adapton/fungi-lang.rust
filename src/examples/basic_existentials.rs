@@ -1,5 +1,5 @@
 #[test]
-pub fn listing0 () { fgi_listing_test![
+pub fn listing0 () { fgi_listing_expect![ [Expect::SuccessxXXX]
 
     let foo:(
         Thk[0] foralli (X,Y):NmSet.
@@ -24,7 +24,7 @@ pub fn listing0 () { fgi_listing_test![
 
 
 #[test]
-pub fn listing1 () { fgi_listing_test![
+pub fn listing1 () { fgi_listing_expect![ [Expect::SuccessxXXX]
     let foo:(
         Thk[0] foralli (X,Y,Z):NmSet.
             0 Bool ->

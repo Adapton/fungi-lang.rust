@@ -82,9 +82,9 @@ pub fn listing0_fail1_synth () { fgi_listing_expect![
 
 #[test]
 pub fn listing0_fail2_check () { fgi_listing_expect![
-    [Expect::Failure]
+    [Expect::FailurexXXX]
 
-    let set:(
+     let set:(
         Thk[0] foralli X:NmSet.
             0 Nm[X] -> 0 Nat ->
         { {@!} X ; 0 }
@@ -92,7 +92,7 @@ pub fn listing0_fail2_check () { fgi_listing_expect![
     ) = {
         ret thunk #n.#x.
             let r = { ref n x }
-            ref n x  // <------------ double-write to `n`
+            ref n x  // <------------ double-write to `n` -- TODO: FInish effect checks for ref check rule.
     }
     ret 0
 ]}

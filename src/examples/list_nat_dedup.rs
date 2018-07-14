@@ -8,10 +8,11 @@ pub mod dynamic_tests {
      *
      */
     #[test]
-    pub fn short_20_2() { use examples::list_nat; fgi_dynamic_trace!{
+    pub fn short_20_2() { use examples::{list_nat, list_nat_edit}; fgi_dynamic_trace!{
         [Expect::SuccessxXXX]
         use super::*;
         use list_nat::*;
+        use list_nat_edit::*;
         
         /// Generate input
         let list1  = {ws(@@inp) {force gen} 20 }
@@ -104,7 +105,7 @@ pub mod dynamic_tests {
 }
 
 pub mod static_tests {
-    #[test]
+    //#[test]
     pub fn typing() { fgi_listing_test!{
         use super::*;
         ret 0

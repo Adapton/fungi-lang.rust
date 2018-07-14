@@ -1856,7 +1856,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                      x, td1.clas.clone());
             match td1.clas.clone() {
                 Err(_) => fail(ExpRule::Let(x.clone(),td1,
-                    synth_exp(ext, ctx, e2)
+                    synth_exp(ext, &ctx, e2)
                 ), TypeError::ParamNoSynth(1)),
                 Ok(CEffect::Cons(CType::Lift(ty1), eff1)) => {
                     let new_ctx = ctx.var(x.clone(), ty1);
@@ -1883,7 +1883,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                                     //println!("{:?}", err);
                                     fail(ExpRule::Let(
                                         x.clone(), td1,
-                                        synth_exp(ext, ctx, e2)
+                                        synth_exp(ext, &new_ctx, e2)
                                     ), TypeError::EffectError(err))
                                 }
                             }
@@ -2341,6 +2341,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                     ), err.clone()) },
                     Ok(CEffect::Cons(CType::Lift(ref ct1), ref eff1)) => {
                         println!("\x1B[0;1mDecide effect subtraction: Begin\x1B[0;0m...");
+                        let new_ctx = ctx.var(x.clone(),ct1.clone());
                         match decide::effect::decide_effect_subtraction(
                             ctx,
                             /* TODO: Get role from ext structure */
@@ -2349,8 +2350,6 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                         {
                             Ok(eff2) => {
                                 println!("\x1B[0;1mDecide effect subtraction: \x1B[0;1;32mOK\x1B[0;1m.");
-
-                                let new_ctx = ctx.var(x.clone(),ct1.clone());
                                 let typ2 = CEffect::Cons(ctyp.clone(), eff2);
                                 let td2 = check_exp(ext, &new_ctx, e2, &typ2);
                                 let typ2res = td2.clas.clone();
@@ -2364,7 +2363,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                                 println!("\x1B[0;1mDecide effect subtraction: \x1B[0;1;31mError\x1B[0;1m.");
                                 fail(ExpRule::Let(
                                     x.clone(), td1,
-                                    synth_exp(ext,ctx,e2)
+                                    synth_exp(ext,&new_ctx,e2)
                                 ), TypeError::EffectError(err))
                             }
                         }
@@ -2475,7 +2474,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 CType::Lift(Type::Ref(ref _rf_idx,ref a)),
                 Effect::WR(ref _w, ref _r)
             ) = nceffect {
-                //println!("Ref check rule; value type is {:?}", a);
+                println!("Ref check rule; value type is {:?}", a);
                 let td0 = synth_val(ext, ctx, v1);
                 let td0ty = td0.clas.clone();
                 let td1 = check_val(ext, ctx, v2, a);

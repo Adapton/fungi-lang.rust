@@ -70,8 +70,11 @@ pub mod ref_edit;
 
 pub mod list_nat;
 pub mod list_nat_edit;
-pub mod trie_nat;
 
+// Wait unti dedup is finished, then seed trie_nat module with that implementation.
+//pub mod trie_nat;
+
+// Kleene closure problem here; also, divergence.
 pub mod list_nat_dedup;
 
 pub mod seq_nat;
