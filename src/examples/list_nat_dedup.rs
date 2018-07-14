@@ -122,16 +122,20 @@ fgi_mod!{
     /// elements, not the hashes of the names.
     ///
     type Trie  = (
-        foralli (Z1,Z2):NmSet. Ref[Z2] 
-            (rec trie. foralli (X,Y):NmSet.
-             ( + Unit 
-                 + (x Nm[X] x Nat)
-                 + (exists (X1,X2):NmSet| ((X1%X2)=X:NmSet).
-                    (x (Ref[Y](trie[X1][Y]))
-                     x (Ref[Y](trie[X2][Y])))
-                 )
-             ))[Z1][Z2]
+        rec trie. 
+            foralli (X,Y):NmSet.
+            ( + Unit 
+                + (x Nm[X] x Nat)
+                + (exists (X1,X2):NmSet| ((X1%X2)=X:NmSet).
+                   (x (Ref[Y](trie[X1][Y]))
+                    x (Ref[Y](trie[X2][Y])))
+                )
+            )
     );
+    type RefTrie = (
+        foralli (X,Y):NmSet.
+            Ref[Y] (Trie[X][Y])
+    );        
     
     // Names as natural numbers
     nmtm Zero  = ([]);
@@ -178,23 +182,23 @@ fgi_mod!{
     /// the names in the pair of children are apart.
     fn children:(
         Thk[0] foralli (X,Y):NmSet. 
-            0 Trie[X][Y] ->
+            0 RefTrie[X][Y] ->
         {0;Y} F exists (X1,X2):NmSet|((X1%X2)=X:NmSet).
-            (x Trie[X1][Y] 
-             x Trie[X2][Y]
+            (x RefTrie[X1][Y] 
+             x RefTrie[X2][Y]
             )
     ) = { 
         #t.
         let tt = {get t}
         unroll match tt {
             _emp => { 
-                let emp : (Trie[0][0]) = {
+                let emp : (RefTrie[0][0]) = {
                     ref (@@trie_emp) roll inj1 ()
                 }
                 ret pack (0,0) (emp, emp)
             }
             leaf => { 
-                let emp : (Trie[0][0]) = {
+                let emp : (RefTrie[0][0]) = {
                     ref (@@trie_emp) roll inj1 ()
                 }
                 ret pack (0,0) (emp, emp)
@@ -206,7 +210,7 @@ fgi_mod!{
     /// True if the given trie is a leaf holding the given nat
     fn is_leaf_with_nat:(
         Thk[0] foralli (X,Y):NmSet. 
-            0 Trie[X][Y] -> 0 Nat -> {0;Y} F Bool
+            0 RefTrie[X][Y] -> 0 Nat -> {0;Y} F Bool
     ) = {
         #t. #n.
         let tt = {get t}
@@ -233,20 +237,20 @@ fgi_mod!{
     fn trie_replrec:(
         Thk[0] foralli (X1,X2,Y):NmSet | ((X1%X2)=X:NmSet).
             foralli ni:Nm.
-            0 Trie[X1][Y] -> 
+            0 RefTrie[X1][Y] -> 
             0 Nm[X2] -> 
             0 Nat -> 
             0 Nat -> 
             0 Nm[{ni}] -> 
         {{WS_Trie} X2; Y}
-        F (x Trie[X1 % X2][Y U ({WS_Trie} X2)]
+        F (x RefTrie[X1 % X2][Y U ({WS_Trie} X2)]
            x Bool)
     ) = {
         #t. #x. #y. #i. #ni.
         if {i == 12} {
             // base case: create trie leaf node
             let b = {{force is_leaf_with_nat}[X1][Y] t y}
-            let r : (Trie[X2][{WS_Trie} X2]) = {
+            let r : (RefTrie[X2][{WS_Trie} X2]) = {
                 ref {x,ni} roll inj2 inj1 (x, y)
             }
             ret (r, b)
@@ -260,13 +264,13 @@ fgi_mod!{
             let bit = {{force nat_hash_bit} y i}
             if ( bit ) {
                 let (tx, b) = {{force trie_replrec}[X1][X2][Y][{[],ni}] lc x y j nj}
-                let r : (Trie[X1 % X2][Y U ({WS_Trie} X2)]) = {
+                let r : (RefTrie[X1 % X2][Y U ({WS_Trie} X2)]) = {
                     ref {x,ni} roll inj2 inj2 pack (Xl % X2, Xr) (tx, rc)
                 }
                 ret (r, b)
             } else {
                 let (tx, b) = {{force trie_replrec}[X1][X2][Y][{[],ni}] rc x y j nj}
-                let r : (Trie[X1 % X2][Y U ({WS_Trie} X2)]) = {
+                let r : (RefTrie[X1 % X2][Y U ({WS_Trie} X2)]) = {
                     ref {x,ni} roll inj2 inj2 pack (Xl % X2, Xr) (lc, tx)
                 }
                 ret (r, b)
@@ -277,11 +281,11 @@ fgi_mod!{
     fn trie_replace:(
         Thk[0] foralli (X1,X2,Y):NmSet | ((X1%X2)=X:NmSet).
             foralli ni:Nm.
-            0 Trie[X1][Y] -> 
+            0 RefTrie[X1][Y] -> 
             0 Nm[X2] -> 
             0 Nat -> 
         {{WS_Trie} X; Y}
-        F (x Trie[X1 % X2][Y U ({WS_Trie} X1)] 
+        F (x RefTrie[X1 % X2][Y U ({WS_Trie} X1)] 
            x Bool)
     ) = {
         #t.#x.#y. {force trie_replrec}[X1][X2][Y] t x y 0 (name [])

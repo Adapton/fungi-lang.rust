@@ -26,6 +26,11 @@ fgi_mod!{
              )
             )
     );
+    /// References to sequences of natural numbers
+    type RefSeq = (
+        foralli (X,Y):NmSet. 
+            Ref[Y](Seq[X][Y])
+    );
 }
 
 // TODO implement this stuff somewhere else:
