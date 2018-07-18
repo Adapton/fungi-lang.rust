@@ -403,10 +403,12 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                               for t in ns.terms.iter() {
                                   match t {
                                       &NmSetTm::Single(ref n) => {
+                                          println!("Here? 1");
                                           let tm = normal_idxtm(ctx, IdxTm::Bin(Rc::new(IdxTm::Sing(n.clone())), Rc::new(j.clone())));
                                           nmset_terms_add(ns.cons.clone(), &mut terms, NmSetTm::Subset(tm))
                                       }
                                       &NmSetTm::Subset(ref i) => {
+                                          println!("Here? 2");
                                           let tm = normal_idxtm(ctx, IdxTm::Bin(Rc::new(i.clone()), Rc::new(j.clone())));
                                           nmset_terms_add(ns.cons.clone(), &mut terms, NmSetTm::Subset(tm));
                                       }
@@ -533,11 +535,13 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                 r
                             },
                             i2 => {
+                                println!("Here? 3");
                                 normal_idxtm(ctx, IdxTm::Map(Rc::new(NameTm::WriteScope), Rc::new(i2)))
                             }
                         }
                     },
                     IdxTm::Lam(x,_gx,i11) => {
+                        println!("Here? 4");
                         let i11 = subst::subst_term_idxtm(Term::IdxTm((*i2).clone()), &x, (*i11).clone());
                         normal_idxtm(ctx, i11)
                     }
@@ -564,10 +568,12 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                 for t in ns.terms.iter() {
                                     match t {
                                         &NmSetTm::Single(ref n) => {
+                                            println!("Here? 5");
                                             let tm = normal_idxtm(ctx, IdxTm::Map(n1.clone(), Rc::new(IdxTm::Sing(n.clone()))));
                                             nmset_terms_add(ns.cons.clone(), &mut terms, NmSetTm::Subset(tm))
                                         }
                                         &NmSetTm::Subset(ref i) => {
+                                            println!("Here? 6");
                                             let tm = normal_idxtm(ctx, IdxTm::Map(n1.clone(), Rc::new(i.clone())));
                                             nmset_terms_add(ns.cons.clone(), &mut terms, NmSetTm::Subset(tm));
                                         }
@@ -611,7 +617,9 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                     Single(normal_nmtm(ctx, NameTm::App(Rc::new(NameTm::WriteScope), Rc::new(n.clone()))))
                                 }
                                 Subset(i) => {
-                                    Subset(normal_idxtm(ctx, IdxTm::Map(Rc::new(NameTm::WriteScope), Rc::new(i))))
+                                    println!("Here? 7");
+                                    // FIX(?): Divergent loop: Subset(normal_idxtm(ctx, IdxTm::Map(Rc::new(NameTm::WriteScope), Rc::new(i))))
+                                    Subset(IdxTm::Map(Rc::new(NameTm::WriteScope), Rc::new(i)))
                                 }
                             };
                             nmset_terms_add(ns2.cons.clone(), &mut terms, mapped_tm)
@@ -647,10 +655,12 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                 for t in ns.terms.iter() {
                                     match t {
                                         &NmSetTm::Single(ref n) => {
+                                            println!("Here? 8");                                            
                                             let tm = normal_idxtm(ctx, IdxTm::MapStar(n1.clone(), Rc::new(IdxTm::Sing(n.clone()))));
                                             nmset_terms_add(ns.cons.clone(), &mut terms, NmSetTm::Subset(tm));
                                         }
                                         &NmSetTm::Subset(ref i) => {
+                                            println!("Here? 9");                                            
                                             let tm = normal_idxtm(ctx, IdxTm::MapStar(n1.clone(), Rc::new(i.clone())));
                                             nmset_terms_add(ns.cons.clone(), &mut terms, NmSetTm::Subset(tm));
                                         }
@@ -735,6 +745,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                     }
                                 }
                                 Subset(i) => {
+                                    println!("Here? 9");
                                     nmset_terms_add(
                                         ns2.cons.clone(),
                                         &mut terms,
@@ -764,10 +775,12 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                 for t in ns.terms.iter() {
                                     match t {
                                         &NmSetTm::Single(ref n) => {
+                                            println!("Here? 10");
                                             let tm = normal_idxtm(ctx, IdxTm::FlatMap(i1.clone(), Rc::new(IdxTm::Sing(n.clone()))));
                                             nmset_terms_add(ns.cons.clone(), &mut terms, NmSetTm::Subset(tm))
                                         }
                                         &NmSetTm::Subset(ref i) => {
+                                            println!("Here? 11");
                                             let tm = normal_idxtm(ctx, IdxTm::FlatMap(i1.clone(), Rc::new(i.clone())));
                                             nmset_terms_add(ns.cons.clone(), &mut terms, NmSetTm::Subset(tm));
                                         }
@@ -789,6 +802,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                     // the function and re-expose this set structure.
                     (IdxTm::Lam(x,gx,body), j) => { match (*body).clone() {
                         IdxTm::Sing(body_nmtm) => {
+                            println!("Here? 11");
                             //println!("XXX Lam Sing");
                             //println!(" ************** \n Name term body:\n\t{:?}", body_nmtm);
                             normal_idxtm(
@@ -799,6 +813,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                         },
                         // XXX/TODO -- Same reasoning for Unions?
                         IdxTm::Apart(body_l, body_r) => {
+                            println!("Here? 12");
                             //println!(" ************** \n Left:\n\t{:?}\n Right:\n\t{:?}", body_l, body_r);
                             normal_idxtm(
                                 ctx,
@@ -855,6 +870,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                 for t in ns.terms.iter() {
                                     match t {
                                         &NmSetTm::Single(ref n) => {
+                                            println!("Here? 12");
                                             let tm = normal_idxtm(ctx, IdxTm::FlatMapStar(i.clone(), Rc::new(IdxTm::Sing(n.clone()))));
                                             nmset_terms_add(
                                                 ns.cons.clone(),
@@ -863,6 +879,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                             );
                                         }
                                         &NmSetTm::Subset(ref j) => {
+                                            println!("Here? 13");
                                             let tm = normal_idxtm(ctx, IdxTm::FlatMapStar(i.clone(), Rc::new(j.clone())));
                                             nmset_terms_add(
                                                 ns.cons.clone(),
@@ -890,6 +907,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                         IdxTm::Sing(body_nmtm) => {
                             //println!("Here? -- normalize MapStar");
                             //println!(" ************** \n Name term body:\n\t{:?}", body_nmtm);
+                            println!("Here? 14");
                             normal_idxtm(
                                 ctx,
                                 IdxTm::MapStar(Rc::new(NameTm::Lam(x,gx,Rc::new(body_nmtm))), j)
@@ -897,6 +915,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                         },
                         // XXX/TODO -- Same reasoning for Unions?                        
                         IdxTm::Apart(body_l, body_r) => {
+                            println!("Here? 15");
                             //println!(" ************** \n Left:\n\t{:?}\n Right:\n\t{:?}", body_l, body_r);
                             normal_idxtm(
                                 ctx,

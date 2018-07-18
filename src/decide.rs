@@ -334,9 +334,11 @@ pub mod effect {
             println!("^decide_idxtm_subtraction:\n\tNot (yet) apparently equal.");
         };
         // Next, try normalizing, and testing equality again, and then failing that, more cases
+        println!("^decide_idxtm_subtraction: normalizing index terms...");
         let ni = normal::normal_idxtm(ctx, i.clone());
         let nj = normal::normal_idxtm(ctx, j);
-        println!("^decide_idxtm_subtraction (after normalizing each term):\n From:\n\t{:?}\n Subtract:\n\t{:?}", &ni, &nj);
+        println!("^decide_idxtm_subtraction: normalizing index terms: done.");
+        println!("^decide_idxtm_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &ni, &nj);
         if test_idxtm_empty(ctx, &nj) {
             // Special (but common) case: The second index is the empty name set. The result is the first index.
             println!("decide_idxtm_subtraction:\n\tEmpty second term.");
