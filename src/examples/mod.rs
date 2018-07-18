@@ -25,9 +25,16 @@ Basic patterns from functional programming (FP), in the _"pure"_ fragment of Fun
 - [`op_nat`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/op_nat.rs.html) --- Simple primitives for optional natural numbers
 - [`pure_list_nat`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/pure_list_nat.rs.html) --- Simple primitives for lists of natural numbers
 
+### Lists
+
+Linked lists whose cons cells contain names, and whose tail pointers are (named) reference cells.
+
+- [`list_nat`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/list_nat.rs.html) --- Primitives for lists of natural numbers
+- [`list_nat_dedup`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/list_nat.rs.html) --- Deduplicate input list elements; uses a hash trie
+
 ### Sequences
 
-Sequences of natural numbers, represented as probabilistically-balanced binary trees (level trees):
+Sequences of natural numbers, represented as probabilistically-balanced binary trees (level trees), with names and reference cells:
 - [`seq_max`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/seq_max.rs.html)
 --- finds the maximum element in a sequence.
  - [`seq_filter`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/seq_filter.rs.html)
@@ -85,7 +92,6 @@ pub mod seq_nat_bfs;
 pub mod seq_nat_dfs_lazy;
 pub mod stream_nat;
 
-/*
 /// Find the maximum element in a sequence
 ///
 /// [Fungi listing](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/seq_max.rs.html)
@@ -95,7 +101,6 @@ pub mod seq_max;
 ///
 /// [Fungi listing](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/seq_filter.rs.html)
 pub mod seq_filter;
-*/
 
 // --- In progress:
 //pub mod set_join;
