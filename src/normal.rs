@@ -1054,7 +1054,6 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
         &Type::Unit         |
         &Type::Var(_)       |
         &Type::Sum(_, _)    |
-        &Type::Prod(_, _)   |
         &Type::Thk(_, _)    |
         &Type::Ref(_, _)    |
         &Type::Rec(_, _)    |
@@ -1062,10 +1061,23 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
         &Type::NmFn(_)      |
         &Type::TypeFn(_,_,_)|
         &Type::IdxFn(_,_,_) |
-        &Type::NoParse(_)   |
-        &Type::Exists(_,_,_,_)
+        &Type::NoParse(_)   
+        //&Type::Exists(_,_,_,_)
             =>
             typ.clone(),
+
+        &Type::Prod(ref a, ref b) => {
+            Type::Prod(Rc::new(normal_type(ctx, a)), 
+                       Rc::new(normal_type(ctx, b)))
+        }
+
+        &Type::Exists(ref x, ref g, ref p, ref t) => {
+            // TODO: Normalize name/index terms in proposition(s) p.
+            // TODO: Extend context.
+            //let xctx = ctx.var
+            let t2 = normal_type(ctx, t);
+            Type::Exists(x.clone(), g.clone(), p.clone(), Rc::new(t2))
+        }
 
         &Type::Ident(ref ident) => { match ident.as_str() {
             // Built-in primitives are normal; they lack a definition in the context:

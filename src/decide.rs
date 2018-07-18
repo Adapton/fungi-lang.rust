@@ -1484,9 +1484,10 @@ pub mod subset {
     pub fn decide_type_subset_norm(ctx: &RelCtx, a:Type, b:Type) -> bool {
         // TODO-someday: Make this operation cheaper somehow (use traits in a clever way?)
         let (ctx1, ctx2) = ctxs_of_relctx((*ctx).clone());
+        println!("decide_type_subset_norm: Begin...:\n\t{:?}\nand:\n\t{:?}", a, b);
         let a = normal::normal_type(&ctx1, &a);
         let b = normal::normal_type(&ctx2, &b);
-        //println!("decide_type_subset_norm: BEGIN:\n\t{:?}\n\t{:?}", a, b);
+        println!("decide_type_subset_norm: Normalized:\n\t{:?}\nand:\n\t{:?}", a, b);
         decide_type_subset(ctx, a, b)
     }
 
@@ -1581,7 +1582,10 @@ pub mod subset {
                         &ctx.add_tvars(x1, x2),
                         a1, a2)
                 }                
-                (_,_) => false,
+                (x,y) => {
+                    println!("Not equivalent:\n\t{:?}\nand:\n\t{:?}", x, y);
+                    false
+                }
             }
         }        
     }

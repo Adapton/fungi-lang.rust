@@ -30,7 +30,7 @@ Basic patterns from functional programming (FP), in the _"pure"_ fragment of Fun
 Linked lists whose cons cells contain names, and whose tail pointers are (named) reference cells.
 
 - [`list_nat`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/list_nat.rs.html) --- Primitives for lists of natural numbers
-- [`list_nat_dedup`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/list_nat.rs.html) --- Deduplicate input list elements; uses a hash trie
+- [`list_nat_dedup`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/list_nat_dedup.rs.html) --- Deduplicate input list elements; uses a hash trie
 
 ### Sequences
 
