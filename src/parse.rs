@@ -74,14 +74,16 @@ macro_rules! fgi_name {
 /// ```text
 /// M,N ::=
 ///     fromast ast_expr    (inject ast nodes)
-///     [N]                 (parens)
+///     (N)                 (parens)
 ///     @@                  (write scope; sort Nm -> Nm)
-///     @n                  (unique name constant for number n)
+///     @12345              (name literal)
+///     @@hello             (name literal)
 ///     #a:g.M              (abstraction)
 ///     [M] N ...           (curried application)
 ///     a                   (Variable)
 ///     ~x                  (Value variable)
-///     M, N, ...           (extended bin)   <<--- DEPRECATED: Use `N * M * ...` instead
+///     M * N               (binary composition)
+///     M * N * ...         (extended binary composition)
 ///     n                   (literal Name)
 /// ```
 #[macro_export]
@@ -89,41 +91,15 @@ macro_rules! fgi_nametm {
     //     fromast ast_expr    (inject ast nodes)
     { fromast $ast:expr } => { $ast };
     { ^ $ast:expr } => { $ast };
-    //     [N]                 (parens)
-    { [$($nmtm:tt)+] } => { fgi_nametm![$($nmtm)+] };
-    //
+    //     ( N )                 (parens)
+    { ( $($nmtm:tt)+ ) } => { fgi_nametm![$($nmtm)+] };
+    // @@str (symbol)
+    { @@$s:ident } => { NameTm::Name(Name::Sym(stringify![$s].to_string())) };
+    // @123 (number)
+    { @$n:expr } => { NameTm::Name(Name::Num($n)) };
+    // write scope
     { @@ } => { NameTm::WriteScope };
-    // @n1 * @n2         <--------------- "*" preferred over ","
-    { @$nm1:tt * @$nm2:tt } => {
-        NameTm::Bin(
-            Rc::new(NameTm::Name(fgi_name![@$nm1])),
-            Rc::new(fgi_nametm![@$nm2])
-        )
-    };
-    // ~x * M         <--------------- "*" preferred over ","
-    { ~ $x:ident * $m:tt } => {
-        NameTm::Bin(
-            Rc::new((fgi_nametm![~$x])),
-            Rc::new(fgi_nametm![$m])
-        )
-    };
-    // @n1 * M         <--------------- "*" preferred over ","
-    { @$nm1:tt * $m:tt } => {
-        NameTm::Bin(
-            Rc::new(NameTm::Name(fgi_name![@$nm1])),
-            Rc::new(fgi_nametm![$m])
-        )
-    };
-    // N * M         <--------------- "*" preferred over ","
-    { @$n:tt * $m:tt } => {
-        NameTm::Bin(
-            Rc::new(fgi_nametm![$n]),
-            Rc::new(fgi_nametm![$m])
-        )
-    };
-    //     @n                  (literal name)
-    { @$($nm:tt)+ } => { NameTm::Name(fgi_name![@$($nm)+]) };
-    //     #a:g.M                (abstraction)
+    //
     { # $var:ident : $sort:tt . $($body:tt)+ } => { NameTm::Lam(
         stringify![$var].to_string(),
         fgi_sort![$sort],
@@ -142,11 +118,22 @@ macro_rules! fgi_nametm {
         )] $($pars)+]
     };
     //     a                   (Variable)
-    { $var:ident } => { NameTm::Var(stringify![$var].to_string()) };
+    { $var:ident } => { 
+        NameTm::Var(stringify![$var].to_string()) 
+    };
     //   ~ x                   (Value variable)
-    { ~ $var:ident } => { NameTm::ValVar(stringify![$var].to_string()) };
-    //     M, N, ...           (extended bin, literal names)
-    { $($nmtms:tt)+ } => { split_comma![parse_fgi_name_bin <= $($nmtms)+]};
+    { ~ $var:ident } => { 
+        NameTm::ValVar(stringify![$var].to_string()) 
+    };
+    //   N * M
+    { $n:tt * $m:tt } => {
+        NameTm::Bin(
+            Rc::new(fgi_nametm![$n]),
+            Rc::new(fgi_nametm![$m])
+        )
+    };
+    //     M * N * ...           (extended bin, literal names)
+    { $($nmtms:tt)+ } => { split_star![parse_fgi_name_bin <= $($nmtms)+]};
     // failure
     { $($any:tt)* } => { NameTm::NoParse(stringify![$($any)*].to_string())};
 }
@@ -1736,4 +1723,39 @@ macro_rules! split_comma {
         $fun![$($first)*]
     };
 }
-
+#[macro_export]
+/// run a macro on a list of lists after splitting the input
+macro_rules! split_star {
+    // no defaults
+    {$fun:ident <= $($item:tt)*} => {
+        split_star![$fun () () () <= $($item)*]
+    };
+    // give initial params to the function
+    {$fun:ident ($($first:tt)*) <= $($item:tt)*} => {
+        split_star![$fun ($($first)*) () () <= $($item)*]
+    };
+    // give inital params and initial inner items in every group
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) <= $($item:tt)*} => {
+        split_star![$fun ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
+    };
+    // on non-final seperator, stash the accumulator and restart it
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= * $($item:tt)+} => {
+        split_star![$fun ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*]
+    };
+    // ignore final seperator, run the function
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= * } => {
+        $fun![$($first)* ($($current)*)]
+    };
+    // on next item, add it to the accumulator
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= $next:tt $($item:tt)*} => {
+        split_star![$fun ($($first)*) ($($every)*) ($($current)* $next)  <= $($item)*]
+    };
+    // at end of items, run the function
+    {$fun:ident ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= } => {
+        $fun![$($first)* ($($current)*)]
+    };
+    // if there were no items and no default, run with only initial params, if any
+    {$fun:ident ($($first:tt)*) () () <= } => {
+        $fun![$($first)*]
+    };
+}

@@ -173,7 +173,7 @@ fgi_mod!{
 
     // Names as natural numbers
     nmtm  Zero = ([]);
-    idxtm Succ = (#x:Nm.{[],x});
+    idxtm Succ = (#x:Nm.{[] * x});
     idxtm Gte  = (#x:Nm. (Succ)^* {x});
     idxtm Nat  = ({Gte} (nmtm []));
 
@@ -282,19 +282,19 @@ fgi_mod!{
         } else {
             // recursive case
             let j   = {i + 1}
-            let nj  = {(name []),ni}
+            let nj  = {(name []) , ni}
             let tc = {{force children}[X1][Y] t}
             unpack (Xl, Xr) tc = tc
             let (lc,rc) = {ret tc}
             let bit = {{force nat_hash_bit} y i}
             if ( bit ) {
-                let (tx, b) = {{force trie_replrec}[X1][X2][Y][{[],ni}] lc x y j nj}
+                let (tx, b) = {{force trie_replrec}[X1][X2][Y][{[]*ni}] lc x y j nj}
                 let r : (RefTrie[X1 % X2][Y U ({WS_Trie} X2)]) = {
                     ref {x,ni} roll inj2 inj2 pack (Xl % X2, Xr) (tx, rc)
                 }
                 ret (r, b)
             } else {
-                let (tx, b) = {{force trie_replrec}[X1][X2][Y][{[],ni}] rc x y j nj}
+                let (tx, b) = {{force trie_replrec}[X1][X2][Y][{[]*ni}] rc x y j nj}
                 let r : (RefTrie[X1 % X2][Y U ({WS_Trie} X2)]) = {
                     ref {x,ni} roll inj2 inj2 pack (Xl % X2, Xr) (lc, tx)
                 }
@@ -331,7 +331,7 @@ fgi_mod!{
                 unpack (X1a, X1b) c = c
                 let (x, y, ys) = {ret c}
                 //let _x = {{force nat_print} y}
-                let (tx, b) = { ws(nmfn [#x:Nm. @@t * t]){ {force trie_replace}[X2][X1a][Y] t x y }}
+                let (tx, b) = { ws(nmfn #x:Nm.@@t * x){ {force trie_replace}[X2][X1a][Y] t x y }}
                 let (_r,r) = { memo{(@@dd),x}{ {force dedup}[X1b][(X1a%X2)][Y] ys tx} }
                 if ( b ) { 
                     ret r 
