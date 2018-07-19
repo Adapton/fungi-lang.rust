@@ -2544,7 +2544,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 match td0.clas.clone() {
                     Ok(Type::NmFn(nmlamb)) => {
                         let new_scope = fgi_nametm![
-                            #n:Nm.[^ext.write_scope.clone()][[^nmlamb] n]
+                            #n:Nm.[^ext.write_scope.clone()]([^nmlamb] n)
                         ];
                         let new_ext = Ext{write_scope:new_scope, ..ext.clone()};
                         let td1 = check_exp(&new_ext,ctx,e,ceffect);
