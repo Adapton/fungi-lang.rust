@@ -302,17 +302,23 @@ pub mod effect {
             Result::Ok(ref sort) => {
                 let rctx = super::relctx_of_ctx(ctx);
                 let eq = equiv::decide_idxtm_equiv(&rctx, &id, &jd, sort);
+                //println!("test_idxtm_equiv: {:?} =({})= {:?}", i, eq.res == Result::Ok(true), j);
                 match eq.res {
                     Result::Ok(true) => true,
                     _ => false
                 }
             }
-            _ => false
+            _ => {
+                println!("sorting error for terms: {:?} and {:?}", i, j);
+                false
+            }
         }
     }
 
     pub fn test_idxtm_empty(ctx:&Ctx, i:&IdxTm) -> bool {
-        test_idxtm_equiv(ctx, i, &IdxTm::Empty)
+        test_idxtm_equiv(ctx, 
+                         &normal::normal_idxtm(ctx, i.clone()), 
+                         &normal::normal_idxtm(ctx, IdxTm::Empty))
     }
 
     /// Tactic to find an index term `j2` such that `i = j % j2`
@@ -322,13 +328,12 @@ pub mod effect {
         println!("\x1B[0;1mdecide_idxtm_subtraction:\x1B[0;0m\n From:\n\t{:?}\n Subtract:\n\t{:?}", &i, &j);
         if test_idxtm_empty(ctx, &j) {
             // Special (but common) case: The second index is the empty name set. The result is the first index.
-            println!("decide_idxtm_subtraction:\n\tEmpty second term.");
+            println!("^decide_idxtm_subtraction:\n\tEmpty second term.");
             return Result::Ok(i)
-        };
-        if test_idxtm_equiv(ctx, &i, &j) {
+        } else if test_idxtm_equiv(ctx, &i, &j) {
             // Special (but common) case: They are equal.  
             // The result is the emptyset.
-            println!("decide_idxtm_subtraction:\n\tEqual");
+            println!("^decide_idxtm_subtraction:\n\tEqual");
             return Result::Ok(IdxTm::Empty)
         } else {
             println!("^decide_idxtm_subtraction:\n\tNot (yet) apparently equal.");
@@ -341,13 +346,12 @@ pub mod effect {
         println!("^decide_idxtm_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &ni, &nj);
         if test_idxtm_empty(ctx, &nj) {
             // Special (but common) case: The second index is the empty name set. The result is the first index.
-            println!("decide_idxtm_subtraction:\n\tEmpty second term.");
+            println!("^decide_idxtm_subtraction:\n\tEmpty second term.");
             return Result::Ok(i)
-        };
-        if test_idxtm_equiv(ctx, &ni, &nj) {
+        } else if test_idxtm_equiv(ctx, &ni, &nj) {
             // Special (but common) case: They are equal.  
             // The result is the emptyset.
-            println!("decide_idxtm_subtraction:\n\tEqual.");
+            println!("^decide_idxtm_subtraction:\n\tEqual.");
             return Result::Ok(IdxTm::Empty)
         } else {
             println!("^decide_idxtm_subtraction:\n\tNot (apparently) equal.");
@@ -1454,7 +1458,7 @@ pub mod subset {
                 unimplemented!()
             }
             (_, _) => {
-                if false {
+                if true {
                     println!("=============================================================================== BEGIN");
                     println!("decide_idxtm_subset: Cannot decide this case:\n Left:\n\t{:?}\n Right:\n\t{:?}", i.term, j.term);
                     println!("This case is not implemented; but, it _may_ indicate a type error.");
@@ -1473,26 +1477,32 @@ pub mod subset {
     {
         let d = decide_idxtm_subset(ctx, &i, &j);
         if d.res == Ok(true) {
-            //println!("decide_idxtm_subset: success:\n\t{:?}\n\t{:?}", i, j);
+            if i != j {
+                println!("\x1B[0;1mdecide_idxtm_subset: holds:\x1B[0;0m\n\t{:?}\n  ≤\n\t{:?}", i, j);
+            };
             return true
         }
         else {
-            //println!("decide_idxtm_subset: failed:\n\t{:?}\n\t{:?}", i, j);
+            println!("\x1B[0;1mdecide_idxtm_subset:\x1B[0;1;31m fails to hold:\x1B[0;0m\n\t{:?}\n  \x1B[1;31mNOT(≤)\x1B[0;0m\n\t{:?}", i, j);
             return false
         }
     }
     
     /// Decide type subset relation on normalized versions of the given terms.
     pub fn decide_type_subset_norm(ctx: &RelCtx, a:Type, b:Type) -> bool {
+        if a == b { true } else {
         // TODO-someday: Make this operation cheaper somehow (use traits in a clever way?)
         let (ctx1, ctx2) = ctxs_of_relctx((*ctx).clone());
-        println!("decide_type_subset_norm: Begin...:\n\t{:?}\nand:\n\t{:?}", a, b);
+        println!("\x1B[0;1mdecide_type_subset_norm: Subtypes?:\x1B[0;0m\n\t{:?}\n  \x1B[1;35m≤(?)\x1B[0;0m\n\t{:?}", a, b);
         let a = normal::normal_type(&ctx1, &a);
         let b = normal::normal_type(&ctx2, &b);
-        println!("decide_type_subset_norm: Normalized:\n\t{:?}\nand:\n\t{:?}", a, b);
+        println!("\x1B[0;1m^decide_type_subset_norm: Normalized:\x1B[0;0m\n\t{:?}\n  \x1B[1;35m≤(?)\x1B[0;0m\n\t{:?}", a, b);
         let r = decide_type_subset(ctx, a.clone(), b.clone());
-        println!("decide_type_subset_norm: ({}):\n\t{:?}\nand:\n\t{:?}", r, a, b);
+        println!("\x1B[0;1m^decide_type_subset_norm: ({}):\x1B[0;0m\n\t{:?}\n  {}\n\t{:?}", r, a, 
+                 if r { "\x1B[1;32m≤\x1B[0;0m" } 
+                 else { "\x1B[1;31mNOT(≤)\x1B[0;0m" }, b);
         return r
+        }
     }
 
     /// Decide type subset relation
@@ -1577,6 +1587,7 @@ pub mod subset {
                         decide_type_subset_rec(&ctx.add_ivars(x1, x2, (*g1).clone()),
                                                a1, a2)
                     } else {
+                        println!("Error: {:?} =/= {:?}", g1, g2);
                         false
                             
                     }
@@ -1587,7 +1598,7 @@ pub mod subset {
                         a1, a2)
                 }                
                 (x,y) => {
-                    println!("Not equivalent:\n\t{:?}\nand:\n\t{:?}", x, y);
+                    println!("Cannot prove these types are related (as first subtype of second):\n\t{:?}\nand:\n\t{:?}", x, y);
                     false
                 }
             }

@@ -92,7 +92,7 @@ fgi_mod!{
             }
         }
     }
-
+/*
     /// Reverse a list of natural numbers, using the given accumulator
     /// value (a Ref cell holding a reversed list prefix).
     fn reverse:(
@@ -126,7 +126,7 @@ fgi_mod!{
             }
         }
     }
-
+*/
     /// Filter a list of naturals by a given predicate
     fn filter:(
         Thk[0]
