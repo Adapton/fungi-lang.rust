@@ -899,7 +899,7 @@ pub mod equiv {
                 }
             }
             (_ir, _jr) => {
-                if false {
+                if true {
                     println!("=============================================================================== BEGIN");
                     println!("decide_idxtm_equiv: Cannot decide this case:\n Left:\n\t{:?}\n Right:\n\t{:?}", i.term, j.term);
                     println!("This case is not implemented; but, it _may_ indicate a type error.");

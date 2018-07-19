@@ -477,6 +477,7 @@ pub enum ExpRule {
     Split(ValDer, Var, Var, ExpDer),
     Case(ValDer, Var, ExpDer, Var, ExpDer),
     IfThenElse(ValDer, ExpDer, ExpDer),
+    RefAnon(ValDer),
     Ref(ValDer,ValDer),
     Get(ValDer),
     WriteScope(ValDer,ExpDer),
@@ -684,7 +685,7 @@ fn failure<R:HasClas+debug::DerRule>
     
     println!("{}Failed to {} {} {}, error: {}{}",
              {if is_local_err { "\x1B[1;31m" }
-              else            { "\x1B[2;31m" }},
+              else            { "\x1B[0;31m" }},
              dir.short(), R::term_desc(), n.short(), 
              err, "\x1B[0;0m");
     if is_local_err {
@@ -1681,6 +1682,19 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                 }
             }
         },
+        &Exp::RefAnon(ref v) => {
+            let tdv = synth_val(ext, ctx, v);
+            let typ = tdv.clas.clone();
+            let td = ExpRule::RefAnon(tdv);
+            match typ {
+                Err(ref e) => fail(td, wrap_inside_error(e)),
+                Ok(ref a) => {
+                    let typ = Type::Ref(IdxTm::Empty, Rc::new(a.clone()));
+                    let eff = Effect::WR(IdxTm::Empty, IdxTm::Empty);
+                    succ(td, CEffect::Cons(CType::Lift(typ),eff))
+                },
+            }
+        },
         &Exp::Ref(ref v1,ref v2) => {
             let td0 = synth_val(ext, ctx, v1);
             let td1 = synth_val(ext, ctx, v2);
@@ -2075,7 +2089,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                         Ok(ref ceffect) => succ(td, ceffect.clone()),
                         Err(_) => fail(td, TypeError::ParamNoCheck(1)),
                     }
-                }
+                },
                 _ => fail(
                     ExpRule::WriteScope(td0, synth_exp(ext,ctx,e)),
                     TypeError::ScopeNotNmTm
@@ -2293,9 +2307,13 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 Ok(Type::Sum(ty1, ty2)) => {
                     let new_ctx1 = ctx.var(x1.clone(), (*ty1).clone());
                     let new_ctx2 = ctx.var(x2.clone(), (*ty2).clone());
+                    println!("Case: Check first subcase: BEGIN");
                     let td1 = check_exp(ext, &new_ctx1, e1, ceffect);
+                    println!("Case: Check first subcase: END");
                     let td1_typ = td1.clas.clone();
+                    println!("Case: Check second subcase: BEGIN");
                     let td2 = check_exp(ext, &new_ctx2, e2, ceffect);
+                    println!("Case: Check second subcase: END");
                     let td2_typ = td2.clas.clone();
                     let td = ExpRule::Case(v_td, x1.clone(), td1, x2.clone(), td2);
                     match (td1_typ, td2_typ) {
@@ -2464,6 +2482,30 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
             } else { fail(ExpRule::Thunk(
                 synth_val(ext, ctx, v),
                 synth_exp(ext, ctx, e),
+            ),TypeError::AnnoMism)}
+        },
+        &Exp::RefAnon(ref v) => {
+            let nceffect = normal::normal_ceffect(ctx, ceffect.clone());
+            if let CEffect::Cons(
+                CType::Lift(Type::Ref(ref _rf_idx,ref a)),
+                Effect::WR(ref _w, ref _r)
+            ) = nceffect {
+                println!("RefAnon check rule; value type is {:?}", a);
+                let tdv = check_val(ext, ctx, v, a);
+                let typ = tdv.clas.clone();
+                let td = ExpRule::RefAnon(tdv);
+                match typ {
+                    Ok(_) => {
+                        // TODO/XXX -- check that _rf_idx is the empty set
+                        succ(td, ceffect.clone())
+                    },
+                    Err(ref err) => fail(td, TypeError::Inside(Rc::new(err.clone())))
+                }
+            } else { 
+                println!("Ref check rule cannot work; ceffect does match pattern: {:?}", 
+                         nceffect);
+                fail(ExpRule::RefAnon(
+                synth_val(ext, ctx, v),
             ),TypeError::AnnoMism)}
         },
         &Exp::Ref(ref v1,ref v2) => {
@@ -2689,6 +2731,7 @@ pub mod debug {
                 ExpRule::Split(_, _, _, _) => "Split",
                 ExpRule::Case(_, _, _, _, _) => "Case",
                 ExpRule::IfThenElse(_, _, _) => "IfThenElse",
+                ExpRule::RefAnon(_) => "RefAnon",
                 ExpRule::Ref(_,_) => "Ref",
                 ExpRule::Get(_) => "Get",
                 ExpRule::WriteScope(_,_) => "WriteScope",

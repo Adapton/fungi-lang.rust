@@ -176,6 +176,11 @@ pub fn eval(env:EnvRec, e:Exp) -> ExpTerm {
                 v => eval_type_error(EvalTyErr::RefNonName(v), env, e)
             }
         }
+        Exp::RefAnon(v) => {
+            let v = close_val(&env, &v);
+            let r = engine::put(v);
+            ExpTerm::Ret(RtVal::Ref(r))
+        },
         Exp::Let(x,e1,e2) => {
             match eval(env.clone(), (*e1).clone()) {
                 ExpTerm::Ret(v) => {

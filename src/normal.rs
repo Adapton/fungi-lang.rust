@@ -101,11 +101,8 @@ pub fn is_normal_idxtm(ctx:&Ctx, i:&IdxTm) -> bool {
         IdxTm::Unit       => true,
         IdxTm::WriteScope => true,
         IdxTm::Lam(_,_,_) => true,
-        // Unions and pairs are normal if their sub-terms are normal
-        IdxTm::Pair(ref i, ref j) |
-        IdxTm::Union(ref i, ref j) => {
-                    is_normal_idxtm(ctx, i) && is_normal_idxtm(ctx, j)
-        },
+        // Pairs are normal if their sub-terms are normal
+        IdxTm::Pair(ref i, ref j) => { is_normal_idxtm(ctx, i) && is_normal_idxtm(ctx, j) }
         // projections are not normal
         IdxTm::Proj1(_) => false,
         IdxTm::Proj2(_) => false,
@@ -116,6 +113,7 @@ pub fn is_normal_idxtm(ctx:&Ctx, i:&IdxTm) -> bool {
         IdxTm::Apart(_, _) |
         // Function application forms are not normal
         IdxTm::App(_, _) |
+        IdxTm::Union(_, _) |
         IdxTm::Bin(_, _) |
         IdxTm::Map(_, _) |
         IdxTm::MapStar(_, _) |
@@ -471,18 +469,26 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                     (IdxTm::NmSet(ns1),
                      IdxTm::NmSet(ns2)) =>
                     {
-                        assert_eq!(ns1.cons, ns2.cons);
+                        let cons3 = match (ns1.cons, ns2.cons) {
+                            (None, None)         => None,
+                            (Some(c), None)      => Some(c),
+                            (None, Some(c))      => Some(c),
+                            (Some(NmSetCons::Union),_) => Some(NmSetCons::Union),
+                            (_,Some(NmSetCons::Union)) => Some(NmSetCons::Union),
+                            (Some(NmSetCons::Apart),
+                             Some(NmSetCons::Apart)) => Some(NmSetCons::Apart),
+                        };
                         let mut terms = vec![];
                         for tm1 in ns1.terms.iter() {
                             for tm2 in ns2.terms.iter() {
                                 nmset_terms_add(
-                                    ns1.cons.clone(), &mut terms,
+                                    cons3.clone(), &mut terms,
                                     bin_tm(ctx, tm1.clone(), tm2.clone()));
                             }
                         }
                         //println!("match bin DONE");
                         IdxTm::NmSet(NmSet{
-                            cons:ns1.cons,
+                            cons:cons3,
                             terms:terms
                         })                        
                     },
@@ -1074,7 +1080,6 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
         &Type::Var(_)       |
         &Type::Sum(_, _)    |
         &Type::Thk(_, _)    |
-        &Type::Ref(_, _)    |
         &Type::Rec(_, _)    |
         &Type::Nm(_)        |
         &Type::NmFn(_)      |
@@ -1084,6 +1089,11 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
         //&Type::Exists(_,_,_,_)
             =>
             typ.clone(),
+
+        &Type::Ref(ref i, ref a) => {
+            Type::Ref(normal_idxtm(ctx,i.clone()),
+                      Rc::new(normal_type(ctx, a)))
+        }
 
         &Type::Prod(ref a, ref b) => {
             Type::Prod(Rc::new(normal_type(ctx, a)), 
@@ -1127,7 +1137,7 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
                     normal_type(ctx, &body)
                 },
                 a => {
-                    println!("sort error: expected TypeFn, not {:?}", a);
+                    println!("normal_type: sort error: expected TypeFn, not {:?}", a);
                     // Give up:
                     typ.clone()
                 }
@@ -1142,7 +1152,7 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
                     normal_type(ctx, &body)
                 },
                 a => {
-                    println!("sort error: expected TypeFn, not {:?}", a);
+                    println!("normal_type: sort error: expected IdxFn, not {:?}", a);
                     // Give up:
                     typ.clone()
                 }

@@ -8,14 +8,15 @@ pub mod dynamic_tests {
      *
      */
     #[test]
-    pub fn short_20_2() { use examples::{list_nat, list_nat_edit}; fgi_dynamic_trace!{
+    pub fn short_18_2() { use examples::{list_nat, list_nat_edit, list_nat_convert}; fgi_dynamic_trace!{
         [Expect::SuccessxXXX]
         use super::*;
         use list_nat::*;
         use list_nat_edit::*;
+        use list_nat_convert::*;
         
-        /// Generate input
-        let list1  = {ws(@@inp) {force gen} 20 }
+        /// Generate input (use old list type, and a conversion function into our newer list type)
+        let list1  = {ws(@@inp1) {force gen} 18 }
 
         /// Allocate nil ref cell
         let refnil = {ref (@@nil) roll inj1 ()}
@@ -26,8 +27,10 @@ pub mod dynamic_tests {
         /// Allocate archivist thunk: 
         /// when forced, it deduplicates the input list.
         let t = {ws (@@archivist) thk (@@comp) {
-            let out = {{force dedup} list1 emp}
-            let count = {{force len} {!out}}
+            let list2  = {ws(@@convert) {force convert} {!list1} }
+            let list3 = { ref 0 list2 }
+            let (_out, out) = {memo(@@dedup){{force dedup} list3 emp}}
+            let count = {{force list_len} {!out}}
             let _x = {{force nat_print} count}
             ret (out, count)
         }}
@@ -37,7 +40,7 @@ pub mod dynamic_tests {
 
         /// First change: Insert element
         let b1 = {
-            {force insert_after}[?] (@19) (@666) 2 {!list1}
+            {force insert_after}[?] (@17) (@666) 2 {!list1}
         }
 
         /// Re-force archivist; Precipitates change propagation
@@ -45,22 +48,23 @@ pub mod dynamic_tests {
 
         /// Second change: Remove inserted element
         let b2 = {
-            {force remove_after}[?] (@19) {!list1}
+            {force remove_after}[?] (@17) {!list1}
         }
 
         /// Re-force archivist; Precipitates change propagation
         let outs_3 = {force t}
 
-        /// All sizes should be 20
+        /// All sizes should be 18
         ret (outs_1, outs_2, outs_3)
     }}
 
     // Be careful: Without --release, this version overflows my stack.
     //#[test]
-    pub fn big() { use examples::list_nat; fgi_dynamic_trace!{
+    pub fn big() { use examples::{list_nat, list_nat_convert}; fgi_dynamic_trace!{
         [Expect::SuccessxXXX]
         use super::*;
         use list_nat::*;
+        use list_nat_convert::*;
         
         /// Generate input
         let list1  = {ws(@@inp) {force gen} 64 }
@@ -99,7 +103,7 @@ pub mod dynamic_tests {
         /// Re-force archivist; Precipitates change propagation
         let outs_3 = {force t}
 
-        /// All sizes should be 20
+        /// All sizes should be the same
         ret (outs_1, outs_2, outs_3)
     }}
 }
@@ -116,6 +120,36 @@ pub mod static_tests {
 // Fungi module: hash tries with names, holding natural numbers
 //
 fgi_mod!{
+    // Linked lists, with names; similar definition to list_nat.rs,
+    // but index Y treated differently here.
+    type List = (
+        rec list.
+            foralli (X,Y):NmSet.
+            ( + Unit + (exists (X1,X2):NmSet|((X1%X2)=X:NmSet).
+                        (x Nm[X1] x Nat x Ref[Y](list[X2][Y]))))
+    );
+    type RefList = (
+        foralli (X,Y):NmSet.
+            Ref[Y] (List[X][Y])
+    );
+
+    /// Compute the length of the list; does not use memoization.
+    fn list_len:(
+        Thk[0]
+            foralli (X,Y):NmSet.
+            0 List[X][Y] -> {0;Y} F Nat
+    ) = {
+        #l. unroll match l {
+            _u => {ret 0}
+            c => {
+                unpack (X1,X2) c = c
+                let (x,y,ys) = {ret c}
+                let lenys = {{force list_len}[X2][Y] {!ys}}
+                lenys + 1
+            }
+        }
+    }
+
     /// Hash trie of natural numbers, each associated with a (unique) name.
     ///
     /// Note: The hash structure uses the hashes of the natural number
@@ -135,10 +169,10 @@ fgi_mod!{
     type RefTrie = (
         foralli (X,Y):NmSet.
             Ref[Y] (Trie[X][Y])
-    );        
-    
+    );            
+
     // Names as natural numbers
-    nmtm Zero  = ([]);
+    nmtm  Zero = ([]);
     idxtm Succ = (#x:Nm.{[],x});
     idxtm Gte  = (#x:Nm. (Succ)^* {x});
     idxtm Nat  = ({Gte} (nmtm []));
@@ -148,11 +182,11 @@ fgi_mod!{
     
     // Write sets for Trie and Dedup:
     idxtm WS_Trie  = (#X:NmSet. {@!} ({Ins} X));
-    idxtm WS_Dedup = (#X:NmSet. {WS_Trie} X);
-
-    // let emp : Trie[0][{@@trie_emp}] = { 
-    //     ref (@@trie_emp) inj1 ()
-    // }
+    idxtm Out_Dedup = (#X:NmSet. {@@r} * X);
+    idxtm WS_Dedup = (#X:NmSet. 
+                      ({WS_Trie} X)   % 
+                      ({@@dd}*X)      % 
+                      ({Out_Dedup} X) ) ;
 
     fn nat_hash_bit:(
         Thk[0] 0 Nat -> 0 Nat -> 0 F Bool
@@ -189,21 +223,12 @@ fgi_mod!{
             )
     ) = { 
         #t.
+        let emp : (RefTrie[0][0]) = {ref 0 roll inj1 ()}        
         let tt = {get t}
         unroll match tt {
-            _emp => { 
-                let emp : (RefTrie[0][0]) = {
-                    ref (@@trie_emp) roll inj1 ()
-                }
-                ret pack (0,0) (emp, emp)
-            }
-            leaf => { 
-                let emp : (RefTrie[0][0]) = {
-                    ref (@@trie_emp) roll inj1 ()
-                }
-                ret pack (0,0) (emp, emp)
-            }
-            bin => { ret bin }
+            _emp => { ret pack (0,0) (emp, emp) }
+            leaf => { ret pack (0,0) (emp, emp) }
+            bin  => { ret bin }
         }
     }
 
@@ -278,41 +303,42 @@ fgi_mod!{
         }
     }
 
+    // TODO: Fix alpha conversation for foralli-bound variables (e.g.,
+    // change Z1 and Z2 to X1 and X2 below to witness an error).
+
     fn trie_replace:(
-        Thk[0] foralli (X1,X2,Y):NmSet | ((X1%X2)=X:NmSet).
-            foralli ni:Nm.
-            0 RefTrie[X1][Y] -> 
-            0 Nm[X2] -> 
+        Thk[0] foralli (Z1,Z2,Y):NmSet | ((Z1%Z2)=Z:NmSet).
+            0 RefTrie[Z1][Y] -> 
+            0 Nm[Z2] -> 
             0 Nat -> 
-        {{WS_Trie} X; Y}
-        F (x RefTrie[X1 % X2][Y U ({WS_Trie} X1)] 
+        {{WS_Trie} Z2; Y}
+        F (x RefTrie[Z1 % Z2][Y U ({WS_Trie} Z2)] 
            x Bool)
     ) = {
-        #t.#x.#y. {force trie_replrec}[X1][X2][Y] t x y 0 (name [])
+        #t.#x.#y. {force trie_replrec}[Z1][Z2][Y][{[]}] t x y 0 (name [])
     }
 
     fn dedup:(
         Thk[0] foralli (X1,X2,Y):NmSet.
             0 RefList[X1][Y] -> 
             0 RefTrie[X2][Y] ->
-            {{WS_Dedup} X; Y}
-        F RefList[X1][{@!}X1] [{@!}X1]
+            {{WS_Dedup} X1; Y}
+        F RefList[X1][{Out_Dedup}X1]
     ) = {
         #l. #t. let ln = {get l} unroll match ln {
-            _u => { ret l }
+            _u => { ref 0 roll inj1 () }
             c => {
-                unpack (X1a,X1b,Y1,Y2) c = c
+                unpack (X1a, X1b) c = c
                 let (x, y, ys) = {ret c}
                 //let _x = {{force nat_print} y}
-                //let _x = {{force nat_print} y}
-                let (tx, b) = { ws(@@t){ {force trie_replace}[X1a][Y] t x y }}
-                let (_r,r) = { memo{(@@dd),x}{ {force dedup}[X1b][(X1a%X2)][Y2] ys tx} }
+                let (tx, b) = { ws(nmfn [#x:Nm. @@t * t]){ {force trie_replace}[X2][X1a][Y] t x y }}
+                let (_r,r) = { memo{(@@dd),x}{ {force dedup}[X1b][(X1a%X2)][Y] ys tx} }
                 if ( b ) { 
                     ret r 
                 } else {
                     ref {(@@r),x} 
                     roll inj2 
-                        pack (X1a,X1b,{WS_Dedup} X1a, {WS_Dedup} X1b) 
+                        pack (X1a, X1b)
                         (x, y, r)
                 }
             }

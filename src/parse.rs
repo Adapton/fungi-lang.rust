@@ -947,6 +947,7 @@ macro_rules! parse_fgi_pack_multi {
 ///     let x : A = {e1} e2             (annotated let-binding)
 ///     let rec x : A = {e1} e2         (annotated let-rec binding)
 ///     thk v e                         (create thunk)
+///     ref 0 v                         (create unnamed ref holding the given value)
 ///     ref { e1 } v2                   (create ref with name from expression)
 ///     ref v1 v2                       (create ref)
 ///     force v                         (force thunk)
@@ -1173,6 +1174,12 @@ macro_rules! fgi_exp {
         fgi_val![$v],
         Rc::new(fgi_exp![$($e)+]),
     )};
+    //     ref 0 v                        (create unnamed ref)
+    { ref 0 $($v:tt)+ } => {
+        Exp::RefAnon(
+            fgi_val![$($v)+]
+        )
+    };
     //     ref { e1 } v2                   (create ref)
     { ref { $($e1:tt)+ } $($v2:tt)+ } => {
         Exp::Let("ref_name_sugar".to_string(),

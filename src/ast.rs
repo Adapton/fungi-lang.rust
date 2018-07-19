@@ -489,6 +489,7 @@ pub enum Exp {
     Split(Val, Var, Var, ExpRec),
     Case(Val, Var, ExpRec, Var, ExpRec),
     IfThenElse(Val, ExpRec, ExpRec),
+    RefAnon(Val),
     Ref(Val,Val),
     Get(Val),
     WriteScope(Val,ExpRec),

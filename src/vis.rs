@@ -75,6 +75,7 @@ fn rewrite_exp(exp: &Exp, ct: &mut usize) -> Exp {
         Exp::Split(ref v, ref s1, ref s2, ref e) => Exp::Split(rewrite_val(v, ct), s1.clone(), s2.clone(), rewrite_exp_rec(e, ct)),
         Exp::Case(ref v, ref s1, ref e1, ref s2, ref e2) => Exp::Case(rewrite_val(v, ct), s1.clone(), rewrite_exp_rec(e1, ct), s2.clone(), rewrite_exp_rec(e2, ct)),
         Exp::IfThenElse(ref v, ref e1, ref e2) => Exp::IfThenElse(rewrite_val(v, ct), rewrite_exp_rec(e1, ct), rewrite_exp_rec(e2, ct)),
+        Exp::RefAnon(ref v) => Exp::RefAnon(rewrite_val(v, ct)),
         Exp::Ref(ref v1, ref v2) => Exp::Ref(rewrite_val(v1, ct), rewrite_val(v2, ct)),
         Exp::Get(ref v) => Exp::Get(rewrite_val(v, ct)),
         Exp::WriteScope(ref v, ref e) => Exp::WriteScope(rewrite_val(v, ct), rewrite_exp_rec(e, ct)),

@@ -324,6 +324,11 @@ pub fn step(c:&mut Config) -> Result<(),StepError> {
             let v = close_val(&c.env, &v);
             produce_value(c, v)
         }
+        Exp::RefAnon(v) => {
+            let v = close_val(&c.env, &v);
+            let r = engine::put(v);
+            produce_value(c, RtVal::Ref(r))
+        }
         Exp::Ref(v1, v2) => {
             match close_val(&c.env, &v1) {
                 RtVal::Name(n) => { // create engine ref named n, holding v2

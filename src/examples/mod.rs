@@ -77,6 +77,7 @@ pub mod ref_edit;
 
 pub mod list_nat;
 pub mod list_nat_edit;
+pub mod list_nat_convert;
 
 // Wait unti dedup is finished, then seed trie_nat module with that implementation.
 //pub mod trie_nat;
