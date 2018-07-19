@@ -2079,7 +2079,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             match td0.clas.clone() {
                 Ok(Type::NmFn(nmlamb)) => {
                     let new_scope = fgi_nametm![
-                        #_a:Nm.[^ext.write_scope.clone()][[^nmlamb] _a]
+                        #_a:Nm.[^ext.write_scope.clone()]( [^nmlamb] _a)
                     ];
                     let new_ext = Ext{write_scope:new_scope, ..ext.clone()};
                     let td1 = synth_exp(&new_ext, ctx, e);
