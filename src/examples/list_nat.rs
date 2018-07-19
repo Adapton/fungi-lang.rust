@@ -92,41 +92,7 @@ fgi_mod!{
             }
         }
     }
-/*
-    /// Reverse a list of natural numbers, using the given accumulator
-    /// value (a Ref cell holding a reversed list prefix).
-    fn reverse:(
-        Thk[0]
-            foralli (X,Xa,Xb,Xc):NmSet | ((Xa%Xb%Xc)=X:NmSet).
-            foralli (Y,Ya,Yb1,Yb2):NmSet | ((Ya%Yb1%Yb2)=Y:NmSet).
-            0 List[Xa][Ya] ->
-            0 Ref[Yb1](List[Xb][Yb2]) ->
-            0 Nm[Xc] ->
-        //
-        // TODO: Fix parse error here:
-        //        { {@!}(Xa % (Xa*({@1}))) ;
-        //               {@!}(Xa*({@1})) % Y }
-            0
-            F Ref[{@!}Xc] List[Xa%Xb][Y]
-    ) = {
-        #l.#r.#rn. unroll match l {
-            _u => { let r = {get r}
-                    ref rn r }
-            c => {
-                unpack (Xa1,Xa2,Ya1,Ya2) c = c
-                let (n, h, t) = { ret c }
-                let r2 = { ws(@@r) {force ref_cons}
-                            [(Xa%Xb)][Xa][Xb][(Yb1%Yb2)][Yb1][Yb2]
-                            n h t}
-                let (_r,r) = {memo{(@@rev),n}{ {force reverse} 
-                                                [?][?][?][?]
-                                                [?][?][?][?] {!t} r2 rn}
-                }
-                ret r
-            }
-        }
-    }
-*/
+
     /// Filter a list of naturals by a given predicate
     fn filter:(
         Thk[0]
@@ -204,10 +170,11 @@ pub mod dynamic_tests {
      *
      */
     #[test]
-    pub fn short() { use examples::{list_nat_edit}; fgi_dynamic_trace!{
+    pub fn short() { use examples::{list_nat_edit, list_nat_reverse}; fgi_dynamic_trace!{
         [Expect::SuccessxXXX]
         use super::*;
         use list_nat_edit::*;
+        use list_nat_reverse::*;
         
         /// Generate input
         let list1  = {{force gen} 10}
@@ -243,10 +210,11 @@ pub mod dynamic_tests {
     }}
     
     #[test]    
-    pub fn long() { use examples::{list_nat_edit, nat}; fgi_dynamic_trace!{
+    pub fn long() { use examples::{list_nat_edit, nat, list_nat_reverse}; fgi_dynamic_trace!{
         [Expect::SuccessxXXX]            
         use super::*;
         use list_nat_edit::*;
+        use list_nat_reverse::*;
         use nat::*;
 
         /// Generate input
