@@ -235,9 +235,9 @@ impl<Rule:HasClas+debug::DerRule> PartialEq for Der<Rule> where
     fn eq(&self, other:&Self) -> bool {
         self.rule == other.rule &&
         match (&self.clas,&other.clas) {
-            (&Ok(ref s),&Ok(ref o)) => s == o,
+            (&Ok(ref _s),&Ok(ref _o)) => panic!("XXX"), //s == o,
             // treat all errors as equal, they depend on context
-            (&Err(_),&Err(_)) => true,
+            (&Err(_),&Err(_)) => panic!("XXX"),
             _ => false,
         }
     }

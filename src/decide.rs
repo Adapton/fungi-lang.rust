@@ -302,7 +302,7 @@ pub mod effect {
             Result::Ok(ref sort) => {
                 let rctx = super::relctx_of_ctx(ctx);
                 let eq = equiv::decide_idxtm_equiv(&rctx, &id, &jd, sort);
-                //println!("test_idxtm_equiv: {:?} =({})= {:?}", i, eq.res == Result::Ok(true), j);
+                //println!("test_idxtm_equiv: {:?} =({})= {:?}:\n\t{:?}", i, eq.res == Result::Ok(true), j, eq);
                 match eq.res {
                     Result::Ok(true) => true,
                     _ => false
@@ -761,7 +761,10 @@ pub mod equiv {
             }
         };
         match (&*i.rule,&*j.rule) {
-            (_ir, _jr) if i == j => { succ(IdxTmRule::Refl(i.clone())) }
+            (_ir, _jr) if i.term == j.term => { 
+                //println!("Refl equiv: {:?} == {:?}", i.term, j.term);
+                succ(IdxTmRule::Refl(i.clone())) 
+            }
             (&BiIdxTm::Var(ref v1),&BiIdxTm::Var(ref v2)) => {
                 if ctx.lookup_ivareq(v1,v2,g) {
                     succ(IdxTmRule::Var((v1.clone(),v2.clone())))
@@ -1314,7 +1317,8 @@ pub mod subset {
             }
         };
         match (&*i.rule,&*j.rule) {
-            (_ir, _jr) if i == j => {
+            (_ir, _jr) if i.term == j.term => {
+                //println!("Refl subset: {:?} == {:?}", i, j);
                 succ(IdxTmRule::Refl(i.clone()))
             }
             (&BiIdxTm::Empty, _) => {
