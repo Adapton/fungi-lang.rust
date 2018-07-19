@@ -1321,7 +1321,7 @@ pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
             ), TypeError::AnnoMism) }
         },
         &Val::Roll(ref v) => {
-            let (ur_typ, success) = normal::unroll_type(&typ);
+            let (ur_typ, success) = normal::unroll_type(ctx, &typ);
             let vd = if success {
                 check_val(ext, ctx, v, &ur_typ)
             } else {
@@ -2254,7 +2254,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 }
                 Ok(v_ty) => {
                     let v_ty = normal::normal_type(ctx, &v_ty);
-                    let (v_ty,_) = normal::unroll_type(&v_ty);
+                    let (v_ty,_) = normal::unroll_type(ctx, &v_ty);
                     let new_ctx = ctx.var(x.clone(), v_ty);
                     let td0 = check_exp(ext, &new_ctx, e, ceffect);
                     let td0_typ = td0.clas.clone();
@@ -2602,7 +2602,9 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
             if let Ok(ty) = ty {
                 // TODO: Type equality may be more complex than this test (e.g. alpha equivalent types should be equal)
                 let rctx = decide::relctx_of_ctx(ctx);
-                if decide::subset::decide_ceffect_subset(&rctx, ty.clone(), ceffect.clone()) {
+                let a = normal::normal_ceffect(ctx, ty.clone());
+                let b = normal::normal_ceffect(ctx, ceffect.clone());
+                if decide::subset::decide_ceffect_subset(&rctx, a.clone(), b.clone()) {
                     td
                 }
                 else {
@@ -2611,12 +2613,9 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                     println!("Detailed errors for checking an `Exp::{}` via subsumption:", td.rule.short());
                     println!(".. {}'s type:\n{:?} \n\n...does not check against type:\n{:?}\n", td.rule.short(), ty, ceffect);
                     println!("");
-                    if false {
+                    if true {
                         // may be very verbose
-                        println!(".. {}'s type:\n{:?} \n\n...does not check against type:\n{:?}\n", td.rule.short(),
-                                 normal::normal_ceffect(ctx, ty.clone()),
-                                 normal::normal_ceffect(ctx, ceffect.clone()),
-                        );
+                        println!(".. {}'s type:\n{:?} \n\n...does not check against type:\n{:?}\n", td.rule.short(), a, b);
                     }
                     println!("---------------------------------------------------------------------------------- END ");
                     td.clas = Err(TypeError::SubsumptionFailure(ty, ceffect.clone()));

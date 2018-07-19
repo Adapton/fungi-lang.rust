@@ -307,15 +307,15 @@ fgi_mod!{
     // change Z1 and Z2 to X1 and X2 below to witness an error).
 
     fn trie_replace:(
-        Thk[0] foralli (Z1,Z2,Y):NmSet | ((Z1%Z2)=Z:NmSet).
-            0 RefTrie[Z1][Y] -> 
+        Thk[0] foralli (Z1,Z2,YZ):NmSet | ((Z1%Z2)=Z:NmSet).
+            0 RefTrie[Z1][YZ] -> 
             0 Nm[Z2] -> 
             0 Nat -> 
-        {{WS_Trie} Z2; Y}
-        F (x RefTrie[Z1 % Z2][Y U ({WS_Trie} Z2)] 
+        {{WS_Trie} Z2; YZ}
+        F (x RefTrie[Z1 % Z2][YZ U ({WS_Trie} Z2)] 
            x Bool)
     ) = {
-        #t.#x.#y. {force trie_replrec}[Z1][Z2][Y][{[]}] t x y 0 (name [])
+        #t.#x.#y. {force trie_replrec}[Z1][Z2][YZ][{[]}] t x y 0 (name [])
     }
 
     fn dedup:(

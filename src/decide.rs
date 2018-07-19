@@ -244,9 +244,9 @@ pub mod effect {
                 let ed = bitype::synth_idxtm(&Ext::empty(), ctx, &IdxTm::Empty);
                 let id = bitype::synth_idxtm(&Ext::empty(), ctx, &i);
                 let jd = bitype::synth_idxtm(&Ext::empty(), ctx, &j);
-                let id = equiv::decide_idxtm_equiv(&rctx, &id, &ed, &Sort::NmSet);
-                let jd = equiv::decide_idxtm_equiv(&rctx, &jd, &ed, &Sort::NmSet);
-                match (id.res, jd.res) {
+                let idz = equiv::decide_idxtm_equiv(&rctx, &id, &ed, &Sort::NmSet);
+                let jdz = equiv::decide_idxtm_equiv(&rctx, &jd, &ed, &Sort::NmSet);
+                match (idz.res, jdz.res) {
                     (Result::Ok(true), Result::Ok(true)) => true,
                     _ => false
                 }
@@ -328,7 +328,7 @@ pub mod effect {
         if test_idxtm_equiv(ctx, &i, &j) {
             // Special (but common) case: They are equal.  
             // The result is the emptyset.
-            println!("decide_idxtm_subtraction:\n\tEqual.");
+            println!("decide_idxtm_subtraction:\n\tEqual");
             return Result::Ok(IdxTm::Empty)
         } else {
             println!("^decide_idxtm_subtraction:\n\tNot (yet) apparently equal.");
@@ -1490,7 +1490,9 @@ pub mod subset {
         let a = normal::normal_type(&ctx1, &a);
         let b = normal::normal_type(&ctx2, &b);
         println!("decide_type_subset_norm: Normalized:\n\t{:?}\nand:\n\t{:?}", a, b);
-        decide_type_subset(ctx, a, b)
+        let r = decide_type_subset(ctx, a.clone(), b.clone());
+        println!("decide_type_subset_norm: ({}):\n\t{:?}\nand:\n\t{:?}", r, a, b);
+        return r
     }
 
     /// Decide type subset relation

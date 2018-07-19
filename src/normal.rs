@@ -125,7 +125,10 @@ pub fn is_normal_idxtm(ctx:&Ctx, i:&IdxTm) -> bool {
 
 /// Compute normal form for index term
 pub fn normal_idxtm_rec(ctx:&Ctx, i:Rc<IdxTm>) -> Rc<IdxTm> {
-    Rc::new(normal_idxtm(ctx, (*i).clone()))
+    println!("BEGIN: normal_idxtm_rec({:?}) = ?", i);
+    let r = Rc::new(normal_idxtm(ctx, (*i).clone()));
+    println!("END:   normal_idxtm_rec({:?}) = {:?}", i, r);
+    r
 }
 
 
@@ -224,7 +227,7 @@ set structure:
 
 */
 pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
-    if is_normal_idxtm(ctx, &i) { 
+    if is_normal_idxtm(ctx, &i) {
         return i
     } else {
         match i {
@@ -378,7 +381,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                     (Subset(i), Single(m)) => {
                         Subset( normal_idxtm(
                             ctx, fgi_index!{
-                                [ #x:Nm. x, ^m ] ^i
+                                [ #x:Nm. x * (^m) ] ^i
                             }
                         ))
                     },
@@ -386,7 +389,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                     (Single(n), Subset(j)) => {
                         Subset(normal_idxtm(
                             ctx, fgi_index!{
-                                [ #x:Nm. ^n, x ] ^j
+                                [ #x:Nm. (^n) * x ] ^j
                             }
                         ))
                     },
@@ -1073,33 +1076,40 @@ pub fn idxtm_of_nmsettms(tms:&NmSetTms) -> IdxTm {
 ///  8. type applications in head normal form.
 /// 
 pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
-    //println!("normal_type: {:?}", typ);
+    println!("normal_type: {:?}", typ);
     match typ {
         // normal forms:
         &Type::Unit         |
-        &Type::Var(_)       |
-        &Type::Sum(_, _)    |
-        &Type::Thk(_, _)    |
+        &Type::Var(_)       |        
+        &Type::NoParse(_)   
+            =>
+            typ.clone(),
+
+        // TODO: ----------------------
         &Type::Rec(_, _)    |
         &Type::Nm(_)        |
         &Type::NmFn(_)      |
         &Type::TypeFn(_,_,_)|
-        &Type::IdxFn(_,_,_) |
-        &Type::NoParse(_)   
-        //&Type::Exists(_,_,_,_)
+        &Type::IdxFn(_,_,_)
             =>
             typ.clone(),
 
+        &Type::Thk(ref i, ref ce) => {
+            Type::Thk(normal_idxtm(ctx,i.clone()),
+                      Rc::new(normal_ceffect(ctx, (**ce).clone())))
+        }
         &Type::Ref(ref i, ref a) => {
             Type::Ref(normal_idxtm(ctx,i.clone()),
                       Rc::new(normal_type(ctx, a)))
+        }        
+        &Type::Sum(ref a, ref b) => {
+            Type::Sum(Rc::new(normal_type(ctx, a)), 
+                      Rc::new(normal_type(ctx, b)))
         }
-
         &Type::Prod(ref a, ref b) => {
             Type::Prod(Rc::new(normal_type(ctx, a)), 
                        Rc::new(normal_type(ctx, b)))
         }
-
         &Type::Exists(ref x, ref g, ref p, ref t) => {
             // TODO: Normalize name/index terms in proposition(s) p.
             // TODO: Extend context.
@@ -1129,7 +1139,6 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
         }}
         &Type::TypeApp(ref a, ref b) => {
             let a = normal_type(ctx, a);
-            let (a, _) = unroll_type(&a);
             let b = normal_type(ctx, b);
             match a {
                 Type::TypeFn(ref x, ref _k, ref body) => {
@@ -1137,24 +1146,21 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
                     normal_type(ctx, &body)
                 },
                 a => {
-                    println!("normal_type: sort error: expected TypeFn, not {:?}", a);
-                    // Give up:
-                    typ.clone()
+                    Type::TypeApp(Rc::new(a), Rc::new(b))
                 }
             }
         }
         &Type::IdxApp(ref a, ref i) => {
             let a = normal_type(ctx, a);
-            let (a, _) = unroll_type(&a);
+            let i = normal_idxtm(ctx, i.clone());
+            //println!("normal_type(IdxApp({:?}, _) = ...", a);
             match a {
                 Type::IdxFn(ref x, ref _g, ref body) => {
                     let body = subst::subst_idxtm_type(i.clone(),x,(**body).clone());
                     normal_type(ctx, &body)
                 },
                 a => {
-                    println!("normal_type: sort error: expected IdxFn, not {:?}", a);
-                    // Give up:
-                    typ.clone()
+                    Type::IdxApp(Rc::new(a), i.clone())
                 }
             }
         }
@@ -1253,14 +1259,81 @@ x 1 2 3
 ///     `)`  
 ///
 ///
-pub fn unroll_type(typ:&Type) -> (Type, bool) {
+pub fn unroll_type(ctx:&Ctx, typ:&Type) -> (Type, bool) {
+    println!("UNROLL (1/2): {:?}", typ);
     match typ {
         // case: rec x.A =>
         &Type::Rec(ref x, ref a) => {
+            println!("UNROLL (2/2): Success.");
             // [(rec x.A)/x]A
             (subst::subst_type_type(typ.clone(), x, (**a).clone()), true)
         }
+        &Type::IdxApp(ref t, ref i) => {
+            println!("UNROLL (1.5/2): IdxApp(_, {:?}).", i);
+            let (t2, b) = unroll_type(ctx, t);
+            (Type::IdxApp(Rc::new(t2), i.clone()), b)
+        },
+        &Type::TypeApp(ref t1, ref t2) => {
+            println!("UNROLL (1.5/2): TypeApp(_, {:?}).", t2);
+            let (t12, b) = unroll_type(ctx, t1);
+            (Type::TypeApp(Rc::new(t12), t2.clone()), b)
+        },
+        &Type::Ident(ref x) => {
+            println!("UNROLL (1.5/2): {:?}", x);
+            unroll_type(ctx, &normal_type(ctx, typ))
+        },
         // error
+        _ => {
+            println!("UNROLL (2/2): Failure: Not (apparently) a recursive type.");
+            //println!("error: not a recursive type; did not unroll it: {:?}", typ);
+            (typ.clone(), false)
+        }
+    }
+}
+
+/// **** UNSOUND: *******
+///
+/// Unroll a `rec` type just a little, exposing any binder that lies
+/// just within its body, as the body's (head) type constructor.
+///
+/// Case 1:
+///   `rec x. #y:g. A`       (expose index function)
+///    ~~> `#y:g. rec x. A`
+///
+/// Case 2:
+///   `rec x. #y:k. A`       (expose type function)
+///    ~~> `#y:k. rec x. A`
+///
+/// Case 3:
+///   `rec x. A`       (otherwise...)
+///    ~~> `rec x. A`  (...no change)
+
+pub fn unroll_past_binder(typ:&Type) -> (Type, bool) {    
+    println!("unroll_past_binder({:?}) = ...", typ);
+    match typ {
+        // case: rec x.A =>
+        &Type::Rec(ref x, ref a) => {
+            match &**a {
+                // rec x. #y:g. A
+                //  ~~> #y:g. rec x. A
+                &Type::IdxFn(ref y, ref g, ref body) => {
+                    (Type::IdxFn(y.clone(), g.clone(), 
+                                 Rc::new(Type::Rec(x.clone(), body.clone()))),
+                     true)
+                },
+                // rec x. #y:k. A
+                //  ~~> #y:k. rec x. A
+                &Type::TypeFn(ref y, ref k, ref body) => {
+                    (Type::TypeFn(y.clone(), k.clone(),
+                                  Rc::new(Type::Rec(x.clone(), body.clone()))),
+                     true)
+                },
+                _ => {
+                    (typ.clone(), false)
+                }
+            }
+        }
+        // not a recursive type
         _ => {
             //println!("error: not a recursive type; did not unroll it: {:?}", typ);
             (typ.clone(), false)
