@@ -41,7 +41,7 @@ pub fn listing () { fgi_listing_expect![
 
         /// Pointers written for each name in a structural recursion
         /// (-`_SR`) over a sequence:
-        idxtm Seq_SR = ( #x:Nm.({x,@1})%({x,@2}) );
+        idxtm Seq_SR = ( #x:Nm.({x * @1}) % ({x * @2}) );
 
         /// ... prefixed with the current write scope (`WS`-), named
         /// `@!` below, as a nameset-level function
@@ -57,7 +57,7 @@ pub fn listing () { fgi_listing_expect![
         }
         F OpNat
     ) = {
-        ret thunk fix max. #seq. match seq {
+        ret thunk fix max. #seq. unroll match seq {
             on => { ret on }
             bin => {
                 unpack (X1,X2,X3,Y1,Y2,Y3,Y4) bin = bin
