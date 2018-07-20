@@ -40,6 +40,21 @@ pub struct NmSet {
     pub terms: Vec<NmSetTm>
 }
 
+
+// Combine two nmset constructors (as options).
+pub fn nmset_cons_join(c1:Option<NmSetCons>, 
+                       c2:Option<NmSetCons>) -> Option<NmSetCons> {
+    match (c1, c2) {
+        (None, None)     => None,
+        (Some(c), None)  => Some(c),
+        (None, Some(c))  => Some(c),
+        (Some(NmSetCons::Union),_) => Some(NmSetCons::Union),
+        (_,Some(NmSetCons::Union)) => Some(NmSetCons::Union),
+        (Some(NmSetCons::Apart),
+         Some(NmSetCons::Apart)) => Some(NmSetCons::Apart),
+    }
+}
+
 // Add the given tm to the name set terms
 fn nmset_terms_add(cons:Option<NmSetCons>, terms:&mut Vec<NmSetTm>, tm:NmSetTm) {
     match tm {        
@@ -91,14 +106,13 @@ pub fn is_normal_idxtm(ctx:&Ctx, i:&IdxTm) -> bool {
         IdxTm::Unknown    => true,
         IdxTm::Ident(_)   => false,
         IdxTm::NmTm(ref n) => is_normal_nmtm(ctx, n),
-        // namesets are normal, by the way we construct them
-        //
-        // FIXME:XXX: Nope: Because sometimes in some contexts, we get
-        // extra facts about a variable's decomposition. E.g, suppose
-        // that in some arm of a case, we do an unpack and get that
-        // X=(X1%X2).  Now any NmSet that mentions X is _not normal_.
-        //
-        IdxTm::NmSet(_)   => true /* XXX */,
+        // namesets are *locally* normal, by the way we construct
+        // them; they are not *globally* normal, however: in some
+        // (later) contexts, we get extra facts about a variable's
+        // decomposition. E.g, suppose that in some arm of a case, we
+        // do an unpack and get that X=(X1%X2).  Now any NmSet that
+        // mentions X is _not normal_.
+        IdxTm::NmSet(_)   => false,
         // variables are normal if there are no decompositions in the context
         IdxTm::Var(ref x) => {
             None == bitype::find_defs_for_idxtm_var(&ctx, &x)
@@ -266,7 +280,39 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
             }
 
             IdxTm::NmSet(ns) => {
-                panic!("TODO")
+                let mut terms = vec![];
+                let mut cons = ns.cons.clone();
+                for t in ns.terms.iter() {
+                    match t {
+                        &NmSetTm::Single(ref n) => {
+                            let tm = normal_nmtm(ctx, n.clone());
+                            nmset_terms_add(cons.clone(), &mut terms, NmSetTm::Single(tm))
+                        }
+                        &NmSetTm::Subset(ref i) => {
+                            let i2 = normal_idxtm(ctx, i.clone());
+                            match i2 {
+                                // Flatten any nested NmSet term vectors into the present one
+                                IdxTm::NmSet(ns2) => {
+                                    cons = nmset_cons_join(cons.clone(), ns2.cons.clone());
+                                    for tm2 in ns2.terms {
+                                        nmset_terms_add(cons.clone(), 
+                                                        &mut terms, 
+                                                        tm2.clone())
+                                    }
+                                },
+                                i => {
+                                    nmset_terms_add(cons.clone(),
+                                                    &mut terms, 
+                                                    NmSetTm::Subset(i));
+                                }
+                            }
+                        }
+                    }
+                }                
+                IdxTm::NmSet(NmSet{
+                    cons:ns.cons.clone(),
+                    terms:terms,
+                })
             }
 
             IdxTm::Apart(i1, i2) => {
@@ -482,15 +528,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                     (IdxTm::NmSet(ns1),
                      IdxTm::NmSet(ns2)) =>
                     {
-                        let cons3 = match (ns1.cons, ns2.cons) {
-                            (None, None)         => None,
-                            (Some(c), None)      => Some(c),
-                            (None, Some(c))      => Some(c),
-                            (Some(NmSetCons::Union),_) => Some(NmSetCons::Union),
-                            (_,Some(NmSetCons::Union)) => Some(NmSetCons::Union),
-                            (Some(NmSetCons::Apart),
-                             Some(NmSetCons::Apart)) => Some(NmSetCons::Apart),
-                        };
+                        let cons3 = nmset_cons_join(ns1.cons, ns2.cons);
                         let mut terms = vec![];
                         for tm1 in ns1.terms.iter() {
                             for tm2 in ns2.terms.iter() {

@@ -1815,14 +1815,8 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             match (ed.clas.clone(), id.clas.clone())  {
                 (Ok(ec), Ok(_is)) => { match ec {
                     CEffect::ForallIdx(x, _g, p, ce) => {
-                        //println!("BEGIN: subst");
-                        println!("XXX: IdxApp: index:   {:?}", i);
-                        println!("XXX: IdxApp: ceffect: {:?}", ce);
                         let _p = subst::subst_term_prop(Term::IdxTm(i.clone()), &x, p);
                         let ce2 = subst::subst_term_ceffect(Term::IdxTm(i.clone()), &x, (*ce).clone());
-                        /// XXXXXXXX BUG HERE:
-                        println!("XXX: IdxApp: ceffect (substituted): {:?}", ce2);
-                        //println!("END: subst");
                         // XXX/TODO need to prove (decide) that p is true
                         let td = ExpRule::IdxApp(ed,id);
                         succ(td, ce2)

@@ -1085,6 +1085,33 @@ pub mod subset {
     ///
     /// Return true iff name set `i` is a subset of, or equal to, name
     /// set `j`.  Uses `decide_idxtm_congr` as a subroutine.
+    //
+    pub fn decide_nmsettm_subset_speculative(ctx: &RelCtx, tm1:&NmSetTm, tm2:&NmSetTm) -> bool {
+        //println!("??????? search ?????????? ------------ BEGIN");
+        let res = match (tm1, tm2) {
+            (&NmSetTm::Single(ref x), &NmSetTm::Single(ref y)) => {
+                // TODO -- use equiv module
+                x == y
+            },
+            (&NmSetTm::Single(ref x), &NmSetTm::Subset(ref y)) => {
+                decide_idxtm_subset_speculative(ctx, &IdxTm::Sing(x.clone()), y)
+            },
+            (&NmSetTm::Subset(ref x), &NmSetTm::Single(ref y)) => {
+                decide_idxtm_subset_speculative(ctx, x, &IdxTm::Sing(y.clone()))
+            },
+            (&NmSetTm::Subset(ref x), &NmSetTm::Subset(ref y)) => {
+                decide_idxtm_subset_speculative(ctx, x, y)
+            }
+        };
+        //println!("??????? search ?????????? ----------- END");
+        res
+    }
+
+    // -------------------------------------------------------------
+    /// Decide name set subset relation.
+    ///
+    /// Return true iff name set `i` is a subset of, or equal to, name
+    /// set `j`.  Uses `decide_idxtm_congr` as a subroutine.
     pub fn decide_idxtm_subset(ctx: &RelCtx, i:&IdxTm, j:&IdxTm) -> IdxTmDec
     {
         // Normalize `i` and `j` as `a` and `b`, respectively
@@ -1236,7 +1263,7 @@ pub mod subset {
                             for tm2 in b_ns.terms.iter() {
                                 // XXX -- Too strong: Use subset check here:
                                 if tm1 == tm2 ||
-                                    decide_nmsettm_subset_simple(ctx, tm1, tm2)
+                                    decide_nmsettm_subset_speculative(ctx, tm1, tm2)
                                 {
                                     found_tm1 = true;
                                 }
@@ -1266,9 +1293,23 @@ pub mod subset {
                             clas:Sort::NmSet,
                             res:Ok(true)
                         }
-                    }
-                    // Subcase 5: "Other: Say 'No'"
+                    }                    
+                    // Subcase 5: Perhaps the term is present as a subset?
                     a => {
+                        // Look for the term in the name set `b_ns`
+                        let a_ns_tm = normal::NmSetTm::Subset(a.clone());
+                        for b_ns_tm in b_ns.terms.iter() {
+                            // TODO: Use equiv checking, not ==, which may be too restrictive.
+                            if b_ns_tm == &a_ns_tm {
+                                return Dec{
+                                    ctx:ctx.clone(),
+                                    rule:Rc::new(IdxTmRule::SubsetRefl(a_ns_tm)),
+                                    clas:Sort::NmSet,
+                                    res:Ok(true)
+                                }
+                            }
+                            else { continue }
+                        }
                         if false {
                             println!("======================================================= BEGIN");
                             println!("decide_idxtm_subset: Cannot decide subset:");
@@ -1279,13 +1320,14 @@ pub mod subset {
                                       Fungi may need additional reasoning in its `decide` \
                                       and/or `normal` modules...)");
                             println!("------------------------------------------------------- END");
-                        };
+                        }
                         return Dec{
                             ctx:ctx.clone(),
                             rule:Rc::new(IdxTmRule::Fail),
                             clas:Sort::NmSet,
                             res:Err(DecError::SubsetSearchFailure(a, b))
-                        }}                    
+                        }
+                    }
                 }
             },
             _ => decide_idxtm_subset_congr (
@@ -1499,6 +1541,29 @@ pub mod subset {
         }
         else {
             println!("\x1B[0;1mdecide_idxtm_subset:\x1B[0;1;31m fails to hold:\x1B[0;0m\n\t{:?}\n  \x1B[1;31mNOT(≤)\x1B[0;0m\n\t{:?}", i, j);
+            return false
+        }
+    }
+
+    /// Decide name set subset relation.  
+    ///
+    /// This is like decide_idxtm_subset_simple, but is intended to be
+    /// called in speculative situations (e.g., searching for an
+    /// equivalent term among many in a set of terms).
+    ///
+    /// Wraps `decide_idxtm_subset` with a simpler output type.
+    //
+    pub fn decide_idxtm_subset_speculative(ctx: &RelCtx, i:&IdxTm, j:&IdxTm) -> bool
+    {
+        let d = decide_idxtm_subset(ctx, &i, &j);
+        if d.res == Ok(true) {
+            if i != j {
+                println!("\x1B[0;1mdecide_idxtm_subset: holds:\x1B[0;0m\n\t{:?}\n  ≤\n\t{:?}", i, j);
+            };
+            return true
+        }
+        else {
+            //println!("\x1B[0;1mdecide_idxtm_subset:\x1B[0;1;31m fails to hold:\x1B[0;0m\n\t{:?}\n  \x1B[1;31mNOT(≤)\x1B[0;0m\n\t{:?}", i, j);
             return false
         }
     }
