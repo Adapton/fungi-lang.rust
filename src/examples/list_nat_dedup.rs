@@ -109,7 +109,7 @@ pub mod dynamic_tests {
 }
 
 pub mod static_tests {
-    #[test]
+    //#[test]
     pub fn typing() { fgi_listing_test!{
         use super::*;
         ret 0

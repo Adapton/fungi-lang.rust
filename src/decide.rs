@@ -658,7 +658,7 @@ pub mod equiv {
             }
         };
         match (&*m.rule,&*n.rule) {
-            (mr,nr) if nr == mr => { succ(NmTmRule::Refl(n.clone())) }
+            (_, _) if m.term == n.term => { succ(NmTmRule::Refl(n.clone())) }
             (&BiNmTm::Name(ref n1),&BiNmTm::Name(ref n2)) => {
                 if n1 == n2 {
                     succ(NmTmRule::Refl(m.clone()))

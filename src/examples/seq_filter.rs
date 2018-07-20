@@ -26,7 +26,7 @@ pub fn listing () { fgi_listing_expect![
         
         /// Name pointers written for each name in a structural
         /// recursion (-`_SR`) over a sequence:
-        idxtm Seq_SR = ( #x:Nm.({x,@1})%({x,@2}) );
+        idxtm Seq_SR = ( #x:Nm.({x * @1})%({x * @2}) );
         
         /// ... prefixed with the current write scope (`WS`-)
         idxtm WS_Seq_SR  = ( #x:NmSet.{@!}((Seq_SR) x) );
@@ -69,7 +69,7 @@ pub fn listing () { fgi_listing_expect![
             Thk[0] foralli (X,Y):NmSet.
                 0 (Seq[X][Y]) -> { 0; Y } F Bool
         ) = {
-            #seq. match seq {
+            #seq. unroll match seq {
                 on => { match on {
                     _u => { ret true }
                     _n => { ret false }
