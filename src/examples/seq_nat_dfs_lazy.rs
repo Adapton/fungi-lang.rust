@@ -12,7 +12,7 @@ pub mod dynamic_tests {
      */
     #[test]
     pub fn short() { use examples::*; fgi_dynamic_trace!{
-        [Expect::SuccessxXXX]
+        [Expect::SuccessXXX]
         use super::*;
         use seq_nat_gen::*;
 

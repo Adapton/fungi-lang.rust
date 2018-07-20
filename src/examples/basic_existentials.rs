@@ -1,5 +1,5 @@
 #[test]
-pub fn listing0 () { fgi_listing_expect![ [Expect::SuccessxXXX]
+pub fn listing0_ok () { fgi_listing_expect![ [Expect::Success]
 
     let foo:(
         Thk[0] foralli (X,Y):NmSet.
@@ -24,7 +24,7 @@ pub fn listing0 () { fgi_listing_expect![ [Expect::SuccessxXXX]
 
 
 #[test]
-pub fn listing1 () { fgi_listing_expect![ [Expect::SuccessxXXX]
+pub fn listing1_ok () { fgi_listing_expect![ [Expect::Success]
     let foo:(
         Thk[0] foralli (X,Y,Z):NmSet.
             0 Bool ->
@@ -48,7 +48,7 @@ pub fn listing1 () { fgi_listing_expect![ [Expect::SuccessxXXX]
 ]}
 
 #[test]
-pub fn listing1_fail0 () { fgi_listing_expect![[Expect::Failure]
+pub fn listing1_err1 () { fgi_listing_expect![[Expect::Failure]
 
     let foo:(
         Thk[0] foralli (X,Y,Z):NmSet.
@@ -73,7 +73,7 @@ pub fn listing1_fail0 () { fgi_listing_expect![[Expect::Failure]
 ]}
 
 #[test]
-pub fn listing1_fail1 () { fgi_listing_expect![[Expect::Failure]
+pub fn listing1_err2 () { fgi_listing_expect![[Expect::Failure]
 
     let foo:(
         Thk[0] foralli (X,Y,Z):NmSet.

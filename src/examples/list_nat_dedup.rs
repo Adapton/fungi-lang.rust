@@ -9,7 +9,7 @@ pub mod dynamic_tests {
      */
     #[test]
     pub fn short_18_2() { use examples::{list_nat, list_nat_edit, list_nat_convert}; fgi_dynamic_trace!{
-        [Expect::SuccessxXXX]
+        [Expect::SuccessXXX]
         use super::*;
         use list_nat::*;
         use list_nat_edit::*;
@@ -61,7 +61,7 @@ pub mod dynamic_tests {
     // Be careful: Without --release, this version overflows my stack.
     //#[test]
     pub fn big() { use examples::{list_nat, list_nat_convert}; fgi_dynamic_trace!{
-        [Expect::SuccessxXXX]
+        [Expect::SuccessXXX]
         use super::*;
         use list_nat::*;
         use list_nat_convert::*;

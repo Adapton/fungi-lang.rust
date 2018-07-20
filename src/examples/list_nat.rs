@@ -171,7 +171,7 @@ pub mod dynamic_tests {
      */
     #[test]
     pub fn short() { use examples::{list_nat_edit, list_nat_reverse}; fgi_dynamic_trace!{
-        [Expect::SuccessxXXX]
+        [Expect::SuccessXXX]
         use super::*;
         use list_nat_edit::*;
         use list_nat_reverse::*;
@@ -211,7 +211,7 @@ pub mod dynamic_tests {
     
     #[test]    
     pub fn long() { use examples::{list_nat_edit, nat, list_nat_reverse}; fgi_dynamic_trace!{
-        [Expect::SuccessxXXX]            
+        [Expect::SuccessXXX]
         use super::*;
         use list_nat_edit::*;
         use list_nat_reverse::*;
@@ -258,7 +258,7 @@ pub mod dynamic_tests {
 ///////////////////////////////////////////////////////////////////////
 #[test]
 pub fn listing1 () { fgi_listing_expect![
-    [Expect::FailurexXXX]
+    [Expect::FailureXXX]
         
         decls {
             /// Lists of natural numbers

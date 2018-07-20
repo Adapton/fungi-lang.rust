@@ -1,5 +1,5 @@
 #[test]
-pub fn listing0 () { fgi_listing_test![
+pub fn listing0_ok () { fgi_listing_test![
 
     let get:(
         Thk[0] foralli X:NmSet.
@@ -15,7 +15,7 @@ pub fn listing0 () { fgi_listing_test![
 ]}
 
 #[test]
-pub fn listing0_fail0 () { fgi_listing_expect![
+pub fn listing0_err () { fgi_listing_expect![
     [Expect::Failure]
         
     let get:(
@@ -32,7 +32,7 @@ pub fn listing0_fail0 () { fgi_listing_expect![
 ]}
 
 #[test]
-pub fn listing1 () { fgi_listing_test![
+pub fn listing1_ok () { fgi_listing_test![
         
     let get:(
         Thk[0] foralli (X,Y):NmSet.

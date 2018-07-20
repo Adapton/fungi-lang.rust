@@ -575,7 +575,9 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                                             Rc::new( IdxTm::WriteScope ),
                                                             Rc::new(i.clone())))
                                                 } else { 
-                                                    i.clone()
+                                                    IdxTm::App(
+                                                        Rc::new( IdxTm::WriteScope ),
+                                                        Rc::new(i.clone()))
                                                 };
                                             nmset_terms_add(
                                                 ns.cons.clone(),

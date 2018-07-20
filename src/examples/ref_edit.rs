@@ -29,3 +29,12 @@ pub mod trapdoor {
         }
     }
 }
+
+
+pub mod static_tests {
+    #[test]
+    pub fn typing() { fgi_listing_test!{
+        use super::*;
+        ret 0
+    }}
+}
