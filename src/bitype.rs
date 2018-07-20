@@ -1237,7 +1237,7 @@ pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
     let fail = |td:ValRule, err :TypeError| { failure(Dir::Check(typ_raw.clone()), ext, ctx, val.clone(), td, err)  };
     let succ = |td:ValRule, typ :Type     | { success(Dir::Check(typ_raw.clone()), ext, ctx, val.clone(), td, typ) };
     // Normalize the type
-    let typ = &(normal::normal_type(ctx, typ_raw));
+    let typ_norm = &(normal::normal_type(ctx, typ_raw));
     match val {
         &Val::Var(ref x) => {
             let td = ValRule::Var(x.clone());
@@ -1266,7 +1266,7 @@ pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
                         println!(".. type-subset holds: {}\n", subset_flag);
                         println!("");
                         println!(".. Variable {}'s type:\n{:?} \n\n...does not check against type:\n{:?}\n", x,
-                                 normal::normal_type(ctx, &x_typ_raw), typ);
+                                 normal::normal_type(ctx, &x_typ_raw), typ_norm);
                         println!("---------------------------------------------------------------------------------- END ");
                         fail(td, TypeError::AnnoMism)
                     }
@@ -1275,11 +1275,11 @@ pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
         },
         &Val::Unit => {
             let td = ValRule::Unit;
-            if Type::Unit == *typ { succ(td, typ.clone()) }
+            if Type::Unit == *typ_norm { succ(td, typ_raw.clone()) }
             else { fail(td, TypeError::AnnoMism) }
         },
         &Val::Pair(ref v0, ref v1) => {
-            if let Type::Prod(ref t0, ref t1) = *typ {
+            if let Type::Prod(ref t0, ref t1) = *typ_norm {
                 let td0 = check_val(ext, ctx, v0, t0);
                 let td1 = check_val(ext, ctx, v1, t1);
                 let (typ0,typ1) = (td0.clas.clone(), td1.clas.clone());
@@ -1287,7 +1287,7 @@ pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
                 match (typ0,typ1) {
                     (Err(_),_) => fail(td, TypeError::ParamNoCheck(0)),
                     (_,Err(_)) => fail(td, TypeError::ParamNoCheck(1)),
-                    (Ok(_),Ok(_)) => succ(td, typ.clone()),
+                    (Ok(_),Ok(_)) => succ(td, typ_raw.clone()),
                 }
             } else { fail(ValRule::Pair(
                 synth_val(ext, ctx, v0),
@@ -1295,56 +1295,56 @@ pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
             ), TypeError::AnnoMism) }
         },
         &Val::Inj1(ref v) => {
-            if let Type::Sum(ref t1, _) = *typ {
+            if let Type::Sum(ref t1, _) = *typ_norm {
                 let td0 = check_val(ext, ctx, v, t1);
                 let typ0 = td0.clas.clone();
                 let td = ValRule::Inj1(td0);
                 match typ0 {
                     Err(_) => fail(td, TypeError::ParamNoCheck(0)),
-                    Ok(_) => succ(td, typ.clone()),
+                    Ok(_) => succ(td, typ_raw.clone()),
                 }
             } else { fail(ValRule::Inj1(
                 synth_val(ext,ctx, v)
             ), TypeError::AnnoMism) }
         },
         &Val::Inj2(ref v) => {
-            if let Type::Sum(_, ref t2) = *typ {
+            if let Type::Sum(_, ref t2) = *typ_norm {
                 let td0 = check_val(ext, ctx, v, t2);
                 let typ0 = td0.clas.clone();
                 let td = ValRule::Inj2(td0);
                 match typ0 {
                     Err(_) => fail(td, TypeError::ParamNoCheck(0)),
-                    Ok(_) => succ(td, typ.clone()),
+                    Ok(_) => succ(td, typ_raw.clone()),
                 }
             } else { fail(ValRule::Inj2(
                 synth_val(ext,ctx, v)
             ), TypeError::AnnoMism) }
         },
         &Val::Roll(ref v) => {
-            let (ur_typ, success) = normal::unroll_type(ctx, &typ);
+            let (ur_typ, success) = normal::unroll_type(ctx, &typ_norm);
             let vd = if success {
                 check_val(ext, ctx, v, &ur_typ)
             } else {
                 // TODO: more specific error message here: We expected
                 // to unroll the type, but could not.
-                check_val(ext, ctx, v, typ)
+                check_val(ext, ctx, v, typ_norm)
             };
             let vt = vd.clas.clone();
-            propagate(Dir::Check(typ.clone()), ext,
+            propagate(Dir::Check(typ_raw.clone()), ext,
                       ctx, val.clone(), ValRule::Roll(vd), vt)
         },
         &Val::Name(ref n) => {
             let td = ValRule::Name(n.clone());
-            if let Type::Nm(ref _idx) = *typ {
+            if let Type::Nm(ref _idx) = *typ_norm {
                 match n { 
                     &Name::NoParse(ref s) => fail(td, TypeError::NoParse(s.clone())),
                     // TODO-Next: check that n is a member of idx
-                    _ => succ(td, typ.clone())
+                    _ => succ(td, typ_raw.clone())
                 }
             } else { fail(td, TypeError::AnnoMism) }
         },
         &Val::NameFn(ref nmtm) => {
-            if let Type::NmFn(ref nt) = *typ {
+            if let Type::NmFn(ref nt) = *typ_norm {
                 let td0 = check_nmtm(ext, ctx, nt, &Sort::NmArrow(
                     Rc::new(Sort::Nm), Rc::new(Sort::Nm),
                 ));
@@ -1353,7 +1353,7 @@ pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
                 match typ0 {
                     Err(_) => fail(td, TypeError::ParamNoCheck(0)),
                     // TODO-Soon: check equivalence of nmtm and nt
-                    Ok(_) => succ(td, typ.clone())
+                    Ok(_) => succ(td, typ_raw.clone())
                 }
             } else { fail(ValRule::NameFn(
                 synth_nmtm(ext, ctx, nmtm)
@@ -1361,13 +1361,13 @@ pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
         },
         &Val::Anno(ref v,ref t) => {
             // TODO: Type equality may be more complex than this test (e.g. alpha equivalent types should be equal)
-            if *t == *typ {
+            if *t == *typ_norm {
                 let td0 = check_val(ext, ctx, v, t);
                 let typ0 = td0.clas.clone();
                 let td = ValRule::Anno(td0, t.clone());
                 match typ0 {
                     Err(err) => fail(td, err.clone()),
-                    Ok(typ) => succ(td, typ.clone()),
+                    Ok(_typ) => succ(td, typ_raw.clone()),
                 }
             } else { fail(ValRule::Anno(
                 synth_val(ext, ctx, v), t.clone()
@@ -1381,7 +1381,7 @@ pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
         // Gamma |- pack(i,v) <= (exists a:g|P. A)
         //
         &Val::Pack(ref i, ref v) => {
-            if let Type::Exists(a,g,p,aa) = typ.clone() {
+            if let Type::Exists(a,g,p,aa) = typ_norm.clone() {
                 let td0  = check_idxtm(ext, ctx, i, &g);
                 let pi   = subst::subst_term_prop(Term::IdxTm(i.clone()), &a, p);
                 // TODO: check that pi = p[i/a] is true
@@ -1393,15 +1393,16 @@ pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
                 match (typ0,typ1) {
                     (Err(_),_) => fail(td, TypeError::ParamNoCheck(0)),
                     (_,Err(_)) => fail(td, TypeError::ParamNoCheck(1)),
-                    _ => succ(td, typ.clone()),
+                    _ => succ(td, typ_raw.clone()),
                 }
             } else { fail(ValRule::Pack(
                 synth_idxtm(ext, ctx, i),
                 synth_val(ext, ctx, v)
-            ), TypeError::CheckFailType(typ.clone())) }
+            ), TypeError::CheckFailType(typ_raw.clone())) }
         },
         &Val::ThunkAnon(ref e) => {
-            if let Type::Thk(ref _idx, ref ce) = *typ {
+            if let Type::Thk(ref _idx, ref ce) = *typ_norm {
+                // TODO/XXXXXXXXX Need to redefine "normal forms"
                 let td0 = check_exp(ext, ctx, &*e, &*ce);
                 let typ0 = td0.clas.clone();
                 let td = ValRule::ThunkAnon(td0);
@@ -1412,7 +1413,7 @@ pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
                 match typ0 {
                     //Err(_) => fail(td, TypeError::ParamNoCheck(0)),
                     Err(_) => fail(td, TypeError::CheckFailCEffect((**ce).clone())),
-                    Ok(_) => succ(td, typ.clone())
+                    Ok(_) => succ(td, typ_raw.clone())
                 }
             } else { fail(ValRule::ThunkAnon(
                 synth_exp(ext, ctx, e)
@@ -1420,17 +1421,17 @@ pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
         },
         &Val::Bool(b) => {
             let td = ValRule::Bool(b);
-            if type_bool() == *typ { succ(td, typ.clone())} 
+            if type_bool() == *typ_norm { succ(td, typ_raw.clone())} 
             else { fail(td, TypeError::ParamMism(0)) }
         },
         &Val::Nat(n) => {
             let td = ValRule::Nat(n);
-            if type_nat() == *typ { succ(td, typ.clone())} 
+            if type_nat() == *typ_norm { succ(td, typ_raw.clone())} 
             else { fail(td, TypeError::ParamMism(0)) }
         },
         &Val::Str(ref s) => {
             let td = ValRule::Str(s.clone());
-            if type_string() == *typ { succ(td, typ.clone())} 
+            if type_string() == *typ_norm { succ(td, typ_raw.clone())} 
             else { fail(td, TypeError::ParamMism(0)) }
         },
         &Val::NoParse(ref s) => {
@@ -1663,7 +1664,10 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                     //println!("AnnoC: Ok: ctyp={:?}", ctyp.clone());
                     // TODO: Type equality may be more complex than this test (e.g. alpha equivalent types should be equal)
                     if *ctyp == ct { succ(td, CEffect::Cons(ct,eff)) }
-                    else { fail(td, TypeError::AnnoMism) }
+                    else { 
+                        println!("TODO/XXX/FIXME");
+                        fail(td, TypeError::AnnoMism) 
+                    }
                 },
                 _ => { 
                     //println!("AnnoC: Fail: typ0={:?}", typ0);
@@ -1812,12 +1816,16 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                 (Ok(ec), Ok(_is)) => { match ec {
                     CEffect::ForallIdx(x, _g, p, ce) => {
                         //println!("BEGIN: subst");
+                        println!("XXX: IdxApp: index:   {:?}", i);
+                        println!("XXX: IdxApp: ceffect: {:?}", ce);
                         let _p = subst::subst_term_prop(Term::IdxTm(i.clone()), &x, p);
-                        let ce = subst::subst_term_ceffect(Term::IdxTm(i.clone()), &x, (*ce).clone());
+                        let ce2 = subst::subst_term_ceffect(Term::IdxTm(i.clone()), &x, (*ce).clone());
+                        /// XXXXXXXX BUG HERE:
+                        println!("XXX: IdxApp: ceffect (substituted): {:?}", ce2);
                         //println!("END: subst");
                         // XXX/TODO need to prove (decide) that p is true
                         let td = ExpRule::IdxApp(ed,id);
-                        succ(td, ce)
+                        succ(td, ce2)
                     }
                     _ => {
                         fail(ExpRule::IdxApp(ed,id),
@@ -1908,9 +1916,9 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                         }
                     }
                 },
-                _ => fail(ExpRule::Let(x.clone(),td1,
+                z => { println!("XXX:{:?}", z); fail(ExpRule::Let(x.clone(),td1,
                     synth_exp(ext, ctx, e2)
-                ), TypeError::ParamMism(1)),
+                ), TypeError::ParamMism(1)) },
             }
         },
         &Exp::PrimApp(PrimApp::NameBin(ref v0,ref v1)) => {
@@ -2253,6 +2261,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                          TypeError::SynthFailVal(v.clone()))
                 }
                 Ok(v_ty) => {
+                    // TODO: Do we really need to normalize here? Perhaps so.
                     let v_ty = normal::normal_type(ctx, &v_ty);
                     let (v_ty,_) = normal::unroll_type(ctx, &v_ty);
                     let new_ctx = ctx.var(x.clone(), v_ty);
@@ -2284,6 +2293,10 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                         .prop(p.clone())
                         .var(x.clone(),aa)
                         ;
+                    println!("\x1B[1;33mexists\x1B[1;36m {} \x1B[0;1m: \x1B[2;35m{:?}\x1B[0;0m", a1, g);
+                    if p != Prop::Tt {
+                        println!("\x1B[1;33mprop\x1B[1;36m {:?} \x1B[0;1mtrue\x1B[0;0m", p);
+                    };
                     let td3 = check_exp(ext, &new_ctx, e, &ceffect);
                     let typ3 = td3.clas.clone();
                     let rule = ExpRule::Unpack(a1.clone(),x.clone(),v_td,td3);
@@ -2386,10 +2399,10 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                             }
                         }
                     }
-                    _ => fail(ExpRule::Let(
+                    z => { println!("XXX: {:?}", z); fail(ExpRule::Let(
                         x.clone(), td1,
                         synth_exp(ext,ctx,e2)
-                    ), TypeError::ParamMism(1))
+                    ), TypeError::ParamMism(1)) }
                 }
             } else { fail(ExpRule::Let(x.clone(),
                 synth_exp(ext, ctx, e1),

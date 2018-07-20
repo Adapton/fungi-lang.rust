@@ -412,15 +412,25 @@ pub mod effect {
             match (eff1.clone(), eff2.clone()) {
                 (Effect::WR(wr1, rd1), Effect::WR(wr2, rd2)) => {
                     //println!("BEGIN decide_idxtm_subtraction");
+                    println!("\x1B[0;1mdecide_effect_subtraction: Writes:");
                     let wr3 = decide_idxtm_subtraction(ctx, wr1, wr2);
                     //println!("END decide_idxtm_subtraction");
                     use super::subset;
+                    
+                    // TODO: Figure out the right place to put this
+                    // normalization step, given the switching between
+                    // relational and ordinary typing contexts
+                    // everywhere.
+                    println!("\x1B[0;1mdecide_effect_subtraction: Reads:");
+                    
+                    let rd1n = normal::normal_idxtm(ctx, rd1.clone());
+                    let rd2n = normal::normal_idxtm(ctx, rd2.clone());
                     let rdsub = subset::decide_idxtm_subset(
                         &super::relctx_of_ctx(ctx),
                         // rd2: Candidate to be the smaller set
-                        &rd2,
+                        &rd2n,
                         // rd1: Candidate to be the larger set
-                        &rd1.clone()
+                        &rd1n.clone()
                     );
                     match (wr3, rdsub.res) {
                         (Ok(wr3), Ok(_)) => {
@@ -435,8 +445,8 @@ pub mod effect {
                                 println!("======================================================= BEGIN");
                                 println!("decide_effect_subtraction: Cannot decide read subset:");
                                 println!(" Error: {:?}\n", err);
-                                println!(" Superset (candidate):\n\t{:?}", &rd1);
-                                println!(" Subset (candidate):\n\t{:?}", &rd2);
+                                println!(" Superset (candidate):\n\t{:?}", &rd1n);
+                                println!(" Subset (candidate):\n\t{:?}", &rd2n);
                                 println!("\n\
                                           (If you believe this subset relationship holds, \
                                           Fungi may need additional reasoning in its `decide` \
@@ -1232,11 +1242,12 @@ pub mod subset {
                                 }
                             }
                             if found_tm1 { continue } else {
-                                if false {
-                                    println!("Subcase-4: Term not found in superset candidate:\n\
-                                              \t`{:?}`\n\n\
-                                              Not found among:\n\
-                                              \t`{:?}`", tm1, b_ns.terms)
+                                if true {
+                                    println!("^decide_idxtm_subset: Term not found in superset candidate:\n\
+                                              \t{:?}\n\
+                                              Term above is absent among the superset candidate's terms:\n\
+                                              \t{:?}",
+                                             tm1, b_ns.terms)
                                 };
                                 return Dec{
                                     ctx:ctx.clone(),

@@ -261,12 +261,12 @@ fgi_mod!{
             
     fn trie_replrec:(
         Thk[0] foralli (X1,X2,Y):NmSet | ((X1%X2)=X:NmSet).
-            foralli ni:Nm.
+            foralli Z:Nm.
             0 RefTrie[X1][Y] -> 
             0 Nm[X2] -> 
             0 Nat -> 
             0 Nat -> 
-            0 Nm[{ni}] -> 
+            0 Nm[{Z}] -> 
         {{WS_Trie} X2; Y}
         F (x RefTrie[X1 % X2][Y U ({WS_Trie} X2)]
            x Bool)
@@ -282,21 +282,21 @@ fgi_mod!{
         } else {
             // recursive case
             let j   = {i + 1}
-            let nj  = {(name []) , ni}
+            let nj  = {(@@apple) , ni}
             let tc = {{force children}[X1][Y] t}
-            unpack (Xl, Xr) tc = tc
+            unpack (X1l, X1r) tc = tc
             let (lc,rc) = {ret tc}
             let bit = {{force nat_hash_bit} y i}
             if ( bit ) {
-                let (tx, b) = {{force trie_replrec}[X1][X2][Y][{[]*ni}] lc x y j nj}
+                let (tx, b) = {{force trie_replrec}[X1l][X2][Y][{(@@leaf)*Z}] lc x y j nj}
                 let r : (RefTrie[X1 % X2][Y U ({WS_Trie} X2)]) = {
-                    ref {x,ni} roll inj2 inj2 pack (Xl % X2, Xr) (tx, rc)
+                    ref {x,ni} roll inj2 inj2 pack (X1l % X2, X1r) (tx, rc)
                 }
                 ret (r, b)
             } else {
-                let (tx, b) = {{force trie_replrec}[X1][X2][Y][{[]*ni}] rc x y j nj}
+                let (tx, b) = {{force trie_replrec}[X1r][X2][Y][{(@@leaf)*Z}] rc x y j nj}
                 let r : (RefTrie[X1 % X2][Y U ({WS_Trie} X2)]) = {
-                    ref {x,ni} roll inj2 inj2 pack (Xl % X2, Xr) (lc, tx)
+                    ref {x,ni} roll inj2 inj2 pack (X1l, X1r % X2) (lc, tx)
                 }
                 ret (r, b)
             }

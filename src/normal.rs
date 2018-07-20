@@ -92,7 +92,13 @@ pub fn is_normal_idxtm(ctx:&Ctx, i:&IdxTm) -> bool {
         IdxTm::Ident(_)   => false,
         IdxTm::NmTm(ref n) => is_normal_nmtm(ctx, n),
         // namesets are normal, by the way we construct them
-        IdxTm::NmSet(_)   => true,
+        //
+        // FIXME:XXX: Nope: Because sometimes in some contexts, we get
+        // extra facts about a variable's decomposition. E.g, suppose
+        // that in some arm of a case, we do an unpack and get that
+        // X=(X1%X2).  Now any NmSet that mentions X is _not normal_.
+        //
+        IdxTm::NmSet(_)   => true /* XXX */,
         // variables are normal if there are no decompositions in the context
         IdxTm::Var(ref x) => {
             None == bitype::find_defs_for_idxtm_var(&ctx, &x)
@@ -257,6 +263,10 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                         i.clone()
                     }
                 }
+            }
+
+            IdxTm::NmSet(ns) => {
+                panic!("TODO")
             }
 
             IdxTm::Apart(i1, i2) => {
