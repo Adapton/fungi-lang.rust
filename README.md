@@ -1,4 +1,4 @@
-# <img src="http://adapton.org/fungi-lang-logo/Fungi-lang-logo-64.png" alt="Logo" style="width: 64px;"/> Fungi: A typed functional language for programs that name their own cached dependency graphs [![Travis](https://api.travis-ci.org/Adapton/fungi-lang.rust.svg?branch=master)](https://travis-ci.org/Adapton/fungi-lang.rust)
+# <img src="http://adapton.org/fungi-lang-logo/Fungi-lang-logo-64.png" alt="Logo" style="width: 64px;"/> Fungi: Typed incremental computation with names [![Travis](https://api.travis-ci.org/Adapton/fungi-lang.rust.svg?branch=master)](https://travis-ci.org/Adapton/fungi-lang.rust)
 
 **Fungi is a programming language for incremental computation with
 names.** In particular, Fungi is a typed functional language for
@@ -44,8 +44,7 @@ Fungi gives a **typed**, **general-purpose core caluclus** for
 **demand-driven incremental computations**, following the core calculi
 and run-time semantics of [Adapton](http://adapton.org).  Unlike prior
 Adapton-related projects, Fungi provides additional language
-affordances for describing names, both statically and dynamically, but
-especially statically, before the incremental program runs.
+affordances for describing names, both dynamically, and through sound static approximations.
 
 ### Future work: Implicitly-incremental programs _translate_ to Fungi programs:
 
