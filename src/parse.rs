@@ -1097,15 +1097,15 @@ macro_rules! fgi_exp {
         )} $($more)*]
     };
     //     {e} [i]                             (single index application)
-    { {$($e:tt)+} [$i:tt] } => { Exp::IdxApp(
+    { {$($e:tt)+} [$($i:tt)+] } => { Exp::IdxApp(
         Rc::new(fgi_exp![$($e)+]),
-        fgi_index![$i],
+        fgi_index![$($i)+],
     )};
     //     {e} [i1] ...                        (extened index application)
-    { {$($e:tt)+} [$i:tt] $($more:tt)+ } => {
+    { {$($e:tt)+} [$($i:tt)+] $($more:tt)+ } => {
         fgi_exp![{fromast Exp::IdxApp(
             Rc::new(fgi_exp![$($e)+]),
-            fgi_index![$i],
+            fgi_index![$($i)+],
         )} $($more)+]
     };
     //     {e} v                             (single application)

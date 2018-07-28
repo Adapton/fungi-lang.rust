@@ -12,6 +12,15 @@ use decide;
 use subst;
 use expand;
 
+macro_rules! fgi_db_bitype {
+    ( $fmt_string:expr ) => {{
+        println!( $fmt_string )
+    }};
+    ( $fmt_string:expr, $( $arg:expr ),* ) => {{
+        println!( $fmt_string, $( $arg ),* )
+    }}
+}
+
 /// "Extra" typing information carried by the typing judgements
 #[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub struct Ext {
@@ -69,6 +78,33 @@ pub enum Term {
     NmTm(NameTm),
     IdxTm(IdxTm),
     Type(Type),
+}
+
+/// Depending on the sort, construct either a name term or index term
+/// from the given index term derivation.  (The `subst` module uses
+/// this "term family" distinction to guide how it searches for free
+/// variables in terms.)
+pub fn term_of_idxtm(i:&IdxTmDer) -> Term {
+    match &*i.term {
+        &IdxTm::NmTm(ref n) => {
+            Term::NmTm(n.clone())
+        },
+        &IdxTm::Var(ref x)  => { 
+            match &i.clas {            
+                &Ok(Sort::Nm) |
+                &Ok(Sort::NmArrow(_, _)) =>
+                {
+                    Term::NmTm(NameTm::Var(x.clone()))
+                }
+                _ => {
+                    Term::IdxTm(IdxTm::Var(x.clone()))
+                }
+            }
+        }
+        _ => {
+            Term::IdxTm((*i.term).clone())
+        }
+    }
 }
 
 impl Ctx {
@@ -683,13 +719,13 @@ fn failure<R:HasClas+debug::DerRule>
     if let Some(lbl) = ext.last_label.clone() {print!("After {}, ", lbl)}
     let is_local_err = error_is_local(&err);
     
-    println!("{}Failed to {} {} {}, error: {}{}",
+    fgi_db_bitype!("{}Failed to {} {} {}, error: {}{}",
              {if is_local_err { "\x1B[1;31m" }
               else            { "\x1B[0;31m" }},
              dir.short(), R::term_desc(), n.short(), 
              err, "\x1B[0;0m");
     if is_local_err {
-        println!("  Failure term: {}", debug_truncate(&tm));
+        fgi_db_bitype!("  Failure term: {}", debug_truncate(&tm));
     }
     Der{
         //ext: ext.clone(),
@@ -749,7 +785,7 @@ pub fn find_defs_for_idxtm_var(ctx:&Ctx, x:&Var) -> Option<IdxTm> {
         &Ctx::PropTrue(_, Prop::Equiv(ref i, IdxTm::Var(ref x_),_)) if x == x_ => Some(i.clone()),
         &Ctx::PropTrue(_, Prop::Equiv(ref _i, ref _j, ref _g)) => {
             // This is the not the prop that we are looking for; but perhaps print it.
-            //println!("PropTrue: {:?} == {:?} : {:?}", i, j, g);
+            //fgi_db_bitype!("PropTrue: {:?} == {:?} : {:?}", i, j, g);
             find_defs_for_idxtm_var(&*(ctx.rest().unwrap()), x)
         },
         _ => find_defs_for_idxtm_var(&*(ctx.rest().unwrap()), x)
@@ -912,7 +948,7 @@ pub fn synth_idxtm(ext:&Ext, ctx:&Ctx, idxtm:&IdxTm) -> IdxTmDer {
                 (Ok(Sort::IdxArrow(ref t0,ref t1)),Ok(ref t2)) if **t0 == *t2 => succ(td, (**t1).clone()),
                 (Ok(Sort::IdxArrow(ref t0,_)),Ok(ref t2)) => {
                     // error reporting order: found sort, then expected sort
-                    //println!("index app term: {:?} {:?}", idx0, idx1);
+                    //fgi_db_bitype!("index app term: {:?} {:?}", idx0, idx1);
                     fail(td, TypeError::MismatchSort( (*t2).clone(), (**t0).clone() ))
                 },                    
                 _ => fail(td, TypeError::AppNotArrow),
@@ -1250,7 +1286,7 @@ pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
                     );                    
                     if subset_flag {
                         if false { // Super-verbose variable-typing messages:
-                            println!("Checked type of variable {}:\n\
+                            fgi_db_bitype!("Checked type of variable {}:\n\
                                       \t{:?}\n\
                                       Against:\n\
                                       \t{:?}\n",
@@ -1259,15 +1295,15 @@ pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
                         succ(td, x_typ_raw)
                     }
                     else {
-                        println!("================================================================================== BEGIN");
-                        println!("Detailed errors for checking type of variable {}:", x);
-                        println!(".. Variable {}'s type:\n{:?} \n\n...does not check against type:\n{:?}\n", x, x_typ_raw, typ_raw);
-                        println!("");
-                        println!(".. type-subset holds: {}\n", subset_flag);
-                        println!("");
-                        println!(".. Variable {}'s type:\n{:?} \n\n...does not check against type:\n{:?}\n", x,
+                        fgi_db_bitype!("================================================================================== BEGIN");
+                        fgi_db_bitype!("Detailed errors for checking type of variable {}:", x);
+                        fgi_db_bitype!(".. Variable {}'s type:\n{:?} \n\n...does not check against type:\n{:?}\n", x, x_typ_raw, typ_raw);
+                        fgi_db_bitype!("");
+                        fgi_db_bitype!(".. type-subset holds: {}\n", subset_flag);
+                        fgi_db_bitype!("");
+                        fgi_db_bitype!(".. Variable {}'s type:\n{:?} \n\n...does not check against type:\n{:?}\n", x,
                                  normal::normal_type(ctx, &x_typ_raw), typ_norm);
-                        println!("---------------------------------------------------------------------------------- END ");
+                        fgi_db_bitype!("---------------------------------------------------------------------------------- END ");
                         fail(td, TypeError::AnnoMism)
                     }
                 }
@@ -1383,10 +1419,11 @@ pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
         &Val::Pack(ref i, ref v) => {
             if let Type::Exists(a,g,p,aa) = typ_norm.clone() {
                 let td0  = check_idxtm(ext, ctx, i, &g);
-                let pi   = subst::subst_term_prop(Term::IdxTm(i.clone()), &a, p);
+                let tm   = term_of_idxtm(&td0);
+                let pi   = subst::subst_term_prop(tm.clone(), &a, p);
                 // TODO: check that pi = p[i/a] is true
                 drop(pi);
-                let aai  = subst::subst_term_type(Term::IdxTm(i.clone()), &a, (*aa).clone());
+                let aai  = subst::subst_term_type(tm.clone(), &a, (*aa).clone());
                 let td1 = check_val(ext, ctx, v, &aai);
                 let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
                 let td = ValRule::Pack(td0, td1);
@@ -1513,19 +1550,20 @@ pub fn synth_items(ext:&Ext, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
                 decls = d;
             }
             &Decls::IdxTm(ref x, ref i, ref d) => {
-                let der = synth_idxtm(ext, &ctx, i);
-                let sort = der.clas.clone();
+                let id = synth_idxtm(ext, &ctx, i);
+                let sort = id.clas.clone();
                 let der = ItemDer{
                     doc:doc.clone(),
                     qual:Qual::IdxTm,
                     var:x.clone(),
                     der:der_of(ctx.clone(),
-                               DeclRule::IdxTm(x.clone(), der),
+                               DeclRule::IdxTm(x.clone(), id.clone()),
                                sort.map(|s|DeclClas::Sort(s)))
                 };
                 doc = None;
                 tds.push(ItemRule::Bind(der));
-                ctx = ctx.def(x.clone(), Term::IdxTm(i.clone()));
+                let tm = term_of_idxtm(&id);
+                ctx = ctx.def(x.clone(), tm);
                 decls = d;
             }
             &Decls::Type(ref x, ref a, ref d) => {
@@ -1569,7 +1607,7 @@ pub fn synth_items(ext:&Ext, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
                 decls = d;
             }
             &Decls::Fn(ref f, ref a, ref e, ref d) => {
-                println!("\x1B[1;33mfn \x1B[1;36;4;m{}\x1B[0;1m Begin check...\x1B[0;0m", f);
+                fgi_db_bitype!("\x1B[1;33mfn \x1B[1;36;4;m{}\x1B[0;1m Begin check...\x1B[0;0m", f);
                 let v : Val = fgi_val![ thunk fix ^f. ^e.clone() ];
                 let a2 = a.clone();
                 let der = check_val(ext, &ctx, &v, a);
@@ -1582,7 +1620,7 @@ pub fn synth_items(ext:&Ext, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
                                DeclRule::Fn(f.clone(), der),
                                der_typ.map(|_| DeclClas::Type(a2)))
                 };
-                println!("\x1B[1;33mfn \x1B[1;36;4;m{}\x1B[0;1m Done (\x1B[0;0m{}\x1B[0;1m).", f,
+                fgi_db_bitype!("\x1B[1;33mfn \x1B[1;36;4;m{}\x1B[0;1m Done (\x1B[0;0m{}\x1B[0;1m).", f,
                          if let Ok(_) = der.der.clas.clone() {
                              "\x1B[1;32mCheck OK"
                          } else {
@@ -1629,7 +1667,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
         &Exp::Decls(ref decls, ref exp) => {
             let (ds_der, ds_ctx) = synth_items(ext, ctx, &decls);
             let ctx = &ds_ctx;
-            //println!("{:?}", ctx);
+            //fgi_db_bitype!("{:?}", ctx);
             let e_der = synth_exp(ext, &ctx, exp);
             let ce = e_der.clas.clone().map(|ce| ce.clone());
             prop(ExpRule::Decls(ds_der, e_der),
@@ -1649,28 +1687,28 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
         }
         &Exp::AnnoC(ref e, ref ctyp) => {
             // XXX/TODO: this is a hack, depending on what you expect it to mean.
-            //println!("AnnoC: Checking against: {:?}", ctyp);
+            //fgi_db_bitype!("AnnoC: Checking against: {:?}", ctyp);
             let noeffect = Effect::WR(IdxTm::Empty, IdxTm::Empty);
             let td0 = check_exp(ext, ctx, e, &CEffect::Cons(ctyp.clone(),noeffect));
-            //println!("AnnoC: ctyp={:?}", ctyp.clone());
+            //fgi_db_bitype!("AnnoC: ctyp={:?}", ctyp.clone());
             let typ0 = td0.clas.clone();
             let td = ExpRule::AnnoC(td0, ctyp.clone());
             match typ0 {
                 Err(_) => { 
-                    //println!("AnnoC: Err: {:?}", ctyp.clone());
+                    //fgi_db_bitype!("AnnoC: Err: {:?}", ctyp.clone());
                     fail(td, TypeError::ParamNoCheck(0))
                 },
                 Ok(CEffect::Cons(ct,eff)) => {
-                    //println!("AnnoC: Ok: ctyp={:?}", ctyp.clone());
+                    //fgi_db_bitype!("AnnoC: Ok: ctyp={:?}", ctyp.clone());
                     // TODO: Type equality may be more complex than this test (e.g. alpha equivalent types should be equal)
                     if *ctyp == ct { succ(td, CEffect::Cons(ct,eff)) }
                     else { 
-                        println!("TODO/XXX/FIXME");
+                        fgi_db_bitype!("TODO/XXX/FIXME");
                         fail(td, TypeError::AnnoMism) 
                     }
                 },
                 _ => { 
-                    //println!("AnnoC: Fail: typ0={:?}", typ0);
+                    //fgi_db_bitype!("AnnoC: Fail: typ0={:?}", typ0);
                     fail(td, TypeError::ExpNotCons)
                 }
             }
@@ -1815,8 +1853,11 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             match (ed.clas.clone(), id.clas.clone())  {
                 (Ok(ec), Ok(_is)) => { match ec {
                     CEffect::ForallIdx(x, _g, p, ce) => {
-                        let _p = subst::subst_term_prop(Term::IdxTm(i.clone()), &x, p);
-                        let ce2 = subst::subst_term_ceffect(Term::IdxTm(i.clone()), &x, (*ce).clone());
+                        let _p = subst::subst_term_prop(term_of_idxtm(&id), &x, p);
+                        //fgi_db_bitype!("** BEFORE ** {:?}", ce);
+                        //fgi_db_bitype!("** SUBST {:?} for {} **", term_of_idxtm(&id), x);
+                        let ce2 = subst::subst_term_ceffect(term_of_idxtm(&id), &x, (*ce).clone());
+                        //fgi_db_bitype!("** AFTER  ** {:?}", ce2);
                         // XXX/TODO need to prove (decide) that p is true
                         let td = ExpRule::IdxApp(ed,id);
                         succ(td, ce2)
@@ -1866,9 +1907,9 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
         
          */
         &Exp::Let(ref x, ref e1, ref e2) => {
-            println!("\x1B[1;33mlet\x1B[2;36m {}\x1B[0;1m = ... \x1B[0;1m==> ?\x1B[0;0m", x);
+            fgi_db_bitype!("\x1B[1;33mlet\x1B[2;36m {}\x1B[0;1m = ... \x1B[0;1m==> ?\x1B[0;0m", x);
             let td1 = synth_exp(ext, ctx, e1);
-            println!("\x1B[1;33mlet\x1B[1;36m {}\x1B[0;1m = ... \x1B[0;1m==>\n\t\x1B[1;32m{:?}\n  \x1B[1;33min\x1B[0;0m ... \x1B[1m==>\x1B[2;35m ?\x1B[0;0m",
+            fgi_db_bitype!("\x1B[1;33mlet\x1B[1;36m {}\x1B[0;1m = ... \x1B[0;1m==>\n\t\x1B[1;32m{:?}\n  \x1B[1;33min\x1B[0;0m ... \x1B[1m==>\x1B[2;35m ?\x1B[0;0m",
                      x, td1.clas.clone());
             match td1.clas.clone() {
                 Err(_) => fail(ExpRule::Let(x.clone(),td1,
@@ -1896,7 +1937,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                                     succ(td, CEffect::Cons(ty2, eff3))
                                 }
                                 Err(err) => {
-                                    //println!("{:?}", err);
+                                    //fgi_db_bitype!("{:?}", err);
                                     fail(ExpRule::Let(
                                         x.clone(), td1,
                                         synth_exp(ext, &new_ctx, e2)
@@ -1910,7 +1951,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                         }
                     }
                 },
-                z => { println!("XXX:{:?}", z); fail(ExpRule::Let(x.clone(),td1,
+                z => { fgi_db_bitype!("XXX:{:?}", z); fail(ExpRule::Let(x.clone(),td1,
                     synth_exp(ext, ctx, e2)
                 ), TypeError::ParamMism(1)) },
             }
@@ -2211,12 +2252,12 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
             fn strip_foralls (ctx:&Ctx, ceffect:&CEffect) -> (Ctx, CEffect) {
                 match ceffect {
                     &CEffect::ForallType(ref a, ref k, ref ceffect) => {
-                        println!("\x1B[1;33mforall\x1B[1;36m {} \x1B[0;1m: \x1B[2;35m{:?}\x1B[0;0m", a, k);
+                        fgi_db_bitype!("\x1B[1;33mforall\x1B[1;36m {} \x1B[0;1m: \x1B[2;35m{:?}\x1B[0;0m", a, k);
                         let ctx = ctx.tvar(a.clone(), k.clone());
                         strip_foralls(&ctx, ceffect)
                     },
                     &CEffect::ForallIdx(ref a, ref g, ref p, ref ceffect) => {
-                        println!("\x1B[1;33mforalli\x1B[1;36m {} \x1B[0;1m: \x1B[2;35m{:?}\x1B[0;0m", a, g);
+                        fgi_db_bitype!("\x1B[1;33mforalli\x1B[1;36m {} \x1B[0;1m: \x1B[2;35m{:?}\x1B[0;0m", a, g);
                         let ctx = ctx.ivar(a.clone(),g.clone());
                         let ctx = ctx.prop(p.clone());
                         strip_foralls(&ctx, ceffect)
@@ -2227,7 +2268,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
             }
             let (ctx, ceffect) = strip_foralls(ctx, ceffect);            
             if let CEffect::Cons(CType::Arrow(ref at,ref et),ref _ef) = ceffect {
-                println!("\x1B[1;33mlam\x1B[1;36m {} \x1B[0;1m: \x1B[2;35m{:?}\x1B[0;0m", x, at);
+                fgi_db_bitype!("\x1B[1;33mlam\x1B[1;36m {} \x1B[0;1m: \x1B[2;35m{:?}\x1B[0;0m", x, at);
                 let new_ctx = ctx.var(x.clone(),at.clone());
                 let td1 = check_exp(ext, &new_ctx, e, et);
                 let typ1 = td1.clas.clone();
@@ -2287,9 +2328,9 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                         .prop(p.clone())
                         .var(x.clone(),aa)
                         ;
-                    println!("\x1B[1;33mexists\x1B[1;36m {} \x1B[0;1m: \x1B[2;35m{:?}\x1B[0;0m", a1, g);
+                    fgi_db_bitype!("\x1B[1;33mexists\x1B[1;36m {} \x1B[0;1m: \x1B[2;35m{:?}\x1B[0;0m", a1, g);
                     if p != Prop::Tt {
-                        println!("\x1B[1;33mprop\x1B[1;36m {:?} \x1B[0;1mtrue\x1B[0;0m", p);
+                        fgi_db_bitype!("\x1B[1;33mprop\x1B[1;36m {:?} \x1B[0;1mtrue\x1B[0;0m", p);
                     };
                     let td3 = check_exp(ext, &new_ctx, e, &ceffect);
                     let typ3 = td3.clas.clone();
@@ -2314,13 +2355,13 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 Ok(Type::Sum(ty1, ty2)) => {
                     let new_ctx1 = ctx.var(x1.clone(), (*ty1).clone());
                     let new_ctx2 = ctx.var(x2.clone(), (*ty2).clone());
-                    println!("Case: Check first subcase: BEGIN");
+                    fgi_db_bitype!("Case: Check first subcase: BEGIN");
                     let td1 = check_exp(ext, &new_ctx1, e1, ceffect);
-                    println!("Case: Check first subcase: END");
+                    fgi_db_bitype!("Case: Check first subcase: END");
                     let td1_typ = td1.clas.clone();
-                    println!("Case: Check second subcase: BEGIN");
+                    fgi_db_bitype!("Case: Check second subcase: BEGIN");
                     let td2 = check_exp(ext, &new_ctx2, e2, ceffect);
-                    println!("Case: Check second subcase: END");
+                    fgi_db_bitype!("Case: Check second subcase: END");
                     let td2_typ = td2.clas.clone();
                     let td = ExpRule::Case(v_td, x1.clone(), td1, x2.clone(), td2);
                     match (td1_typ, td2_typ) {
@@ -2353,9 +2394,9 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
          */
         &Exp::Let(ref x, ref e1, ref e2) => {
             if let CEffect::Cons(ref ctyp, ref eff3) = *ceffect {
-                println!("\x1B[1;33mlet\x1B[1;36m {}\x1B[0;1m = ... ==> ?\x1B[0;0m", x);
+                fgi_db_bitype!("\x1B[1;33mlet\x1B[1;36m {}\x1B[0;1m = ... ==> ?\x1B[0;0m", x);
                 let td1 = synth_exp(ext, ctx, e1);
-                println!("\x1B[1;33mlet\x1B[1;36m {}\x1B[0;1m = ... ==>\n\t\x1B[1;32m{:?}\n  \x1B[1;33min\x1B[0;0m ... \x1B[1m<==\x1B[2;35m {:?}\x1B[0;0m", 
+                fgi_db_bitype!("\x1B[1;33mlet\x1B[1;36m {}\x1B[0;1m = ... ==>\n\t\x1B[1;32m{:?}\n  \x1B[1;33min\x1B[0;0m ... \x1B[1m<==\x1B[2;35m {:?}\x1B[0;0m", 
                          x, td1.clas.clone(), ceffect);
                 let typ1 = td1.clas.clone();
                 match typ1 {
@@ -2365,7 +2406,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                         synth_exp(ext, ctx, e2)
                     ), err.clone()) },
                     Ok(CEffect::Cons(CType::Lift(ref ct1), ref eff1)) => {
-                        println!("\x1B[0;1mDecide effect subtraction: Begin\x1B[0;0m...");
+                        fgi_db_bitype!("\x1B[0;1mDecide effect subtraction: Begin\x1B[0;0m...");
                         let new_ctx = ctx.var(x.clone(),ct1.clone());
                         match decide::effect::decide_effect_subtraction(
                             ctx,
@@ -2374,7 +2415,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                             eff3.clone(), eff1.clone())
                         {
                             Ok(eff2) => {
-                                println!("\x1B[0;1mDecide effect subtraction: \x1B[0;1;32mOK\x1B[0;1m.");
+                                fgi_db_bitype!("\x1B[0;1mDecide effect subtraction: \x1B[0;1;32mOK\x1B[0;1m.");
                                 let typ2 = CEffect::Cons(ctyp.clone(), eff2);
                                 let td2 = check_exp(ext, &new_ctx, e2, &typ2);
                                 let typ2res = td2.clas.clone();
@@ -2385,7 +2426,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                                 }
                             }
                             Err(err) => {
-                                println!("\x1B[0;1mDecide effect subtraction: \x1B[0;1;31mError\x1B[0;1m.");
+                                fgi_db_bitype!("\x1B[0;1mDecide effect subtraction: \x1B[0;1;31mError\x1B[0;1m.");
                                 fail(ExpRule::Let(
                                     x.clone(), td1,
                                     synth_exp(ext,&new_ctx,e2)
@@ -2393,7 +2434,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                             }
                         }
                     }
-                    z => { println!("XXX: {:?}", z); fail(ExpRule::Let(
+                    z => { fgi_db_bitype!("XXX: {:?}", z); fail(ExpRule::Let(
                         x.clone(), td1,
                         synth_exp(ext,ctx,e2)
                     ), TypeError::ParamMism(1)) }
@@ -2449,12 +2490,12 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
         },
         &Exp::IfThenElse(ref v, ref e1, ref e2) => {
             let td0 = synth_val(ext, ctx, v);
-            println!("IfThenElse: Check Then: BEGIN");
+            fgi_db_bitype!("IfThenElse: Check Then: BEGIN");
             let td1 = check_exp(ext, ctx, e1, ceffect);
-            println!("IfThenElse: Check Then: END");
-            println!("IfThenElse: Check Else: BEGIN");
+            fgi_db_bitype!("IfThenElse: Check Then: END");
+            fgi_db_bitype!("IfThenElse: Check Else: BEGIN");
             let td2 = check_exp(ext, ctx, e2, ceffect);
-            println!("IfThenElse: Check Else: END");
+            fgi_db_bitype!("IfThenElse: Check Else: END");
             let v_ty = td0.clas.clone().map(|a| normal::normal_type(ctx, &a));
             let (_t0,t1,t2) = (td0.clas.clone(),td1.clas.clone(),td2.clas.clone());
             let td = ExpRule::IfThenElse(td0,td1,td2);
@@ -2463,7 +2504,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 (_,Err(_),_) => fail(td, TypeError::ParamNoCheck(1)),
                 (_,_,Err(_)) => fail(td, TypeError::ParamNoCheck(2)),
                 (Ok(Type::Ident(ref b)),_,_) if b == "Bool" => {
-                    println!("OK: IfThenElse");
+                    fgi_db_bitype!("OK: IfThenElse");
                     // the exps are correct, because of the check above
                     succ(td, ceffect.clone())
                 },
@@ -2497,7 +2538,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 CType::Lift(Type::Ref(ref _rf_idx,ref a)),
                 Effect::WR(ref _w, ref _r)
             ) = nceffect {
-                println!("RefAnon check rule; value type is {:?}", a);
+                fgi_db_bitype!("RefAnon check rule; value type is {:?}", a);
                 let tdv = check_val(ext, ctx, v, a);
                 let typ = tdv.clas.clone();
                 let td = ExpRule::RefAnon(tdv);
@@ -2509,7 +2550,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                     Err(ref err) => fail(td, TypeError::Inside(Rc::new(err.clone())))
                 }
             } else { 
-                println!("Ref check rule cannot work; ceffect does match pattern: {:?}", 
+                fgi_db_bitype!("Ref check rule cannot work; ceffect does match pattern: {:?}", 
                          nceffect);
                 fail(ExpRule::RefAnon(
                 synth_val(ext, ctx, v),
@@ -2517,13 +2558,13 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
         },
         &Exp::Ref(ref v1,ref v2) => {
             let nceffect = normal::normal_ceffect(ctx, ceffect.clone());
-            //println!("Ref check rule; ceffect is {:?}", ceffect);
-            //println!("Ref check rule; normal(ceffect) is {:?}", &nceffect);
+            //fgi_db_bitype!("Ref check rule; ceffect is {:?}", ceffect);
+            //fgi_db_bitype!("Ref check rule; normal(ceffect) is {:?}", &nceffect);
             if let CEffect::Cons(
                 CType::Lift(Type::Ref(ref _rf_idx,ref a)),
                 Effect::WR(ref _w, ref _r)
             ) = nceffect {
-                println!("Ref check rule; value type is {:?}", a);
+                fgi_db_bitype!("Ref check rule; value type is {:?}", a);
                 let td0 = synth_val(ext, ctx, v1);
                 let td0ty = td0.clas.clone();
                 let td1 = check_val(ext, ctx, v2, a);
@@ -2538,7 +2579,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                     Err(ref err) => fail(td, TypeError::Inside(Rc::new(err.clone())))
                 }
             } else { 
-                println!("Ref check rule cannot work; ceffect does match pattern: {:?}", 
+                fgi_db_bitype!("Ref check rule cannot work; ceffect does match pattern: {:?}", 
                          nceffect);
                 fail(ExpRule::Ref(
                 synth_val(ext, ctx, v1),
@@ -2616,15 +2657,15 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 }
                 else {
                     use bitype::debug::*;
-                    println!("================================================================================== BEGIN");
-                    println!("Detailed errors for checking an `Exp::{}` via subsumption:", td.rule.short());
-                    println!(".. {}'s type:\n{:?} \n\n...does not check against type:\n{:?}\n", td.rule.short(), ty, ceffect);
-                    println!("");
+                    fgi_db_bitype!("================================================================================== BEGIN");
+                    fgi_db_bitype!("Detailed errors for checking an `Exp::{}` via subsumption:", td.rule.short());
+                    fgi_db_bitype!(".. {}'s type:\n{:?} \n\n...does not check against type:\n{:?}\n", td.rule.short(), ty, ceffect);
+                    fgi_db_bitype!("");
                     if true {
                         // may be very verbose
-                        println!(".. {}'s type:\n{:?} \n\n...does not check against type:\n{:?}\n", td.rule.short(), a, b);
+                        fgi_db_bitype!(".. {}'s type:\n{:?} \n\n...does not check against type:\n{:?}\n", td.rule.short(), a, b);
                     }
-                    println!("---------------------------------------------------------------------------------- END ");
+                    fgi_db_bitype!("---------------------------------------------------------------------------------- END ");
                     td.clas = Err(TypeError::SubsumptionFailure(ty, ceffect.clone()));
                     td
                 }

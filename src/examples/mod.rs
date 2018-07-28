@@ -32,6 +32,12 @@ Linked lists whose cons cells contain names, and whose tail pointers are (named)
 - [`list_nat`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/list_nat.rs.html) --- Primitives for lists of natural numbers
 - [`list_nat_dedup`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/list_nat_dedup.rs.html) --- Deduplicate input list elements; uses a hash trie
 
+### Tries
+
+Hash tries that represent functional sets, with names.
+
+- [`trie_nat`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/trie_nat.rs.html) --- Primitives for tries of natural numbers
+
 ### Sequences
 
 Sequences of natural numbers, represented as probabilistically-balanced binary trees (level trees), with names and reference cells:
@@ -81,7 +87,7 @@ pub mod list_nat_convert;
 pub mod list_nat_reverse;
 
 // Wait unti dedup is finished, then seed trie_nat module with that implementation.
-//pub mod trie_nat;
+pub mod trie_nat;
 
 // Kleene closure problem here; also, divergence.
 pub mod list_nat_dedup;
