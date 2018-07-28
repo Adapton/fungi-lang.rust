@@ -34,7 +34,7 @@ Linked lists whose cons cells contain names, and whose tail pointers are (named)
 
 ### Tries
 
-Hash tries that represent functional sets, with names.
+Hash tries that represent functional sets, with named elements.
 
 - [`trie_nat`](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/trie_nat.rs.html) --- Primitives for tries of natural numbers
 
