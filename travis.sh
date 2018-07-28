@@ -1,5 +1,5 @@
 cargo build --verbose
-cargo test --verbose
+cargo test -j 1 --verbose
 
 #cargo test --verbose -- --nocapture
 #cd eval
