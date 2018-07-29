@@ -117,6 +117,11 @@ extern crate serde_json;
 // Utilities that are common across various test harnesses
 #[macro_use]
 #[doc(hidden)] pub mod util; 
+
+#[macro_use]
+#[doc(hidden)] pub mod db;
+#[doc(hidden)] pub mod vt100;
+
 pub mod shared;
 
 // === Syntax ===

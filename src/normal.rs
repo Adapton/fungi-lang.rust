@@ -11,10 +11,10 @@ use subst;
 
 macro_rules! fgi_db_normal {
     ( $fmt_string:expr ) => {{
-        //println!( $fmt_string )
+        //fgi_db!( $fmt_string )
     }};
     ( $fmt_string:expr, $( $arg:expr ),* ) => {{
-        //println!( $fmt_string, $( $arg ),* )
+        //fgi_db!( $fmt_string, $( $arg ),* )
     }}
 }
 
@@ -154,9 +154,9 @@ pub fn is_normal_idxtm(ctx:&Ctx, i:&IdxTm) -> bool {
 
 /// Compute normal form for index term
 pub fn normal_idxtm_rec(ctx:&Ctx, i:Rc<IdxTm>) -> Rc<IdxTm> {
-    //println!("BEGIN: normal_idxtm_rec({:?}) = ?", i);
+    //fgi_db!("BEGIN: normal_idxtm_rec({}) = ?", i);
     let r = Rc::new(normal_idxtm(ctx, (*i).clone()));
-    //println!("END:   normal_idxtm_rec({:?}) = {:?}", i, r);
+    //fgi_db!("END:   normal_idxtm_rec({}) = {}", i, r);
     r
 }
 
@@ -281,7 +281,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                 match ctx.lookup_idxtm_def(ident) {
                     Some(i) => normal_idxtm(ctx, i),
                     _ => {
-                        println!("undefined idxtm: {} in\n{:?}", ident, ctx);
+                        fgi_db!("undefined idxtm: {} in\n{}", ident, ctx);
                         // Give up:
                         i.clone()
                     }
@@ -528,7 +528,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                 ns1.cons.clone(), &mut terms,
                                 bin_tm(ctx, tm1.clone(), NmSetTm::Subset(IdxTm::Var(y.clone()))));
                         }
-                        //println!("match bin DONE");
+                        //fgi_db!("match bin DONE");
                         IdxTm::NmSet(NmSet{
                             cons:ns1.cons,
                             terms:terms
@@ -546,14 +546,14 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                     bin_tm(ctx, tm1.clone(), tm2.clone()));
                             }
                         }
-                        //println!("match bin DONE");
+                        //fgi_db!("match bin DONE");
                         IdxTm::NmSet(NmSet{
                             cons:cons3,
                             terms:terms
                         })                        
                     },
                     (i, j) => {
-                        //println!("match bin DONE");
+                        //fgi_db!("match bin DONE");
                         IdxTm::Bin(Rc::new(i), Rc::new(j))
                     }
                 }
@@ -597,9 +597,9 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                     }
                                 }
                                 ns.terms = terms;
-                                //println!("App BEGIN 2");
+                                //fgi_db!("App BEGIN 2");
                                 let r = normal_idxtm(ctx, IdxTm::NmSet(ns));
-                                //println!("App END 2");
+                                //fgi_db!("App END 2");
                                 r
                             },
                             i2 => {
@@ -704,7 +704,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
             }
 
             IdxTm::MapStar(n1, i2) => {
-                //println!("BEGIN normal(MapStar {:?} {:?}) = ", n1, i2);
+                //fgi_db!("BEGIN normal(MapStar {} {}) = ", n1, i2);
                 let n1 = normal_nmtm_rec(ctx, n1);
                 let i2 = normal_idxtm_rec(ctx, i2);
                 match ((*n1).clone(), (*i2).clone()) {
@@ -755,7 +755,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                             })
                         } else {
                             let mut terms = vec![];
-                            //println!("Begin: Terms are {:?}", ns2.terms);
+                            //fgi_db!("Begin: Terms are {}", ns2.terms);
                             for tm2 in ns2.terms.iter() {
                                 use self::NmSetTm::*;
                                 let mapped_tm = match tm2.clone() {
@@ -768,7 +768,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                                 };
                                 nmset_terms_add(ns2.cons.clone(), &mut terms, mapped_tm)
                             };                   
-                            //println!("Done: New terms are {:?}", terms);
+                            //fgi_db!("Done: New terms are {}", terms);
                             IdxTm::NmSet(NmSet{
                                 cons:ns2.cons.clone(),
                                 terms:terms
@@ -776,14 +776,14 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                         }
                     },                            
                     (n1, i2) => {
-                        //println!("Done: Terms are UNCHANGED: {:?} {:?}", n1, i2);
+                        //fgi_db!("Done: Terms are UNCHANGED: {} {}", n1, i2);
                         IdxTm::MapStar(Rc::new(n1), Rc::new(i2))
                     }
                 }
             }
             
             IdxTm::FlatMap(i1, i2) => {
-                //println!("BEGIN normal(FlatMap {:?} {:?}) = ", i1, i2);
+                //fgi_db!("BEGIN normal(FlatMap {} {}) = ", i1, i2);
                 let i1 = normal_idxtm_rec(ctx, i1);
                 let i2 = normal_idxtm_rec(ctx, i2);
                 match ((*i1).clone(), (*i2).clone()) {
@@ -872,7 +872,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                         IdxTm::Sing(body_nmtm) => {
                             fgi_db_normal!("Here? 11");
                             //fgi_db_normal!("XXX Lam Sing");
-                            //println!(" ************** \n Name term body:\n\t{:?}", body_nmtm);
+                            //fgi_db!(" ************** \n Name term body:\n\t{}", body_nmtm);
                             normal_idxtm(
                                 ctx,
                                 IdxTm::Map(Rc::new(NameTm::Lam(x,gx,Rc::new(body_nmtm))),
@@ -882,7 +882,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                         // XXX/TODO -- Same reasoning for Unions?
                         IdxTm::Apart(body_l, body_r) => {
                             fgi_db_normal!("Here? 12");
-                            //println!(" ************** \n Left:\n\t{:?}\n Right:\n\t{:?}", body_l, body_r);
+                            //fgi_db!(" ************** \n Left:\n\t{}\n Right:\n\t{}", body_l, body_r);
                             normal_idxtm(
                                 ctx,
                                 IdxTm::Apart(
@@ -910,7 +910,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                         }
                     }},
                     _tm => {
-                        //panic!("TODO: {:?}", tm);
+                        //panic!("TODO: {}", tm);
                         // Give up: No structure to work with at all:
                         IdxTm::FlatMap(i1, i2)
                     }
@@ -973,8 +973,8 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                     // the function and re-expose this set structure.
                     (IdxTm::Lam(x,gx,body),_) => { match (*body).clone() {
                         IdxTm::Sing(body_nmtm) => {
-                            //println!("Here? -- normalize MapStar");
-                            //println!(" ************** \n Name term body:\n\t{:?}", body_nmtm);
+                            //fgi_db!("Here? -- normalize MapStar");
+                            //fgi_db!(" ************** \n Name term body:\n\t{}", body_nmtm);
                             fgi_db_normal!("Here? 14");
                             // normal_idxtm(
                             //     ctx,
@@ -985,7 +985,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                         // XXX/TODO -- Same reasoning for Unions?                        
                         IdxTm::Apart(body_l, body_r) => {
                             fgi_db_normal!("Here? 15");
-                            //println!(" ************** \n Left:\n\t{:?}\n Right:\n\t{:?}", body_l, body_r);
+                            //fgi_db!(" ************** \n Left:\n\t{}\n Right:\n\t{}", body_l, body_r);
                             normal_idxtm(
                                 ctx,
                                 IdxTm::Apart(
@@ -1012,7 +1012,7 @@ pub fn normal_idxtm(ctx:&Ctx, i:IdxTm) -> IdxTm {
                         }
                     }},
                     (_, _) => {
-                        //panic!("TODO: {:?} {:?}", i j);
+                        //panic!("TODO: {} {}", i j);
                         // Give up: No structure to work with at all:
                         IdxTm::FlatMapStar(i, j)
                     }
@@ -1039,7 +1039,7 @@ pub fn normal_nmtm(ctx:&Ctx, n:NameTm) -> NameTm {
                         normal_nmtm(ctx, a)
                     },
                     _ => {
-                        println!("undefined name term: {} in\n{:?}", x, ctx);
+                        fgi_db!("undefined name term: {} in\n{}", x, ctx);
                         // Give up:
                         NameTm::Ident(x.clone())
                     }
@@ -1136,7 +1136,7 @@ pub fn idxtm_of_nmsettms(tms:&NmSetTms) -> IdxTm {
 ///  8. type applications in head normal form.
 /// 
 pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
-    //println!("normal_type: {:?}", typ);
+    //fgi_db!("normal_type: {}", typ);
     match typ {
         // normal forms:
         &Type::Unit         |
@@ -1191,7 +1191,7 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
                     else { normal_type(ctx, &a) }
                 },
                 _ => {
-                    println!("undefined type: {} in\n{:?}", ident, ctx);
+                    fgi_db!("undefined type: {} in\n{}", ident, ctx);
                     // Give up:
                     typ.clone()
                 }
@@ -1213,7 +1213,7 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
         &Type::IdxApp(ref a, ref i) => {
             let a = normal_type(ctx, a);
             let i = normal_idxtm(ctx, i.clone());
-            //println!("normal_type(IdxApp({:?}, _) = ...", a);
+            //fgi_db!("normal_type(IdxApp({}, _) = ...", a);
             match a {
                 Type::IdxFn(ref x, ref _g, ref body) => {
                     let body = subst::subst_idxtm_type(i.clone(),x,(**body).clone());
@@ -1320,32 +1320,32 @@ x 1 2 3
 ///
 ///
 pub fn unroll_type(ctx:&Ctx, typ:&Type) -> (Type, bool) {
-    //println!("UNROLL (1/2): {:?}", typ);
+    //fgi_db!("UNROLL (1/2): {}", typ);
     match typ {
         // case: rec x.A =>
         &Type::Rec(ref x, ref a) => {
-            //println!("UNROLL (2/2): Success.");
+            //fgi_db!("UNROLL (2/2): Success.");
             // [(rec x.A)/x]A
             (subst::subst_type_type(typ.clone(), x, (**a).clone()), true)
         }
         &Type::IdxApp(ref t, ref i) => {
-            //println!("UNROLL (1.5/2): IdxApp(_, {:?}).", i);
+            //fgi_db!("UNROLL (1.5/2): IdxApp(_, {}).", i);
             let (t2, b) = unroll_type(ctx, t);
             (Type::IdxApp(Rc::new(t2), i.clone()), b)
         },
         &Type::TypeApp(ref t1, ref t2) => {
-            //println!("UNROLL (1.5/2): TypeApp(_, {:?}).", t2);
+            //fgi_db!("UNROLL (1.5/2): TypeApp(_, {}).", t2);
             let (t12, b) = unroll_type(ctx, t1);
             (Type::TypeApp(Rc::new(t12), t2.clone()), b)
         },
         &Type::Ident(ref _x) => {
-            //println!("UNROLL (1.5/2): {:?}", x);
+            //fgi_db!("UNROLL (1.5/2): {}", x);
             unroll_type(ctx, &normal_type(ctx, typ))
         },
         // error
         _ => {
-            //println!("UNROLL (2/2): Failure: Not (apparently) a recursive type.");
-            //println!("error: not a recursive type; did not unroll it: {:?}", typ);
+            //fgi_db!("UNROLL (2/2): Failure: Not (apparently) a recursive type.");
+            //fgi_db!("error: not a recursive type; did not unroll it: {}", typ);
             (typ.clone(), false)
         }
     }
@@ -1369,7 +1369,7 @@ pub fn unroll_type(ctx:&Ctx, typ:&Type) -> (Type, bool) {
 ///    ~~> `rec x. A`  (...no change)
 
 pub fn unroll_past_binder(typ:&Type) -> (Type, bool) {    
-    println!("unroll_past_binder({:?}) = ...", typ);
+    fgi_db!("unroll_past_binder({}) = ...", typ);
     match typ {
         // case: rec x.A =>
         &Type::Rec(ref x, ref a) => {
@@ -1395,7 +1395,7 @@ pub fn unroll_past_binder(typ:&Type) -> (Type, bool) {
         }
         // not a recursive type
         _ => {
-            //println!("error: not a recursive type; did not unroll it: {:?}", typ);
+            //fgi_db!("error: not a recursive type; did not unroll it: {}", typ);
             (typ.clone(), false)
         }
     }

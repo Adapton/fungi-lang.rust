@@ -256,7 +256,7 @@ pub mod effect {
 
     /// Tactic to find an index term `j` such that `NmSet(ns1) == NmSet(ns2) % j`
     pub fn decide_nmset_subtraction(_ctx:&Ctx, ns1:NmSet, ns2:NmSet) -> Result<IdxTm, Error> {
-        //println!("decide_nmset_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &ns1, &ns2);
+        //fgi_db!("decide_nmset_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &ns1, &ns2);
         //
         // Step 1: Verify: Before computing subtraction, check
         // that each term in ns1 is really in the set ns1.
@@ -268,7 +268,7 @@ pub mod effect {
                 else { continue }
             };
             if t2_found { } else {
-                println!("^decide_nmset_subtraction: Failure\nFrom:\n\t{:?}\nCannot subtract:\n\t{:?}", &ns1, &t2);
+                fgi_db!("^decide_nmset_subtraction: Failure\nFrom:\n\t{}\nCannot subtract:\n\t{}", &ns1, &t2);
                 return Result::Err( Error::CannotSubtractNmSetTmFromNmSet( ns1.clone(), t2.clone() ) )
             }
         };
@@ -291,7 +291,7 @@ pub mod effect {
             cons:Some(NmSetCons::Apart),
             terms:terms,
         });
-        //println!("^decide_idxtm_subtraction:\n Success:\n\t{:?}", i_minus_j);
+        //fgi_db!("^decide_idxtm_subtraction:\n Success:\n\t{:?}", i_minus_j);
         Result::Ok(i_minus_j)
     }
     
@@ -302,14 +302,14 @@ pub mod effect {
             Result::Ok(ref sort) => {
                 let rctx = super::relctx_of_ctx(ctx);
                 let eq = equiv::decide_idxtm_equiv(&rctx, &id, &jd, sort);
-                //println!("test_idxtm_equiv: {:?} =({})= {:?}:\n\t{:?}", i, eq.res == Result::Ok(true), j, eq);
+                //fgi_db!("test_idxtm_equiv: {:?} =({})= {:?}:\n\t{:?}", i, eq.res == Result::Ok(true), j, eq);
                 match eq.res {
                     Result::Ok(true) => true,
                     _ => false
                 }
             }
             _ => {
-                println!("sorting error for terms: {:?} and {:?}", i, j);
+                fgi_db!("sorting error for terms: {} and {}", i, j);
                 false
             }
         }
@@ -325,47 +325,47 @@ pub mod effect {
     ///
     /// TODO: "Verify" the results using our decision procedures; return those derivations with the term that we find
     pub fn decide_idxtm_subtraction(ctx:&Ctx, i:IdxTm, j:IdxTm) -> Result<IdxTm, Error> {
-        println!("\x1B[0;1mdecide_idxtm_subtraction:\x1B[0;0m\n From:\n\t{:?}\n Subtract:\n\t{:?}", &i, &j);
+        fgi_db!("\x1B[0;1mdecide_idxtm_subtraction:\x1B[0;0m\n From:\n\t{}\n Subtract:\n\t{}", &i, &j);
         if test_idxtm_empty(ctx, &j) {
             // Special (but common) case: The second index is the empty name set. The result is the first index.
-            println!("^decide_idxtm_subtraction:\n\tEmpty second term.");
+            fgi_db!("^decide_idxtm_subtraction:\n\tEmpty second term.");
             return Result::Ok(i)
         } else if test_idxtm_equiv(ctx, &i, &j) {
             // Special (but common) case: They are equal.  
             // The result is the emptyset.
-            println!("^decide_idxtm_subtraction:\n\tEqual");
+            fgi_db!("^decide_idxtm_subtraction:\n\tEqual");
             return Result::Ok(IdxTm::Empty)
         } else {
-            println!("^decide_idxtm_subtraction:\n\tNot (yet) apparently equal.");
+            fgi_db!("^decide_idxtm_subtraction:\n\tNot (yet) apparently equal.");
         };
         // Next, try normalizing, and testing equality again, and then failing that, more cases
-        println!("^decide_idxtm_subtraction: normalizing index terms...");
+        fgi_db!("^decide_idxtm_subtraction: normalizing index terms...");
         let ni = normal::normal_idxtm(ctx, i.clone());
         let nj = normal::normal_idxtm(ctx, j);
-        println!("^decide_idxtm_subtraction: normalizing index terms: done.");
-        println!("^decide_idxtm_subtraction:\n From:\n\t{:?}\n Subtract:\n\t{:?}", &ni, &nj);
+        fgi_db!("^decide_idxtm_subtraction: normalizing index terms: done.");
+        fgi_db!("^decide_idxtm_subtraction:\n From:\n\t{}\n Subtract:\n\t{}", &ni, &nj);
         if test_idxtm_empty(ctx, &nj) {
             // Special (but common) case: The second index is the empty name set. The result is the first index.
-            println!("^decide_idxtm_subtraction:\n\tEmpty second term.");
+            fgi_db!("^decide_idxtm_subtraction:\n\tEmpty second term.");
             return Result::Ok(i)
         } else if test_idxtm_equiv(ctx, &ni, &nj) {
             // Special (but common) case: They are equal.  
             // The result is the emptyset.
-            println!("^decide_idxtm_subtraction:\n\tEqual.");
+            fgi_db!("^decide_idxtm_subtraction:\n\tEqual.");
             return Result::Ok(IdxTm::Empty)
         } else {
-            println!("^decide_idxtm_subtraction:\n\tNot (apparently) equal.");
+            fgi_db!("^decide_idxtm_subtraction:\n\tNot (apparently) equal.");
         };
         match (ni, nj) {
             (IdxTm::Var(x), j) => {
                 let xdef = bitype::find_defs_for_idxtm_var(&ctx, &x);
                 match xdef {
                     None => {
-                        //println!("^decide_idxtm_subtraction: Failure:\n From variable (with no known decomposition):\n\t{:?}\n Cannot subtract index term:\n\t{:?}", &x, &j);
+                        //fgi_db!("^decide_idxtm_subtraction: Failure:\n From variable (with no known decomposition):\n\t{}\n Cannot subtract index term:\n\t{}", &x, &j);
                         Result::Err( Error::CannotSubtractFromVar(x, j) )
                     }
                     Some(xdef) => {
-                        //println!("^decide_idxtm_subtraction: Using {:?} == {:?} ...", x, xdef);
+                        //fgi_db!("^decide_idxtm_subtraction: Using {} == {} ...", x, xdef);
                         decide_idxtm_subtraction(ctx, xdef, j)
                     }
                 }
@@ -387,13 +387,13 @@ pub mod effect {
             //             decide_idxtm_subtraction(ctx, (*i1).clone(), (*i2).clone())
             //         }
             //         _ => {
-            //             println!("^decide_idxtm_subtraction: Failure:\n From index term:\n\t{:?}\n We do not know how to subtract index term:\n\t{:?}", &i, &j);
+            //             fgi_db!("^decide_idxtm_subtraction: Failure:\n From index term:\n\t{}\n We do not know how to subtract index term:\n\t{}", &i, &j);
             //             Result::Err( Error::CannotSubtractFromIdxTm(i, j) )
             //         }
             //     }
             // }
             (i, j) => {
-                println!("^decide_idxtm_subtraction: Failure:\n From index term:\n\t{:?}\n We do not know how to subtract index term:\n\t{:?}", &i, &j);
+                fgi_db!("^decide_idxtm_subtraction: Failure:\n From index term:\n\t{}\n We do not know how to subtract index term:\n\t{}", &i, &j);
                 Result::Err( Error::CannotSubtractFromIdxTm(i, j) )
             }
         }        
@@ -408,20 +408,20 @@ pub mod effect {
             Result::Ok(eff1.clone())
         }
         else {
-            println!("\x1B[0;1mdecide_effect_subtraction:\x1B[0;0m\n From:\n\t{:?}\n Subtract:\n\t{:?}", &eff1, &eff2);
+            fgi_db!("\x1B[0;1mdecide_effect_subtraction:\x1B[0;0m\n From:\n\t{}\n Subtract:\n\t{}", &eff1, &eff2);
             match (eff1.clone(), eff2.clone()) {
                 (Effect::WR(wr1, rd1), Effect::WR(wr2, rd2)) => {
-                    //println!("BEGIN decide_idxtm_subtraction");
-                    println!("\x1B[0;1mdecide_effect_subtraction: Writes:");
+                    //fgi_db!("BEGIN decide_idxtm_subtraction");
+                    fgi_db!("\x1B[0;1mdecide_effect_subtraction: Writes:");
                     let wr3 = decide_idxtm_subtraction(ctx, wr1, wr2);
-                    //println!("END decide_idxtm_subtraction");
+                    //fgi_db!("END decide_idxtm_subtraction");
                     use super::subset;
                     
                     // TODO: Figure out the right place to put this
                     // normalization step, given the switching between
                     // relational and ordinary typing contexts
                     // everywhere.
-                    println!("\x1B[0;1mdecide_effect_subtraction: Reads:");
+                    fgi_db!("\x1B[0;1mdecide_effect_subtraction: Reads:");
                     
                     let rd1n = normal::normal_idxtm(ctx, rd1.clone());
                     let rd2n = normal::normal_idxtm(ctx, rd2.clone());
@@ -435,30 +435,30 @@ pub mod effect {
                     match (wr3, rdsub.res) {
                         (Ok(wr3), Ok(_)) => {
                             let eff3 = Effect::WR(wr3, rd1);
-                            //println!("^decide_effect_subtraction:\n Success:\n\t{:?}", &eff3);
+                            //fgi_db!("^decide_effect_subtraction:\n Success:\n\t{}", &eff3);
                             Ok(eff3)
                         },
                         (Err(err),_) => Result::Err(err),
                         // TODO-someday: gather all errors together
                         (_,Err(err)) => {
                             if true {
-                                println!("======================================================= BEGIN");
-                                println!("decide_effect_subtraction: Cannot decide read subset:");
-                                println!(" Error: {:?}\n", err);
-                                println!(" Superset (candidate):\n\t{:?}", &rd1n);
-                                println!(" Subset (candidate):\n\t{:?}", &rd2n);
-                                println!("\n\
+                                fgi_db!("======================================================= BEGIN");
+                                fgi_db!("decide_effect_subtraction: Cannot decide read subset:");
+                                fgi_db!(" Error: {}\n", err);
+                                fgi_db!(" Superset (candidate):\n\t{}", &rd1n);
+                                fgi_db!(" Subset (candidate):\n\t{}", &rd2n);
+                                fgi_db!("\n\
                                           (If you believe this subset relationship holds, \
                                           Fungi may need additional reasoning in its `decide` \
                                           and/or `normal` modules...)");
-                                println!("------------------------------------------------------- END");
+                                fgi_db!("------------------------------------------------------- END");
                             }
                             Result::Err(Error::CannotDecideReadSubset(Rc::new(err)))
                         },
                     }
                 }
                 _ => {
-                    //println!("^decide_effect_subtraction: Cannot subtract:\n From:\n\t{:?}\n Cannot subtract:\n\t{:?}", &eff1, &eff2);
+                    //fgi_db!("^decide_effect_subtraction: Cannot subtract:\n From:\n\t{}\n Cannot subtract:\n\t{}", &eff1, &eff2);
                     Result::Err( Error::CannotSubtract(eff1, eff2) )
                 }
             }
@@ -531,13 +531,13 @@ pub mod effect {
                         Result::Ok( Effect::WR(wr3, rd3) )                            
                     },
                     _ => {
-                        //println!("^decide_effect_sequencing: Cannot sequence:\n Effect 1:\n\t{:?}\n Effect 2:\n\t{:?}", &eff1, &eff2);
+                        //fgi_db!("^decide_effect_sequencing: Cannot sequence:\n Effect 1:\n\t{}\n Effect 2:\n\t{}", &eff1, &eff2);
                         Result::Err( Error::CannotSequence(eff1, eff2) )
                     }
                 }
             }
             _ => {
-                //println!("^decide_effect_sequencing: Cannot sequence:\n Effect 1:\n\t{:?}\n Effect 2:\n\t{:?}", &eff1, &eff2);
+                //fgi_db!("^decide_effect_sequencing: Cannot sequence:\n Effect 1:\n\t{}\n Effect 2:\n\t{}", &eff1, &eff2);
                 Result::Err( Error::CannotSequence(eff1, eff2) )
             }
         }}
@@ -735,10 +735,10 @@ pub mod equiv {
                 }
             }
             (a, b) => {
-                println!("Note: Fungi called: decide_nmtm_equiv on non-struct:\n\
-                          \t{:?}\n\
+                fgi_db!("Note: Fungi called: decide_nmtm_equiv on non-struct:\n\
+                          \t{}\n\
                           Versus\n\
-                          \t{:?}", a, b);
+                          \t{}", a, b);
                 fail(NmTmRule::FailNoRule)
             }
         }
@@ -772,7 +772,7 @@ pub mod equiv {
         };
         match (&*i.rule,&*j.rule) {
             (_ir, _jr) if i.term == j.term => { 
-                //println!("Refl equiv: {:?} == {:?}", i.term, j.term);
+                //fgi_db!("Refl equiv: {} == {}", i.term, j.term);
                 succ(IdxTmRule::Refl(i.clone())) 
             }
             (&BiIdxTm::Var(ref v1),&BiIdxTm::Var(ref v2)) => {
@@ -917,10 +917,10 @@ pub mod equiv {
             }
             (_ir, _jr) => {
                 if false {
-                    println!("=============================================================================== BEGIN");
-                    println!("decide_idxtm_equiv: Cannot decide this case:\n Left:\n\t{:?}\n Right:\n\t{:?}", i.term, j.term);
-                    println!("This case is not implemented; but, it _may_ indicate a type error.");
-                    println!("------------------------------------------------------------------------------- END");
+                    fgi_db!("=============================================================================== BEGIN");
+                    fgi_db!("decide_idxtm_equiv: Cannot decide this case:\n Left:\n\t{}\n Right:\n\t{}", i.term, j.term);
+                    fgi_db!("This case is not implemented; but, it _may_ indicate a type error.");
+                    fgi_db!("------------------------------------------------------------------------------- END");
                 }
                 err(IdxTmRule::Fail, DecError::UnknownCongruence((*i.term).clone(), (*j.term).clone()))
             }
@@ -1015,7 +1015,7 @@ pub mod subset {
     pub fn decide_prop(_ctx: &RelCtx, p:Prop) -> bool {
         match p {
             Prop::Tt => true,
-            _ => { println!("{:?}", p); false }
+            _ => { fgi_db!("{}", p); false }
         }
     }
 
@@ -1026,7 +1026,7 @@ pub mod subset {
     /// set `j`.  Uses `decide_idxtm_congr` as a subroutine.
     //
     pub fn decide_nmsettm_subset(ctx: &RelCtx, tm1:&NmSetTm, tm2:&NmSetTm) -> IdxTmDec {
-        //println!("??????? search ?????????? ------------ BEGIN");
+        //fgi_db!("??????? search ?????????? ------------ BEGIN");
         let res = match (tm1, tm2) {
             (&NmSetTm::Single(ref x), &NmSetTm::Single(ref y)) => {
                 let (ctx1, ctx2) = ctxs_of_relctx(ctx.clone());
@@ -1049,7 +1049,7 @@ pub mod subset {
                 decide_idxtm_subset(ctx, x, y)
             }
         };
-        //println!("??????? search ?????????? ----------- END");
+        //fgi_db!("??????? search ?????????? ----------- END");
         res
     }
 
@@ -1060,7 +1060,7 @@ pub mod subset {
     /// set `j`.  Uses `decide_idxtm_congr` as a subroutine.
     //
     pub fn decide_nmsettm_subset_simple(ctx: &RelCtx, tm1:&NmSetTm, tm2:&NmSetTm) -> bool {
-        //println!("??????? search ?????????? ------------ BEGIN");
+        //fgi_db!("??????? search ?????????? ------------ BEGIN");
         let res = match (tm1, tm2) {
             (&NmSetTm::Single(ref x), &NmSetTm::Single(ref y)) => {
                 // TODO -- use equiv module
@@ -1076,7 +1076,7 @@ pub mod subset {
                 decide_idxtm_subset_simple(ctx, x, y)
             }
         };
-        //println!("??????? search ?????????? ----------- END");
+        //fgi_db!("??????? search ?????????? ----------- END");
         res
     }
 
@@ -1087,7 +1087,7 @@ pub mod subset {
     /// set `j`.  Uses `decide_idxtm_congr` as a subroutine.
     //
     pub fn decide_nmsettm_subset_speculative(ctx: &RelCtx, tm1:&NmSetTm, tm2:&NmSetTm) -> bool {
-        //println!("??????? search ?????????? ------------ BEGIN");
+        //fgi_db!("??????? search ?????????? ------------ BEGIN");
         let res = match (tm1, tm2) {
             (&NmSetTm::Single(ref x), &NmSetTm::Single(ref y)) => {
                 // TODO -- use equiv module
@@ -1103,7 +1103,7 @@ pub mod subset {
                 decide_idxtm_subset_speculative(ctx, x, y)
             }
         };
-        //println!("??????? search ?????????? ----------- END");
+        //fgi_db!("??????? search ?????????? ----------- END");
         res
     }
 
@@ -1126,7 +1126,7 @@ pub mod subset {
         // Basecase: If `a` is the empty set, and `b` is anything with
         // sort NmSet, then the subset holds.
         {
-            //println!("testing {:?} =?= emptyset", a);
+            //fgi_db!("testing {} =?= emptyset", a);
             let (ctx1, _) = ctxs_of_relctx(ctx.clone());
             let ed = bitype::synth_idxtm(&Ext::empty(), &ctx1, 
                                          &normal::normal_idxtm(&ctx1, IdxTm::Empty));
@@ -1134,7 +1134,7 @@ pub mod subset {
             let ad = equiv::decide_idxtm_equiv(&ctx, &ad, &ed, &Sort::NmSet);
             match ad.res {
                 Result::Ok(true) => {
-                    //println!("testing found: {:?} = emptyset", a);
+                    //fgi_db!("testing found: {} = emptyset", a);
                     return Dec{
                         ctx:ctx.clone(),
                         rule:Rc::new(IdxTmRule::EmptySet),
@@ -1143,7 +1143,7 @@ pub mod subset {
                     }
                 },
                 _ => {
-                    //println!("testing found: {:?} =/= emptyset", a);
+                    //fgi_db!("testing found: {} =/= emptyset", a);
                 }
             }
         }
@@ -1191,8 +1191,8 @@ pub mod subset {
                     match xdef {
                         // Not enough info.
                         None => {
-                            //println!("No defs for {}, looking for subset:\t\n{:?}", x, &a);
-                            //panic!("TODO: {:?}", ctx)
+                            //fgi_db!("No defs for {}, looking for subset:\t\n{}", x, &a);
+                            //panic!("TODO: {}", ctx)
                             return Dec{
                                 ctx:ctx.clone(),
                                 rule:Rc::new(IdxTmRule::Fail),
@@ -1230,7 +1230,7 @@ pub mod subset {
                         let a_ns_tm = normal::NmSetTm::Subset(a);
                         for b_ns_tm in b_ns.terms.iter() {
                             if b_ns_tm == &a_ns_tm {
-                                //println!("decide_idxtm_subset:\n  {:?}\n  {:?}\nTRUE(3)!",
+                                //fgi_db!("decide_idxtm_subset:\n  {}\n  {}\nTRUE(3)!",
                                 //b_ns_tm, a_ns_tm);
                                 return Dec{
                                     ctx:ctx.clone(),
@@ -1270,8 +1270,8 @@ pub mod subset {
                             }
                             if found_tm1 { continue } else {
                                 if true {
-                                    println!("^decide_idxtm_subset: Term not found in superset candidate:\n\
-                                              \t{:?}\n\
+                                    fgi_db!("^decide_idxtm_subset: Term not found in superset candidate:\n\
+                                              \t{}\n\
                                               Term above is absent among the superset candidate's terms:\n\
                                               \t{:?}",
                                              tm1, b_ns.terms)
@@ -1311,15 +1311,15 @@ pub mod subset {
                             else { continue }
                         }
                         if false {
-                            println!("======================================================= BEGIN");
-                            println!("decide_idxtm_subset: Cannot decide subset:");
-                            println!(" Superset (candidate):\n\t{:?}", &b);
-                            println!(" Subset (candidate):\n\t{:?}", &a);
-                            println!("\n\
+                            fgi_db!("======================================================= BEGIN");
+                            fgi_db!("decide_idxtm_subset: Cannot decide subset:");
+                            fgi_db!(" Superset (candidate):\n\t{}", &b);
+                            fgi_db!(" Subset (candidate):\n\t{}", &a);
+                            fgi_db!("\n\
                                       (If you believe this subset relationship holds, \
                                       Fungi may need additional reasoning in its `decide` \
                                       and/or `normal` modules...)");
-                            println!("------------------------------------------------------- END");
+                            fgi_db!("------------------------------------------------------- END");
                         }
                         return Dec{
                             ctx:ctx.clone(),
@@ -1371,7 +1371,7 @@ pub mod subset {
         };
         match (&*i.rule,&*j.rule) {
             (_ir, _jr) if i.term == j.term => {
-                //println!("Refl subset: {:?} == {:?}", i, j);
+                //fgi_db!("Refl subset: {} == {}", i, j);
                 succ(IdxTmRule::Refl(i.clone()))
             }
             (&BiIdxTm::Empty, _) => {
@@ -1516,10 +1516,10 @@ pub mod subset {
             }
             (_, _) => {
                 if true {
-                    println!("=============================================================================== BEGIN");
-                    println!("decide_idxtm_subset: Cannot decide this case:\n Left:\n\t{:?}\n Right:\n\t{:?}", i.term, j.term);
-                    println!("This case is not implemented; but, it _may_ indicate a type error.");
-                    println!("------------------------------------------------------------------------------- END");
+                    fgi_db!("=============================================================================== BEGIN");
+                    fgi_db!("decide_idxtm_subset: Cannot decide this case:\n Left:\n\t{}\n Right:\n\t{}", i.term, j.term);
+                    fgi_db!("This case is not implemented; but, it _may_ indicate a type error.");
+                    fgi_db!("------------------------------------------------------------------------------- END");
                 }
                 err(IdxTmRule::Fail, DecError::UnknownCongruence((*i.term).clone(), (*j.term).clone()))
             }
@@ -1535,12 +1535,13 @@ pub mod subset {
         let d = decide_idxtm_subset(ctx, &i, &j);
         if d.res == Ok(true) {
             if i != j {
-                println!("\x1B[0;1mdecide_idxtm_subset: holds:\x1B[0;0m\n\t{:?}\n  ≤\n\t{:?}", i, j);
+                //fgi_db!("\x1B[0;1mdecide_idxtm_subset: holds:\x1B[0;0m\n\t{}\n  ≤\n\t{}", i, j);
+                fgi_db!("\x1B[0;1mdecide_idxtm_subset: holds:\x1B[0;0m{} ≤ {}", i, j);
             };
             return true
         }
         else {
-            println!("\x1B[0;1mdecide_idxtm_subset:\x1B[0;1;31m fails to hold:\x1B[0;0m\n\t{:?}\n  \x1B[1;31mNOT(≤)\x1B[0;0m\n\t{:?}", i, j);
+            fgi_db!("\x1B[0;1mdecide_idxtm_subset:\x1B[0;1;31m fails to hold:\x1B[0;0m\n\t{}\n  \x1B[1;31mNOT(≤)\x1B[0;0m\n\t{}", i, j);
             return false
         }
     }
@@ -1558,30 +1559,41 @@ pub mod subset {
         let d = decide_idxtm_subset(ctx, &i, &j);
         if d.res == Ok(true) {
             if i != j {
-                println!("\x1B[0;1mdecide_idxtm_subset: holds:\x1B[0;0m\n\t{:?}\n  ≤\n\t{:?}", i, j);
+                fgi_db!("\x1B[0;1mdecide_idxtm_subset: holds:\x1B[0;0m{} ≤ {}", i, j);
             };
             return true
         }
         else {
-            //println!("\x1B[0;1mdecide_idxtm_subset:\x1B[0;1;31m fails to hold:\x1B[0;0m\n\t{:?}\n  \x1B[1;31mNOT(≤)\x1B[0;0m\n\t{:?}", i, j);
+            //fgi_db!("\x1B[0;1mdecide_idxtm_subset:\x1B[0;1;31m fails to hold:\x1B[0;0m\n\t{}\n  \x1B[1;31mNOT(≤)\x1B[0;0m\n\t{}", i, j);
             return false
         }
     }
     
     /// Decide type subset relation on normalized versions of the given terms.
     pub fn decide_type_subset_norm(ctx: &RelCtx, a:Type, b:Type) -> bool {
-        if a == b { true } else {
-        // TODO-someday: Make this operation cheaper somehow (use traits in a clever way?)
-        let (ctx1, ctx2) = ctxs_of_relctx((*ctx).clone());
-        println!("\x1B[0;1mdecide_type_subset_norm: Subtypes?:\x1B[0;0m\n\t{:?}\n  \x1B[1;35m≤(?)\x1B[0;0m\n\t{:?}", a, b);
-        let a = normal::normal_type(&ctx1, &a);
-        let b = normal::normal_type(&ctx2, &b);
-        println!("\x1B[0;1m^decide_type_subset_norm: Normalized:\x1B[0;0m\n\t{:?}\n  \x1B[1;35m≤(?)\x1B[0;0m\n\t{:?}", a, b);
-        let r = decide_type_subset(ctx, a.clone(), b.clone());
-        println!("\x1B[0;1m^decide_type_subset_norm: ({}):\x1B[0;0m\n\t{:?}\n  {}\n\t{:?}", r, a, 
-                 if r { "\x1B[1;32m≤\x1B[0;0m" } 
-                 else { "\x1B[1;31mNOT(≤)\x1B[0;0m" }, b);
-        return r
+        if a == b { true }
+        else {
+            use db::*;
+            // TODO-someday: Make this operation cheaper somehow (use traits in a clever way?)
+            let (ctx1, ctx2) = ctxs_of_relctx((*ctx).clone());
+            fgi_db!("\x1B[0;1mdecide_type_subset_norm: Subtypes?:");
+            db_region_open();
+            fgi_db!("\x1B[0;0m\t{}\n  \x1B[1;35m≤(?)\x1B[0;0m\n\t{}", a, b);
+            db_region_open();
+            let a = normal::normal_type(&ctx1, &a);
+            db_region_close();
+            db_region_open();
+            let b = normal::normal_type(&ctx2, &b);
+            db_region_close();
+            fgi_db!("\x1B[0;1m^decide_type_subset_norm: Normalized:\x1B[0;0m\n\t{}\n  \x1B[1;35m≤(?)\x1B[0;0m\n\t{}", a, b);
+            db_region_open();
+            let r = decide_type_subset(ctx, a.clone(), b.clone());
+            db_region_close();
+            fgi_db!("\x1B[0;1m^decide_type_subset_norm: ({}):\x1B[0;0m\n\t{}\n  {}\n\t{}", r, a, 
+                    if r { "\x1B[1;32m≤\x1B[0;0m" } 
+                    else { "\x1B[1;31mNOT(≤)\x1B[0;0m" }, b);
+            db_region_close();
+            return r
         }
     }
 
@@ -1667,7 +1679,7 @@ pub mod subset {
                         decide_type_subset_rec(&ctx.add_ivars(x1, x2, (*g1).clone()),
                                                a1, a2)
                     } else {
-                        println!("Error: {:?} =/= {:?}", g1, g2);
+                        fgi_db!("Error: {} =/= {}", g1, g2);
                         false
                             
                     }
@@ -1678,7 +1690,7 @@ pub mod subset {
                         a1, a2)
                 }                
                 (x,y) => {
-                    println!("Cannot prove these types are related (as first subtype of second):\n\t{:?}\nand:\n\t{:?}", x, y);
+                    fgi_db!("Cannot prove these types are related (as first subtype of second):\n\t{}\nand:\n\t{}", x, y);
                     false
                 }
             }
@@ -1905,10 +1917,10 @@ pub mod apart {
                 }
             }
             (a,b) => {
-                println!("decide_nmtm_apart non-struct:\n\
-                          \t{:?}\n\
+                fgi_db!("decide_nmtm_apart non-struct:\n\
+                          \t{}\n\
                           Versus\n\
-                          \t{:?}", a, b);
+                          \t{}", a, b);
                 panic!("XXX");
             }
         }
