@@ -1,4 +1,5 @@
 use regex::Regex;
+use std::fmt;
 
 // Aside: I'd really, really prefer to use the function name (not line
 // number), but this path name, but this issue has been open for two
@@ -34,4 +35,9 @@ pub fn string_of_rust_raw_str(s:&str) -> String {
     let re1 = Regex::new("^r\" ").unwrap();
     let re2 = Regex::new("\"$").unwrap();
     format!("{}", re2.replace_all(format!("{}", re1.replace_all(s, "")).as_str(), ""))
+}
+
+pub fn debug_truncate<X:fmt::Debug>(x: &X) -> String {
+    let x = format!("{:?}", x);
+    format!("`{:.80}{}", x, if x.len() > 80 { " ...`" } else { "`" } )
 }

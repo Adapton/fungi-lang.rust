@@ -2,6 +2,7 @@ use ast::*;
 use normal::NmSetTm;
 use normal::NmSet;
 use bitype::Ctx;
+use decide::RelCtx;
 use decide::DecError;
 use bitype::NmTmRule;
 use bitype::TypeError;
@@ -29,6 +30,13 @@ impl fmt::Display for Result {
 }
 
 impl fmt::Display for Ctx {
+    fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
+        write!(f, "...")        
+    }
+}
+
+
+impl fmt::Display for RelCtx {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
         write!(f, "...")        
     }

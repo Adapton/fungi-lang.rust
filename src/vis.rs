@@ -144,15 +144,24 @@ impl Bundle {
 #[macro_export]
 macro_rules! fgi_bundle {
     [$($e:tt)+] => {{
+        use util::debug_truncate;
         let exp = if false {
             label_exp(fgi_exp![$($e)+], &mut 0)
         } else { 
             fgi_exp![$($e)+]
         };
+        let string = stringify!($($e)+);
+        fgi_db!("");
+        db_region_open!();
+        fgi_db!("\x1B[0;1;34m{}\x1B[0;0m",
+                debug_truncate(&string.to_string()));
+        db_region_open!();
         let program = synth_exp(&Ext::empty(), &Ctx::Empty, &exp);
+        db_region_close!();
+        db_region_close!();
         // let traces = capture_traces(|| eval::eval(vec![], exp)).1;
         Bundle {
-            input: stringify!($($e)+).to_owned(),
+            input: string.to_owned(),
             program: program,
             // traces: traces,
             traces: vec![],

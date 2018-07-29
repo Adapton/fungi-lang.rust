@@ -3,8 +3,8 @@
 use ast::*;
 use std::fmt;
 use std::rc::Rc;
-use db::*;
 use vt100;
+use util::debug_truncate;
 
 use shared::Shared;
 use serde::Serialize;
@@ -595,11 +595,6 @@ pub enum TypeError {
     Mismatch,
     MismatchSort(Sort,Sort),
     SubsumptionFailure(CEffect,CEffect),
-}
-
-fn debug_truncate<X:fmt::Debug>(x: &X) -> String {
-    let x = format!("{:?}", x);
-    format!("\n\t`{:.80}{}", x, if x.len() > 80 { " ...`" } else { "`" } )
 }
 
 impl fmt::Display for TypeError {
@@ -1288,15 +1283,12 @@ pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
                         succ(td, x_typ_raw)
                     }
                     else {
-                        fgi_db!("================================================================================== BEGIN");
+                        db_region_open!();
                         fgi_db!("Detailed errors for checking type of variable {}:", x);
                         fgi_db!(".. Variable {}'s type:\n{} \n\n...does not check against type:\n{}\n", x, x_typ_raw, typ_raw);
-                        fgi_db!("");
-                        fgi_db!(".. type-subset holds: {}\n", subset_flag);
-                        fgi_db!("");
                         fgi_db!(".. Variable {}'s type:\n{} \n\n...does not check against type:\n{}\n", x,
                                  normal::normal_type(ctx, &x_typ_raw), typ_norm);
-                        fgi_db!("---------------------------------------------------------------------------------- END ");
+                        db_region_close!();
                         fail(td, TypeError::AnnoMism)
                     }
                 }
@@ -1601,7 +1593,7 @@ pub fn synth_items(ext:&Ext, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
             }
             &Decls::Fn(ref f, ref a, ref e, ref d) => {
                 fgi_db!("\x1B[1;33mfn \x1B[1;36;4;m{}\x1B[0;1m Begin check...\x1B[0;0m", f);
-                db_region_open();
+                db_region_open!();
                 let v : Val = fgi_val![ thunk fix ^f. ^e.clone() ];
                 let a2 = a.clone();
                 let der = check_val(ext, &ctx, &v, a);
@@ -1614,7 +1606,7 @@ pub fn synth_items(ext:&Ext, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
                                DeclRule::Fn(f.clone(), der),
                                der_typ.map(|_| DeclClas::Type(a2)))
                 };
-                db_region_close();
+                db_region_close!();
                 fgi_db!("\x1B[1;33mfn \x1B[1;36;4;m{}\x1B[0;1m Done (\x1B[0;0m{}\x1B[0;1m).", f,
                          if let Ok(_) = der.der.clas.clone() {
                              "\x1B[1;32mCheck OK"
@@ -1902,9 +1894,11 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
         
          */
         &Exp::Let(ref x, ref e1, ref e2) => {
-            fgi_db!("\x1B[1;33mlet\x1B[2;36m {}\x1B[0;1m = ... \x1B[0;1m==> ?\x1B[0;0m", x);
+            fgi_db!("\x1B[1;33mlet\x1B[2;36m {}\x1B[0;1m = ... \x1B[0;1m⇒ ?\x1B[0;0m", x);
+            db_region_open!();
             let td1 = synth_exp(ext, ctx, e1);
-            fgi_db!("\x1B[1;33mlet\x1B[1;36m {}\x1B[0;1m = ... \x1B[0;1m==> \x1B[1;32m{}\n  \x1B[1;33min\x1B[0;0m ... \x1B[1m==>\x1B[2;35m ?\x1B[0;0m",
+            db_region_close!();
+            fgi_db!("\x1B[1;33mlet\x1B[1;36m {}\x1B[0;1m = ... \x1B[0;1m⇒ \x1B[1;32m{}\n  \x1B[1;33min\x1B[0;0m ... \x1B[1m⇒\x1B[2;35m ?\x1B[0;0m",
                     x, vt100::Result{result:td1.clas.clone()});
             match td1.clas.clone() {
                 Err(_) => fail(ExpRule::Let(x.clone(),td1,
@@ -2119,8 +2113,11 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                     let new_scope = fgi_nametm![
                         #_a:Nm.[^ext.write_scope.clone()]( [^nmlamb] _a)
                     ];
+                    fgi_db!("\x1B[1;33mws \x1B[1;35m{}\x1B[0;0m", new_scope);
+                    db_region_open!();
                     let new_ext = Ext{write_scope:new_scope, ..ext.clone()};
                     let td1 = synth_exp(&new_ext, ctx, e);
+                    db_region_close!();
                     let typ1 = td1.clas.clone();
                     let td = ExpRule::WriteScope(td0,td1);
                     match typ1 {
@@ -2147,7 +2144,9 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                     let new_ctx = ctx
                         .var(x1.clone(),(*t1).clone())
                         .var(x2.clone(),(*t2).clone())
-                    ;
+                        ;
+                    fgi_db!("\x1B[1;33mvar\x1B[1;36m {}\x1B[0;1m : \x1B[35;1m{}\x1B[0;0m", x1, t1);
+                    fgi_db!("\x1B[1;33mvar\x1B[1;36m {}\x1B[0;1m : \x1B[35;1m{}\x1B[0;0m", x2, t2);
                     let td3 = synth_exp(ext, &new_ctx, e);
                     let typ3 = td3.clas.clone();
                     let td = ExpRule::Split(td0, x1.clone(), x2.clone(), td3);
@@ -2350,17 +2349,15 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 Ok(Type::Sum(ty1, ty2)) => {
                     let new_ctx1 = ctx.var(x1.clone(), (*ty1).clone());
                     let new_ctx2 = ctx.var(x2.clone(), (*ty2).clone());
-                    fgi_db!("Case: Check first subcase: BEGIN");
-                    db_region_open();
+                    fgi_db!("\x1B[1;33msubcase:\x1B[2;36m {} \x1B[0;1m:\x1B[2;35m {}\x1B[0;0m", x1, ty1);
+                    db_region_open!();
                     let td1 = check_exp(ext, &new_ctx1, e1, ceffect);
-                    db_region_close();
-                    fgi_db!("Case: Check first subcase: END");
+                    db_region_close!();
                     let td1_typ = td1.clas.clone();
-                    fgi_db!("Case: Check second subcase: BEGIN");
-                    db_region_open();
+                    fgi_db!("\x1B[1;33msubcase:\x1B[2;36m {} \x1B[0;1m:\x1B[2;35m {}\x1B[0;0m", x2, ty2);
+                    db_region_open!();
                     let td2 = check_exp(ext, &new_ctx2, e2, ceffect);
-                    db_region_close();
-                    fgi_db!("Case: Check second subcase: END");
+                    db_region_close!();
                     let td2_typ = td2.clas.clone();
                     let td = ExpRule::Case(v_td, x1.clone(), td1, x2.clone(), td2);
                     match (td1_typ, td2_typ) {
@@ -2393,9 +2390,11 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
          */
         &Exp::Let(ref x, ref e1, ref e2) => {
             if let CEffect::Cons(ref ctyp, ref eff3) = *ceffect {
-                fgi_db!("\x1B[1;33mlet\x1B[1;36m {}\x1B[0;1m = ... ==> ?\x1B[0;0m", x);
+                fgi_db!("\x1B[1;33mlet\x1B[1;36m {}\x1B[0;1m = ... ⇒ ?\x1B[0;0m", x);
+                db_region_open!();
                 let td1 = synth_exp(ext, ctx, e1);
-                fgi_db!("\x1B[1;33mlet\x1B[1;36m {}\x1B[0;1m = ... ==> \x1B[1;32m{}\n  \x1B[1;33min\x1B[0;0m ... \x1B[1m<==\x1B[2;35m {}\x1B[0;0m", 
+                db_region_close!();                
+                fgi_db!("\x1B[1;33mlet\x1B[1;36m {}\x1B[0;1m = ... ⇒ \x1B[1;32m{}\n  \x1B[1;33min\x1B[0;0m ... \x1B[1m⇐\x1B[2;35m {}\x1B[0;0m", 
                         x, vt100::Result{result:td1.clas.clone()}, ceffect);
                 let typ1 = td1.clas.clone();
                 match typ1 {
@@ -2405,7 +2404,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                         synth_exp(ext, ctx, e2)
                     ), err.clone()) },
                     Ok(CEffect::Cons(CType::Lift(ref ct1), ref eff1)) => {
-                        fgi_db!("\x1B[0;1mDecide effect subtraction: Begin\x1B[0;0m...");
+                        //fgi_db!("\x1B[0;1mDecide effect subtraction: Begin\x1B[0;0m...");
                         let new_ctx = ctx.var(x.clone(),ct1.clone());
                         match decide::effect::decide_effect_subtraction(
                             ctx,
@@ -2413,8 +2412,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                             decide::effect::Role::Archivist,
                             eff3.clone(), eff1.clone())
                         {
-                            Ok(eff2) => {
-                                fgi_db!("\x1B[0;1mDecide effect subtraction: \x1B[0;1;32mOK\x1B[0;1m.");
+                            Ok(eff2) => {                                
                                 let typ2 = CEffect::Cons(ctyp.clone(), eff2);
                                 let td2 = check_exp(ext, &new_ctx, e2, &typ2);
                                 let typ2res = td2.clas.clone();
@@ -2489,16 +2487,15 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
         },
         &Exp::IfThenElse(ref v, ref e1, ref e2) => {
             let td0 = synth_val(ext, ctx, v);
-            fgi_db!("IfThenElse: Check Then: BEGIN");
-            db_region_open();
+            fgi_db!("\x1B[1;33mif ... {{\x1B[0;0m");
+            db_region_open!();
             let td1 = check_exp(ext, ctx, e1, ceffect);
-            db_region_close();            
-            fgi_db!("IfThenElse: Check Then: END");
-            fgi_db!("IfThenElse: Check Else: BEGIN");
-            db_region_open();
+            db_region_close!();            
+            fgi_db!("\x1B[1;33m}} else {{\x1B[0;0m");
+            db_region_open!();
             let td2 = check_exp(ext, ctx, e2, ceffect);
-            db_region_close();
-            fgi_db!("IfThenElse: Check Else: END");
+            db_region_close!();
+            fgi_db!("\x1B[1;33m}}\x1B[0;0m");
             let v_ty = td0.clas.clone().map(|a| normal::normal_type(ctx, &a));
             let (_t0,t1,t2) = (td0.clas.clone(),td1.clas.clone(),td2.clas.clone());
             let td = ExpRule::IfThenElse(td0,td1,td2);
@@ -2507,7 +2504,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 (_,Err(_),_) => fail(td, TypeError::ParamNoCheck(1)),
                 (_,_,Err(_)) => fail(td, TypeError::ParamNoCheck(2)),
                 (Ok(Type::Ident(ref b)),_,_) if b == "Bool" => {
-                    fgi_db!("OK: IfThenElse");
+                    fgi_db!("✔");
                     // the exps are correct, because of the check above
                     succ(td, ceffect.clone())
                 },
@@ -2660,15 +2657,14 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 }
                 else {
                     use bitype::debug::*;
-                    fgi_db!("================================================================================== BEGIN");
+                    db_region_open!();
                     fgi_db!("Detailed errors for checking an `Exp::{}` via subsumption:", td.rule.short());
                     fgi_db!(".. {}'s type:\n{} \n\n...does not check against type:\n{}\n", td.rule.short(), ty, ceffect);
-                    fgi_db!("");
-                    if true {
+                    if false {
                         // may be very verbose
                         fgi_db!(".. {}'s type:\n{} \n\n...does not check against type:\n{}\n", td.rule.short(), a, b);
                     }
-                    fgi_db!("---------------------------------------------------------------------------------- END ");
+                    db_region_close!();
                     td.clas = Err(TypeError::SubsumptionFailure(ty, ceffect.clone()));
                     td
                 }
