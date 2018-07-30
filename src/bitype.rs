@@ -1424,16 +1424,10 @@ pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
         },
         &Val::ThunkAnon(ref e) => {
             if let Type::Thk(ref _idx, ref ce) = *typ_norm {
-                // TODO/XXXXXXXXX Need to redefine "normal forms"
                 let td0 = check_exp(ext, ctx, &*e, &*ce);
                 let typ0 = td0.clas.clone();
                 let td = ValRule::ThunkAnon(td0);
-                // TODO-Next: use this once effects are implemented
-                // if IdxTm::Empty != *idx {
-                //     return fail(td, TypeError::InvalidPtr)
-                // }
                 match typ0 {
-                    //Err(_) => fail(td, TypeError::ParamNoCheck(0)),
                     Err(_) => fail(td, TypeError::CheckFailCEffect((**ce).clone())),
                     Ok(_) => succ(td, typ_raw.clone())
                 }
@@ -1729,14 +1723,21 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let td1 = synth_val(ext, ctx, v2);
             let (tp0,typ1) = (td0.clas.clone(),td1.clas.clone());
             let td = ExpRule::Ref(td0,td1);
-            match (tp0,typ1) {
+            match (tp0.clone(),typ1.clone()) {
                 (Err(ref e),_) => fail(td, wrap_inside_error(e)),
                 (_,Err(ref e)) => fail(td, wrap_inside_error(e)),
                 (Ok(Type::Nm(idx)),Ok(a)) => {
                     let idx = IdxTm::Map(Rc::new(ext.write_scope.clone()), Rc::new(idx));
                     let typ = Type::Ref(idx.clone(),Rc::new(a));
                     let eff = Effect::WR(idx, IdxTm::Empty);
-                    succ(td, CEffect::Cons(CType::Lift(typ),eff))
+                    let ceff = CEffect::Cons(CType::Lift(typ),eff);
+                    db_region_open!();
+                    fgi_db!("{} ⊢ {} ⇒ {}", ctx, v1, vt100::Result{result:tp0});
+                    fgi_db!("{} ⊢ {} ⇒ {}", ctx, v2, vt100::Result{result:typ1});
+                    fgi_db!("{} :: ref", vt100::RuleLine{});
+                    fgi_db!("{} ⊢ ref({},{}) ⇒ {}", ctx, v1, v2, ceff);
+                    db_region_close!();
+                    succ(td, ceff)
                 },
                 _ => fail(td, TypeError::ParamMism(1)),
             }
@@ -1746,14 +1747,21 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let td1 = synth_exp(ext, ctx, e);
             let (tp0,typ1) = (td0.clas.clone(),td1.clas.clone());
             let td = ExpRule::Thunk(td0,td1);
-            match (tp0,typ1) {
+            match (tp0.clone(),typ1.clone()) {
                 (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
                 (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
                 (Ok(Type::Nm(idx)),Ok(ce)) => {
                     let idx = IdxTm::Map(Rc::new(ext.write_scope.clone()), Rc::new(idx));
                     let typ = Type::Thk(idx.clone(),Rc::new(ce));
                     let eff = Effect::WR(idx, IdxTm::Empty);
-                    succ(td, CEffect::Cons(CType::Lift(typ),eff))
+                    let ceff = CEffect::Cons(CType::Lift(typ),eff);
+                    db_region_open!();
+                    fgi_db!("{} ⊢ {} ⇒ {}", ctx, v, vt100::Result{result:tp0});
+                    fgi_db!("{} ⊢ {} ⇒ {}", ctx, e, vt100::Result{result:typ1});
+                    fgi_db!("{} :: thunk", vt100::RuleLine{});
+                    fgi_db!("{} ⊢ thunk({},{}) ⇒ {}", ctx, v, e, ceff);
+                    db_region_close!();
+                    succ(td, ceff)
                 },
                 _ => fail(td, TypeError::ParamMism(1)),
             }
@@ -1845,7 +1853,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                         //fgi_db!("** SUBST {:?} for {} **", term_of_idxtm(&id), x);
                         let ce2 = subst::subst_term_ceffect(term_of_idxtm(&id), &x, (*ce).clone());
                         //fgi_db!("** AFTER  ** {:?}", ce2);
-                        // XXX/TODO need to prove (decide) that p is true
+                        // XXX-Soundness need to prove (decide) that p is true
                         let td = ExpRule::IdxApp(ed,id);
                         succ(td, ce2)
                     }
@@ -1969,7 +1977,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let td0 = synth_val(ext, ctx, v);
             let typ0 = td0.clas.clone();
             let td = ExpRule::PrimApp(PrimAppRule::RefThunk(td0));
-            match typ0 {
+            match typ0.clone() {
                 Err(_) => fail(td, TypeError::ParamNoSynth(0)),
                 Ok(Type::Thk(idx,ce)) => {
                     match *ce {
@@ -1998,12 +2006,21 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                                 Effect::WR(fgi_index![0], idx.clone()), eff.clone())
                             {
                                 Err(efferr) => fail(td, TypeError::EffectError(efferr)),
-                                Ok(eff3) => succ(td, CEffect::Cons(CType::Lift(
-                                    Type::Prod(
-                                        Rc::new(Type::Ref(idx,Rc::new(typ.clone()))),
-                                        Rc::new(typ.clone())
-                                    )
-                                ), eff3.clone()))
+                                Ok(eff3) => {
+                                    let ceff =
+                                        CEffect::Cons(CType::Lift(
+                                            Type::Prod(
+                                                Rc::new(Type::Ref(idx,Rc::new(typ.clone()))),
+                                                Rc::new(typ.clone())
+                                            )
+                                        ), eff3.clone());
+                                    db_region_open!();
+                                    fgi_db!("{} ⊢ {} ⇒ {}", ctx, v, vt100::Result{result:typ0});
+                                    fgi_db!("{} :: refthunk", vt100::RuleLine{});
+                                    fgi_db!("{} ⊢ refthunk {} ⇒ {}", ctx, v, ceff);
+                                    db_region_close!();
+                                    succ(td, ceff)
+                                }
                             }
                         },
                         _ => fail(td, TypeError::ParamMism(0)),
@@ -2011,7 +2028,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                 },
                 _ => fail(td, TypeError::ParamMism(0)),
             }
-        },        
+        },      
         &Exp::PrimApp(PrimApp::NatPlus(ref v0,ref v1)) => {
             let td0 = synth_val(ext, ctx, v0);
             let td1 = synth_val(ext, ctx, v1);
@@ -2294,6 +2311,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                     let v_ty = normal::normal_type(ctx, &v_ty);
                     let (v_ty,_) = normal::unroll_type(ctx, &v_ty);
                     let new_ctx = ctx.var(x.clone(), v_ty);
+                    // fgi_db_XXX --- print x
                     let td0 = check_exp(ext, &new_ctx, e, ceffect);
                     let td0_typ = td0.clas.clone();
                     let td = ExpRule::Unroll(v_td, x.clone(), td0);
@@ -2326,6 +2344,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                     if p != Prop::Tt {
                         fgi_db!("\x1B[1;33mprop\x1B[1;36m {} \x1B[0;1mtrue\x1B[0;0m", p);
                     };
+                    // fgi_db_XXX --- print x
                     let td3 = check_exp(ext, &new_ctx, e, &ceffect);
                     let typ3 = td3.clas.clone();
                     let rule = ExpRule::Unpack(a1.clone(),x.clone(),v_td,td3);
@@ -2349,12 +2368,12 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 Ok(Type::Sum(ty1, ty2)) => {
                     let new_ctx1 = ctx.var(x1.clone(), (*ty1).clone());
                     let new_ctx2 = ctx.var(x2.clone(), (*ty2).clone());
-                    fgi_db!("\x1B[1;33msubcase:\x1B[2;36m {} \x1B[0;1m:\x1B[2;35m {}\x1B[0;0m", x1, ty1);
+                    fgi_db!("\x1B[1;33msubcase:\x1B[1;36m {} \x1B[0;1m:\x1B[1;35m {}\x1B[0;0m", x1, ty1);
                     db_region_open!();
                     let td1 = check_exp(ext, &new_ctx1, e1, ceffect);
                     db_region_close!();
                     let td1_typ = td1.clas.clone();
-                    fgi_db!("\x1B[1;33msubcase:\x1B[2;36m {} \x1B[0;1m:\x1B[2;35m {}\x1B[0;0m", x2, ty2);
+                    fgi_db!("\x1B[1;33msubcase:\x1B[1;36m {} \x1B[0;1m:\x1B[1;35m {}\x1B[0;0m", x2, ty2);
                     db_region_open!();
                     let td2 = check_exp(ext, &new_ctx2, e2, ceffect);
                     db_region_close!();
@@ -2518,16 +2537,23 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 CType::Lift(Type::Thk(ref idx,ref ce)),
                 Effect::WR(ref _w,ref _r)
             ) = ceffect {
-                // TODO/XXX --- check effects: that write set _w contains idx
-                //
                 let td0 = check_val(ext,ctx,v,&Type::Nm(idx.clone()));
                 let td1 = check_exp(ext,ctx,e,&**ce);
                 let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
                 let td = ExpRule::Thunk(td0,td1);
-                match (typ0,typ1) {
+                match (typ0.clone(),typ1.clone()) {
                     (Err(_),_) => fail(td, TypeError::ParamNoCheck(0)),
                     (_,Err(_)) => fail(td, TypeError::ParamNoCheck(1)),
-                    (Ok(_),Ok(_)) => succ(td, ceffect.clone()),
+                    (Ok(_),Ok(_)) => {
+                        // XXX-Soundness --- check effects: that write set _w contains idx
+                        db_region_open!();
+                        fgi_db!("{} ⊢ {} ⇒ {}", ctx, v, vt100::Result{result:typ0});
+                        fgi_db!("{} ⊢ {} ⇐ {}", ctx, e, vt100::Result{result:typ1});
+                        fgi_db!("{} :: thunk", vt100::RuleLine{});
+                        fgi_db!("{} ⊢ thunk({},{}) ⇐ {}", ctx, v, e, ceffect);
+                        db_region_close!();
+                        succ(td, ceffect.clone())
+                    },
                 }
             } else { fail(ExpRule::Thunk(
                 synth_val(ext, ctx, v),
@@ -2540,15 +2566,13 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 CType::Lift(Type::Ref(ref _rf_idx,ref a)),
                 Effect::WR(ref _w, ref _r)
             ) = nceffect {
-                fgi_db!("RefAnon check rule; value type is {}", a);
                 let tdv = check_val(ext, ctx, v, a);
                 let typ = tdv.clas.clone();
                 let td = ExpRule::RefAnon(tdv);
                 match typ {
-                    Ok(_) => {
-                        // TODO/XXX -- check that _rf_idx is the empty set
-                        succ(td, ceffect.clone())
-                    },
+                    // Due to subtyping and sub-effecting, we don't
+                    // care about the name sets _w, _r or _rf_idx.
+                    Ok(_) => { succ(td, ceffect.clone()) },
                     Err(ref err) => fail(td, TypeError::Inside(Rc::new(err.clone())))
                 }
             } else { 
@@ -2566,15 +2590,26 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 CType::Lift(Type::Ref(ref _rf_idx,ref a)),
                 Effect::WR(ref _w, ref _r)
             ) = nceffect {
-                fgi_db!("Ref check rule; value type is {}", a);
+                //fgi_db!("Ref check rule; value type is {}", a);                
                 let td0 = synth_val(ext, ctx, v1);
                 let td0ty = td0.clas.clone();
                 let td1 = check_val(ext, ctx, v2, a);
+                let td1ty = td1.clas.clone();
                 let td = ExpRule::Ref(td0, td1);
-                match td0ty {
+                match td0ty.clone() {
                     Ok(Type::Nm(ref _v1_idx)) => {
-                        // TODO/XXX --- check effects: that write set _w contains rf_idx
-                        // TODO/XXX -- check that v1_idx in the current write scope matches rf_idx
+                        // XXX-Soundness --- check effects: that write
+                        // set _w contains rf_idx.
+                        
+                        // XXX-Soundness -- check that v1_idx in the
+                        // current write scope matches rf_idx
+                        
+                        db_region_open!();
+                        fgi_db!("{} ⊢ {} ⇒ {}", ctx, v1, vt100::Result{result:td0ty});
+                        fgi_db!("{} ⊢ {} ⇒ {}", ctx, v2, vt100::Result{result:td1ty});
+                        fgi_db!("{} :: ref", vt100::RuleLine{});
+                        fgi_db!("{} ⊢ ref({},{}) ⇐ {}", ctx, v1, v2, ceffect);
+                        db_region_close!();
                         succ(td, ceffect.clone())
                     },
                     Ok(_) => fail(td, TypeError::Mismatch),

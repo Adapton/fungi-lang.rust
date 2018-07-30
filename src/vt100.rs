@@ -10,6 +10,13 @@ use std::fmt;
 use std::result;
 use dynamics::RtVal;
 
+pub struct RuleLine {}
+impl fmt::Display for RuleLine {
+   fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
+       write!(f,"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+   }
+}
+
 pub struct Result<X,Y> {
     pub result:
     result::Result<X, Y>
