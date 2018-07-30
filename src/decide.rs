@@ -430,6 +430,8 @@ pub mod effect {
                 ctx, eff1, eff2);
         db_region_open!();
         let res = if decide_effect_empty(ctx, eff2.clone()) {
+            fgi_db!("^decide_effect_subtraction: holds: {} ⊢ {} - {} ≡ {}, since {} is empty",
+                    ctx, &eff1, &eff2, &eff1, &eff2);
             Result::Ok(eff1.clone())
         }
         else {
@@ -498,7 +500,7 @@ pub mod effect {
                     }
                 }
                 _ => {
-                    fgi_db!("^decide_effect_subtraction: Failure: {} ⊬ {} - {} ≡ ? (✘)",
+                    fgi_db!("^decide_effect_subtraction: Failure: {} ⊬ {} - {} ≡ ?",
                             ctx, &eff1, &eff2);
                     Result::Err( Error::CannotSubtract(eff1, eff2) )
                 }
@@ -961,7 +963,8 @@ pub mod equiv {
             (_ir, _jr) => {
                 if true {
                     db_region_open!();
-                    fgi_db!("decide_idxtm_equiv: Failure: {} ⊬ {} ≡ {} : ⃨ (✘)", ctx, i.term, j.term);
+                    fgi_db!("decide_idxtm_equiv: Failure: {} ⊬ {} ≡ {} : {}",
+                            ctx, i.term, j.term, i.clas.clone().unwrap());
                     //fgi_db!("This case is not implemented; but, it _may_ indicate a type error.");
                     db_region_close!();
                 }
@@ -1132,7 +1135,8 @@ pub mod subset {
     /// set `j`.  Uses `decide_idxtm_congr` as a subroutine.
     //
     pub fn decide_nmsettm_subset_speculative(ctx: &RelCtx, tm1:&NmSetTm, tm2:&NmSetTm) -> bool {
-        fgi_db!("decide_nmsettm_subset_speculative: {} = {}", tm1, tm2);
+        fgi_db!("decide_nmsettm_subset_speculative: decide if: {} ⊢ {} ⊆ {} : NmSet",
+                ctx, tm1, tm2);
         db_region_open!();
         let res = match (tm1, tm2) {
             (&NmSetTm::Single(ref x), &NmSetTm::Single(ref y)) => {

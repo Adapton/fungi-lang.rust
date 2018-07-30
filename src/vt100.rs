@@ -1,5 +1,6 @@
 use ast::*;
 use normal::NmSetTm;
+use normal::NmSetCons;
 use normal::NmSet;
 use bitype::Ctx;
 use decide::RelCtx;
@@ -42,11 +43,6 @@ impl fmt::Display for RelCtx {
     }
 }
 
-impl fmt::Display for NmSetTm {
-    fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
-        write!(f, "...")        
-    }
-}
 
 impl fmt::Display for NmTmRule {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
@@ -54,10 +50,41 @@ impl fmt::Display for NmTmRule {
     }
 }
 
+impl fmt::Display for NmSetTm {
+    fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
+        match self {
+            NmSetTm::Single(ref n) => write!(f, "{{{}}}", n),
+            NmSetTm::Subset(ref i) => write!(f, "{}", i),
+        }
+    }
+}
+
+impl fmt::Display for NmSetCons {
+    fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
+        match self {
+            NmSetCons::Union => write!(f, "∪"),
+            NmSetCons::Apart => write!(f, "⊥"),
+        }
+    }
+}
 
 impl fmt::Display for NmSet {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
-        write!(f, "...")        
+        if self.cons == None && self.terms.len() == 0 {            
+            write!(f, "Ø")
+        } else {
+            let mut is_first = true;
+            for tm in self.terms.iter() {
+                if is_first {
+                    write!(f, "{}", tm).unwrap();
+                    is_first = false;                
+                } else {                
+                    write!(f, " {} {}",
+                           self.cons.clone().unwrap(), tm).unwrap();
+                }
+            }
+            write!(f, "")
+        }
     }
 }
 
@@ -87,7 +114,7 @@ impl fmt::Display for IdxTm {
             IdxTm::Apart(ref i, ref j) => write!(f, "{} ⊥ {}", i, j),
             IdxTm::Union(ref i, ref j) => write!(f, "{} ∪ {}", i, j),
             IdxTm::Unit => write!(f, "1"),
-            IdxTm::Bin(ref i, ref j) => write!(f, "{} * {}", i, j),
+            IdxTm::Bin(ref i, ref j) => write!(f, "{}⊛{}", i, j),
             IdxTm::Pair(ref i, ref j) => write!(f, "({},{})", i, j),
             IdxTm::Proj1(ref i) => write!(f, "{}.1", i),
             IdxTm::Proj2(ref i) => write!(f, "{}.2", i),
@@ -106,9 +133,32 @@ impl fmt::Display for IdxTm {
     }
 }
 
+impl fmt::Display for Name {
+    fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
+        match self {
+            //Name::Leaf => write!(f, "[]"),
+            Name::Leaf => write!(f, "▲"),
+            Name::Bin(ref n, ref m) => write!(f, "{}⋅{}", n, m),
+            Name::Sym(ref s) => write!(f, "@@{}", s),
+            Name::Num(ref n) => write!(f, "@{}", n),
+            Name::NoParse(ref s) => write!(f, "«Parse error: `{}`»", s),
+        }
+    }
+}
+
 impl fmt::Display for NameTm {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
-        write!(f, "...")        
+        match self {
+            NameTm::Var(ref x) => write!(f, "{}", x),
+            NameTm::Ident(ref x) => write!(f, "{}", x),
+            NameTm::ValVar(ref x) => write!(f, "{}", x),
+            NameTm::Name(ref n) => write!(f, "{}", n),
+            NameTm::Bin(ref n, ref m) => write!(f, "{}⊙{}", n, m),
+            NameTm::Lam(ref x, ref g, ref m) => write!(f, "#{}:{}.{}", x, g, m),
+            NameTm::App(ref n, ref m) => write!(f, "{}({})", n, m),
+            NameTm::WriteScope => write!(f, "@@"),
+            NameTm::NoParse(ref s) => write!(f, "«Parse error: `{}`»", s),
+        }
     }
 }
 
