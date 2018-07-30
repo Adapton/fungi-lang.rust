@@ -17,6 +17,20 @@ impl fmt::Display for RuleLine {
    }
 }
 
+macro_rules! vt100_escape {
+    { $t:ident, $escape:expr } => {
+        pub struct $t ;
+        impl fmt::Display for $t {
+            fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
+                write!(f,"\x1B[{}m", $escape)
+            }
+        }
+    }
+}
+vt100_escape!{HiBlue, "1;36"}
+vt100_escape!{Normal, "0;0"}  
+vt100_escape!{RuleColor, "1;36"}  
+
 pub struct Result<X,Y> {
     pub result:
     result::Result<X, Y>
@@ -105,7 +119,7 @@ impl fmt::Display for Val {
             &Val::Roll(ref v) => write!(f, "roll {}", v),
             &Val::Str(ref s) => write!(f, "{}", s),
             &Val::ThunkAnon(ref e) => write!(f, "thunk {}", e),
-            &Val::Unit => write!(f, "Unit"),
+            &Val::Unit => write!(f, "()"),
             &Val::Var(ref x) => write!(f, "{}", x),
         }
     }
@@ -127,7 +141,7 @@ impl fmt::Display for RtVal {
             &RtVal::Str(ref s) => write!(f, "{}", s),
             &RtVal::Thunk(ref a) => write!(f, "<thunk {:?}>", a),
             &RtVal::ThunkAnon(ref _env, ref e) => write!(f, "thunk ... {}", e),
-            &RtVal::Unit => write!(f, "Unit"),
+            &RtVal::Unit => write!(f, "()"),
         }
     }
 }
@@ -324,7 +338,7 @@ impl fmt::Display for Type {
             &Type::Unit => { write!(f, "Unit") }
             &Type::Var(ref x) => { write!(f, "{}", x) }
             &Type::Ident(ref x) => { write!(f, "{}", x) }
-            &Type::Sum(ref t1, ref t2) => { write!(f, "{} ＋ {}", t1, t2) }
+            &Type::Sum(ref t1, ref t2) => { write!(f, "({} ＋ {})", t1, t2) }
             &Type::Prod(ref t1, ref t2) => { write!(f, "{} ⨉ {}", t1, t2) }
             &Type::Ref(ref i, ref a) => { write!(f, "Ref[{}]({})", i, a) }
             &Type::Thk(ref i, ref ce) => { write!(f, "Thk[{}]({})", i, ce) }
@@ -334,7 +348,7 @@ impl fmt::Display for Type {
             &Type::NmFn(ref n) => { write!(f, "NmFn[{}]", n) }
             &Type::TypeFn(ref x, ref k, ref t) => { write!(f, "∀{}:{}.{}", x, k, t) }
             &Type::IdxFn(ref x, ref g, ref t) => { write!(f, "∀{}:{}.{}", x, g, t) }
-            &Type::Rec(ref x, ref t) => { write!(f, "rec {}. {}", x, t) }
+            &Type::Rec(ref x, ref t) => { write!(f, "(rec {}. {})", x, t) }
             &Type::Exists(ref x, ref g, ref prop, ref t) if prop == &Prop::Tt => { write!(f, "∃{}:{}. {}", x, g, t) }
             &Type::Exists(ref x, ref g, ref prop, ref t) => { write!(f, "∃{}:{} | {}. {}", x, g, prop, t) }
             &Type::NoParse(ref s) => { write!(f, "«Type::Parse error: `{}`»", s) }

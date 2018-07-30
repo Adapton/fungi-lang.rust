@@ -1732,6 +1732,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                     let eff = Effect::WR(idx, IdxTm::Empty);
                     let ceff = CEffect::Cons(CType::Lift(typ),eff);
                     db_region_open!();
+                    fgi_db!("{}ref synth rule", vt100::RuleColor{});
                     fgi_db!("{} ⊢ {} ⇒ {}", ctx, v1, vt100::Result{result:tp0});
                     fgi_db!("{} ⊢ {} ⇒ {}", ctx, v2, vt100::Result{result:typ1});
                     fgi_db!("{} :: ref", vt100::RuleLine{});
@@ -1756,6 +1757,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                     let eff = Effect::WR(idx, IdxTm::Empty);
                     let ceff = CEffect::Cons(CType::Lift(typ),eff);
                     db_region_open!();
+                    fgi_db!("{}thunk synth rule", vt100::RuleColor{});
                     fgi_db!("{} ⊢ {} ⇒ {}", ctx, v, vt100::Result{result:tp0});
                     fgi_db!("{} ⊢ {} ⇒ {}", ctx, e, vt100::Result{result:typ1});
                     fgi_db!("{} :: thunk", vt100::RuleLine{});
@@ -2015,6 +2017,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                                             )
                                         ), eff3.clone());
                                     db_region_open!();
+                                    fgi_db!("{}refthunk synth rule", vt100::RuleColor{});
                                     fgi_db!("{} ⊢ {} ⇒ {}", ctx, v, vt100::Result{result:typ0});
                                     fgi_db!("{} :: refthunk", vt100::RuleLine{});
                                     fgi_db!("{} ⊢ refthunk {} ⇒ {}", ctx, v, ceff);
@@ -2547,6 +2550,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                     (Ok(_),Ok(_)) => {
                         // XXX-Soundness --- check effects: that write set _w contains idx
                         db_region_open!();
+                        fgi_db!("{}thunk check rule:", vt100::RuleColor);
                         fgi_db!("{} ⊢ {} ⇒ {}", ctx, v, vt100::Result{result:typ0});
                         fgi_db!("{} ⊢ {} ⇐ {}", ctx, e, vt100::Result{result:typ1});
                         fgi_db!("{} :: thunk", vt100::RuleLine{});
@@ -2605,8 +2609,9 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                         // current write scope matches rf_idx
                         
                         db_region_open!();
+                        fgi_db!("{}ref check rule:", vt100::RuleColor{});
                         fgi_db!("{} ⊢ {} ⇒ {}", ctx, v1, vt100::Result{result:td0ty});
-                        fgi_db!("{} ⊢ {} ⇒ {}", ctx, v2, vt100::Result{result:td1ty});
+                        fgi_db!("{} ⊢ {} ⇐ {}", ctx, v2, vt100::Result{result:td1ty});
                         fgi_db!("{} :: ref", vt100::RuleLine{});
                         fgi_db!("{} ⊢ ref({},{}) ⇐ {}", ctx, v1, v2, ceffect);
                         db_region_close!();
