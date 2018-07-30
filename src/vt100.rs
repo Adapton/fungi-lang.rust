@@ -6,13 +6,12 @@ use bitype::Ctx;
 use decide::RelCtx;
 use decide::DecError;
 use bitype::NmTmRule;
-use bitype::TypeError;
 use std::fmt;
 use std::result;
 
-pub struct Result {
+pub struct Result<X,Y> {
     pub result:
-    result::Result<CEffect, TypeError>
+    result::Result<X, Y>
 }
 
 impl fmt::Display for DecError {
@@ -21,11 +20,11 @@ impl fmt::Display for DecError {
     }
 }
 
-impl fmt::Display for Result {
+impl<X:fmt::Display, Y:fmt::Display> fmt::Display for Result<X, Y> {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
         match self.result {
-            Err(ref e) => write!(f, "Error: {}", e),
-            Ok(ref ce) => write!(f, "{}", ce),
+            Err(ref x) => write!(f, "Error: {}", x),
+            Ok(ref y)  => write!(f, "{}", y),
         }
     }
 }
@@ -70,6 +69,7 @@ impl fmt::Display for NmSetCons {
 
 impl fmt::Display for NmSet {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
+        //println!("****** {:?}", self);
         if self.cons == None && self.terms.len() == 0 {            
             write!(f, "Ø")
         } else {
@@ -78,9 +78,14 @@ impl fmt::Display for NmSet {
                 if is_first {
                     write!(f, "{}", tm).unwrap();
                     is_first = false;                
-                } else {                
+                } else {
+                    // XXX indicates a malformed NmSet --- we print 'XXX" instead of panicking
                     write!(f, " {} {}",
-                           self.cons.clone().unwrap(), tm).unwrap();
+                           match &self.cons {
+                               &None => "XXX",
+                               &Some(NmSetCons::Union) => "∪",
+                               &Some(NmSetCons::Apart) => "⊥",
+                           }, tm).unwrap();
                 }
             }
             write!(f, "")
