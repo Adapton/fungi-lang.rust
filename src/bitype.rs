@@ -2470,7 +2470,9 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                     let new_ctx = ctx
                         .var(x1.clone(),(*t1).clone())
                         .var(x2.clone(),(*t2).clone())
-                    ;
+                        ;
+                    fgi_db!("\x1B[1;33mvar\x1B[1;36m {}\x1B[0;1m : \x1B[35;1m{}\x1B[0;0m", x1, t1);
+                    fgi_db!("\x1B[1;33mvar\x1B[1;36m {}\x1B[0;1m : \x1B[35;1m{}\x1B[0;0m", x2, t2);
                     let td3 = check_exp(ext, &new_ctx, e, ceffect);
                     let typ3 = td3.clas.clone();
                     let td = ExpRule::Split(td0, x1.clone(), x2.clone(), td3);
@@ -2594,8 +2596,11 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                         let new_scope = fgi_nametm![
                             #n:Nm.[^ext.write_scope.clone()]([^nmlamb] n)
                         ];
+                        fgi_db!("\x1B[1;33mws \x1B[1;35m{}\x1B[0;0m", new_scope);
+                        db_region_open!();
                         let new_ext = Ext{write_scope:new_scope, ..ext.clone()};
                         let td1 = check_exp(&new_ext,ctx,e,ceffect);
+                        db_region_close!();
                         let typ1 = td1.clas.clone();
                         let td = ExpRule::WriteScope(td0,td1);
                         match typ1 {

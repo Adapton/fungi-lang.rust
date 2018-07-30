@@ -13,7 +13,6 @@ See also:
 
 */
 use std::rc::Rc;
-use std::fmt;
 use std::env as std_env;
 
 use adapton::macros::*;
@@ -560,28 +559,21 @@ pub fn step(c:&mut Config) -> Result<(),StepError> {
 // Pretty VT100-style Debugging output
 // (Enable with `export FUNGI_VERBOSE_REDUCE=1` at shell)
 //////////////////////////////////////////////////////////////////////
+use util;
 
 fn debug_doc(c:&mut Config, s:&String) {
     if c.sys.verbose {
         println!("\x1B[1;4;37m# {}\x1B[0;0m", s)
     }
 }
-fn debug_truncate<X:fmt::Debug>(x: &X, color_code:usize) -> String {
-    let x = format!("{:?}", x);
-    format!("\x1B[1;{}m{:.80}{}\x1B[0;0m",
-            color_code,
-            x,
-            if x.len() > 80 { "\x1B[2m..." } else { "" }
-    )
-}
 fn debug_set_exp(c:&mut Config, e:&Rc<Exp>) {
     if c.sys.verbose {
-        println!("\x1B[2mset_exp: {}", debug_truncate(e, 35))
+        println!("\x1B[2mset_exp: {}", util::vt100_display_truncate(e, 35))
     }    
 }
 fn debug_set_env(c:&mut Config, x:&Var, v:&RtVal) {
     if c.sys.verbose {
         println!("\x1B[1;33mset_env:\x1B[1;36m {}\x1B[1;37m :=\x1B[0;0m {}",
-                 x, debug_truncate(v, 34))
+                 x, util::vt100_display_truncate(v, 34))
     }
 }

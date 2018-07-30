@@ -41,3 +41,26 @@ pub fn debug_truncate<X:fmt::Debug>(x: &X) -> String {
     let x = format!("{:?}", x);
     format!("`{:.80}{}", x, if x.len() > 80 { " ...`" } else { "`" } )
 }
+
+pub fn display_truncate<X:fmt::Display>(x: &X) -> String {
+    let x = format!("{}", x);
+    format!("`{:.80}{}", x, if x.len() > 80 { " ...`" } else { "`" } )
+}
+
+pub fn vt100_debug_truncate<X:fmt::Debug>(x: &X, color_code:usize) -> String {
+    let x = format!("{:?}", x);
+    format!("\x1B[1;{}m{:.80}{}\x1B[0;0m",
+            color_code,
+            x,
+            if x.len() > 80 { "\x1B[2m..." } else { "" }
+    )
+}
+
+pub fn vt100_display_truncate<X:fmt::Display>(x: &X, color_code:usize) -> String {
+    let x = format!("{}", x);
+    format!("\x1B[1;{}m{:.80}{}\x1B[0;0m",
+            color_code,
+            x,
+            if x.len() > 80 { "\x1B[2m..." } else { "" }
+    )
+}
