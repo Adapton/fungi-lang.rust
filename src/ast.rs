@@ -344,6 +344,9 @@ pub enum CType {
 }
 
 /// Computation effects
+///
+/// (TODO: Rename as `Effectful Computations`, and put `Effect` before
+/// `CType` in Cons case).
 #[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum CEffect {
     Cons(CType,Effect),

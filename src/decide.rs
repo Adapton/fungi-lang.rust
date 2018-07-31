@@ -3,7 +3,8 @@
 use ast::*;
 use bitype::{Ext,Ctx,HasClas,TypeError};
 use normal;
-use vt100;
+//use vt100;
+use display;
 //use std::fmt;
 use std::rc::Rc;
 
@@ -966,7 +967,7 @@ pub mod equiv {
                     db_region_open!();
                     fgi_db!("decide_idxtm_equiv: Failure: {} ⊬ {} ≡ {} : {}",
                             ctx, i.term, j.term,
-                            vt100::Result{result:i.clas.clone()});
+                            display::Result{result:i.clas.clone()});
                     //fgi_db!("This case is not implemented; but, it _may_ indicate a type error.");
                     db_region_close!();
                 }

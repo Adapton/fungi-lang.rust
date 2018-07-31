@@ -121,6 +121,7 @@ extern crate serde_json;
 #[macro_use]
 #[doc(hidden)] pub mod db;
 #[doc(hidden)] pub mod vt100;
+#[doc(hidden)] pub mod display;
 
 pub mod shared;
 
