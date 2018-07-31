@@ -1732,7 +1732,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                     let eff = Effect::WR(idx, IdxTm::Empty);
                     let ceff = CEffect::Cons(CType::Lift(typ),eff);
                     db_region_open!();
-                    fgi_db!("{}ref synth rule", vt100::RuleColor{});
+                    fgi_db!("{}ref synth rule",vt100::RuleColor{});
                     fgi_db!("{} ⊢ {} ⇒ {}", ctx, v1, vt100::Result{result:tp0});
                     fgi_db!("{} ⊢ {} ⇒ {}", ctx, v2, vt100::Result{result:typ1});
                     fgi_db!("{} :: ref", vt100::RuleLine{});
@@ -1773,7 +1773,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let td0 = synth_val(ext, ctx, v);
             let typ0 = td0.clas.clone();
             let td = ExpRule::Force(td0);
-            match typ0 {
+            match typ0.clone() {
                 Err(_) => fail(td, TypeError::ParamNoSynth(0)),
                 Ok(Type::Thk(ref idx, ref ce)) => {
                     // Substitute the write scope variables away:
@@ -1797,7 +1797,15 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                         ctx, decide::effect::Role::Archivist,
                         Effect::WR(fgi_index![0], idx.clone()), ce)
                     {
-                        Ok(ce) => succ(td, ce.clone()),
+                        Ok(ce) => {
+                            db_region_open!();
+                            fgi_db!("{}force synth rule", vt100::RuleColor{});
+                            fgi_db!("{} ⊢ {} ⇒ {}", ctx, v, vt100::Result{result:typ0});
+                            fgi_db!("{} :: force", vt100::RuleLine{});
+                            fgi_db!("{} ⊢ force {} ⇒ {}", ctx, v, ce);
+                            db_region_close!();                           
+                            succ(td, ce.clone())
+                        },
                         Err(efferr) => fail(td, TypeError::EffectError(efferr))
                     }
                 }
@@ -1873,12 +1881,22 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let td0 = synth_val(ext, ctx, v);
             let typ0 = td0.clas.clone();
             let td = ExpRule::Get(td0);
-            match typ0.map(|a| normal::normal_type(ctx, &a)) {
+            match typ0.clone().map(|a| normal::normal_type(ctx, &a)) {
                 Err(_) => fail(td, TypeError::SynthFailVal(v.clone())),
-                Ok(Type::Ref(ref idx,ref ty)) => succ(td, CEffect::Cons(
-                    CType::Lift((**ty).clone()),
-                    Effect::WR(IdxTm::Empty, idx.clone())
-                )),
+                Ok(Type::Ref(ref idx,ref ty)) => {
+                    let ceff = CEffect::Cons(
+                        CType::Lift((**ty).clone()),
+                        Effect::WR(IdxTm::Empty, idx.clone())
+                    );
+                    db_region_open!();
+                    fgi_db!("{}get synth rule", vt100::RuleColor{});
+                    fgi_db!("{} ⊢ {} ⇒ {}", ctx, v, vt100::Result{result:typ0});
+                    fgi_db!("{} :: get", vt100::RuleLine{});
+                    fgi_db!("{} ⊢ get {} ⇒ {}", ctx, v, ceff);
+                    db_region_close!();                                               
+                    succ(td, ceff)
+                }
+                ,
                 Ok(_) => fail(td, TypeError::GetNotRef)
             }
         },
@@ -2514,7 +2532,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
             fgi_db!("\x1B[1;33mif ... {{\x1B[0;0m");
             db_region_open!();
             let td1 = check_exp(ext, ctx, e1, ceffect);
-            db_region_close!();            
+            db_region_close!();
             fgi_db!("\x1B[1;33m}} else {{\x1B[0;0m");
             db_region_open!();
             let td2 = check_exp(ext, ctx, e2, ceffect);

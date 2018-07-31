@@ -1,4 +1,5 @@
 use ast::*;
+use std::rc::Rc;
 use normal::NmSetTm;
 use normal::NmSetCons;
 use normal::NmSet;
@@ -29,11 +30,38 @@ macro_rules! vt100_escape {
 }
 vt100_escape!{HiBlue, "1;36"}
 vt100_escape!{Normal, "0;0"}  
-vt100_escape!{RuleColor, "1;36"}  
+//vt100_escape!{RuleColor, "37;1"}
+vt100_escape!{RuleColor, "0;33"}
+//vt100_escape!{HiYellowBlue, "44;33;1"}
 
 pub struct Result<X,Y> {
     pub result:
     result::Result<X, Y>
+}
+
+pub struct ParenIdxTm(Rc<IdxTm>);
+impl fmt::Display for ParenIdxTm {
+    fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
+        match &*self.0 {
+            IdxTm::App(_,_) |
+            IdxTm::Lam(_,_,_) |
+            IdxTm::Map(_,_)   |
+            IdxTm::MapStar(_,_)  |
+            IdxTm::FlatMap(_,_)  |
+            IdxTm::FlatMapStar(_,_) => write!(f, "({})", self.0),
+            _ => self.0.fmt(f)
+        }
+    }
+}
+
+pub struct ParenNmTm(Rc<NameTm>);
+impl fmt::Display for ParenNmTm {
+    fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
+        match &*self.0 {
+            NameTm::Lam(_,_,_) => write!(f, "({})", self.0),
+            _ => self.0.fmt(f)
+        }
+    }
 }
 
 impl fmt::Display for Decls {
@@ -72,7 +100,7 @@ impl fmt::Display for Exp {
             &Exp::Ret(ref v) => write!(f, "ret {}", v),
             &Exp::DefType(ref x,ref t,ref e) => write!(f, "type {} = {}; {}", x, t, e),
             &Exp::Let(ref x,ref e1,ref e2) => write!(f, "let {} = {{{}}}; {}", x, e1, e2),
-            &Exp::Lam(ref x, ref e) => write!(f, "#{}. {}", x, e),
+            &Exp::Lam(ref x, ref e) => write!(f, "𝞴{}. {}", x, e),
             &Exp::HostFn(ref hf) => write!(f, "(hostfn {})", hf.path),
             &Exp::App(ref e, ref v) => write!(f, "({}) {}", e, v),
             &Exp::IdxApp(ref e, ref i) => write!(f, "{}[{}]", e, i),
@@ -251,18 +279,18 @@ impl fmt::Display for IdxTm {
             IdxTm::Apart(ref i, ref j) => write!(f, "{} ⊥ {}", i, j),
             IdxTm::Union(ref i, ref j) => write!(f, "{} ∪ {}", i, j),
             IdxTm::Unit => write!(f, "1"),
-            IdxTm::Bin(ref i, ref j) => write!(f, "{} ⋅ {}", i, j),
+            IdxTm::Bin(ref i, ref j) => write!(f, "{}∙{}", ParenIdxTm(i.clone()), ParenIdxTm(j.clone())),
             IdxTm::Pair(ref i, ref j) => write!(f, "({},{})", i, j),
             IdxTm::Proj1(ref i) => write!(f, "{}.1", i),
             IdxTm::Proj2(ref i) => write!(f, "{}.2", i),
             IdxTm::WriteScope => write!(f, "@!"),
-            IdxTm::NmSet(ref ns) => write!(f, "{}", ns),            
-            IdxTm::Lam(ref x, ref g, ref i) => write!(f, "#{}:{}.{}", x, g, i),
-            IdxTm::App(ref i, ref j) => write!(f, "{}({})", i, j),
-            IdxTm::Map(ref n, ref j) => write!(f, "{}[{}]", n, j),
-            IdxTm::MapStar(ref n, ref j) => write!(f, "{}^*[{}]", n, j),
-            IdxTm::FlatMap(ref i, ref j) => write!(f, "{}[{}]", i, j),
-            IdxTm::FlatMapStar(ref i, ref j) => write!(f, "{}^*[{}]", i, j),
+            IdxTm::NmSet(ref ns) => write!(f, "{}", ns),
+            IdxTm::Lam(ref x, ref g, ref i) => write!(f, "𝞴{}:{}.{}", x, g, i),
+            IdxTm::App(ref i, ref j) => write!(f, "{}({})", ParenIdxTm(i.clone()), j),
+            IdxTm::Map(ref n, ref j) => write!(f, "{}⦗{}⦘", ParenNmTm(n.clone()), j),
+            IdxTm::MapStar(ref n, ref j) => write!(f, "{}^*⦗{}⦘", ParenNmTm(n.clone()), j),
+            IdxTm::FlatMap(ref i, ref j) => write!(f, "{}⦗{}⦘", ParenIdxTm(i.clone()), j),
+            IdxTm::FlatMapStar(ref i, ref j) => write!(f, "{}^*⦗{}⦘", ParenIdxTm(i.clone()), j),
             IdxTm::NmTm(ref n) => write!(f, "{}", n),
             IdxTm::NoParse(ref s) => write!(f, "«IdxTm::Parse error: `{}`»", s),
             IdxTm::Unknown => write!(f, "?"),
@@ -290,8 +318,8 @@ impl fmt::Display for NameTm {
             NameTm::Ident(ref x) => write!(f, "{}", x),
             NameTm::ValVar(ref x) => write!(f, "{}", x),
             NameTm::Name(ref n) => write!(f, "{}", n),
-            NameTm::Bin(ref n, ref m) => write!(f, "{} ⋅ {}", n, m),
-            NameTm::Lam(ref x, ref g, ref m) => write!(f, "#{}:{}.{}", x, g, m),
+            NameTm::Bin(ref n, ref m) => write!(f, "{}∙{}", n, m),
+            NameTm::Lam(ref x, ref g, ref m) => write!(f, "𝞴{}:{}.{}", x, g, m),
             NameTm::App(ref n, ref m) => write!(f, "{}({})", n, m),
             NameTm::WriteScope => write!(f, "@@"),
             NameTm::NoParse(ref s) => write!(f, "«NameTm::Parse error: `{}`»", s),
