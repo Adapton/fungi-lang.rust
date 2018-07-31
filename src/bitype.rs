@@ -2546,8 +2546,8 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 (_,Err(_),_) => fail(td, TypeError::ParamNoCheck(1)),
                 (_,_,Err(_)) => fail(td, TypeError::ParamNoCheck(2)),
                 (Ok(Type::Ident(ref b)),_,_) if b == "Bool" => {
-                    fgi_db!("✔");
                     // the exps are correct, because of the check above
+                    fgi_db!("{}", vt100::CheckMark{});
                     succ(td, ceffect.clone())
                 },
                 _ => fail(td, TypeError::ParamMism(0)),

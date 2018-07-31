@@ -11,13 +11,16 @@ use std::fmt;
 use std::result;
 use dynamics::RtVal;
 
-pub struct RuleLine {}
-impl fmt::Display for RuleLine {
-   fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
-       write!(f,"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-   }
+macro_rules! string_constant {
+    { $t:ident, $string:expr } => {
+        pub struct $t {}
+        impl fmt::Display for $t {
+            fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
+                write!(f,$string)
+            }
+        }
+    }
 }
-
 macro_rules! vt100_escape {
     { $t:ident, $escape:expr } => {
         pub struct $t ;
@@ -29,10 +32,15 @@ macro_rules! vt100_escape {
     }
 }
 vt100_escape!{HiBlue, "1;36"}
+vt100_escape!{HiGreen, "1;32"}
 vt100_escape!{Normal, "0;0"}  
 //vt100_escape!{RuleColor, "37;1"}
 vt100_escape!{RuleColor, "0;33"}
 //vt100_escape!{HiYellowBlue, "44;33;1"}
+string_constant!{CheckMark, "\x1B[1;32m✔\x1B[0;0m"}
+//string_constant!{RuleLine, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"}
+string_constant!{RuleLine, "───────────────────────────────────────────────────────────────────────────────"}
+
 
 pub struct Result<X,Y> {
     pub result:
