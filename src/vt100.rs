@@ -31,20 +31,35 @@ macro_rules! vt100_escape {
         }
     }
 }
-vt100_escape!{HiBlue, "1;36"}
-vt100_escape!{HiGreen, "1;32"}
-vt100_escape!{Normal, "0;0"}  
-vt100_escape!{Hi, "1"}
-vt100_escape!{VDash, "37;1"}
-//vt100_escape!{RuleColor, "37;1"}
+vt100_escape!{Normal, "0;0"}
+vt100_escape!{Lo, "0;2"}
+vt100_escape!{Hi, "0;1"}
+vt100_escape!{HiBlue, "0;1;36"}
+vt100_escape!{HiGreen, "0;1;32"}
+
+vt100_escape!{Kw, "0;1;33"}
+vt100_escape!{ValVar, "0;1;36"}
+vt100_escape!{Exp, "0;0"}
+vt100_escape!{Val, "0;0"}
+vt100_escape!{RtVal, "0;0;35"}
+vt100_escape!{DocOut,"0;1;4;37"}
+vt100_escape!{AdaptonEngine,"0;1;37"}
+
+vt100_escape!{CheckType, "0;1;35"}
+vt100_escape!{SynthType, "0;1;34"}
+
+vt100_escape!{VDash, "0;1;33"}
+vt100_escape!{ParamBegin, "0;33"}
+vt100_escape!{ParamSep, "0;33"}
+vt100_escape!{ParamEnd, "0;33"}
+vt100_escape!{BigStep, "0;1;33"}
+vt100_escape!{PathSep, "0;1;33"}
 vt100_escape!{RuleColor, "0;33"}
-vt100_escape!{Kw, "1;33"}
-vt100_escape!{Exp, "0"}
-vt100_escape!{ValVar, "1;36"}
-vt100_escape!{CheckType, "1;35"}
-vt100_escape!{SynthType, "1;34"}
-//vt100_escape!{HiYellowBlue, "44;33;1"}
-string_constant!{CheckMark, "\x1B[1;32m✔\x1B[0;0m"}
-//string_constant!{RuleLine, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"}
 string_constant!{RuleLine, "\x1B[1;33m───────────────────────────────────────────────────────────────────────────────"}
 
+string_constant!{CheckMark, "\x1B[1;32m✔\x1B[0;0m"}
+
+//string_constant!{RuleLine, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"}
+//vt100_escape!{VDash, "37;1"}
+//vt100_escape!{RuleColor, "37;1"}
+//vt100_escape!{HiYellowBlue, "44;33;1"}

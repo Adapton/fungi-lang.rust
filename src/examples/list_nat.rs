@@ -177,7 +177,7 @@ pub mod dynamic_tests {
         use list_nat_reverse::*;
         
         /// Generate input
-        let list1  = {{force gen} 10}
+        let list1  = {ws (@@gen) {{force gen} 10}}
 
         /// Allocate nil ref cell
         let refnil = {ref (@@nil) roll inj1 ()}

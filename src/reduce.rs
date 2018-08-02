@@ -11,10 +11,12 @@ computation graph" (the DCG), that underpins change propagation.
 See also: 
 [`eval`](https://docs.rs/fungi-lang/0/src/fungi_lang/eval.rs.html).
 
-*/
+ */
+
 use std::rc::Rc;
 use std::env as std_env;
-
+use vt100;
+    
 use adapton::macros::*;
 use adapton::engine::{thunk,NameChoice};
 use adapton::engine;
@@ -169,7 +171,10 @@ fn produce_value(c:&mut Config,
         Err(StepError::Halt(
             ExpTerm::Ret(v)))
     }
-    else { 
+    else {
+        if c.sys.verbose {
+            db_region_close!();
+        };
         let fr = c.stk.pop().unwrap();
         match fr.cont {
             Cont::Let(x, e) => {
@@ -263,9 +268,17 @@ pub fn reduce(stk:Vec<Frame>, env:EnvRec, exp:Exp) -> ExpTerm {
         env:env,
         exp:exp
     };
+    if c.sys.verbose {
+        db_region_open!();
+    };
     loop {
         match step(&mut c) {
-            Err(StepError::Halt(t)) => return t,
+            Err(StepError::Halt(t)) => {
+                if c.sys.verbose {
+                    db_region_close!();
+                };
+                return t
+            },
             Ok(()) => continue,
             Err(err) => panic!("{:?}", err),
         }
@@ -313,6 +326,13 @@ pub fn step(c:&mut Config) -> Result<(),StepError> {
             consume_value(c, None, x, e)
         }
         Exp::Let(x, e1, e2) => {
+            if c.sys.verbose {
+                fgi_db!("{}let {}{} {}= {}...",
+                        vt100::Kw{}, vt100::ValVar{}, x,
+                        vt100::VDash{}, vt100::Exp{}
+                );
+                db_region_open!();
+            }
             c.stk.push(Frame{
                 env:c.env.clone(),
                 cont:Cont::Let(x, (*e2).clone())
@@ -332,9 +352,21 @@ pub fn step(c:&mut Config) -> Result<(),StepError> {
             match close_val(&c.env, &v1) {
                 RtVal::Name(n) => { // create engine ref named n, holding v2
                     let n = engine_name_of_ast_name(n);
-                    let v2 = close_val(&c.env, &v2);
-                    let r = engine::cell(n, v2);
-                    produce_value(c, RtVal::Ref(r))
+                    let cv2 = close_val(&c.env, &v2);
+                    let r = engine::cell(n, cv2);
+                    let rv = RtVal::Ref(r);
+                    if c.sys.verbose {
+                        fgi_db!("{}adapton::engine{}::{}ref{}({}{}{}, {}{}{}) {}~~> {}{}",
+                                vt100::AdaptonEngine{}, vt100::PathSep{}, vt100::Kw{},
+                                vt100::ParamBegin{},
+                                vt100::Val{}, v1,
+                                vt100::ParamSep{},
+                                vt100::Val{}, v2,
+                                vt100::ParamEnd{},
+                                vt100::BigStep{},
+                                vt100::RtVal{}, rv);
+                    }
+                    produce_value(c, rv)
                 },
                 _ => stuck_err(Stuck::RefNonName)
             }
@@ -351,6 +383,11 @@ pub fn step(c:&mut Config) -> Result<(),StepError> {
         Exp::Force(v) => {
             match close_val(&c.env, &v) {
                 RtVal::Thunk(a) => {
+                    if c.sys.verbose {
+                        fgi_db!("{}adapton::engine{}::{}force {}{}",
+                                vt100::AdaptonEngine{}, vt100::PathSep{}, vt100::Kw{},
+                                vt100::Val{}, v);
+                    }
                     let te = engine::force(&a);
                     continue_te(c, te)
                 },
@@ -453,6 +490,14 @@ pub fn step(c:&mut Config) -> Result<(),StepError> {
             }
         }
         Exp::WriteScope(v, e1) => {
+            if c.sys.verbose {
+                fgi_db!("{}ws {}{} {}{{ {}... {}}}",
+                        vt100::Kw{},
+                        vt100::Val{}, v,
+                        vt100::ParamBegin{}, vt100::Exp{}, vt100::ParamEnd{}
+                );
+                db_region_open!();
+            };
             match close_val(&c.env, &v) {
                 RtVal::Name(n) => {
                     let ns_name = engine_name_of_ast_name(n);
@@ -475,6 +520,9 @@ pub fn step(c:&mut Config) -> Result<(),StepError> {
                                                c.env.clone(),
                                                (*e1).clone())
                                     });
+                                    if c.sys.verbose {
+                                        db_region_close!();
+                                    }
                                     continue_te(c, te)
                                 },                                    
                                 _ => stuck_err(Stuck::WriteScope),
@@ -544,7 +592,14 @@ pub fn step(c:&mut Config) -> Result<(),StepError> {
             match close_val(&c.env, &v) {
                 RtVal::Thunk(a) => {
                     let r = engine::thunk_map(a, Rc::new(val_of_retval));
+                    if c.sys.verbose {
+                        fgi_db!("{}adapton::engine{}::{}force {}{}",
+                                vt100::AdaptonEngine{}, vt100::PathSep{}, vt100::Kw{},
+                                vt100::Val{}, v);
+                    }
+                    //db_region_open!();
                     let v = engine::force(&r);
+                    //db_region_close!();
                     continue_te(c, ExpTerm::Ret(
                         RtVal::Pair(Rc::new(RtVal::Ref(r)),
                                     Rc::new(v))))
@@ -563,17 +618,23 @@ use util;
 
 fn debug_doc(c:&mut Config, s:&String) {
     if c.sys.verbose {
-        println!("\x1B[1;4;37m# {}\x1B[0;0m", s)
+        fgi_db!("{}# {}",
+                vt100::DocOut{}, s)
     }
 }
 fn debug_set_exp(c:&mut Config, e:&Rc<Exp>) {
     if c.sys.verbose {
-        println!("\x1B[2mset_exp: {}", util::vt100_display_truncate(e, 35))
+        fgi_db!("{}set_exp: {}{}",
+                vt100::Lo{},
+                vt100::Exp{}, util::display_truncate(e))
     }    
 }
 fn debug_set_env(c:&mut Config, x:&Var, v:&RtVal) {
     if c.sys.verbose {
-        println!("\x1B[1;33mset_env:\x1B[1;36m {}\x1B[1;37m :=\x1B[0;0m {}",
-                 x, util::vt100_display_truncate(v, 34))
+        fgi_db!("{}set_env: {}{} {}:= {}{}",
+                vt100::Lo{},
+                vt100::ValVar{}, x,
+                vt100::VDash,
+                vt100::RtVal{}, util::display_truncate(v))
     }
 }
