@@ -8,7 +8,7 @@ pub mod dynamic_tests {
      *
      */
     #[test]
-    pub fn short_18_2() { use examples::{list_nat, list_nat_edit, list_nat_convert}; fgi_dynamic_trace!{
+    pub fn short_10_2() { use examples::{list_nat, list_nat_edit, list_nat_convert}; fgi_dynamic_trace!{
         [Expect::SuccessXXX]
         use super::*;
         use list_nat::*;
@@ -16,7 +16,7 @@ pub mod dynamic_tests {
         use list_nat_convert::*;
         
         /// Generate input (use old list type, and a conversion function into our newer list type)
-        let list1  = {ws(@@inp1) {force gen} 18 }
+        let list1  = {ws(@@inp1) {force gen} 10 }
 
         /// Allocate nil ref cell
         let refnil = {ref (@@nil) roll inj1 ()}
@@ -40,7 +40,7 @@ pub mod dynamic_tests {
 
         /// First change: Insert element
         let b1 = {
-            {force insert_after}[?] (@17) (@666) 2 {!list1}
+            {force insert_after}[?] (@7) (@666) 2 {!list1}
         }
 
         /// Re-force archivist; Precipitates change propagation
@@ -48,13 +48,13 @@ pub mod dynamic_tests {
 
         /// Second change: Remove inserted element
         let b2 = {
-            {force remove_after}[?] (@17) {!list1}
+            {force remove_after}[?] (@7) {!list1}
         }
 
         /// Re-force archivist; Precipitates change propagation
         let outs_3 = {force t}
 
-        /// All sizes should be 18
+        /// All sizes should be 10
         ret (outs_1, outs_2, outs_3)
     }}
 
