@@ -36,10 +36,11 @@ vt100_escape!{Lo, "0;2"}
 vt100_escape!{Hi, "0;1"}
 vt100_escape!{HiBlue, "0;1;36"}
 vt100_escape!{HiGreen, "0;1;32"}
-vt100_escape!{SeamBegin, "0;1;32"}
-vt100_escape!{SeamEnd, "0;1;32"}
+
+vt100_escape!{SeamBegin, "0;1;33"}
+vt100_escape!{SeamEnd, "0;1;35"}
 string_constant!{SeamLineBegin, "───────────────────────────────────────────────────────────────────────────────"}
-string_constant!{SeamLineEnd, "───────────────────────────────────────────────────────────────────────────────"}
+string_constant!{SeamLineEnd,   "═══════════════════════════════════════════════════════════════════════════════"}
 
 vt100_escape!{Kw, "0;1;33"}
 vt100_escape!{ValVar, "0;1;36"}
