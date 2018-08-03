@@ -254,6 +254,26 @@ pub fn system_config() -> SysCfg {
     }
 }
 
+pub fn reduce_db(stk:Vec<Frame>, env:EnvRec, exp:Exp) -> ExpTerm {
+    let sys = system_config();
+    if sys.verbose {
+        fgi_db!("{}{}", vt100::SeamBegin{}, vt100::SeamLineBegin{}); // TODO add a counter
+        fgi_db!("{}fungi_lang::reduce{}::reduce {}{}",
+                vt100::FgiReduceEngine{}, vt100::Kw{},
+                vt100::Exp{}, util::display_truncate(&exp));
+        db_region_open!();
+    };
+    let t = reduce(&sys, stk, env, exp);
+    if sys.verbose {
+        db_region_close!();
+        fgi_db!("{}halt: {}{}",
+                vt100::Lo{},                            
+                vt100::ExpTerm{}, util::display_truncate(&t));        
+        fgi_db!("{}{}", vt100::SeamEnd{}, vt100::SeamLineEnd{}); // TODO add a counter
+    };
+    return t
+}
+
 /// Perform reduction steps (via `step`) until irreducible.
 ///
 /// Reduces the current configuration until it is irreducible.  This
@@ -261,24 +281,16 @@ pub fn system_config() -> SysCfg {
 /// stack; it will entirely consume the initial stack frames, if any,
 /// before returning control.
 ///
-pub fn reduce(stk:Vec<Frame>, env:EnvRec, exp:Exp) -> ExpTerm {
+pub fn reduce(sys:&SysCfg, stk:Vec<Frame>, env:EnvRec, exp:Exp) -> ExpTerm {
     let mut c = Config{
-        sys:system_config(),
+        sys:sys.clone(),
         stk:stk,
         env:env,
         exp:exp
     };
-    if c.sys.verbose {
-        db_region_open!();
-    };
     loop {
         match step(&mut c) {
-            Err(StepError::Halt(t)) => {
-                if c.sys.verbose {
-                    db_region_close!();
-                };
-                return t
-            },
+            Err(StepError::Halt(t)) => return t,
             Ok(()) => continue,
             Err(err) => panic!("{:?}", err),
         }
@@ -458,7 +470,7 @@ pub fn step(c:&mut Config) -> Result<(),StepError> {
                 RtVal::Name(n) => { // create engine thunk named n
                     // suspending evaluation of expression e1:
                     let n = Some(engine_name_of_ast_name(n));
-                    let t = thunk!([n]? reduce ;
+                    let t = thunk!([n]? reduce_db ;
                                    stk:vec![],
                                    env:c.env.clone(),
                                    exp:(*e1).clone()
@@ -502,7 +514,7 @@ pub fn step(c:&mut Config) -> Result<(),StepError> {
                 RtVal::Name(n) => {
                     let ns_name = engine_name_of_ast_name(n);
                     let te = engine::ns(ns_name, ||{
-                        reduce(vec![],
+                        reduce(&c.sys, vec![],
                                c.env.clone(),
                                (*e1).clone())
                     });
@@ -516,7 +528,7 @@ pub fn step(c:&mut Config) -> Result<(),StepError> {
                                 NameTmVal::Name(n) => {
                                     let ns_name = engine_name_of_ast_name(n);
                                     let te = engine::ns(ns_name, ||{
-                                        reduce(vec![],
+                                        reduce(&c.sys, vec![],
                                                c.env.clone(),
                                                (*e1).clone())
                                     });

@@ -10,6 +10,7 @@ use bitype::NmTmRule;
 use std::fmt;
 use std::result;
 use dynamics::RtVal;
+use dynamics::ExpTerm;
 
 pub struct Result<X,Y> {
     pub result:
@@ -126,6 +127,16 @@ impl fmt::Display for Val {
             &Val::ThunkAnon(ref e) => write!(f, "thunk {}", e),
             &Val::Unit => write!(f, "()"),
             &Val::Var(ref x) => write!(f, "{}", x),
+        }
+    }
+}
+
+impl fmt::Display for ExpTerm {
+    fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
+        match self {
+            &ExpTerm::Lam(ref _env, ref x, ref e) => write!(f, "𝞴{}.{}", x, e),
+            &ExpTerm::HostFn(ref hef, ref _args) => write!(f, "(hostfn {})", hef.path),
+            &ExpTerm::Ret(ref v) => write!(f, "ret {}", v),
         }
     }
 }

@@ -16,7 +16,7 @@ fn eval_closed_exp(e:Exp) -> dynamics::ExpTerm {
 }
 
 fn reduce_closed_exp(e:Exp) -> dynamics::ExpTerm {
-    reduce::reduce(vec![], dynamics::env_emp(), e)
+    reduce::reduce_db(vec![], dynamics::env_emp(), e)
 }
 
 fn eval_test_equiv(e1:Exp, e2:Exp) {
