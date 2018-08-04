@@ -518,6 +518,9 @@ pub fn step(c:&mut Config) -> Result<(),StepError> {
                                c.env.clone(),
                                (*e1).clone())
                     });
+                    if c.sys.verbose {
+                        db_region_close!();
+                    }
                     continue_te(c, te)
                 },                                    
                 RtVal::NameFn(n) =>
