@@ -31,6 +31,37 @@ macro_rules! vt100_escape {
         }
     }
 }
+
+pub enum Bracket { Open, Indent, Close }
+trait FromBracket {
+    fn from_bracket (b:Bracket) -> Self;
+}
+    
+macro_rules! vt100_bracket {
+    { $t:ident, $open:expr, $indent:expr, $close:expr } => {
+        pub enum $t { Open, Indent, Close }
+        impl FromBracket for $t {
+            fn from_bracket (b:Bracket) -> Self {
+                match b {
+                    Bracket::Open   => $t::Open,
+                    Bracket::Indent => $t::Indent,
+                    Bracket::Close  => $t::Close,
+                }
+            }
+        }
+        impl fmt::Display for $t {
+            fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
+                write!(f,"{}", match self {
+                    $t::Open   => $open,
+                    $t::Indent => $indent,
+                    $t::Close  => $close,
+                })
+            }
+        }
+    }
+}
+
+
 vt100_escape!{Normal, "0;0"}
 vt100_escape!{Lo, "0;2"}
 vt100_escape!{Hi, "0;1"}
@@ -62,6 +93,26 @@ vt100_escape!{ParamEnd, "0;33"}
 vt100_escape!{BigStep, "0;1;33"}
 vt100_escape!{PathSep, "0;1;33"}
 vt100_escape!{RuleColor, "0;33"}
+vt100_bracket!{NormBracket,
+               "┌᚜",
+               "│ ",
+               "└᚜"
+}
+vt100_bracket!{BoldBracket,
+               "\x1B[1;37m▟░",
+               "\x1B[1;37m█░",
+               "\x1B[1;37m▜░"
+}
+vt100_bracket!{SeamEnterBracketOld,
+               "\x1B[1;33m╭\x1B[1;35m╭",
+               "\x1B[1;33m║\x1B[1;35m║",
+               "\x1B[1;33m╰\x1B[1;35m╰"
+}
+vt100_bracket!{SeamEnterBracket,
+               "\x1B[1;33m╭\x1B[1;35m╭",
+               "\x1B[1;33m│\x1B[1;35m│",
+               "\x1B[1;33m╰\x1B[1;35m╰"
+}
 string_constant!{RuleLine, "\x1B[1;33m───────────────────────────────────────────────────────────────────────────────"}
 
 string_constant!{CheckMark, "\x1B[1;32m✔\x1B[0;0m"}

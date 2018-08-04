@@ -261,7 +261,7 @@ pub fn reduce_db(stk:Vec<Frame>, env:EnvRec, exp:Exp) -> ExpTerm {
         fgi_db!("{}fungi_lang::reduce{}::reduce {}{}",
                 vt100::FgiReduceEngine{}, vt100::Kw{},
                 vt100::Exp{}, util::display_truncate(&exp));
-        db_region_open!();
+        db_region_open!(vt100::SeamEnterBracket);
     };
     let t = reduce(&sys, stk, env, exp);
     if sys.verbose {
