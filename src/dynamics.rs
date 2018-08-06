@@ -99,6 +99,9 @@ pub enum RtVal {
     Thunk(engine::Art<ExpTerm>),
     /// Existential packings; at run-time, we forget the choice of indices
     Pack(RtValRec),
+    /// "Host objects": native Rust objects
+    #[serde(skip_serializing)] // #[serde(with="ArtDef")]
+    HostObj(HostObj),
 }
 /// Run-time values
 pub type RtValRec = Rc<RtVal>;
@@ -263,6 +266,8 @@ pub fn engine_name_of_ast_name(n:Name) -> engine::Name {
 pub fn close_val(env:&EnvRec, v:&Val) -> RtVal {
     use ast::Val::*;
     match *v {
+        HostObj(ref o) => RtVal::HostObj(o.clone()),
+        
         // variable case:
         Var(ref x) => {
             match env_find(env, x) {

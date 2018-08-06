@@ -1159,6 +1159,9 @@ pub fn synth_val(ext:&Ext, ctx:&Ctx, val:&Val) -> ValDer {
     let fail = |td:ValRule, err :TypeError| { failure(Dir::Synth, ext, ctx, val.clone(), td, err)  };
     let succ = |td:ValRule, typ :Type     | { success(Dir::Synth, ext, ctx, val.clone(), td, typ) };
     match val {
+        &Val::HostObj(_) => {
+            unreachable!()
+        }
         &Val::Var(ref x) => {
             let td = ValRule::Var(x.clone());
             match ctx.lookup_var(x) {
@@ -1264,6 +1267,9 @@ pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
     // Normalize the type
     let typ_norm = &(normal::normal_type(ctx, typ_raw));
     match val {
+        &Val::HostObj(_) => {
+            unreachable!()
+        }
         &Val::Var(ref x) => {
             let td = ValRule::Var(x.clone());
             match ctx.lookup_var(x) {

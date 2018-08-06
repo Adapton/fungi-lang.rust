@@ -36,6 +36,7 @@
 use std::rc::Rc;
 use shared::Shared;
 use std::fmt;
+use std::any;
 use std::fmt::{Debug,Formatter};
 //use std::fmt::{Debug,Result};
 use std::hash::{Hash,Hasher};
@@ -391,10 +392,44 @@ pub enum Val {
     /// Primitive (Rust) `String`, injected into `Val` type
     Str(String),
 
+    /// A Host language (Rust) object, injected into the value space of Fungi.
+    ///
+    /// See also: The `HostFn` case of the `Exp` type.
+    HostObj(HostObj),
+    
     // Parse errors
     NoParse(String),
 }
 pub type ValRec = Rc<Val>;
+
+#[derive(Clone,Serialize)]
+pub struct HostObj {
+    #[serde(skip_serializing)]
+    ops:Rc<HostObjOps>,
+    #[serde(skip_serializing)]
+    any:Rc<any::Any>
+}
+trait HostObjOps {
+    fn eq(&self, x:&Rc<any::Any>, y:&Rc<any::Any>) -> bool;
+    fn hash(&self, x:&Rc<any::Any>) -> u64;
+    fn fmt(&self, f:&mut Formatter, x:&Rc<any::Any> ) -> fmt::Result;
+}
+impl Hash for HostObj {
+    fn hash<H:Hasher>(&self, hasher: &mut H) {
+        self.ops.hash( &self.any ).hash( hasher )
+    }    
+}
+impl Debug for HostObj {
+    fn fmt(&self, f:&mut Formatter) -> fmt::Result {
+        self.ops.fmt( f, &self.any )
+    }
+}
+impl PartialEq for HostObj {
+    fn eq(&self, other:&Self) -> bool {
+        self.ops.eq( &self.any, &other.any )
+    }
+}
+impl Eq for HostObj { }
 
 /// Host-language evaluation function (extend Rust-based Fungi interpreter).
 ///
