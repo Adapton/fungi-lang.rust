@@ -68,6 +68,9 @@ vt100_escape!{Hi, "0;1"}
 vt100_escape!{HiBlue, "0;1;36"}
 vt100_escape!{HiGreen, "0;1;32"}
 
+vt100_escape!{DecideTrue, "0;1;32"}
+vt100_escape!{DecideFail, "0;1;31"}
+
 vt100_escape!{SeamBegin, "0;1;33"}
 vt100_escape!{SeamEnd, "0;1;35"}
 string_constant!{SeamLineBegin, "───────────────────────────────────────────────────────────────────────────────"}
@@ -83,10 +86,17 @@ vt100_escape!{DocOut,"0;1;4;37"}
 vt100_escape!{AdaptonEngine,"0;1;37"}
 vt100_escape!{FgiReduceEngine,"0;1;37"}
 
+vt100_escape!{DecideIf,"0;1;37"}
+
 vt100_escape!{CheckType, "0;1;35"}
 vt100_escape!{SynthType, "0;1;34"}
 
 vt100_escape!{VDash, "0;1;33"}
+vt100_escape!{Apart, "0;1;33"}
+vt100_escape!{Equiv, "0;1;33"}
+vt100_escape!{Effect, "0;0"}
+vt100_escape!{EffectSub, "1;33"}
+vt100_escape!{NotVDash, "1;31"}
 vt100_escape!{ParamBegin, "0;33"}
 vt100_escape!{ParamSep, "0;33"}
 vt100_escape!{ParamEnd, "0;33"}
@@ -99,6 +109,11 @@ vt100_bracket!{NormBracket,
                "└᚜"
 }
 vt100_bracket!{BoldBracket,
+               "\x1B[1;37m▟░",
+               "\x1B[1;37m█░",
+               "\x1B[1;37m▜░"
+}
+vt100_bracket!{DecideBracket,
                "\x1B[1;37m▟░",
                "\x1B[1;37m█░",
                "\x1B[1;37m▜░"

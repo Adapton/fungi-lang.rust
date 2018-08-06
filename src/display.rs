@@ -5,6 +5,8 @@ use normal::NmSetCons;
 use normal::NmSet;
 use bitype::Ctx;
 use decide::RelCtx;
+use bitype::HasClas;
+use decide::Dec;
 use decide::DecError;
 use bitype::NmTmRule;
 use std::fmt;
@@ -45,6 +47,12 @@ impl fmt::Display for ParenNmTm {
 impl fmt::Display for Decls {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
         write!(f, "...")
+    }
+}
+
+impl<X:HasClas> fmt::Display for Dec<X> {
+    fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
+        write!(f, "XXX impl Display for Dec")
     }
 }
 

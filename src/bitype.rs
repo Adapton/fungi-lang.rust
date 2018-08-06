@@ -2495,9 +2495,8 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                         synth_exp(ext, ctx, e2)
                     ), err.clone()) },
                     Ok(CEffect::Cons(CType::Lift(ref ct1), ref eff1)) => {
-                        //fgi_db!("\x1B[0;1mDecide effect subtraction: Begin\x1B[0;0m...");
                         let new_ctx = ctx.var(x.clone(),ct1.clone());
-                        match decide::effect::decide_effect_subtraction(
+                        match decide::effect::decide_effect_subtraction_db(
                             ctx,
                             /* TODO: Get role from ext structure */
                             decide::effect::Role::Archivist,
@@ -2514,7 +2513,6 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                                 }
                             }
                             Err(err) => {
-                                fgi_db!("\x1B[0;1mDecide effect subtraction: \x1B[0;1;31mError\x1B[0;1m.");
                                 fail(ExpRule::Let(
                                     x.clone(), td1,
                                     synth_exp(ext,&new_ctx,e2)

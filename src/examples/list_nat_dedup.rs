@@ -282,7 +282,7 @@ fgi_mod!{
         } else {
             // recursive case
             let j   = {i + 1}
-            let nj  = {(@@apple) , ni}
+            let nj  = {(name []), ni}
             let tc = {{force children}[X1][Y] t}
             unpack (X1l, X1r) tc = tc
             let (lc,rc) = {ret tc}

@@ -259,7 +259,7 @@ pub mod effect {
     /// Tactic to find an index term `j` such that `NmSet(ns1) == NmSet(ns2) % j`
     pub fn decide_nmset_subtraction(ctx:&Ctx, ns1:NmSet, ns2:NmSet) -> Result<IdxTm, Error> {
         fgi_db!("^decide_nmset_subtraction: from {}, subtract {}", &ns1, &ns2);
-        db_region_open!();
+        db_region_open!(false, vt100::DecideBracket);
         //
         // Step 1: Verify: Before computing subtraction, check
         // that each term in ns1 is really in the set ns1.
@@ -303,7 +303,7 @@ pub mod effect {
     
     pub fn test_idxtm_equiv(ctx:&Ctx, i:&IdxTm, j:&IdxTm) -> bool {
         fgi_db!("decide if {} ⊢ {} ≡ {} : NmSet", ctx, i, j);
-        db_region_open!();        
+        db_region_open!(false, vt100::DecideBracket);
         let id = bitype::synth_idxtm(&Ext::empty(), ctx, i);
         let jd = bitype::synth_idxtm(&Ext::empty(), ctx, j);       
         let b = match id.clas {
@@ -328,7 +328,7 @@ pub mod effect {
 
     pub fn test_idxtm_empty(ctx:&Ctx, i:&IdxTm) -> bool {
         fgi_db!("decide if {} ⊢ {} ≡ 0 : NmSet", ctx, i);
-        db_region_open!();
+        db_region_open!(false, vt100::DecideBracket);
         let b = test_idxtm_equiv(ctx, 
                                  &normal::normal_idxtm(ctx, i.clone()), 
                                  &normal::normal_idxtm(ctx, IdxTm::Empty));
@@ -422,26 +422,64 @@ pub mod effect {
             }
         }        
     }
+
+    pub fn decide_effect_subtraction_db(ctx:&Ctx, r:Role, eff1:Effect, eff2:Effect) -> Result<Effect, Error> {
+        use vt100;
+        fgi_db!("{}decide if: {}{} {}⊢ {}{} {}- {}{} {}≡ {}?",
+                vt100::DecideIf{},
+                vt100::VDash{}, ctx,
+                vt100::VDash{},
+                vt100::Effect{}, eff1,
+                vt100::EffectSub{},
+                vt100::Effect{}, eff2,
+                vt100::Equiv{},
+                vt100::Effect{}
+        );
+        db_region_open!(false, vt100::DecideBracket);
+        let res = decide_effect_subtraction(ctx, r, eff1.clone(), eff2.clone());
+        db_region_close!();
+        match &res {
+            Ok(ref eff3) => {
+                fgi_db!("  {}decided: {}{} {}⊢ {}{} {}- {}{} {}≡ {}{}",
+                        vt100::DecideTrue{},
+                        vt100::VDash{}, ctx,
+                        vt100::VDash{},
+                        vt100::Effect{}, eff1,
+                        vt100::EffectSub{},
+                        vt100::Effect{}, eff2,
+                        vt100::Equiv{},
+                        vt100::Effect{}, eff3)
+            }
+            Err(_err) => {
+                fgi_db!("  {}failure: {}{} {}⊬ {}{} {}- {}{} {}≡ {}?",
+                        vt100::DecideFail{},
+                        vt100::VDash{}, ctx,
+                        vt100::NotVDash{},
+                        vt100::Effect{}, eff1,
+                        vt100::NotVDash{},                        
+                        vt100::Effect{}, eff2,
+                        vt100::Equiv{},
+                        vt100::Effect{})
+            }
+        };
+        res
+    }
     
     /// Tactic to find the result effect `eff3` such that `eff1 = eff2 then eff3`
     ///
     /// TODO: "Verify" the results using our decision procedures; return those derivations with the term that we find    
     pub fn decide_effect_subtraction(ctx:&Ctx, r:Role, eff1:Effect, eff2:Effect) -> Result<Effect, Error> {
         assert_eq!(r, Role::Archivist);
-        fgi_db!("\x1B[0;1mdecide if: {} ⊢ {} - {} ≡ ? \x1B[0;0m",
-                ctx, eff1, eff2);
-        db_region_open!();
         let res = if decide_effect_empty(ctx, eff2.clone()) {
             fgi_db!("^decide_effect_subtraction: holds: {} ⊢ {} - {} ≡ {}, since {} is empty",
                     ctx, &eff1, &eff2, &eff1, &eff2);
             Result::Ok(eff1.clone())
         }
         else {
-            fgi_db!("\x1B[0;1mdecide_effect_subtraction:\x1B[0;0m\n From:\n\t{}\n Subtract:\n\t{}", &eff1, &eff2);
             match (eff1.clone(), eff2.clone()) {
                 (Effect::WR(wr1, rd1), Effect::WR(wr2, rd2)) => {
-                    fgi_db!("\x1B[0;1mdecide_effect_subtraction: Writes:");
-                    db_region_open!();
+                    fgi_db!("Writes:");
+                    db_region_open!(false, vt100::DecideBracket);
                     let wr3 = decide_idxtm_subtraction(ctx, wr1.clone(), wr2.clone());
                     db_region_close!();
                     use super::subset;
@@ -450,8 +488,8 @@ pub mod effect {
                     // normalization step, given the switching between
                     // relational and ordinary typing contexts
                     // everywhere.
-                    fgi_db!("\x1B[0;1mdecide_effect_subtraction: Reads:");
-                    db_region_open!();
+                    fgi_db!("Reads:");
+                    db_region_open!(false, vt100::DecideBracket);
                     let rd1n = normal::normal_idxtm(ctx, rd1.clone());
                     let rd2n = normal::normal_idxtm(ctx, rd2.clone());
                     let rdsub = subset::decide_idxtm_subset(
@@ -464,39 +502,33 @@ pub mod effect {
                     db_region_close!();
                     match (wr3, rdsub.res) {
                         (Ok(wr3), Ok(_)) => {
-                            let eff3 = Effect::WR(wr3, rd1);//
-                            fgi_db!("^decide_effect_subtraction: holds: {} ⊢ {} - {} ≡ {}",
-                                    ctx, &eff1, &eff2, &eff3);
+                            let eff3 = Effect::WR(wr3, rd1);
                             Ok(eff3)
                         },
                         (Err(err),_) => {
-                            if true {
-                                db_region_open!();
-                                fgi_db!("decide_effect_subtraction: Cannot subtract write set:");
-                                fgi_db!(" Superset (candidate):\n\t{}", &wr1);
-                                fgi_db!(" Subset (candidate):\n\t{}", &wr2);
-                                fgi_db!("\n\
-                                          (If you believe this subset relationship holds, \
-                                          Fungi may need additional reasoning in its `decide` \
-                                          and/or `normal` modules...)");
-                                db_region_close!();
-                            };
+                            db_region_open!(false, vt100::DecideBracket);
+                            fgi_db!("decide_effect_subtraction: Cannot subtract write set:");
+                            fgi_db!(" Superset (candidate):\n\t{}", &wr1);
+                            fgi_db!(" Subset (candidate):\n\t{}", &wr2);
+                            fgi_db!("\n\
+                                     (If you believe this subset relationship holds, \
+                                     Fungi may need additional reasoning in its `decide` \
+                                     and/or `normal` modules...)");
+                            db_region_close!();
                             Result::Err(err)
                         }
                         // TODO-someday: gather all errors together
                         (_,Err(err)) => {
-                            if true {
-                                db_region_open!();
-                                fgi_db!("decide_effect_subtraction: Cannot decide read subset:");
-                                fgi_db!(" Error: {}\n", err);
-                                fgi_db!(" Superset (candidate):\n\t{}", &rd1n);
-                                fgi_db!(" Subset (candidate):\n\t{}", &rd2n);
-                                fgi_db!("\n\
-                                          (If you believe this subset relationship holds, \
-                                          Fungi may need additional reasoning in its `decide` \
-                                          and/or `normal` modules...)");
-                                db_region_close!();
-                            }
+                            db_region_open!(false, vt100::DecideBracket);
+                            fgi_db!("decide_effect_subtraction: Cannot decide read subset:");
+                            fgi_db!(" Error: {}\n", err);
+                            fgi_db!(" Superset (candidate):\n\t{}", &rd1n);
+                            fgi_db!(" Subset (candidate):\n\t{}", &rd2n);
+                            fgi_db!("\n\
+                                     (If you believe this subset relationship holds, \
+                                     Fungi may need additional reasoning in its `decide` \
+                                     and/or `normal` modules...)");
+                            db_region_close!();
                             Result::Err(Error::CannotDecideReadSubset(Rc::new(err)))
                         },
                     }
@@ -508,7 +540,6 @@ pub mod effect {
                 }
             }
         };
-        db_region_close!();
         res
     }
 
@@ -964,7 +995,7 @@ pub mod equiv {
             }
             (_ir, _jr) => {
                 if true {
-                    db_region_open!();
+                    db_region_open!(false, vt100::DecideBracket);
                     fgi_db!("decide_idxtm_equiv: Failure: {} ⊬ {} ≡ {} : {}",
                             ctx, i.term, j.term,
                             display::Result{result:i.clas.clone()});
@@ -1076,7 +1107,7 @@ pub mod subset {
     //
     pub fn decide_nmsettm_subset(ctx: &RelCtx, tm1:&NmSetTm, tm2:&NmSetTm) -> IdxTmDec {
         fgi_db!("decide if: {} ⊢ {} ⊆ {} : NmSet", ctx, tm1, tm2);
-        db_region_open!();
+        db_region_open!(false, vt100::DecideBracket);
         let res = match (tm1, tm2) {
             (&NmSetTm::Single(ref x), &NmSetTm::Single(ref y)) => {
                 let (ctx1, ctx2) = ctxs_of_relctx(ctx.clone());
@@ -1100,6 +1131,7 @@ pub mod subset {
             }
         };
         db_region_close!();
+        fgi_db!("{} ⊢ {} ⊆ {} : NmSet ==> {}", ctx, tm1, tm2, res);
         res
     }
 
@@ -1111,7 +1143,7 @@ pub mod subset {
     //
     pub fn decide_nmsettm_subset_simple(ctx: &RelCtx, tm1:&NmSetTm, tm2:&NmSetTm) -> bool {
         fgi_db!("decide if: {} ⊢ {} ⊆ {} : NmSet", ctx, tm1, tm2);
-        db_region_open!();
+        db_region_open!(false, vt100::DecideBracket);
         let res = match (tm1, tm2) {
             (&NmSetTm::Single(ref x), &NmSetTm::Single(ref y)) => {
                 // TODO -- use equiv module
@@ -1128,6 +1160,7 @@ pub mod subset {
             }
         };
         db_region_close!();
+        fgi_db!("{} ⊢ {} ⊆ {} : NmSet ==> {}", ctx, tm1, tm2, res);
         res
     }
 
@@ -1140,7 +1173,7 @@ pub mod subset {
     pub fn decide_nmsettm_subset_speculative(ctx: &RelCtx, tm1:&NmSetTm, tm2:&NmSetTm) -> bool {
         fgi_db!("decide_nmsettm_subset_speculative: decide if: {} ⊢ {} ⊆ {} : NmSet",
                 ctx, tm1, tm2);
-        db_region_open!();
+        db_region_open!(false, vt100::DecideBracket);
         let res = match (tm1, tm2) {
             (&NmSetTm::Single(ref x), &NmSetTm::Single(ref y)) => {
                 // TODO -- use equiv module
@@ -1156,7 +1189,20 @@ pub mod subset {
                 decide_idxtm_subset_speculative(ctx, x, y)
             }
         };
+        db_region_close!();        
+        res
+    }
+
+
+    pub fn decide_idxtm_subset_db(ctx: &RelCtx, i:&IdxTm, j:&IdxTm) -> IdxTmDec {
+        fgi_db!("decide if: {} ⊢ {} ⊆ {} : NmSet", ctx, i, j);
+        db_region_open!(false, vt100::DecideBracket);
+        let res = decide_idxtm_subset(ctx, i, j);
         db_region_close!();
+        match res.res {
+            Ok(true) => fgi_db!("holds"),
+            _        => fgi_db!("fails to hold")
+        };
         res
     }
 
@@ -1167,9 +1213,6 @@ pub mod subset {
     /// set `j`.  Uses `decide_idxtm_congr` as a subroutine.
     pub fn decide_idxtm_subset(ctx: &RelCtx, i:&IdxTm, j:&IdxTm) -> IdxTmDec
     {
-        fgi_db!("decide if: {} ⊢ {} ⊆ {} : NmSet", ctx, i, j);
-        db_region_open!();
-
         // Normalize `i` and `j` as `a` and `b`, respectively
         let (ctx1, ctx2) = ctxs_of_relctx((*ctx).clone());
 
@@ -1190,8 +1233,6 @@ pub mod subset {
             let ad = equiv::decide_idxtm_equiv(&ctx, &ad, &ed, &Sort::NmSet);
             match ad.res {
                 Result::Ok(true) => {
-                    fgi_db!("^holds");
-                    db_region_close!();
                     return Dec{
                         ctx:ctx.clone(),
                         rule:Rc::new(IdxTmRule::EmptySet),
@@ -1209,8 +1250,6 @@ pub mod subset {
         //
         // TODO: Use equiv module instead, to relate alpha-equiv terms.
         if a == b {
-            fgi_db!("^holds");
-            db_region_close!();
             return Dec{
                 ctx:ctx.clone(),
                 rule:Rc::new(IdxTmRule::Refl(b_bit)),
@@ -1252,7 +1291,6 @@ pub mod subset {
                         None => {
                             //fgi_db!("No defs for {}, looking for subset:\t\n{}", x, &a);
                             //panic!("TODO: {}", ctx)
-                            db_region_close!();
                             return Dec{
                                 ctx:ctx.clone(),
                                 rule:Rc::new(IdxTmRule::Fail),
@@ -1271,7 +1309,6 @@ pub mod subset {
                     if ctx.lookup_ivareq(&y, &x, &Sort::NmSet) {
                         // Subcase 2: Both terms are variables, and
                         // they are related in the relational `ctx`.
-                        db_region_close!();
                         return Dec{
                             ctx:ctx.clone(),
                             rule:Rc::new(IdxTmRule::Var((x, y))),
@@ -1293,7 +1330,6 @@ pub mod subset {
                             if b_ns_tm == &a_ns_tm {
                                 //fgi_db!("decide_idxtm_subset:\n  {}\n  {}\nTRUE(3)!",
                                 //b_ns_tm, a_ns_tm);
-                                db_region_close!();
                                 return Dec{
                                     ctx:ctx.clone(),
                                     rule:Rc::new(IdxTmRule::SubsetRefl(a_ns_tm)),
@@ -1303,7 +1339,6 @@ pub mod subset {
                             }
                             else { continue }
                         }
-                        db_region_close!();
                         return Dec{
                             ctx:ctx.clone(),
                             rule:Rc::new(IdxTmRule::Fail),
@@ -1339,7 +1374,6 @@ pub mod subset {
                                               \t{:?}",
                                              tm1, b_ns.terms)
                                 };
-                                db_region_close!();
                                 return Dec{
                                     ctx:ctx.clone(),
                                     rule:Rc::new(IdxTmRule::Fail),
@@ -1351,8 +1385,6 @@ pub mod subset {
                                 }
                             }
                         };
-                        fgi_db!("^holds");
-                        db_region_close!();
                         return Dec{
                             ctx:ctx.clone(),
                             rule:Rc::new(IdxTmRule::Subset(a_ns, b_ns)),
@@ -1367,8 +1399,6 @@ pub mod subset {
                         for b_ns_tm in b_ns.terms.iter() {
                             // TODO: Use equiv checking, not ==, which may be too restrictive.
                             if b_ns_tm == &a_ns_tm {
-                                fgi_db!("^holds");
-                                db_region_close!();
                                 return Dec{
                                     ctx:ctx.clone(),
                                     rule:Rc::new(IdxTmRule::SubsetRefl(a_ns_tm)),
@@ -1378,17 +1408,14 @@ pub mod subset {
                             }
                             else { continue }
                         }
-                        if true {
-                            fgi_db!("decide_idxtm_subset: Cannot decide subset:");
-                            db_region_open!();
-                            fgi_db!(" Superset (candidate): {}", &b);
-                            fgi_db!("   Subset (candidate): {}", &a);
-                            fgi_db!("\n\
-                                      (If you believe this subset relationship holds, \
-                                      Fungi may need additional reasoning in its `decide` \
-                                      and/or `normal` modules...)");
-                            db_region_close!();
-                        }
+                        fgi_db!("decide_idxtm_subset: Cannot decide subset:");
+                        db_region_open!(false, vt100::DecideBracket);
+                        fgi_db!(" Superset (candidate): {}", &b);
+                        fgi_db!("   Subset (candidate): {}", &a);
+                        fgi_db!("\n\
+                                 (If you believe this subset relationship holds, \
+                                 Fungi may need additional reasoning in its `decide` \
+                                 and/or `normal` modules...)");
                         db_region_close!();
                         return Dec{
                             ctx:ctx.clone(),
@@ -1405,7 +1432,6 @@ pub mod subset {
                     &a_bit, &b_bit,
                     &Sort::NmSet
                 );
-                db_region_close!();
                 res                    
             }
         }}
@@ -1589,12 +1615,10 @@ pub mod subset {
                 unimplemented!()
             }
             (_, _) => {
-                if true {
-                    db_region_open!();
-                    fgi_db!("decide_idxtm_subset: Cannot decide this case:\n Left:\n\t{}\n Right:\n\t{}", i.term, j.term);
-                    fgi_db!("This case is not implemented; but, it _may_ indicate a type error.");
-                    db_region_close!();
-                }
+                db_region_open!(false, vt100::DecideBracket);
+                fgi_db!("decide_idxtm_subset: Cannot decide this case:\n Left:\n\t{}\n Right:\n\t{}", i.term, j.term);
+                fgi_db!("This case is not implemented; but, it _may_ indicate a type error.");
+                db_region_close!();
                 err(IdxTmRule::Fail, DecError::UnknownCongruence((*i.term).clone(), (*j.term).clone()))
             }
         }
@@ -1650,16 +1674,16 @@ pub mod subset {
             // TODO-someday: Make this operation cheaper somehow (use traits in a clever way?)
             let (ctx1, ctx2) = ctxs_of_relctx((*ctx).clone());
             fgi_db!("\x1B[0;1mdecide_type_subset_norm: Subtypes?:");
-            db_region_open!();
+            db_region_open!(false, vt100::DecideBracket);
             fgi_db!("\x1B[0;0m\t{}\n  \x1B[1;35m≤(?)\x1B[0;0m\n\t{}", a, b);
             db_region_open!();
             let a = normal::normal_type(&ctx1, &a);
             db_region_close!();
-            db_region_open!();
+            db_region_open!(false, vt100::DecideBracket);
             let b = normal::normal_type(&ctx2, &b);
             db_region_close!();
             fgi_db!("\x1B[0;1m^decide_type_subset_norm: Normalized:\x1B[0;0m\n\t{}\n  \x1B[1;35m≤(?)\x1B[0;0m\n\t{}", a, b);
-            db_region_open!();
+            db_region_open!(false, vt100::DecideBracket);
             let r = decide_type_subset(ctx, a.clone(), b.clone());
             db_region_close!();
             fgi_db!("\x1B[0;1m^decide_type_subset_norm: ({}):\x1B[0;0m\n\t{}\n  {}\n\t{}", r, a, 

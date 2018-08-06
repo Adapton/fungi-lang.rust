@@ -255,13 +255,17 @@ pub fn system_config() -> SysCfg {
 }
 
 pub fn reduce_db(stk:Vec<Frame>, env:EnvRec, exp:Exp) -> ExpTerm {
+    use db;
     let sys = system_config();
+    let seam_count = db::seam_count_bump();
     if sys.verbose {
-        fgi_db!("{}{}", vt100::SeamBegin{}, vt100::SeamLineBegin{}); // TODO add a counter
+        fgi_db!("{}seam-{} {}",
+                vt100::SeamBegin{}, seam_count,
+                vt100::SeamLineBegin{}); // TODO add a counter
         fgi_db!("{}fungi_lang::reduce{}::reduce {}{}",
                 vt100::FgiReduceEngine{}, vt100::Kw{},
                 vt100::Exp{}, util::display_truncate(&exp));
-        db_region_open!(vt100::SeamEnterBracket);
+        db_region_open!(true, vt100::SeamEnterBracket);
     };
     let t = reduce(&sys, stk, env, exp);
     if sys.verbose {
@@ -269,7 +273,9 @@ pub fn reduce_db(stk:Vec<Frame>, env:EnvRec, exp:Exp) -> ExpTerm {
         fgi_db!("{}halt: {}{}",
                 vt100::Lo{},                            
                 vt100::ExpTerm{}, util::display_truncate(&t));        
-        fgi_db!("{}{}", vt100::SeamEnd{}, vt100::SeamLineEnd{}); // TODO add a counter
+        fgi_db!("{}seam-{} {}",
+                vt100::SeamEnd{}, seam_count,
+                vt100::SeamLineEnd{}); // TODO add a counter
     };
     return t
 }
