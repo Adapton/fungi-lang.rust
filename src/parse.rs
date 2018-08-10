@@ -831,6 +831,7 @@ macro_rules! parse_fgi_earrow {
 macro_rules! fgi_val {
     //     fromast ast (inject ast nodes)
     { fromast $ast:expr } => { $ast };
+    { ^       $ast:expr } => { $ast };
     //     v : A       (annotation)
     { $v:tt : $($a:tt)+} => { Val::Anno(
         Rc::new(fgi_val![$v]),

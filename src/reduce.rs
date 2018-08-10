@@ -115,11 +115,11 @@ fn stuck_err<X>(s:Stuck) -> Result<X,StepError> {
     Err(StepError::Stuck(s))
 }
 fn set_exp(c:&mut Config, e:Rc<Exp>) {
-    debug_set_exp(c, &e);
+    //debug_set_exp(c, &e);
     c.exp = (*e).clone()        
 }
 fn set_env(c:&mut Config, x:Var, v:RtVal) {
-    debug_set_env(c, &x, &v);
+    debug_bind(c, &x, &v);
     c.env = env_push(&c.env, &x, v)
 }
 fn set_env_rec(c:&mut Config, x:Var, v:Rc<RtVal>) {
@@ -309,6 +309,11 @@ pub fn reduce(sys:&SysCfg, stk:Vec<Frame>, env:EnvRec, exp:Exp) -> ExpTerm {
 /// by one step.
 ///
 pub fn step(c:&mut Config) -> Result<(),StepError> {
+    if c.sys.verbose {
+        fgi_db!("{}step: {}{}",
+                vt100::Lo{},
+                vt100::Exp{}, util::display_truncate(&c.exp))
+    };
     match c.exp.clone() {
         Exp::DefType(_, _, e)  |
         Exp::AnnoC(e, _)       |
@@ -643,16 +648,16 @@ fn debug_doc(c:&mut Config, s:&String) {
                 vt100::DocOut{}, s)
     }
 }
-fn debug_set_exp(c:&mut Config, e:&Rc<Exp>) {
+// fn debug_set_exp(c:&mut Config, e:&Rc<Exp>) {
+//     if c.sys.verbose {
+//         fgi_db!("{}set_exp: {}{}",
+//                 vt100::Lo{},
+//                 vt100::Exp{}, util::display_truncate(e))
+//     }    
+// }
+fn debug_bind(c:&mut Config, x:&Var, v:&RtVal) {
     if c.sys.verbose {
-        fgi_db!("{}set_exp: {}{}",
-                vt100::Lo{},
-                vt100::Exp{}, util::display_truncate(e))
-    }    
-}
-fn debug_set_env(c:&mut Config, x:&Var, v:&RtVal) {
-    if c.sys.verbose {
-        fgi_db!("{}set_env: {}{} {}:= {}{}",
+        fgi_db!("{}bind: {}{} {}:= {}{}",
                 vt100::Lo{},
                 vt100::ValVar{}, x,
                 vt100::VDash,

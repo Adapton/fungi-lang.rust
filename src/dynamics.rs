@@ -118,6 +118,11 @@ pub enum ExpTerm {
     Ret(RtVal),
 }
 
+/// Wrapper for `Ret` constructor.
+pub fn ret(v:RtVal) -> ExpTerm {
+    ExpTerm::Ret(v)
+}
+
 /// Name Term Values.  The value forms (name and lambda) for the Name
 /// Term sub-language (STLC + names).
 #[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
