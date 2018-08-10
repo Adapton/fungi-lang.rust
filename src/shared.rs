@@ -1,3 +1,5 @@
+//! a sharing serializes once, not once per reference (c.f. the `Rc` type).
+
 use std::rc::Rc;
 use std::fmt::{self,Debug};
 use std::ops::Deref;

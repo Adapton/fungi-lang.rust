@@ -1,7 +1,9 @@
 pub mod color {
     use ast::Val;
     use hostobj;
-    
+
+    /// Example of a user-defined datatype in Rust, to inject into
+    /// Fungi.
     #[derive(Eq,PartialEq,Clone,Debug,Hash)]
     pub enum Color {
         Red, Green, Gold,
@@ -12,7 +14,7 @@ pub mod color {
         hostobj::val_of_obj(c)
     }
 
-    /// Project the Color from a Val, if it exists.
+    /// Un-inject the Color from a Val, if it exists.
     pub fn color_of_val (x:&Val) -> Option<Color> {
         hostobj::obj_of_val(x)
     }    

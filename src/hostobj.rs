@@ -1,3 +1,5 @@
+//! Host-level (Rust-level) values as Fungi values
+
 use std::any::Any;
 use std::fmt;
 use std::hash::Hash;
@@ -7,11 +9,13 @@ use std::rc::Rc;
 use ast;
 use ast::Val;
 use std::marker::PhantomData;
-    
+
+/// zero-sized struct to implement the `HostObjOps` trait
 pub struct Ops<X> {
     phantom:PhantomData<X>
 }
 
+/// Inject a host-level object into a Fungi value.
 pub fn val_of_obj<X:'static+Debug+Hash+Eq+PartialEq+Clone>(x:X) -> ast::Val {
     ast::Val::HostObj( ast::HostObj{
         ops: Rc::new(Ops::<X>{phantom:PhantomData}),
@@ -19,6 +23,15 @@ pub fn val_of_obj<X:'static+Debug+Hash+Eq+PartialEq+Clone>(x:X) -> ast::Val {
     })
 }
 
+/// Un-inject a host-level object from a Fungi value.
+pub fn obj_of_val<X:'static+Debug+Hash+Eq+PartialEq+Clone> (x:&Val) -> Option<X> {
+    match x {
+        &Val::HostObj(ref o) => obj_of_any::<X>( &o.any ),
+        _ => None,
+    }
+}
+
+/// Un-inject a host-level object from a Rust 'Rc<Any>' reference.
 pub fn obj_of_any<X:'static+Debug+Hash+Eq+PartialEq+Clone> (x:&Rc<Any>) -> Option<X> {
     let r : Result<Rc<X>, Rc<Any>> = (x.clone()).downcast::<X>();
     match r {
@@ -27,13 +40,7 @@ pub fn obj_of_any<X:'static+Debug+Hash+Eq+PartialEq+Clone> (x:&Rc<Any>) -> Optio
     }
 }
 
-pub fn obj_of_val<X:'static+Debug+Hash+Eq+PartialEq+Clone> (x:&Val) -> Option<X> {
-    match x {
-        &Val::HostObj(ref o) => obj_of_any::<X>( &o.any ),
-        _ => None,
-    }
-}
-
+/// Use the `PartialEq`, `Hash` and `Debug` implementations of the type `X`.
 impl<X:'static+Debug+Hash+Eq+PartialEq+Clone> ast::HostObjOps for Ops<X> {
     fn eq(&self, x:&Rc<Any>, y:&Rc<Any>) -> bool {
         match (obj_of_any::<X>(x), obj_of_any::<X>(y)) {

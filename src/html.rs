@@ -1,3 +1,5 @@
+//! Convert fungi execution traces into HTML files
+
 //use std::fs;
 //use std::io;
 use std::io::prelude::*;
