@@ -1275,6 +1275,7 @@ pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
             match ctx.lookup_var(x) {
                 None => fail(td, TypeError::VarNotInScope(x.clone())),
                 Some(x_typ_raw) => {
+                    // TODO-db: print seam
                     let subset_flag = decide::subset::decide_type_subset_norm(
                             &decide::relctx_of_ctx(&ctx),
                             x_typ_raw.clone(), typ_raw.clone()
@@ -1802,7 +1803,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                         & subst::nmtm_writescope_var_str().to_string(),
                         ce
                     );
-                    match decide::effect::decide_effect_ceffect_sequencing(
+                    match decide::effect::decide_effect_ceffect_sequencing_db(
                         ctx, decide::effect::Role::Archivist,
                         Effect::WR(fgi_index![0], idx.clone()), ce)
                     {
@@ -1853,7 +1854,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                             // Compose effects
                             match &**ce {
                                 &CEffect::Cons(ref ty2, ref eff2) => {
-                                    match decide::effect::decide_effect_sequencing
+                                    match decide::effect::decide_effect_sequencing_db
                                         (ctx, decide::effect::Role::Archivist,
                                          eff1.clone(),
                                          eff2.clone())
@@ -1992,7 +1993,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                         }
                         Ok(CEffect::Cons(ty2, eff2)) =>
                         {
-                            match decide::effect::decide_effect_sequencing(
+                            match decide::effect::decide_effect_sequencing_db(
                                 ctx,
                                 /* TODO: Get role from ext structure */
                                 decide::effect::Role::Archivist,
@@ -2070,7 +2071,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                                 eff
                             );
                              */
-                            match decide::effect::decide_effect_sequencing(
+                            match decide::effect::decide_effect_sequencing_db(
                                 ctx, decide::effect::Role::Archivist,
                                 Effect::WR(fgi_index![0], idx.clone()), eff.clone())
                             {
@@ -2232,6 +2233,11 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                         .var(x1.clone(),(*t1).clone())
                         .var(x2.clone(),(*t2).clone())
                         ;
+                    fgi_db!("{}split {}{} {}{}{}. {}{}{}. {}...",
+                            vt100::Kw{}, vt100::Val{}, v,
+                            vt100::ValVar{}, x1, vt100::Kw{},
+                            vt100::ValVar{}, x2, vt100::Kw{},
+                            vt100::Exp{});
                     fgi_db!("\x1B[1;33mvar\x1B[1;36m {}\x1B[0;1m : \x1B[35;1m{}\x1B[0;0m", x1, t1);
                     fgi_db!("\x1B[1;33mvar\x1B[1;36m {}\x1B[0;1m : \x1B[35;1m{}\x1B[0;0m", x2, t2);
                     let td3 = synth_exp(ext, &new_ctx, e);
@@ -2434,6 +2440,9 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
         &Exp::Case(ref v, ref x1, ref e1, ref x2, ref e2) => {
             let v_td = synth_val(ext, ctx, v);
             let v_ty = v_td.clone().clas.map(|a| normal::normal_type(ctx, &a));
+            fgi_db!("{}case {}{} {}of {}...",
+                    vt100::Kw{}, vt100::Val{}, v,
+                    vt100::Kw{}, vt100::Exp{});
             match v_ty {
                 Ok(Type::Sum(ty1, ty2)) => {
                     let new_ctx1 = ctx.var(x1.clone(), (*ty1).clone());
@@ -2566,6 +2575,11 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                         .var(x1.clone(),(*t1).clone())
                         .var(x2.clone(),(*t2).clone())
                         ;
+                    fgi_db!("{}split {}{} {}{}{}. {}{}{}. {}...",
+                            vt100::Kw{}, vt100::Val{}, v,
+                            vt100::ValVar{}, x1, vt100::Kw{},
+                            vt100::ValVar{}, x2, vt100::Kw{},
+                            vt100::Exp{});
                     fgi_db!("\x1B[1;33mvar\x1B[1;36m {}\x1B[0;1m : \x1B[35;1m{}\x1B[0;0m", x1, t1);
                     fgi_db!("\x1B[1;33mvar\x1B[1;36m {}\x1B[0;1m : \x1B[35;1m{}\x1B[0;0m", x2, t2);
                     let td3 = check_exp(ext, &new_ctx, e, ceffect);
@@ -2584,15 +2598,18 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
         },
         &Exp::IfThenElse(ref v, ref e1, ref e2) => {
             let td0 = synth_val(ext, ctx, v);
-            fgi_db!("\x1B[1;33mif ... {{\x1B[0;0m");
+            fgi_db!("{}if {}{} {}{{",
+                    vt100::Kw{},
+                    vt100::Val{}, v,
+                    vt100::Kw{});
             db_region_open!();
             let td1 = check_exp(ext, ctx, e1, ceffect);
             db_region_close!();
-            fgi_db!("\x1B[1;33m}} else {{\x1B[0;0m");
+            fgi_db!("{}}} else {{", vt100::Kw{});
             db_region_open!();
             let td2 = check_exp(ext, ctx, e2, ceffect);
             db_region_close!();
-            fgi_db!("\x1B[1;33m}}\x1B[0;0m");
+            fgi_db!("{}}}", vt100::Kw{});
             let v_ty = td0.clas.clone().map(|a| normal::normal_type(ctx, &a));
             let (_t0,t1,t2) = (td0.clas.clone(),td1.clas.clone(),td2.clas.clone());
             let td = ExpRule::IfThenElse(td0,td1,td2);
@@ -2772,6 +2789,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 let rctx = decide::relctx_of_ctx(ctx);
                 let a = normal::normal_ceffect(ctx, ty.clone());
                 let b = normal::normal_ceffect(ctx, ceffect.clone());
+                // TODO-db: print seam
                 if decide::subset::decide_ceffect_subset(&rctx, a.clone(), b.clone()) {
                     td
                 }

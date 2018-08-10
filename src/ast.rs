@@ -405,11 +405,11 @@ pub type ValRec = Rc<Val>;
 #[derive(Clone,Serialize)]
 pub struct HostObj {
     #[serde(skip_serializing)]
-    ops:Rc<HostObjOps>,
+    pub ops:Rc<HostObjOps>,
     #[serde(skip_serializing)]
-    any:Rc<any::Any>
+    pub any:Rc<any::Any>
 }
-trait HostObjOps {
+pub trait HostObjOps {
     fn eq(&self, x:&Rc<any::Any>, y:&Rc<any::Any>) -> bool;
     fn hash(&self, x:&Rc<any::Any>) -> u64;
     fn fmt(&self, f:&mut Formatter, x:&Rc<any::Any> ) -> fmt::Result;

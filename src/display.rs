@@ -328,7 +328,7 @@ impl fmt::Display for NameTm {
 impl fmt::Display for Effect {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
         match self {
-            &Effect::WR(ref w, ref r) => write!(f, "〈{};{}〉", w, r),
+            &Effect::WR(ref w, ref r) => write!(f, "〈{}; {}〉", w, r),
             &Effect::NoParse(ref s) => write!(f, "«Effect::Parse error: `{}`»", s),
         }
     }

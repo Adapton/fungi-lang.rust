@@ -448,7 +448,7 @@ pub mod effect {
                         vt100::EffectSub{},
                         vt100::Effect{}, eff2,
                         vt100::Equiv{},
-                        vt100::Effect{}, eff3)
+                        /*vt100::Effect{}, */ vt100::DecideTrue{}, eff3)
             }
             Err(_err) => {
                 fgi_db!("  {}failure: {}{} {}⊬ {}{} {}- {}{} {}≡ {}?",
@@ -464,7 +464,8 @@ pub mod effect {
         };
         res
     }
-    
+
+
     /// Tactic to find the result effect `eff3` such that `eff1 = eff2 then eff3`
     ///
     /// TODO: "Verify" the results using our decision procedures; return those derivations with the term that we find    
@@ -559,6 +560,79 @@ pub mod effect {
                     }
                 }
             }
+        }
+    }
+    
+    pub fn decide_effect_sequencing_db(ctx:&Ctx, r:Role, eff1:Effect, eff2:Effect) -> Result<Effect, Error> {
+        use vt100;
+        fgi_db!("{}decide if: {}{} {}⊢ {}{} {}then {}{} {}≡ {}?",
+                vt100::DecideIf{},
+                vt100::VDash{}, ctx,
+                vt100::VDash{},
+                vt100::Effect{}, eff1,
+                vt100::EffectSeq{},
+                vt100::Effect{}, eff2,
+                vt100::Equiv{},
+                vt100::Effect{}
+        );
+        db_region_open!(false, vt100::DecideBracket);
+        let res = decide_effect_sequencing(ctx, r, eff1.clone(), eff2.clone());
+        db_region_close!();
+        match &res {
+            Ok(ref eff3) => {
+                fgi_db!("  {}decided: {}{} {}⊢ {}{} {}then {}{} {}≡ {}{}",
+                        vt100::DecideTrue{},
+                        vt100::VDash{}, ctx,
+                        vt100::VDash{},
+                        vt100::Effect{}, eff1,
+                        vt100::EffectSub{},
+                        vt100::Effect{}, eff2,
+                        vt100::Equiv{},
+                        /*vt100::Effect{},*/ vt100::DecideTrue{}, eff3)
+            }
+            Err(_err) => {
+                fgi_db!("  {}failure: {}{} {}⊬ {}{} {}then {}{} {}≡ {}?",
+                        vt100::DecideFail{},
+                        vt100::VDash{}, ctx,
+                        vt100::NotVDash{},
+                        vt100::Effect{}, eff1,
+                        vt100::NotVDash{},                        
+                        vt100::Effect{}, eff2,
+                        vt100::Equiv{},
+                        vt100::Effect{})
+            }
+        };
+        res
+    }
+
+    /// The result effect, if it exists, is `ceffect3` such that `eff1 then ceffect2 = ceffect3`
+    ///
+    /// This operation is called "effect coalescing" in the formalism
+    /// of Fungi.  It's a wrapper around effect sequencing, that
+    /// pushes another effect after the existing one within the
+    /// `CEffect` syntax, even if under one or more "forall" binders.
+    ///
+    pub fn decide_effect_ceffect_sequencing_db(ctx:&Ctx, r:Role, eff1:Effect, ce2:CEffect) -> Result<CEffect, Error> {
+        match ce2 {
+            CEffect::Cons(ctype2, eff2) => {
+                match decide_effect_sequencing_db(ctx, r, eff1, eff2) {
+                    Err(e) => Err(e),
+                    Ok(eff3) => Ok(CEffect::Cons(ctype2, eff3))
+                }
+            },
+            CEffect::ForallType(x,xk,ce) => {
+                match decide_effect_ceffect_sequencing_db(ctx, r, eff1, (*ce).clone()) {
+                    Err(e) => Err(e),
+                    Ok(ce) => Ok(CEffect::ForallType(x,xk,Rc::new(ce)))
+                }
+            },
+            CEffect::ForallIdx(x,xg,p,ce) => {
+                match decide_effect_ceffect_sequencing_db(ctx, r, eff1, (*ce).clone()) {
+                    Err(e) => Err(e),
+                    Ok(ce) => Ok(CEffect::ForallIdx(x,xg,p,Rc::new(ce)))
+                }
+            }
+            CEffect::NoParse(s) => Ok(CEffect::NoParse(s)),
         }
     }
 

@@ -121,6 +121,7 @@ pub mod seq_filter;
 
 
 // --- Regression tests
+pub mod basic_hostobj;
 pub mod basic_read_effects;
 pub mod basic_write_effects;
 pub mod basic_write_scope;

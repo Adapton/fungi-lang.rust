@@ -95,8 +95,9 @@ vt100_escape!{VDash, "0;1;33"}
 vt100_escape!{Apart, "0;1;33"}
 vt100_escape!{Equiv, "0;1;33"}
 vt100_escape!{Effect, "0;0"}
-vt100_escape!{EffectSub, "1;33"}
-vt100_escape!{NotVDash, "1;31"}
+vt100_escape!{EffectSub, "0;1;33"}
+vt100_escape!{EffectSeq, "0;1;33"}
+vt100_escape!{NotVDash, "0;1;31"}
 vt100_escape!{ParamBegin, "0;33"}
 vt100_escape!{ParamSep, "0;33"}
 vt100_escape!{ParamEnd, "0;33"}
