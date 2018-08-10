@@ -1593,34 +1593,66 @@ pub fn synth_items(ext:&Ext, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
                 tds.push(ItemRule::Bind(der));
                 decls = d;
             }
-            &Decls::Fn(ref f, ref a, ref e, ref d) => {
-                fgi_db!("\x1B[1;33mfn \x1B[1;36;4;m{}\x1B[0;1m Begin check...\x1B[0;0m", f);
-                db_region_open!();
-                let v : Val = fgi_val![ thunk fix ^f. ^e.clone() ];
-                let a2 = a.clone();
-                let der = check_val(ext, &ctx, &v, a);
-                let der_typ = der.clas.clone();
-                let der = ItemDer{
-                    doc:doc.clone(),
-                    qual:Qual::Val,
-                    var:f.clone(),
-                    der:der_of(ctx.clone(),
-                               DeclRule::Fn(f.clone(), der),
-                               der_typ.map(|_| DeclClas::Type(a2)))
-                };
-                db_region_close!();
-                fgi_db!("\x1B[1;33mfn \x1B[1;36;4;m{}\x1B[0;1m Done (\x1B[0;0m{}\x1B[0;1m).", f,
-                         if let Ok(_) = der.der.clas.clone() {
-                             "\x1B[1;32mCheck OK"
-                         } else {
-                             "\x1B[1;31mCheck error"
-                         }
-                );
-                ctx = ctx.var(f.clone(), a.clone());
-                tds.push(ItemRule::Bind(der));
-                doc = None;
-                decls = d;
-            }
+            &Decls::Fn(ref f, ref a, ref e, ref d) => { match e {
+                // If the expression is a host function, we don't need
+                // a fix expression; otherwise, we do.
+                Exp::HostFn(_) => {
+                    fgi_db!("\x1B[1;33mfn \x1B[1;36;4;m{}\x1B[0;1m Host fn...\x1B[0;0m", f);
+                    db_region_open!();
+                    let v : Val = fgi_val![ thunk ^e.clone() ];
+                    let a2 = a.clone();
+                    let der = check_val(ext, &ctx, &v, a);
+                    let der_typ = der.clas.clone();
+                    let der = ItemDer{
+                        doc:doc.clone(),
+                        qual:Qual::Val,
+                        var:f.clone(),
+                        der:der_of(ctx.clone(),
+                                   DeclRule::Fn(f.clone(), der),
+                                   der_typ.map(|_| DeclClas::Type(a2)))
+                    };
+                    db_region_close!();
+                    fgi_db!("\x1B[1;33mfn \x1B[1;36;4;m{}\x1B[0;1m Done (\x1B[0;0m{}\x1B[0;1m).", f,
+                            if let Ok(_) = der.der.clas.clone() {
+                                "\x1B[1;32mCheck OK"
+                            } else {
+                                "\x1B[1;31mCheck error"
+                            }
+                    );
+                    ctx = ctx.var(f.clone(), a.clone());
+                    tds.push(ItemRule::Bind(der));
+                    doc = None;
+                    decls = d;
+                },
+                _ => {
+                    fgi_db!("\x1B[1;33mfn \x1B[1;36;4;m{}\x1B[0;1m Begin check...\x1B[0;0m", f);
+                    db_region_open!();
+                    let v : Val = fgi_val![ thunk fix ^f. ^e.clone() ];
+                    let a2 = a.clone();
+                    let der = check_val(ext, &ctx, &v, a);
+                    let der_typ = der.clas.clone();
+                    let der = ItemDer{
+                        doc:doc.clone(),
+                        qual:Qual::Val,
+                        var:f.clone(),
+                        der:der_of(ctx.clone(),
+                                   DeclRule::Fn(f.clone(), der),
+                                   der_typ.map(|_| DeclClas::Type(a2)))
+                    };
+                    db_region_close!();
+                    fgi_db!("\x1B[1;33mfn \x1B[1;36;4;m{}\x1B[0;1m Done (\x1B[0;0m{}\x1B[0;1m).", f,
+                            if let Ok(_) = der.der.clas.clone() {
+                                "\x1B[1;32mCheck OK"
+                            } else {
+                                "\x1B[1;31mCheck error"
+                            }
+                    );
+                    ctx = ctx.var(f.clone(), a.clone());
+                    tds.push(ItemRule::Bind(der));
+                    doc = None;
+                    decls = d;
+                }
+            }}
         }      
     };
     return (tds, ctx)

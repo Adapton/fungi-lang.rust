@@ -153,11 +153,23 @@ fn update_env_with_decls(c:&mut Config, d:Decls) {
                 continue;
             }
             Decls::Fn(x,_,e,d) => {
-                let fnv = Val::ThunkAnon(Rc::new(Exp::Fix(x.clone(),Rc::new(e))));
-                let v = close_val(&c.env, &fnv);
-                set_env(c, x, v);
-                decls = (*d).clone();
-                continue;
+                match e {
+                    // If the expression is a host function, do not introduce a fix expression.
+                    Exp::HostFn(_) => {
+                        let fnv = Val::ThunkAnon(Rc::new(e));
+                        let v = close_val(&c.env, &fnv);
+                        set_env(c, x, v);
+                        decls = (*d).clone();                        
+                        continue;
+                    },
+                    _ => {
+                        let fnv = Val::ThunkAnon(Rc::new(Exp::Fix(x.clone(),Rc::new(e))));
+                        let v = close_val(&c.env, &fnv);
+                        set_env(c, x, v);
+                        decls = (*d).clone();                        
+                        continue;
+                    }
+                }
             }
         }
     }
@@ -173,6 +185,7 @@ fn produce_value(c:&mut Config,
     }
     else {
         if c.sys.verbose {
+            debug_ret(c, &v);
             db_region_close!();
         };
         let fr = c.stk.pop().unwrap();
@@ -661,6 +674,14 @@ fn debug_bind(c:&mut Config, x:&Var, v:&RtVal) {
                 vt100::Lo{},
                 vt100::ValVar{}, x,
                 vt100::VDash,
+                vt100::RtVal{}, util::display_truncate(v))
+    }
+}
+
+fn debug_ret(c:&mut Config, v:&RtVal) {
+    if c.sys.verbose {
+        fgi_db!("{} ret: {}{}",
+                vt100::Lo{},
                 vt100::RtVal{}, util::display_truncate(v))
     }
 }

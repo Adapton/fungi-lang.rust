@@ -1,13 +1,51 @@
+/// A simple illustration of Rust values within a Fungi program
+///
+/// Rust side:
+/// ------------
+///
+///  The following two functions permit Rust to transform colors
+///  (as Rust values) into Fungi runtime values, and back again:
+/// 
+/// - `rtval_of_color`
+/// - `color_of_rtval`
+///
+/// Fungi side:
+/// --------------
+///
+///  The [Fungi module]() here wraps the Rust constructors and
+///  functions over Colors with Fungi functions.
+///
 pub mod color {
     use dynamics::RtVal;
-    use hostobj::{self,val_of_obj};
+    use hostobj;
 
-    fgi_mod!{
-        // TODO: Some way to declare new abstract types
+
+    /// Example of a user-defined datatype in Rust, to inject into
+    /// Fungi.
+    #[derive(Eq,PartialEq,Clone,Debug,Hash)]
+    pub enum Color {
+        Red, Green, Gold,
+    }
+
+    
+    /// Inject a Color into a Val.
+    pub fn rtval_of_color(c:Color) -> RtVal {
+        hostobj::rtval_of_obj(c)
+    }
+
+    /// Un-inject the Color from a Val, if it exists.
+    pub fn color_of_rtval (x:&RtVal) -> Option<Color> {
+        hostobj::obj_of_rtval(x)
+    }    
+
+    fgi_mod!{hostuse{ hostobj::val_of_obj }
+        // TODO:
+        //  - Some way to declare new abstract types
+        //
         //type Color = HostType(Color);
-        fn color_red : (Thk[0] 0 F Color) = {
-            ret ^val_of_obj(Color::Red)
-        }
+        val color_red   : (Color) = (^val_of_obj(Color::Red))
+        val color_green : (Color) = (^val_of_obj(Color::Green))
+        val color_gold  : (Color) = (^val_of_obj(Color::Gold))
         fn color_next : (Thk[0] 0 Color -> 0 F Color) = {
             unsafe (1) trapdoor::color_next
         }
@@ -15,13 +53,12 @@ pub mod color {
 
     #[test]
     pub fn docolors() {
-        use hostobj::val_of_obj;
         fgi_dynamic_trace!
         {[Expect::Success]
          use self::*; // import color_next
-         let red   = {force color_red}
-         let green = {ret ^(val_of_obj(Color::Green))}
-         let gold  = {ret ^(val_of_obj(Color::Gold))}
+         let red   = {ret color_red}
+         let green = {ret color_green}
+         let gold  = {ret color_gold}
          let triple = {ret (red, green, gold)}
          let red_next = {{force color_next} red}
          let green_next = {{force color_next} green}
@@ -46,20 +83,4 @@ pub mod color {
         }
     }
     
-    /// Example of a user-defined datatype in Rust, to inject into
-    /// Fungi.
-    #[derive(Eq,PartialEq,Clone,Debug,Hash)]
-    pub enum Color {
-        Red, Green, Gold,
-    }
-
-    /// Inject a Color into a Val.
-    pub fn rtval_of_color(c:Color) -> RtVal {
-        hostobj::rtval_of_obj(c)
-    }
-
-    /// Un-inject the Color from a Val, if it exists.
-    pub fn color_of_rtval (x:&RtVal) -> Option<Color> {
-        hostobj::obj_of_rtval(x)
-    }    
 }

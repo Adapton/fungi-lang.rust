@@ -1367,6 +1367,18 @@ macro_rules! parse_fgi_split {
 ///
 #[macro_export]
 macro_rules! fgi_mod {
+    { hostuse { $($deps:tt)+ } $($decls:tt)+ } => {
+        use {$($deps)+};
+        use std::rc::Rc;
+        use shared::Shared;
+        use ast::*;
+        pub fn fgi_module () -> Shared<Module> {
+            //let complete_parse_marker = ();
+            Shared::new( fgi_module![ $($decls)+
+                                      //^^ complete_parse_marker ] )
+            ] )
+        }
+    };
     { $($decls:tt)+ } => {
         use std::rc::Rc;
         use shared::Shared;
