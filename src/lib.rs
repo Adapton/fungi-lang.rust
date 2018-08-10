@@ -141,8 +141,9 @@ pub mod decide;
 pub mod bitype;
 
 // === Dynamics ====
-// 
+//
 pub mod dynamics;
+pub mod hostobj;
 pub mod eval;
 pub mod reduce;
 
