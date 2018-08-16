@@ -11,6 +11,11 @@ pub struct Frame {
     pub bracket_close: Box<Display>,
 }
 
+
+thread_local!(pub static LOGO_PRINT:
+              RefCell<bool> =
+              RefCell::new(true));
+
 thread_local!(pub static SEAM_COUNT:
               RefCell<usize> =
               RefCell::new(0));
@@ -26,9 +31,21 @@ pub fn seam_count_bump() -> usize {
               y })
 }
 
+pub fn logo() {
+    LOGO_PRINT.with(
+        |x| {
+            if x.borrow().clone() {
+                use vt100;
+                println!("\n{}", vt100::FungiLogo5Lines20180811C{});
+            };            
+            *x.borrow_mut() = false;
+        })
+}
+
 macro_rules! fgi_db {
     ( $fmt_string:expr ) => {{
         use db;
+        //db::logo();
         if db::test_show() {
             use regex::Regex;
             let re1 = Regex::new(r"\n").unwrap();
@@ -45,6 +62,7 @@ macro_rules! fgi_db {
     }};
     ( $fmt_string:expr, $( $arg:expr ),* ) => {{
         use db;
+        //db::logo();
         if db::test_show() {
             use regex::Regex;
             let re1 = Regex::new(r"\n").unwrap();
