@@ -309,7 +309,7 @@ pub type EffectRec = Rc<Effect>;
 #[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum Type {
     Var(Var),
-    Ident(Ident),
+    Ident(Ident, Option<TypeRec>),
     Sum(TypeRec, TypeRec),
     Prod(TypeRec, TypeRec),
     Unit,
@@ -332,9 +332,9 @@ pub fn ident_nat()    -> Ident { "Nat".to_string() }
 pub fn ident_bool()   -> Ident { "Bool".to_string() }
 pub fn ident_string() -> Ident { "String".to_string() }
 
-pub fn type_string()  -> Type { Type::Ident(ident_string()) }
-pub fn type_nat()     -> Type { Type::Ident(ident_nat()) }
-pub fn type_bool()    -> Type { Type::Ident(ident_bool()) }
+pub fn type_string()  -> Type { Type::Ident(ident_string(), None) }
+pub fn type_nat()     -> Type { Type::Ident(ident_nat(), None) }
+pub fn type_bool()    -> Type { Type::Ident(ident_bool(), None) }
 
 /// Computation types
 #[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]

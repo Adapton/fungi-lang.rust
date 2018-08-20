@@ -66,8 +66,25 @@ pub fn expand_type_rec(ctx:&Ctx, a:Rc<Type>) -> Rc<Type> {
 pub fn expand_type(ctx:&Ctx, a:Type) -> Type {
     match a {
         Type::Unit => Type::Unit,
-        Type::Ident(ident) => {
-            Type::Ident(ident.clone())
+        Type::Ident(ident, Some(def)) => {
+            fgi_db!("already expanded?: {} := {}", ident, def);
+            Type::Ident(ident, Some(def))
+        }
+        Type::Ident(ident, None) => {
+            match (ident.as_str(), ctx.lookup_type_def(&ident)) {
+                ("Nat", _) | ("Bool", _) | ("String", _) => { 
+                    // XXX-Use a different constructor here; perhaps "Prim"?
+                    Type::Ident(ident, None)
+                }
+                (_, Some(a)) => {
+                    if let Type::Ident(_,_) = a { a.clone() }
+                    else { Type::Ident(ident.clone(), Some(Rc::new(a))) }
+                }
+                (_, None) => {
+                    fgi_db!("expand_type: undefined type identifer: {}", ident);
+                    Type::Ident(ident, None)
+                }
+            }
         }
         // match ident.as_str() {
         //     // Built-in primitives are normal; they lack a definition in the context:

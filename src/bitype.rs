@@ -108,6 +108,10 @@ impl Ctx {
     }
     /// bind a var and type
     pub fn var(&self,v:Var,t:Type) -> Ctx {
+        // XXX-defs:
+        // This only "expands the definitions" of Identifiers, leaving
+        // the identifiers in place with their definitions.
+        let t = expand::expand_type(self, t);
         Ctx::Var(Shared::new(self.clone()),v,t)
     }
     /// bind a index var and sort
@@ -1264,8 +1268,13 @@ pub fn synth_val(ext:&Ext, ctx:&Ctx, val:&Val) -> ValDer {
 pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
     let fail = |td:ValRule, err :TypeError| { failure(Dir::Check(typ_raw.clone()), ext, ctx, val.clone(), td, err)  };
     let succ = |td:ValRule, typ :Type     | { success(Dir::Check(typ_raw.clone()), ext, ctx, val.clone(), td, typ) };
-    // Normalize the type
-    let typ_norm = &(normal::normal_type(ctx, typ_raw));
+    db_region_open!();
+    fgi_db!("{} |- {} <= match(normal({})) ~~> ?", ctx, val, typ_raw);
+    let typ_norm = expand::expand_type(ctx, typ_raw.clone());
+    //let typ_norm = normal::normal_type(ctx, &typ_norm);
+    let typ_norm = &(normal::match_type(ctx, typ_norm));
+    fgi_db!("{} |- {} <= match(normal({})) ~~> {}", ctx, val, typ_raw, typ_norm);
+    db_region_close!();
     match val {
         &Val::HostObj(_) => {
             unreachable!()
@@ -1276,7 +1285,7 @@ pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
                 None => fail(td, TypeError::VarNotInScope(x.clone())),
                 Some(x_typ_raw) => {
                     // TODO-db: print seam
-                    let subset_flag = decide::subset::decide_type_subset_norm(
+                    let subset_flag = decide::subset::decide_type_subset_norm_db(
                             &decide::relctx_of_ctx(&ctx),
                             x_typ_raw.clone(), typ_raw.clone()
                     );                    
@@ -1763,7 +1772,8 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let td1 = synth_val(ext, ctx, v2);
             let (tp0,typ1) = (td0.clas.clone(),td1.clas.clone());
             let td = ExpRule::Ref(td0,td1);
-            match (tp0.clone(),typ1.clone()) {
+            // XXX-match
+            match (tp0.clone(), typ1.clone()) {
                 (Err(ref e),_) => fail(td, wrap_inside_error(e)),
                 (_,Err(ref e)) => fail(td, wrap_inside_error(e)),
                 (Ok(Type::Nm(idx)),Ok(a)) => {
@@ -1790,6 +1800,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             db_region_close!();
             let (tp0,typ1) = (td0.clas.clone(),td1.clas.clone());
             let td = ExpRule::Thunk(td0,td1);
+            // XXX-match
             match (tp0.clone(),typ1.clone()) {
                 (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
                 (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
@@ -1819,6 +1830,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let td0 = synth_val(ext, ctx, v);
             let typ0 = td0.clas.clone();
             let td = ExpRule::Force(td0);
+            // XXX-match
             match typ0.clone() {
                 Err(_) => fail(td, TypeError::ParamNoSynth(0)),
                 Ok(Type::Thk(ref idx, ref ce)) => {
@@ -1839,6 +1851,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                         & subst::nmtm_writescope_var_str().to_string(),
                         ce
                     );
+                    // XXX-match
                     match decide::effect::decide_effect_ceffect_sequencing_db(
                         ctx, decide::effect::Role::Archivist,
                         Effect::WR(fgi_index![0], idx.clone()), ce)
@@ -1882,6 +1895,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                     ctx, vt100::VDash, vt100::Exp{}, e, v, vt100::VDash, vt100::SynthType);
             let td0 = synth_exp(ext, ctx, e);
             let typ0 = td0.clas.clone();
+            // XXX-match
             match typ0 {
                 Ok(CEffect::Cons(CType::Arrow(ref ty,ref ce), ref eff1)) => {
                     fgi_db!("{} {}⊢ {}({}) {} {}⇒ {}{}",
@@ -1942,6 +1956,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let ed = synth_exp(ext,ctx,e);
             let id = synth_idxtm(ext,ctx,i);
             //let edt = ed.clas.clone();
+            // XXX-match
             match (ed.clas.clone(), id.clas.clone())  {
                 (Ok(ec), Ok(_is)) => { match ec {
                     CEffect::ForallIdx(x, _g, p, ce) => {
@@ -1974,6 +1989,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let td0 = synth_val(ext, ctx, v);
             let typ0 = td0.clas.clone();
             let td = ExpRule::Get(td0);
+            // XXX-match
             match typ0.clone().map(|a| normal::normal_type(ctx, &a)) {
                 Err(_) => fail(td, TypeError::SynthFailVal(v.clone())),
                 Ok(Type::Ref(ref idx,ref ty)) => {
@@ -1997,6 +2013,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let td0 = synth_val(ext, ctx, v);
             let typ0 = td0.clas.clone();
             let td = ExpRule::Ret(td0);
+            // XXX-match
             match typ0 {
                 Err(_) => fail(td, TypeError::ParamNoSynth(0)),
                 Ok(ty) => succ(td, CEffect::Cons(
@@ -2027,6 +2044,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                     vt100::SynthType, display::Result{result:td1.clas.clone()},
                     vt100::Kw{}, vt100::Exp{}, vt100::VDash{}, vt100::SynthType
             );            
+            // XXX-match
             match td1.clas.clone() {
                 Err(_) => fail(ExpRule::Let(x.clone(),td1,
                     synth_exp(ext, &ctx, e2)
@@ -2077,6 +2095,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let td1 = synth_val(ext, ctx, v1);
             let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
             let td = ExpRule::PrimApp(PrimAppRule::NameBin(td0,td1));
+            // XXX-match
             match (typ0,typ1) {
                 (Err(_),_) => fail(td,TypeError::ParamNoSynth(0)),
                 (_,Err(_)) => fail(td,TypeError::ParamNoSynth(1)),
@@ -2096,6 +2115,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let td0 = synth_val(ext, ctx, v);
             let typ0 = td0.clas.clone();
             let td = ExpRule::PrimApp(PrimAppRule::RefThunk(td0));
+            // XXX-match            
             match typ0.clone() {
                 Err(_) => fail(td, TypeError::ParamNoSynth(0)),
                 Ok(Type::Thk(idx,ce)) => {
@@ -2154,18 +2174,20 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let td1 = synth_val(ext, ctx, v1);
             let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
             let td = ExpRule::PrimApp(PrimAppRule::NatPlus(td0,td1));
+            // XXX-match
             match (typ0,typ1) {
                 (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
                 (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
-                (Ok(Type::Ident(ref n0)), Ok(Type::Ident(ref n1)))
+                (Ok(Type::Ident(ref n0, _)),
+                 Ok(Type::Ident(ref n1, _)))
                 if (n0 == "Nat") && (n1 == "Nat") => {
                     let ce = CEffect::Cons(
-                        CType::Lift(Type::Ident("Nat".to_string())),
+                        CType::Lift(Type::Ident("Nat".to_string(), None)),
                         Effect::WR(IdxTm::Empty, IdxTm::Empty),
                     );
                     succ(td, ce)
                 },
-                (Ok(Type::Ident(ref n0)),_) if n0 == "Nat" => {
+                (Ok(Type::Ident(ref n0, _)),_) if n0 == "Nat" => {
                     fail(td, TypeError::ParamMism(1))
                 },
                 _ => fail(td, TypeError::ParamMism(0))
@@ -2176,18 +2198,20 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let td1 = synth_val(ext, ctx, v1);
             let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
             let td = ExpRule::PrimApp(PrimAppRule::NatLt(td0,td1));
+            // XXX-match
             match (typ0,typ1) {
                 (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
                 (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
-                (Ok(Type::Ident(ref n0)), Ok(Type::Ident(ref n1)))
+                (Ok(Type::Ident(ref n0, _)),
+                 Ok(Type::Ident(ref n1, _)))
                 if (n0 == "Nat") && (n1 == "Nat") => {
                     let ce = CEffect::Cons(
-                        CType::Lift(Type::Ident("Bool".to_string())),
+                        CType::Lift(Type::Ident("Bool".to_string(), None)),
                         Effect::WR(IdxTm::Empty, IdxTm::Empty),
                     );
                     succ(td, ce)
                 },
-                (Ok(Type::Ident(ref n0)),_) if n0 == "Nat" => {
+                (Ok(Type::Ident(ref n0, _)),_) if n0 == "Nat" => {
                     fail(td, TypeError::ParamMism(1))
                 },
                 _ => fail(td, TypeError::ParamMism(0))
@@ -2198,18 +2222,20 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let td1 = synth_val(ext, ctx, v1);
             let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
             let td = ExpRule::PrimApp(PrimAppRule::NatEq(td0,td1));
+            // XXX-match
             match (typ0,typ1) {
                 (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
                 (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
-                (Ok(Type::Ident(ref n0)), Ok(Type::Ident(ref n1)))
+                (Ok(Type::Ident(ref n0, _)),
+                 Ok(Type::Ident(ref n1, _)))
                 if (n0 == "Nat") && (n1 == "Nat") => {
                     let ce = CEffect::Cons(
-                        CType::Lift(Type::Ident("Bool".to_string())),
+                        CType::Lift(Type::Ident("Bool".to_string(), None)),
                         Effect::WR(IdxTm::Empty, IdxTm::Empty),
                     );
                     succ(td, ce)
                 },
-                (Ok(Type::Ident(ref n0)),_) if n0 == "Nat" => {
+                (Ok(Type::Ident(ref n0, _)),_) if n0 == "Nat" => {
                     fail(td, TypeError::ParamMism(1))
                 },
                 _ => fail(td, TypeError::ParamMism(0))
@@ -2245,6 +2271,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
 
         &Exp::WriteScope(ref v,ref e) => {
             let td0 = synth_val(ext, ctx, v);
+            // XXX-match
             match td0.clas.clone() {
                 Ok(Type::NmFn(nmlamb)) => {
                     let new_scope = fgi_nametm![
@@ -2272,6 +2299,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
         &Exp::Split(ref v, ref x1, ref x2, ref e) => {
             let td0 = synth_val(ext, ctx, v);
             let v_ty = td0.clone().clas.map(|a| normal::normal_type(ctx, &a));
+            // XXX-match
             match v_ty.clone() {
                 Err(_) => fail(ExpRule::Split(
                     td0, x1.clone(), x2.clone(),
@@ -2462,6 +2490,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
         &Exp::Unpack(ref a1, ref x, ref v, ref e) => {
             let v_td = synth_val(ext, ctx, v);
             let v_ty = v_td.clone().clas.map(|a| normal::normal_type(ctx, &a));
+            // XXX-match
             match v_ty.clone() {
                 Ok(Type::Exists(ref a2, ref g, ref p, ref aa)) => {
                     let p  = subst::subst_term_prop(Term::IdxTm(IdxTm::Var(a1.clone())), a2, p.clone());
@@ -2498,6 +2527,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
             fgi_db!("{}case {}{} {}of {}...",
                     vt100::Kw{}, vt100::Val{}, v,
                     vt100::Kw{}, vt100::Exp{});
+            // XXX-match
             match v_ty {
                 Ok(Type::Sum(ty1, ty2)) => {
                     let new_ctx1 = ctx.var(x1.clone(), (*ty1).clone());
@@ -2542,7 +2572,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
         
          */
         &Exp::Let(ref x, ref e1, ref e2) => {
-            if let CEffect::Cons(ref ctyp, ref eff3) = *ceffect {
+            if let CEffect::Cons(ref ctyp, ref eff3) = ceffect {
                 fgi_db!("{}let {}{} {}= {}{} {}⇒ {}?",
                         vt100::Kw{}, vt100::ValVar{}, x, vt100::VDash{},
                         vt100::Exp{}, e1, vt100::VDash{},
@@ -2620,6 +2650,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
         &Exp::Split(ref v, ref x1, ref x2, ref e) => {
             let td0 = synth_val(ext, ctx, v);
             let v_ty = td0.clone().clas.map(|a| normal::normal_type(ctx, &a));
+            // XXX-match
             match v_ty.clone() {
                 Err(_) => fail(ExpRule::Split(
                     td0, x1.clone(), x2.clone(),
@@ -2672,7 +2703,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 (Err(_),_,_) => fail(td, TypeError::ParamNoSynth(0)),
                 (_,Err(_),_) => fail(td, TypeError::ParamNoCheck(1)),
                 (_,_,Err(_)) => fail(td, TypeError::ParamNoCheck(2)),
-                (Ok(Type::Ident(ref b)),_,_) if b == "Bool" => {
+                (Ok(Type::Ident(ref b, _)),_,_) if b == "Bool" => {
                     // the exps are correct, because of the check above
                     fgi_db!("{}", vt100::CheckMark{});
                     succ(td, ceffect.clone())
@@ -2681,6 +2712,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
             }
         },
         &Exp::Thunk(ref v,ref e) => {
+            // XXX-match
             if let &CEffect::Cons(
                 CType::Lift(Type::Thk(ref idx,ref ce)),
                 Effect::WR(ref _w,ref _r)
@@ -2712,9 +2744,10 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
             ),TypeError::AnnoMism)}
         },
         &Exp::RefAnon(ref v) => {
-            let nceffect = normal::normal_ceffect(ctx, ceffect.clone());
+            let nceffect = normal::match_ceffect(ctx, ceffect.clone());
+            // XXX-match
             if let CEffect::Cons(
-                CType::Lift(Type::Ref(ref _rf_idx,ref a)),
+                CType::Lift( Type::Ref(ref _rf_idx,ref a) ),
                 Effect::WR(ref _w, ref _r)
             ) = nceffect {
                 let tdv = check_val(ext, ctx, v, a);
@@ -2727,7 +2760,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                     Err(ref err) => fail(td, TypeError::Inside(Rc::new(err.clone())))
                 }
             } else { 
-                fgi_db!("Ref check rule cannot work; ceffect does match pattern: {}", 
+                fgi_db!("RefAnon check rule cannot work; ceffect does match pattern: {}", 
                          nceffect);
                 fail(ExpRule::RefAnon(
                 synth_val(ext, ctx, v),
@@ -2737,6 +2770,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
             let nceffect = normal::normal_ceffect(ctx, ceffect.clone());
             //fgi_db!("Ref check rule; ceffect is {}", ceffect);
             //fgi_db!("Ref check rule; normal(ceffect) is {:?}", &nceffect);
+            // XXX-match
             if let CEffect::Cons(
                 CType::Lift(Type::Ref(ref _rf_idx,ref a)),
                 Effect::WR(ref _w, ref _r)
@@ -2776,6 +2810,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
             ),TypeError::AnnoMism)}
         },
         &Exp::WriteScope(ref v,ref e) => {
+            // XXX-match
             if let CEffect::Cons(_,_) = *ceffect {
                 let td0 = synth_val(ext,ctx,v);
                 match td0.clas.clone() {
@@ -2845,7 +2880,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 let a = normal::normal_ceffect(ctx, ty.clone());
                 let b = normal::normal_ceffect(ctx, ceffect.clone());
                 // TODO-db: print seam
-                if decide::subset::decide_ceffect_subset(&rctx, a.clone(), b.clone()) {
+                if decide::subset::decide_ceffect_subset_db(&rctx, a.clone(), b.clone()) {
                     td
                 }
                 else {

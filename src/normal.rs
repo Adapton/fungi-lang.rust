@@ -1136,8 +1136,9 @@ pub fn idxtm_of_nmsettms(tms:&NmSetTms) -> IdxTm {
 ///  8. type applications in head normal form.
 /// 
 pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
-    //fgi_db!("normal_type: {}", typ);
-    match typ {
+    db_region_open!(false);
+    fgi_db!("normal({}) ~~> ?", typ);
+    let res = match typ {
         // normal forms:
         &Type::Unit         |
         &Type::Var(_)       |        
@@ -1178,25 +1179,19 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
             Type::Exists(x.clone(), g.clone(), p.clone(), Rc::new(t2))
         }
 
-        &Type::Ident(ref ident) => { match ident.as_str() {
-            // Built-in primitives are normal; they lack a definition in the context:
-            "Nat" | "Bool" | "String"
-                => { typ.clone() }
-            
-            // all other identifiers are for defined types; look up the definition
-            _ => { match ctx.lookup_type_def(ident) {
-                Some(a) => {
-                    // If the definition is itself an identifier, it's a user type label -- XXX
-                    if let Type::Ident(_) = a { a.clone() }
-                    else { normal_type(ctx, &a) }
+        &Type::Ident(ref ident, ref def) => { 
+            match (ident.as_str(), def) {
+                // Built-in primitives are normal; they lack a definition in the context:
+                ("Nat", _) | ("Bool", _) | ("String", _) => { 
+                    assert_eq!(def, &None); typ.clone() 
                 },
-                _ => {
-                    fgi_db!("undefined type: {} in\n{}", ident, ctx);
-                    // Give up:
+                (_, Some(def)) => (**def).clone(),
+                (_, None) => {
+                    fgi_db!("normal_type: internal error: unexpanded type identifer: {}", ident);
                     typ.clone()
                 }
-            }}
-        }}
+            }
+        }
         &Type::TypeApp(ref a, ref b) => {
             let a = normal_type(ctx, a);
             let b = normal_type(ctx, b);
@@ -1224,7 +1219,10 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
                 }
             }
         }
-    }
+    };
+    fgi_db!("normal({}) ~~> {}", typ, res);
+    db_region_close!();
+    res
 }
 
 
@@ -1255,7 +1253,9 @@ pub fn normal_effect(ctx:&Ctx, eff:Effect) -> Effect {
 
 /// Normalize a computation effect.
 pub fn normal_ceffect(ctx:&Ctx, ce:CEffect) -> CEffect {
-    match ce {
+    db_region_open!(false);
+    fgi_db!("normal({}) ~~> ?", ce);
+    let res = match ce.clone() {
         CEffect::Cons(ct, eff) => {
             CEffect::Cons(normal_ctype(ctx, ct),
                           normal_effect(ctx, eff))
@@ -1270,7 +1270,10 @@ pub fn normal_ceffect(ctx:&Ctx, ce:CEffect) -> CEffect {
                                normal_ceffect_rec(ctx, ce))
         }
         CEffect::NoParse(s) => CEffect::NoParse(s)
-    }
+    };
+    fgi_db!("normal({}) ~~> {}", ce, res);
+    db_region_close!();
+    res
 }
 
 /// Normalize a computation effect.
@@ -1278,6 +1281,51 @@ pub fn normal_ceffect_rec(ctx:&Ctx, ce:Rc<CEffect>) -> Rc<CEffect> {
     Rc::new(normal_ceffect(ctx, (*ce).clone()))
 }
 
+
+pub fn match_ceffect(ctx:&Ctx, ce:CEffect) -> CEffect {
+    db_region_open!(false);
+    fgi_db!("match_ceffect({}) ~~> ?", ce);
+    let res = match ce.clone() {
+        CEffect::Cons(ce, eff) => CEffect::Cons(match_ctype(ctx, ce), eff),
+        ce => ce
+    };
+    fgi_db!("match_ceffect({}) ~~> {}", ce, res);
+    db_region_close!();
+    res
+}
+
+pub fn match_ctype(ctx:&Ctx, ct:CType) -> CType {
+    match ct {
+        CType::Lift(a) => CType::Lift(match_type(ctx, a)),
+        ct => ct
+    }
+}
+
+pub fn match_type_rec(ctx:&Ctx, t:TypeRec) -> TypeRec {
+    Rc::new(match_type(ctx, (*t).clone()))
+}
+
+pub fn match_type(ctx:&Ctx, t:Type) -> Type {
+    db_region_open!(false);
+    fgi_db!("match_type({}) ~~> ?", t);
+    let res = match t.clone() {
+        Type::IdxApp(t, i) => {
+            use expand;
+            normal_type
+                (&Ctx::Empty, 
+                 &Type::IdxApp(expand::expand_type_rec(ctx, t), i))
+        },
+        Type::Ident(_, Some(t)) => (*t).clone(),
+        Type::Ident(x, None) => {
+            use expand;
+            expand::expand_type(ctx, Type::Ident(x, None))
+        },
+        t => t,
+    };
+    fgi_db!("match_type({}) ~~> {}", t, res);
+    db_region_close!();
+    res
+}
 
 /*
 
@@ -1320,8 +1368,9 @@ x 1 2 3
 ///
 ///
 pub fn unroll_type(ctx:&Ctx, typ:&Type) -> (Type, bool) {
-    //fgi_db!("UNROLL (1/2): {}", typ);
-    match typ {
+    db_region_open!(false);
+    fgi_db!("unroll_type({}) ~~> ?", typ);
+    let (res, flag) = match typ {
         // case: rec x.A =>
         &Type::Rec(ref x, ref a) => {
             //fgi_db!("UNROLL (2/2): Success.");
@@ -1338,9 +1387,14 @@ pub fn unroll_type(ctx:&Ctx, typ:&Type) -> (Type, bool) {
             let (t12, b) = unroll_type(ctx, t1);
             (Type::TypeApp(Rc::new(t12), t2.clone()), b)
         },
-        &Type::Ident(ref _x) => {
+        &Type::Ident(_, Some(ref xdef)) => {
             //fgi_db!("UNROLL (1.5/2): {}", x);
-            unroll_type(ctx, &normal_type(ctx, typ))
+            unroll_type(ctx, &**xdef)
+        },
+        &Type::Ident(_, None) => {
+            //fgi_db!("UNROLL (1.5/2): {}", x);
+            use expand;
+            unroll_type(ctx, &expand::expand_type(ctx, typ.clone()))
         },
         // error
         _ => {
@@ -1348,7 +1402,14 @@ pub fn unroll_type(ctx:&Ctx, typ:&Type) -> (Type, bool) {
             //fgi_db!("error: not a recursive type; did not unroll it: {}", typ);
             (typ.clone(), false)
         }
+    };       
+    if flag {
+        fgi_db!("unroll_type({}) ~~> {}", typ, res);
+    } else {
+        fgi_db!("unroll_type: failed to unroll: {}", typ);
     }
+    db_region_close!();    
+    (res, flag)
 }
 
 /// **** UNSOUND: *******

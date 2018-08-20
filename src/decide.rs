@@ -1740,6 +1740,13 @@ pub mod subset {
             return false
         }
     }
+
+    pub fn decide_type_subset_norm_db(ctx: &RelCtx, a:Type, b:Type) -> bool {
+        // XXX/TODO
+        let res = decide_type_subset_norm(ctx, a, b);
+        res
+    }
+
     
     /// Decide type subset relation on normalized versions of the given terms.
     pub fn decide_type_subset_norm(ctx: &RelCtx, a:Type, b:Type) -> bool {
@@ -1772,16 +1779,18 @@ pub mod subset {
     pub fn decide_type_subset(ctx: &RelCtx, a:Type, b:Type) -> bool {
         if a == b { true } else {
             match (a,b) {
-                (Type::Ident(x), b) => {
-                    match ctx.lookup_type_def(&x) {
-                        None => false,
-                        Some(a) => decide_type_subset(ctx, a, b)
+                (Type::Ident(x, to), b) => {
+                    match (to, ctx.lookup_type_def(&x)) {
+                        (None, None) => false,
+                        (Some(a), _) => decide_type_subset(ctx, (*a).clone(), b),
+                        (_, Some(a)) => decide_type_subset(ctx, a, b),
                     }
                 }
-                (a, Type::Ident(y)) => {
-                    match ctx.lookup_type_def(&y) {
-                        None => false,
-                        Some(b) => decide_type_subset(ctx, a, b)
+                (a, Type::Ident(y, to)) => {
+                    match (to, ctx.lookup_type_def(&y)) {
+                        (None, None) => false,
+                        (Some(b), _) => decide_type_subset(ctx, a, (*b).clone()),
+                        (_, Some(b)) => decide_type_subset(ctx, a, b),
                     }
                 }
                 (Type::Unit, Type::Unit) => true,
@@ -1883,6 +1892,12 @@ pub mod subset {
         }
     }
 
+    pub fn decide_ceffect_subset_db(ctx: &RelCtx, ce1:CEffect, ce2:CEffect) -> bool {
+        // XXX/TODO
+        decide_ceffect_subset(ctx, ce1, ce2)
+    }
+
+    
     /// Decide computation effect subset relation    
     pub fn decide_ceffect_subset(ctx: &RelCtx, ce1:CEffect, ce2:CEffect) -> bool {
         match (ce1, ce2) {

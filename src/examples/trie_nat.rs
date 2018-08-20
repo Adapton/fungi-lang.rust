@@ -63,6 +63,21 @@ fgi_mod!{
     ) = {
         unsafe (1) trapdoor::print_found_duplicate
     }
+
+    /// Like child fn, but returns both children, and the fact that
+    /// the names in the pair of children are apart.
+    fn children0:(
+        Thk[0] foralli (X,Y):NmSet. 
+            0 RefTrie[X][Y] ->
+        {0;Y} F exists (X1,X2):NmSet|((X1%X2)=X:NmSet).
+            (x RefTrie[X1][Y] 
+             x RefTrie[X2][Y]
+            )
+    ) = { 
+        #t.
+        let emp : (RefTrie[0][0]) = {ref 0 roll inj1 ()}        
+        BAD
+    }
     
     /// Like child fn, but returns both children, and the fact that
     /// the names in the pair of children are apart.

@@ -82,6 +82,8 @@ macro_rules! fgi_db {
 macro_rules! db_region_open {
     () => {{ db_region_open!(false ; true ; vt100::NormBracket ) }}
     ;
+    ($show:expr) => {{ db_region_open!(false ; $show ; vt100::NormBracket ) }}
+    ;
     ($show:expr, $($br:tt)+) => {{
         db_region_open!( false ; $show ; $($br)+ )
     }};

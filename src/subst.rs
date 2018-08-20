@@ -244,7 +244,20 @@ pub fn subst_term_ceffect(t:Term, x:&String, ce:CEffect) -> CEffect {
 pub fn subst_term_type(t:Term, x:&String, a:Type) -> Type {
     match a {
         Type::Unit => Type::Unit,
-        Type::Ident(x) => Type::Ident(x),
+        Type::Ident(y, ydef) => {
+            match ydef {
+                None => Type::Ident(y, None),
+                Some(ydef) => {
+                    // If the substitution of [t/x] changes the body
+                    // of the definition, then we "forget" the
+                    // identifier x.  Otherwise, we keep it around.
+                    let ydef2 = subst_term_type(t, x, (*ydef).clone());
+                    if *ydef != ydef2 { ydef2 } else {
+                        Type::Ident(y, Some(ydef))
+                    }
+                }
+            }
+        }
         Type::Var(y) => {
             if term_is_type(&t) && x == &y {
                 match t {

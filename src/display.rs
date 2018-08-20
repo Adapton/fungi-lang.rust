@@ -363,7 +363,8 @@ impl fmt::Display for Type {
         match self {
             &Type::Unit => { write!(f, "Unit") }
             &Type::Var(ref x) => { write!(f, "{}", x) }
-            &Type::Ident(ref x) => { write!(f, "{}", x) }
+            &Type::Ident(ref x, Some(_)) => { write!(f, "⌊{}⌋", x) }
+            &Type::Ident(ref x, None) => { write!(f, "⧚{}⧛", x) }
             &Type::Sum(ref t1, ref t2) => { write!(f, "({} ＋ {})", t1, t2) }
             &Type::Prod(ref t1, ref t2) => { write!(f, "{} ⨉ {}", t1, t2) }
             &Type::Ref(ref i, ref a) => { write!(f, "Ref[{}]({})", i, a) }
