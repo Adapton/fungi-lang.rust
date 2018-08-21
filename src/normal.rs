@@ -1425,7 +1425,7 @@ pub fn unroll_type(ctx:&Ctx, typ:&Type) -> (Type, bool) {
 ///   `rec x. A`       (otherwise...)
 ///    ~~> `rec x. A`  (...no change)
 
-pub fn unroll_past_binder(typ:&Type) -> (Type, bool) {    
+fn unroll_past_binder(typ:&Type) -> (Type, bool) {    
     fgi_db!("unroll_past_binder({}) = ...", typ);
     match typ {
         // case: rec x.A =>
