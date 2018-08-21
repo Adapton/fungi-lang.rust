@@ -388,6 +388,7 @@ impl HasClas for IdxTmRule {
 /// Value typing rule
 #[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum ValRule {
+    HostObj,
     Var(Var),
     Unit,
     Pair(ValDer, ValDer),
@@ -1270,14 +1271,17 @@ pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
     let succ = |td:ValRule, typ :Type     | { success(Dir::Check(typ_raw.clone()), ext, ctx, val.clone(), td, typ) };
     db_region_open!(false);
     fgi_db!("{} |- {} <= match({})) ~~> ?", ctx, val, typ_raw);
-    let typ_norm = expand::expand_type(ctx, typ_raw.clone());
+    let typ_expd = expand::expand_type(ctx, typ_raw.clone());
     //let typ_norm = normal::normal_type(ctx, &typ_norm);
-    let typ_norm = &(normal::match_type(ctx, &typ_norm));
+    let typ_norm = &(normal::match_type(ctx, &typ_expd));
     fgi_db!("{} |- {} <= match({}) ~~> {}", ctx, val, typ_raw, typ_norm);
     db_region_close!();
     match val {
         &Val::HostObj(_) => {
-            unreachable!()
+            match typ_norm {
+                Type::Abstract(_) => succ(ValRule::HostObj, typ_expd.clone()),
+                _ => fail(ValRule::HostObj, TypeError::AnnoMism),
+            }
         }
         &Val::Var(ref x) => {
             let td = ValRule::Var(x.clone());
@@ -1520,6 +1524,7 @@ pub fn synth_items(ext:&Ext, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
                 break;
             },
             &Decls::UseAll(ref m, ref d) => {
+                fgi_db!("{}use {}{}::*", vt100::Kw{}, vt100::ModIdent{}, m.path);
                 let der = synth_module(ext, &m.module);
                 ctx = ctx.append(&der.ctx_out);
                 tds.push(ItemRule::UseAll(UseAllModuleDer{
@@ -1605,7 +1610,14 @@ pub fn synth_items(ext:&Ext, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
                         &None        => ctx,
                         &Some(ref a) => ctx.var(x.clone(), a.clone())
                     },
-                    Ok(a) => ctx.var(x.clone(), a),
+                    Ok(a) => {
+                        fgi_db!("{}val {}{} {}: {}{} {}:= {}{}", 
+                                vt100::Kw{}, vt100::ValVar{}, x,
+                                vt100::Kw{}, vt100::CheckType{}, a,
+                                vt100::Kw{}, vt100::Val{}, v
+                        );
+                        ctx.var(x.clone(), a)
+                    },
                 };
                 let der_typ = der.clas.clone();
                 let der = ItemDer{
@@ -1624,7 +1636,11 @@ pub fn synth_items(ext:&Ext, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
                 // If the expression is a host function, we don't need
                 // a fix expression; otherwise, we do.
                 Exp::HostFn(_) => {
-                    fgi_db!("\x1B[1;33mfn \x1B[1;36;4;m{}\x1B[0;1m Host fn...\x1B[0;0m", f);
+                    fgi_db!("{}fn {}{} {}: {}{} {}:= {}...", 
+                            vt100::Kw{}, vt100::ValVar{}, f,
+                            vt100::Kw{}, vt100::CheckType{}, a,
+                            vt100::Kw{}, vt100::Exp{}
+                    );
                     db_region_open!();
                     let v : Val = fgi_val![ thunk ^e.clone() ];
                     let a2 = a.clone();
@@ -1639,12 +1655,16 @@ pub fn synth_items(ext:&Ext, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
                                    der_typ.map(|_| DeclClas::Type(a2)))
                     };
                     db_region_close!();
-                    fgi_db!("\x1B[1;33mfn \x1B[1;36;4;m{}\x1B[0;1m Done (\x1B[0;0m{}\x1B[0;1m).", f,
+                    fgi_db!("{}fn {}{} {}: {}{} {}[{}{}]",
+                            vt100::Kw{}, vt100::ValVar{}, f,
+                            vt100::Kw{}, vt100::CheckType{}, a,
+                            vt100::Lo{},
                             if let Ok(_) = der.der.clas.clone() {
-                                "\x1B[1;32mCheck OK"
+                                "\x1B[0;1;32mCheck OK"
                             } else {
-                                "\x1B[1;31mCheck error"
-                            }
+                                "\x1B[0;1;31mCheck error"
+                            },
+                            vt100::Lo{}
                     );
                     ctx = ctx.var(f.clone(), a.clone());
                     tds.push(ItemRule::Bind(der));
@@ -1652,7 +1672,11 @@ pub fn synth_items(ext:&Ext, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
                     decls = d;
                 },
                 _ => {
-                    fgi_db!("\x1B[1;33mfn \x1B[1;36;4;m{}\x1B[0;1m Begin check...\x1B[0;0m", f);
+                    fgi_db!("{}fn {}{} {}: {}{} {}:= {}...", 
+                            vt100::Kw{}, vt100::ValVar{}, f,
+                            vt100::Kw{}, vt100::CheckType{}, a,
+                            vt100::Kw{}, vt100::Exp{}
+                    );
                     db_region_open!();
                     let v : Val = fgi_val![ thunk fix ^f. ^e.clone() ];
                     let a2 = a.clone();
@@ -1667,12 +1691,16 @@ pub fn synth_items(ext:&Ext, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
                                    der_typ.map(|_| DeclClas::Type(a2)))
                     };
                     db_region_close!();
-                    fgi_db!("\x1B[1;33mfn \x1B[1;36;4;m{}\x1B[0;1m Done (\x1B[0;0m{}\x1B[0;1m).", f,
+                    fgi_db!("{}fn {}{} {}: {}{} {}[{}{}]", 
+                            vt100::Kw{}, vt100::ValVar{}, f,
+                            vt100::Kw{}, vt100::CheckType{}, a,
+                            vt100::Lo{},
                             if let Ok(_) = der.der.clas.clone() {
-                                "\x1B[1;32mCheck OK"
+                                "\x1B[0;1;32mCheck OK"
                             } else {
-                                "\x1B[1;31mCheck error"
-                            }
+                                "\x1B[0;1;31mCheck error"
+                            },
+                            vt100::Lo{}
                     );
                     ctx = ctx.var(f.clone(), a.clone());
                     tds.push(ItemRule::Bind(der));
@@ -1680,7 +1708,7 @@ pub fn synth_items(ext:&Ext, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
                     decls = d;
                 }
             }}
-        }      
+        } 
     };
     return (tds, ctx)
 }
@@ -1727,6 +1755,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                  ce)
         }        
         &Exp::UseAll(ref m, ref exp) => {
+            fgi_db!("{}use {}{}::*", vt100::Kw{}, vt100::ModIdent{}, m.path);
             let m_der = synth_module(ext, &m.module);
             let ctx = ctx.append(&m_der.ctx_out);
             let e_der = synth_exp(ext, &ctx, exp);
@@ -1739,29 +1768,27 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                  ce)
         }
         &Exp::AnnoC(ref e, ref ctyp) => {
-            // XXX/TODO: this is a hack, depending on what you expect it to mean.
-            //fgi_db!("AnnoC: Checking against: {:?}", ctyp);
+            // XXX/TODO: this is a hack, depending on what you expect
+            // it to mean: The ctyp is Cons'd with the empty effect.
+            // Probably, we want to permit *any* effect, not insist on
+            // the *lack* of any effect.
+            let ctyp = expand::expand_ctype(ctx, ctyp.clone());
             let noeffect = Effect::WR(IdxTm::Empty, IdxTm::Empty);
             let td0 = check_exp(ext, ctx, e, &CEffect::Cons(ctyp.clone(),noeffect));
-            //fgi_db!("AnnoC: ctyp={:?}", ctyp.clone());
             let typ0 = td0.clas.clone();
             let td = ExpRule::AnnoC(td0, ctyp.clone());
             match typ0 {
                 Err(_) => { 
-                    //fgi_db!("AnnoC: Err: {:?}", ctyp.clone());
                     fail(td, TypeError::ParamNoCheck(0))
                 },
                 Ok(CEffect::Cons(ct,eff)) => {
-                    //fgi_db!("AnnoC: Ok: ctyp={:?}", ctyp.clone());
-                    // TODO: Type equality may be more complex than this test (e.g. alpha equivalent types should be equal)
-                    if *ctyp == ct { succ(td, CEffect::Cons(ct,eff)) }
+                    if ctyp == ct { succ(td, CEffect::Cons(ct,eff)) }
                     else { 
                         fgi_db!("TODO/XXX/FIXME");
                         fail(td, TypeError::AnnoMism) 
                     }
                 },
                 _ => { 
-                    //fgi_db!("AnnoC: Fail: typ0={:?}", typ0);
                     fail(td, TypeError::ExpNotCons)
                 }
             }
@@ -2971,6 +2998,7 @@ pub mod debug {
         fn term_desc() -> &'static str { "value" }
         fn short(&self) -> &str {
             match *self {
+                ValRule::HostObj => "HostObj",
                 ValRule::Var(_) => "Var",
                 ValRule::Unit => "Unit",
                 ValRule::Pair(_, _) => "Pair",

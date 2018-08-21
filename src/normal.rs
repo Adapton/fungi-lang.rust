@@ -1408,6 +1408,7 @@ pub fn unroll_type(ctx:&Ctx, typ:&Type) -> (Type, bool) {
     (res, flag)
 }
 
+/*
 /// **** UNSOUND: *******
 ///
 /// Unroll a `rec` type just a little, exposing any binder that lies
@@ -1457,3 +1458,4 @@ fn unroll_past_binder(typ:&Type) -> (Type, bool) {
         }
     }
 }
+*/

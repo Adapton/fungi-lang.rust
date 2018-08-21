@@ -1450,6 +1450,7 @@ macro_rules! fgi_module {
 ///     nmtm  x = ( N ) d        (define x as a name term N)
 ///     idxtm x = ( i ) d        (define x as an index term i)
 ///     type  t = ( A ) d        (define a type alias `t` for value type `A`)
+///     type  t;        d        (declare an undefined, abstract type named `t`)
 ///     val x : ( A ) = ( v ) d  (define a value v, of type A, bound to x)
 ///     val x         = ( v ) d  (define a value v, bound to x; synthesizes type from v)
 ///     fn  f : ( A ) = { e } d  (define a function f, of thunk type A, with recursive body e)
@@ -1506,6 +1507,11 @@ macro_rules! fgi_decls {
     { type $t:ident = ( $($a:tt)+ ) $($d:tt)* } => {
         Decls::Type( stringify![$t].to_string(),
                      fgi_vtype![ $($a)+ ],
+                     Rc::new( fgi_decls![ $($d)* ] ) )
+    };
+    { type $t:ident ; $($d:tt)* } => {
+        Decls::Type( stringify![$t].to_string(),
+                     Type::Abstract( stringify![$t].to_string() ),
                      Rc::new( fgi_decls![ $($d)* ] ) )
     };
     { val $x:ident : ( $($a:tt)+ ) = ( $($v:tt)+ ) $($d:tt)* } => {

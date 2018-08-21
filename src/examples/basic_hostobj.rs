@@ -12,8 +12,9 @@
 /// Fungi side:
 /// --------------
 ///
-///  The [Fungi module]() here wraps the Rust constructors and
-///  functions over Colors with Fungi functions.
+///  The 
+///  [Fungi module](https://docs.rs/fungi-lang/0/src/fungi_lang/examples/basic_hostobj.rs.html)
+///  wraps the Rust constructors and functions over Colors with Fungi functions.
 ///
 pub mod color {
     use dynamics::RtVal;
@@ -39,10 +40,7 @@ pub mod color {
     }    
 
     fgi_mod!{hostuse{ hostobj::val_of_obj }
-        // TODO:
-        //  - Some way to declare new abstract types
-        //
-        //type Color = HostType(Color);
+        type Color;
         val color_red   : (Color) = (^val_of_obj(Color::Red))
         val color_green : (Color) = (^val_of_obj(Color::Green))
         val color_gold  : (Color) = (^val_of_obj(Color::Gold))
@@ -51,11 +49,30 @@ pub mod color {
         }
     }
 
+    /* Run as (shortened version):
+     * cargo test examples::basic_hostobj::static 2>&1 | less -R
+     */
+    pub mod static_tests {
+        #[test]
+        pub fn typing() { fgi_listing_test!{
+            use super::*;
+            let red   = {ret color_red}
+            let green = {ret color_green}
+            let gold  = {ret color_gold}
+            let triple = {ret (red, green, gold)}
+            let red_next = {{force color_next} red}
+            let green_next = {{force color_next} green}
+            let gold_next = {{force color_next} gold}
+            let triple_next = {ret (red_next, green_next, gold_next)}
+            ret (triple, triple_next)
+        }}
+    }
+
     #[test]
     pub fn docolors() {
         fgi_dynamic_trace!
         {[Expect::Success]
-         use self::*; // import color_next
+         use self::*;
          let red   = {ret color_red}
          let green = {ret color_green}
          let gold  = {ret color_gold}
