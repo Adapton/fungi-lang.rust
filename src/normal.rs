@@ -1178,20 +1178,16 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
             let t2 = normal_type(ctx, t);
             Type::Exists(x.clone(), g.clone(), p.clone(), Rc::new(t2))
         }
-
-        &Type::Ident(ref ident, ref def) => { 
-            match (ident.as_str(), def) {
-                // Built-in primitives are normal; they lack a definition in the context:
-                ("Nat", _) | ("Bool", _) | ("String", _) => { 
-                    assert_eq!(def, &None); typ.clone() 
-                },
-                (_, Some(def)) => (**def).clone(),
-                (_, None) => {
-                    fgi_db!("normal_type: internal error: unexpanded type identifer: {}", ident);
-                    typ.clone()
-                }
-            }
-        }
+        &Type::Ident(ref x) => {
+            use expand;
+            expand::expand_type(ctx, Type::Ident(x.clone()))
+        },
+        &Type::IdentDef(ref _ident, ref def) => { 
+            (**def).clone() 
+        },
+        &Type::Prim(ref pt) => { Type::Prim(pt.clone()) },
+        &Type::Abstract(ref x) => { Type::Abstract(x.clone()) },
+        &Type::IdentUndef(ref x) => { Type::IdentUndef(x.clone()) },
         &Type::TypeApp(ref a, ref b) => {
             let a = normal_type(ctx, a);
             let b = normal_type(ctx, b);
@@ -1296,29 +1292,29 @@ pub fn match_ceffect(ctx:&Ctx, ce:CEffect) -> CEffect {
 
 pub fn match_ctype(ctx:&Ctx, ct:CType) -> CType {
     match ct {
-        CType::Lift(a) => CType::Lift(match_type(ctx, a)),
+        CType::Lift(ref a) => CType::Lift(match_type(ctx, a)),
         ct => ct
     }
 }
 
-pub fn match_type_rec(ctx:&Ctx, t:TypeRec) -> TypeRec {
-    Rc::new(match_type(ctx, (*t).clone()))
+pub fn match_type_rec(ctx:&Ctx, t:&TypeRec) -> TypeRec {
+    Rc::new(match_type(ctx, &**t))
 }
 
-pub fn match_type(ctx:&Ctx, t:Type) -> Type {
+pub fn match_type(ctx:&Ctx, t:&Type) -> Type {
     db_region_open!(false);
     fgi_db!("match_type({}) ~~> ?", t);
     let res = match t.clone() {
-        Type::IdxApp(t, i) => {
+        Type::IdxApp(ref t, ref i) => {
             use expand;
             normal_type
                 (&Ctx::Empty, 
-                 &Type::IdxApp(expand::expand_type_rec(ctx, t), i))
+                 &Type::IdxApp(expand::expand_type_rec(ctx, t.clone()), i.clone()))
         },
-        Type::Ident(_, Some(t)) => (*t).clone(),
-        Type::Ident(x, None) => {
+        Type::IdentDef(_, ref t) => (**t).clone(),
+        Type::Ident(ref x) => {
             use expand;
-            expand::expand_type(ctx, Type::Ident(x, None))
+            expand::expand_type(ctx, Type::Ident(x.clone()))
         },
         t => t,
     };
@@ -1387,11 +1383,11 @@ pub fn unroll_type(ctx:&Ctx, typ:&Type) -> (Type, bool) {
             let (t12, b) = unroll_type(ctx, t1);
             (Type::TypeApp(Rc::new(t12), t2.clone()), b)
         },
-        &Type::Ident(_, Some(ref xdef)) => {
+        &Type::IdentDef(_, ref xdef) => {
             //fgi_db!("UNROLL (1.5/2): {}", x);
             unroll_type(ctx, &**xdef)
         },
-        &Type::Ident(_, None) => {
+        &Type::Ident(_) => {
             //fgi_db!("UNROLL (1.5/2): {}", x);
             use expand;
             unroll_type(ctx, &expand::expand_type(ctx, typ.clone()))

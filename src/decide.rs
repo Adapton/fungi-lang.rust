@@ -1750,21 +1750,25 @@ pub mod subset {
     
     /// Decide type subset relation on normalized versions of the given terms.
     pub fn decide_type_subset_norm(ctx: &RelCtx, a:Type, b:Type) -> bool {
+        use expand;
+        let db = false;
         if a == b { true }
         else {
             // TODO-someday: Make this operation cheaper somehow (use traits in a clever way?)
             let (ctx1, ctx2) = ctxs_of_relctx((*ctx).clone());
             fgi_db!("\x1B[0;1mdecide_type_subset_norm: Subtypes?:");
-            db_region_open!(false, vt100::DecideBracket);
+            db_region_open!(db, vt100::DecideBracket);
             fgi_db!("\x1B[0;0m\t{}\n  \x1B[1;35m≤(?)\x1B[0;0m\n\t{}", a, b);
             db_region_open!();
+            let a = expand::expand_type(&ctx1, a);
             let a = normal::normal_type(&ctx1, &a);
             db_region_close!();
-            db_region_open!(false, vt100::DecideBracket);
+            db_region_open!(db, vt100::DecideBracket);
+            let b = expand::expand_type(&ctx2, b);
             let b = normal::normal_type(&ctx2, &b);
             db_region_close!();
             fgi_db!("\x1B[0;1m^decide_type_subset_norm: Normalized:\x1B[0;0m\n\t{}\n  \x1B[1;35m≤(?)\x1B[0;0m\n\t{}", a, b);
-            db_region_open!(false, vt100::DecideBracket);
+            db_region_open!(db, vt100::DecideBracket);
             let r = decide_type_subset(ctx, a.clone(), b.clone());
             db_region_close!();
             fgi_db!("\x1B[0;1m^decide_type_subset_norm: ({}):\x1B[0;0m\n\t{}\n  {}\n\t{}", r, a, 
@@ -1779,20 +1783,28 @@ pub mod subset {
     pub fn decide_type_subset(ctx: &RelCtx, a:Type, b:Type) -> bool {
         if a == b { true } else {
             match (a,b) {
-                (Type::Ident(x, to), b) => {
-                    match (to, ctx.lookup_type_def(&x)) {
-                        (None, None) => false,
-                        (Some(a), _) => decide_type_subset(ctx, (*a).clone(), b),
-                        (_, Some(a)) => decide_type_subset(ctx, a, b),
-                    }
+                (Type::Ident(y), b) => {
+                    use expand;
+                    let a = expand::expand_type(&ctxs_of_relctx(ctx.clone()).0,Type::Ident(y));
+                    decide_type_subset(ctx, a, b)
                 }
-                (a, Type::Ident(y, to)) => {
-                    match (to, ctx.lookup_type_def(&y)) {
-                        (None, None) => false,
-                        (Some(b), _) => decide_type_subset(ctx, a, (*b).clone()),
-                        (_, Some(b)) => decide_type_subset(ctx, a, b),
-                    }
+                (a, Type::Ident(y)) => {
+                    use expand;
+                    let b = expand::expand_type(&ctxs_of_relctx(ctx.clone()).1,Type::Ident(y));
+                    decide_type_subset(ctx, a, b)
                 }
+                (Type::IdentDef(_x, a), b) => {
+                    decide_type_subset(ctx, (*a).clone(), b)
+                }
+                (a, Type::IdentDef(_y, b)) => {
+                    decide_type_subset(ctx, a, (*b).clone())
+                },
+                (Type::Abstract(x), Type::Abstract(y)) => {
+                    x == y
+                },
+                (Type::IdentUndef(x), Type::IdentUndef(y)) => {
+                    x == y
+                },
                 (Type::Unit, Type::Unit) => true,
                 (Type::Sum(a1, a2), Type::Sum(b1, b2)) => {
                     decide_type_subset_rec(ctx, a1, b1) &&

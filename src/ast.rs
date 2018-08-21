@@ -305,11 +305,23 @@ pub enum Effect {
 }
 pub type EffectRec = Rc<Effect>;
 
+/// Primitive (value) types
+#[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
+pub enum PrimType {
+    Nat,
+    Bool,
+    String,
+}
+
 /// Value types
 #[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
 pub enum Type {
     Var(Var),
-    Ident(Ident, Option<TypeRec>),
+    Ident(Ident),
+    Abstract(Ident),
+    Prim(PrimType),
+    IdentDef(Ident, TypeRec),
+    IdentUndef(Ident),    
     Sum(TypeRec, TypeRec),
     Prod(TypeRec, TypeRec),
     Unit,
@@ -332,9 +344,9 @@ pub fn ident_nat()    -> Ident { "Nat".to_string() }
 pub fn ident_bool()   -> Ident { "Bool".to_string() }
 pub fn ident_string() -> Ident { "String".to_string() }
 
-pub fn type_string()  -> Type { Type::Ident(ident_string(), None) }
-pub fn type_nat()     -> Type { Type::Ident(ident_nat(), None) }
-pub fn type_bool()    -> Type { Type::Ident(ident_bool(), None) }
+pub fn type_string()  -> Type { Type::Prim(PrimType::String) }
+pub fn type_nat()     -> Type { Type::Prim(PrimType::Nat) }
+pub fn type_bool()    -> Type { Type::Prim(PrimType::Bool) }
 
 /// Computation types
 #[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]

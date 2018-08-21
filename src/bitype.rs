@@ -1268,12 +1268,12 @@ pub fn synth_val(ext:&Ext, ctx:&Ctx, val:&Val) -> ValDer {
 pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
     let fail = |td:ValRule, err :TypeError| { failure(Dir::Check(typ_raw.clone()), ext, ctx, val.clone(), td, err)  };
     let succ = |td:ValRule, typ :Type     | { success(Dir::Check(typ_raw.clone()), ext, ctx, val.clone(), td, typ) };
-    db_region_open!();
-    fgi_db!("{} |- {} <= match(normal({})) ~~> ?", ctx, val, typ_raw);
+    db_region_open!(false);
+    fgi_db!("{} |- {} <= match({})) ~~> ?", ctx, val, typ_raw);
     let typ_norm = expand::expand_type(ctx, typ_raw.clone());
     //let typ_norm = normal::normal_type(ctx, &typ_norm);
-    let typ_norm = &(normal::match_type(ctx, typ_norm));
-    fgi_db!("{} |- {} <= match(normal({})) ~~> {}", ctx, val, typ_raw, typ_norm);
+    let typ_norm = &(normal::match_type(ctx, &typ_norm));
+    fgi_db!("{} |- {} <= match({}) ~~> {}", ctx, val, typ_raw, typ_norm);
     db_region_close!();
     match val {
         &Val::HostObj(_) => {
@@ -1287,7 +1287,7 @@ pub fn check_val(ext:&Ext, ctx:&Ctx, val:&Val, typ_raw:&Type) -> ValDer {
                     // TODO-db: print seam
                     let subset_flag = decide::subset::decide_type_subset_norm_db(
                             &decide::relctx_of_ctx(&ctx),
-                            x_typ_raw.clone(), typ_raw.clone()
+                            x_typ_raw.clone(), typ_norm.clone()
                     );                    
                     if subset_flag {
                         if false { // Super-verbose variable-typing messages:
@@ -1532,6 +1532,12 @@ pub fn synth_items(ext:&Ext, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
             &Decls::NmTm(ref x, ref m, ref d) => {
                 let der = synth_nmtm(ext, &ctx, m);
                 let sort = der.clas.clone();
+                fgi_db!("{}nmtm {}{} {}: {}{} {}:= {}{}",
+                        vt100::Kw{}, vt100::NmTmIdent{}, x,
+                        vt100::Kw{}, vt100::Sort{}, 
+                        display::Result{result:sort.clone()},
+                        vt100::Kw{}, vt100::NmTm{}, m
+                );
                 let der = ItemDer{
                     doc:doc.clone(),
                     qual:Qual::NmTm,
@@ -1548,6 +1554,12 @@ pub fn synth_items(ext:&Ext, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
             &Decls::IdxTm(ref x, ref i, ref d) => {
                 let id = synth_idxtm(ext, &ctx, i);
                 let sort = id.clas.clone();
+                fgi_db!("{}idxtm {}{} {}: {}{} {}:= {}{}", 
+                        vt100::Kw{}, vt100::IdxTmIdent{}, x,
+                        vt100::Kw{}, vt100::Sort{}, 
+                        display::Result{result:sort.clone()},
+                        vt100::Kw{}, vt100::IdxTm{}, i
+                );
                 let der = ItemDer{
                     doc:doc.clone(),
                     qual:Qual::IdxTm,
@@ -1564,6 +1576,7 @@ pub fn synth_items(ext:&Ext, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
             }
             &Decls::Type(ref x, ref a, ref d) => {
                 // TODO: synth kinding for type
+                let a = expand::expand_type(&ctx, a.clone());
                 let der = ItemDer{
                     doc:doc.clone(),
                     qual:Qual::Type,
@@ -1572,6 +1585,11 @@ pub fn synth_items(ext:&Ext, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
                                DeclRule::Type(x.clone(), a.clone()),
                                Ok(DeclClas::Kind(Kind::NoParse("TODO-XXX-bitype.rs".to_string()))))
                 };
+                fgi_db!("{}type {}{} {}: {}? {}:= {}{}", 
+                        vt100::Kw{}, vt100::TypeIdent{}, x,
+                        vt100::Kw{}, vt100::Kind{},
+                        vt100::Kw{}, vt100::TypeDef{}, a
+                );
                 doc = None;
                 tds.push(ItemRule::Bind(der));
                 ctx = ctx.def(x.clone(), Term::Type(a.clone()));
@@ -1669,7 +1687,12 @@ pub fn synth_items(ext:&Ext, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
 
 /// Synthesize a typing derivation for a module, given the module AST.
 pub fn synth_module(ext:&Ext, m:&Shared<Module>) -> ModuleDer {
+    fgi_db!("{}mod {}{} {}{{", vt100::Kw{}, vt100::ModIdent{}, m.path, vt100::Kw{});
+    db_region_open!();    
     let (item_tds, ctx) = synth_items(ext, &Ctx::Empty, &m.decls);
+    db_region_close!();
+    fgi_db!("{}}} {}[{}: {}/{} ok items]", 
+            vt100::Kw{}, vt100::Lo{}, m.path, "?", "?");
     ModuleDer{
         ast: m.clone(),
         tds: item_tds,
@@ -1990,7 +2013,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let typ0 = td0.clas.clone();
             let td = ExpRule::Get(td0);
             // XXX-match
-            match typ0.clone().map(|a| normal::normal_type(ctx, &a)) {
+            match typ0.clone().map(|a| normal::match_type(ctx, &a)) {
                 Err(_) => fail(td, TypeError::SynthFailVal(v.clone())),
                 Ok(Type::Ref(ref idx,ref ty)) => {
                     let ceff = CEffect::Cons(
@@ -2174,21 +2197,16 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let td1 = synth_val(ext, ctx, v1);
             let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
             let td = ExpRule::PrimApp(PrimAppRule::NatPlus(td0,td1));
-            // XXX-match
             match (typ0,typ1) {
                 (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
                 (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
-                (Ok(Type::Ident(ref n0, _)),
-                 Ok(Type::Ident(ref n1, _)))
-                if (n0 == "Nat") && (n1 == "Nat") => {
-                    let ce = CEffect::Cons(
-                        CType::Lift(Type::Ident("Nat".to_string(), None)),
-                        Effect::WR(IdxTm::Empty, IdxTm::Empty),
-                    );
-                    succ(td, ce)
-                },
-                (Ok(Type::Ident(ref n0, _)),_) if n0 == "Nat" => {
-                    fail(td, TypeError::ParamMism(1))
+                (Ok(Type::Prim(PrimType::Nat)),
+                 Ok(Type::Prim(PrimType::Nat))) => {
+                     let ce = CEffect::Cons(
+                         CType::Lift(Type::Prim(PrimType::Nat)),
+                         Effect::WR(IdxTm::Empty, IdxTm::Empty),
+                     );
+                     succ(td, ce)
                 },
                 _ => fail(td, TypeError::ParamMism(0))
             }
@@ -2198,21 +2216,16 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let td1 = synth_val(ext, ctx, v1);
             let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
             let td = ExpRule::PrimApp(PrimAppRule::NatLt(td0,td1));
-            // XXX-match
             match (typ0,typ1) {
                 (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
                 (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
-                (Ok(Type::Ident(ref n0, _)),
-                 Ok(Type::Ident(ref n1, _)))
-                if (n0 == "Nat") && (n1 == "Nat") => {
+                (Ok(Type::Prim(PrimType::Nat)),
+                 Ok(Type::Prim(PrimType::Nat))) => {
                     let ce = CEffect::Cons(
-                        CType::Lift(Type::Ident("Bool".to_string(), None)),
+                        CType::Lift(Type::Prim(PrimType::Bool)),
                         Effect::WR(IdxTm::Empty, IdxTm::Empty),
                     );
                     succ(td, ce)
-                },
-                (Ok(Type::Ident(ref n0, _)),_) if n0 == "Nat" => {
-                    fail(td, TypeError::ParamMism(1))
                 },
                 _ => fail(td, TypeError::ParamMism(0))
             }
@@ -2222,21 +2235,16 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
             let td1 = synth_val(ext, ctx, v1);
             let (typ0,typ1) = (td0.clas.clone(),td1.clas.clone());
             let td = ExpRule::PrimApp(PrimAppRule::NatEq(td0,td1));
-            // XXX-match
             match (typ0,typ1) {
                 (Err(_),_) => fail(td, TypeError::ParamNoSynth(0)),
                 (_,Err(_)) => fail(td, TypeError::ParamNoSynth(1)),
-                (Ok(Type::Ident(ref n0, _)),
-                 Ok(Type::Ident(ref n1, _)))
-                if (n0 == "Nat") && (n1 == "Nat") => {
+                (Ok(Type::Prim(PrimType::Nat)),
+                 Ok(Type::Prim(PrimType::Nat))) => {
                     let ce = CEffect::Cons(
-                        CType::Lift(Type::Ident("Bool".to_string(), None)),
+                        CType::Lift(Type::Prim(PrimType::Bool)),
                         Effect::WR(IdxTm::Empty, IdxTm::Empty),
                     );
                     succ(td, ce)
-                },
-                (Ok(Type::Ident(ref n0, _)),_) if n0 == "Nat" => {
-                    fail(td, TypeError::ParamMism(1))
                 },
                 _ => fail(td, TypeError::ParamMism(0))
             }
@@ -2298,7 +2306,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
 
         &Exp::Split(ref v, ref x1, ref x2, ref e) => {
             let td0 = synth_val(ext, ctx, v);
-            let v_ty = td0.clone().clas.map(|a| normal::normal_type(ctx, &a));
+            let v_ty = td0.clone().clas.map(|a| normal::match_type(ctx, &a));
             // XXX-match
             match v_ty.clone() {
                 Err(_) => fail(ExpRule::Split(
@@ -2467,7 +2475,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                 }
                 Ok(v_ty) => {
                     // TODO: Do we really need to normalize here? Perhaps so.
-                    let v_ty = normal::normal_type(ctx, &v_ty);
+                    let v_ty = normal::match_type(ctx, &v_ty);
                     let (v_ty,_) = normal::unroll_type(ctx, &v_ty);
                     let new_ctx = ctx.var(x.clone(), v_ty);
                     // fgi_db_XXX --- print x
@@ -2489,7 +2497,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
         //
         &Exp::Unpack(ref a1, ref x, ref v, ref e) => {
             let v_td = synth_val(ext, ctx, v);
-            let v_ty = v_td.clone().clas.map(|a| normal::normal_type(ctx, &a));
+            let v_ty = v_td.clone().clas.map(|a| normal::match_type(ctx, &a));
             // XXX-match
             match v_ty.clone() {
                 Ok(Type::Exists(ref a2, ref g, ref p, ref aa)) => {
@@ -2523,7 +2531,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
         },
         &Exp::Case(ref v, ref x1, ref e1, ref x2, ref e2) => {
             let v_td = synth_val(ext, ctx, v);
-            let v_ty = v_td.clone().clas.map(|a| normal::normal_type(ctx, &a));
+            let v_ty = v_td.clone().clas.map(|a| normal::match_type(ctx, &a));
             fgi_db!("{}case {}{} {}of {}...",
                     vt100::Kw{}, vt100::Val{}, v,
                     vt100::Kw{}, vt100::Exp{});
@@ -2649,7 +2657,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
         },
         &Exp::Split(ref v, ref x1, ref x2, ref e) => {
             let td0 = synth_val(ext, ctx, v);
-            let v_ty = td0.clone().clas.map(|a| normal::normal_type(ctx, &a));
+            let v_ty = td0.clone().clas.map(|a| normal::match_type(ctx, &a));
             // XXX-match
             match v_ty.clone() {
                 Err(_) => fail(ExpRule::Split(
@@ -2696,14 +2704,14 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
             let td2 = check_exp(ext, ctx, e2, ceffect);
             db_region_close!();
             fgi_db!("{}}}", vt100::Kw{});
-            let v_ty = td0.clas.clone().map(|a| normal::normal_type(ctx, &a));
+            let v_ty = td0.clas.clone().map(|a| normal::match_type(ctx, &a));
             let (_t0,t1,t2) = (td0.clas.clone(),td1.clas.clone(),td2.clas.clone());
             let td = ExpRule::IfThenElse(td0,td1,td2);
             match (v_ty,t1,t2) {
                 (Err(_),_,_) => fail(td, TypeError::ParamNoSynth(0)),
                 (_,Err(_),_) => fail(td, TypeError::ParamNoCheck(1)),
                 (_,_,Err(_)) => fail(td, TypeError::ParamNoCheck(2)),
-                (Ok(Type::Ident(ref b, _)),_,_) if b == "Bool" => {
+                (Ok(Type::Prim(PrimType::Bool)),_,_) => {
                     // the exps are correct, because of the check above
                     fgi_db!("{}", vt100::CheckMark{});
                     succ(td, ceffect.clone())
@@ -2767,7 +2775,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
             ),TypeError::AnnoMism)}
         },
         &Exp::Ref(ref v1,ref v2) => {
-            let nceffect = normal::normal_ceffect(ctx, ceffect.clone());
+            let nceffect = normal::match_ceffect(ctx, ceffect.clone());
             //fgi_db!("Ref check rule; ceffect is {}", ceffect);
             //fgi_db!("Ref check rule; normal(ceffect) is {:?}", &nceffect);
             // XXX-match

@@ -639,7 +639,7 @@ macro_rules! fgi_vtype {
         let v:Vec<char> = s.chars().collect();
         if v[0].is_uppercase() {
             // uppercase: names for type definitions/aliases
-            Type::Ident(s, None)
+            Type::Ident(s)
         }
         else {
             // lowercase: names for type variables introduced by `forallt` and `rec`

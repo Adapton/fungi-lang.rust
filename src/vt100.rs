@@ -90,6 +90,19 @@ vt100_escape!{FgiReduceEngine,"0;1;37"}
 
 vt100_escape!{DecideIf,"0;1;37"}
 
+vt100_escape!{Sort, "0;1;34"}
+vt100_escape!{Kind, "0;1;34"}
+
+//vt100_escape!{NmTm, "0;0;32"}
+//vt100_escape!{IdxTm, "0;0;32"}
+vt100_escape!{NmTm, "0;0;35"}
+vt100_escape!{IdxTm, "0;0;35"}
+vt100_escape!{TypeDef, "0;1;35"}
+vt100_escape!{NmTmIdent, "0;1;36"}
+vt100_escape!{IdxTmIdent, "0;1;36"}
+vt100_escape!{TypeIdent, "0;1;36"}
+vt100_escape!{ModIdent, "0;1;36"}
+
 vt100_escape!{CheckType, "0;1;35"}
 vt100_escape!{SynthType, "0;1;34"}
 vt100_escape!{CheckSort, "0;1;35"}

@@ -66,45 +66,26 @@ pub fn expand_type_rec(ctx:&Ctx, a:Rc<Type>) -> Rc<Type> {
 pub fn expand_type(ctx:&Ctx, a:Type) -> Type {
     match a {
         Type::Unit => Type::Unit,
-        Type::Ident(ident, Some(def)) => {
-            fgi_db!("already expanded?: {} := {}", ident, def);
-            Type::Ident(ident, Some(def))
-        }
-        Type::Ident(ident, None) => {
+        Type::Abstract(x) => Type::Abstract(x),
+        Type::Prim(pt) => Type::Prim(pt),
+        Type::Ident(ident) => {
             match (ident.as_str(), ctx.lookup_type_def(&ident)) {
-                ("Nat", _) | ("Bool", _) | ("String", _) => { 
-                    // XXX-Use a different constructor here; perhaps "Prim"?
-                    Type::Ident(ident, None)
-                }
-                (_, Some(a)) => {
-                    if let Type::Ident(_,_) = a { a.clone() }
-                    else { Type::Ident(ident.clone(), Some(Rc::new(a))) }
+                ("Nat", _) => { Type::Prim(PrimType::Nat) }
+                ("Bool", _) => { Type::Prim(PrimType::Bool) }
+                ("String", _) => { Type::Prim(PrimType::String) },
+                (_, Some(def)) => { 
+                    // identifier is defined: place the definition with the use
+                    Type::IdentDef(ident.clone(), Rc::new(def)) 
                 }
                 (_, None) => {
+                    // identifier is not defined. error.
                     fgi_db!("expand_type: undefined type identifer: {}", ident);
-                    Type::Ident(ident, None)
+                    Type::IdentUndef(ident)
                 }
             }
-        }
-        // match ident.as_str() {
-        //     // Built-in primitives are normal; they lack a definition in the context:
-        //     "Nat" | "Bool" | "String"
-        //         => { Type::Ident(ident).clone() }
-        //     // all other identifiers are for defined types; look up the definition
-        //     _ => { match ctx.lookup_type_def(&ident) {
-        //         Some(a) => {
-        //             // If the definition is itself an identifier, it's a user type label -- Hack! XXX
-        //             if let Type::Ident(_) = a { a.clone() }
-        //             else { expand_type(ctx, a) }
-        //         },
-        //         _ => {
-        //             println!("undefined type: {} in\n{:?}", ident, ctx);
-        //             // Give up:
-        //             Type::Ident(ident.clone())
-        //         }
-        //     }}
-        // }
-        // }
+        },
+        Type::IdentUndef(x) => Type::IdentUndef(x),
+        Type::IdentDef(ident, def) => Type::IdentDef(ident, def),
         Type::Var(y) => Type::Var(y),
         Type::Sum(a1, a2) => {
             Type::Sum(

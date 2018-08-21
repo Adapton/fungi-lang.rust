@@ -24,7 +24,7 @@ pub fn listing () { fgi_listing_expect![
         }
 
         /// Levels (as numbers), for level trees.
-        type Lev = ( Nat )
+        type Lev = ( Nat );
 
         /// Sequences (balanced binary level trees), whose leaves
         /// are optional natural numbers:
