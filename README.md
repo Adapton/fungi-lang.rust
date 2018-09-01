@@ -2,11 +2,7 @@
 
 Fungi is a Rust-based DSL that offers a **_typed functional language_ for _incremental computation with names_**.
 
-## Status:
- - See [Example programs in Fungi](https://docs.rs/fungi-lang/0/fungi_lang/examples/index.html).
-   - We have implemented a prototype of the [bidirectional type system](https://docs.rs/fungi-lang/0/fungi_lang/bitype/index.html),
-     including the refinement types and associated [decision procedures for effects](https://docs.rs/fungi-lang/0/fungi_lang/decide/effect/index.html).
-   - To view these Fungi typing derivations interactively, especially to diagnose type or effect errors, see a related project, the [Human-Fungi Interface](https://github.com/Adapton/fungi-vis)  
+## [Example programs in Fungi](https://docs.rs/fungi-lang/0/fungi_lang/examples/index.html).
 
 ## Fungi Developer Resources:
  - [Fungi technical report](https://arxiv.org/abs/1808.07826).
