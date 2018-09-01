@@ -2,7 +2,7 @@
 
 Fungi is a Rust-based DSL that offers a **_typed functional language_ for _incremental computation with names_**.
 
-## [Example programs in Fungi](https://docs.rs/fungi-lang/0/fungi_lang/examples/index.html).
+## [Example programs in Fungi](https://docs.rs/fungi-lang/0/fungi_lang/examples/index.html)
 
 ## Fungi Developer Resources:
  - [Fungi technical report](https://arxiv.org/abs/1808.07826).
