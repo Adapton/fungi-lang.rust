@@ -5,13 +5,14 @@ Fungi is a Rust-based DSL that offers a **_typed functional language_ for _incre
 ## [Example programs in Fungi](https://docs.rs/fungi-lang/0/fungi_lang/examples/index.html)
 
 ## Fungi Developer Resources:
- - [Fungi technical report](https://arxiv.org/abs/1808.07826).
  - Rust Implementation of Fungi:
     - [Documentation](https://docs.rs/fungi-lang)  
     - [Crate website](https://crates.io/crates/fungi-lang)  
  - [Visualization tools for Fungi programs](https://github.com/Adapton/fungi-vis)  
 
 # Background
+
+(See also: [Fungi technical report](https://arxiv.org/abs/1808.07826))
 
 **Fungi is a typed functional language for incremental computation with names.** 
 
@@ -20,13 +21,12 @@ time**, reusing work that is unaffected by input changes.
 To maximize this reuse in a general-purpose programming setting, 
 programmers need a mechanism to identify dynamic allocations 
 (of data and subcomputations) that **correspond over time**.
+Fungi offers a notion of **names**, which is formal, general, and statically verifiable.
 
 Fungi's type-and-effect system permits the programmer
 to encode (program-specific) local invariants about names,
 and to use these invariants to establish **global uniqueness** for their
 composed programs, the property of using names correctly.
-Unlike prior general-purpose languages for incremental computing,
-Fungi's notion of names is formal, general, and statically verifiable.
 We prove (on paper) that well-typed Fungi programs respect global uniqueness.  We implement Fungi in Rust, as a "deeply-embedded" language, including Fungi's bidirectional type system and incremental evaluation semantics.
 
 ## Fungi programs _compute incrementally_
