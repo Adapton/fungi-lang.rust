@@ -440,7 +440,7 @@ pub mod effect {
         db_region_close!();
         match &res {
             Ok(ref eff3) => {
-                fgi_db!("  {}decided: {}{} {}⊢ {}{} {}- {}{} {}≡ {}{}",
+                fgi_db!("  {}success: {}{} {}⊢ {}{} {}- {}{} {}≡ {}{}",
                         vt100::DecideTrue{},
                         vt100::VDash{}, ctx,
                         vt100::VDash{},
@@ -580,7 +580,7 @@ pub mod effect {
         db_region_close!();
         match &res {
             Ok(ref eff3) => {
-                fgi_db!("  {}decided: {}{} {}⊢ {}{} {}then {}{} {}≡ {}{}",
+                fgi_db!("  {}success: {}{} {}⊢ {}{} {}then {}{} {}≡ {}{}",
                         vt100::DecideTrue{},
                         vt100::VDash{}, ctx,
                         vt100::VDash{},
@@ -1742,8 +1742,35 @@ pub mod subset {
     }
 
     pub fn decide_type_subset_norm_db(ctx: &RelCtx, a:Type, b:Type) -> bool {
-        // XXX/TODO
-        let res = decide_type_subset_norm(ctx, a, b);
+        use vt100;
+        fgi_db!("{}decide if: {}{} {}⊢ {}{} {}⊆ {}{}",
+                vt100::DecideIf{},
+                vt100::VDash{}, ctx,
+                vt100::Kw{},
+                vt100::Type{}, a,
+                vt100::Kw{},
+                vt100::Type{}, b
+        );
+        db_region_open!(false);
+        let res = decide_type_subset_norm(ctx, a.clone(), b.clone());
+        db_region_close!();
+        if res {
+            fgi_db!("{}  success: {}{} {}⊢ {}{} {}⊆ {}{}",
+                    vt100::DecideTrue{},
+                    vt100::VDash{}, ctx,
+                    vt100::Kw{},
+                    vt100::Type{}, a,
+                    vt100::DecideTrue{},
+                    vt100::Type{}, b)
+        } else {        
+            fgi_db!("{}  failure: {}{} {}⊢ {}{} {}⊆ {}{}",
+                    vt100::DecideFail{},
+                    vt100::VDash{}, ctx,
+                    vt100::Kw{},
+                    vt100::Type{}, a,
+                    vt100::DecideFail{},
+                    vt100::Type{}, b)
+        };
         res
     }
 
@@ -1751,30 +1778,15 @@ pub mod subset {
     /// Decide type subset relation on normalized versions of the given terms.
     pub fn decide_type_subset_norm(ctx: &RelCtx, a:Type, b:Type) -> bool {
         use expand;
-        let db = false;
         if a == b { true }
         else {
             // TODO-someday: Make this operation cheaper somehow (use traits in a clever way?)
             let (ctx1, ctx2) = ctxs_of_relctx((*ctx).clone());
-            fgi_db!("\x1B[0;1mdecide_type_subset_norm: Subtypes?:");
-            db_region_open!(db, vt100::DecideBracket);
-            fgi_db!("\x1B[0;0m\t{}\n  \x1B[1;35m≤(?)\x1B[0;0m\n\t{}", a, b);
-            db_region_open!();
             let a = expand::expand_type(&ctx1, a);
             let a = normal::normal_type(&ctx1, &a);
-            db_region_close!();
-            db_region_open!(db, vt100::DecideBracket);
             let b = expand::expand_type(&ctx2, b);
             let b = normal::normal_type(&ctx2, &b);
-            db_region_close!();
-            fgi_db!("\x1B[0;1m^decide_type_subset_norm: Normalized:\x1B[0;0m\n\t{}\n  \x1B[1;35m≤(?)\x1B[0;0m\n\t{}", a, b);
-            db_region_open!(db, vt100::DecideBracket);
             let r = decide_type_subset(ctx, a.clone(), b.clone());
-            db_region_close!();
-            fgi_db!("\x1B[0;1m^decide_type_subset_norm: ({}):\x1B[0;0m\n\t{}\n  {}\n\t{}", r, a, 
-                    if r { "\x1B[1;32m≤\x1B[0;0m" } 
-                    else { "\x1B[1;31mNOT(≤)\x1B[0;0m" }, b);
-            db_region_close!();
             return r
         }
     }
@@ -1905,8 +1917,35 @@ pub mod subset {
     }
 
     pub fn decide_ceffect_subset_db(ctx: &RelCtx, ce1:CEffect, ce2:CEffect) -> bool {
-        // XXX/TODO
-        decide_ceffect_subset(ctx, ce1, ce2)
+        use vt100;
+        fgi_db!("{}decide if: {}{} {}⊢ {}{} {}⊆ {}{}",
+                vt100::DecideIf{},
+                vt100::VDash{}, ctx,
+                vt100::Kw{},
+                vt100::Type{}, ce1,
+                vt100::Kw{},
+                vt100::Type{}, ce2
+        );
+        db_region_open!(false);
+        let res = decide_ceffect_subset(ctx, ce1.clone(), ce2.clone());
+        if res {
+            fgi_db!("{}  success: {}{} {}⊢ {}{} {}⊆ {}{}",
+                    vt100::DecideTrue{},
+                    vt100::VDash{}, ctx,
+                    vt100::Kw{},
+                    vt100::Type{}, ce1,
+                    vt100::DecideTrue{},
+                    vt100::Type{}, ce2)
+        } else {        
+            fgi_db!("{}  failure: {}{} {}⊢ {}{} {}⊆ {}{}",
+                    vt100::DecideFail{},
+                    vt100::VDash{}, ctx,
+                    vt100::Kw{},
+                    vt100::Type{}, ce1,
+                    vt100::DecideFail{},
+                    vt100::Type{}, ce2)
+        };
+        res
     }
 
     

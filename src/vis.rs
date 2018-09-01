@@ -144,7 +144,7 @@ impl Bundle {
 #[macro_export]
 macro_rules! fgi_bundle {
     [$($e:tt)+] => {{
-        use util::debug_truncate;
+        //use util::debug_truncate;
         let exp = if false {
             label_exp(fgi_exp![$($e)+], &mut 0)
         } else { 

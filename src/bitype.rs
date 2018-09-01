@@ -1716,7 +1716,7 @@ pub fn synth_items(ext:&Ext, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
 /// Synthesize a typing derivation for a module, given the module AST.
 pub fn synth_module(ext:&Ext, m:&Shared<Module>) -> ModuleDer {
     fgi_db!("{}mod {}{} {}{{", vt100::Kw{}, vt100::ModIdent{}, m.path, vt100::Kw{});
-    db_region_open!();    
+    db_region_open!(true, vt100::BoldBracket);
     let (item_tds, ctx) = synth_items(ext, &Ctx::Empty, &m.decls);
     db_region_close!();
     fgi_db!("{}}} {}[{}: {}/{} ok items]", 

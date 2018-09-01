@@ -82,6 +82,7 @@ vt100_escape!{TypVar, "0;1;36"}
 vt100_escape!{IdxVar, "0;1;36"}
 vt100_escape!{Exp, "0;0"}
 vt100_escape!{Val, "0;0"}
+vt100_escape!{Type, "0;0"}
 vt100_escape!{RtVal, "0;0;35"}
 vt100_escape!{ExpTerm, "0;1;35"}
 vt100_escape!{DocOut,"0;1;4;37"}
@@ -155,6 +156,11 @@ vt100_bracket!{NormBracket,
                "└᚜"
 }
 vt100_bracket!{BoldBracket,
+               "╓᚜",
+               "║ ",
+               "╙᚜"
+}
+vt100_bracket!{BoxBracket,
                "\x1B[1;37m▟░",
                "\x1B[1;37m█░",
                "\x1B[1;37m▜░"
