@@ -29,39 +29,7 @@ and to use these invariants to establish **global uniqueness** for their
 composed programs, the property of using names correctly.
 We prove (on paper) that well-typed Fungi programs respect global uniqueness.  We implement Fungi in Rust, as a "deeply-embedded" language, including Fungi's bidirectional type system and incremental evaluation semantics.
 
-## Fungi programs _compute incrementally_
-
-[**Incremental
-computing**](https://en.wikipedia.org/wiki/Incremental_computing)
-consists of successively running a program while it computes related
-outputs from related inputs that change over time.  Often, these input
-changes arise from an external source, such as a human, or another
-computer program.
-
-## Fungi programs name their (incremental) data and subcomputations
-
-The semantics of Fungi programs are _effectful_, as they allocate
-**programmer-named** values and computations, and read these objects
-from memory later.  However, due to the Fungi **type and effect
-system** for names, **the behavior of Fungi archivists is
-functional**: the key invariant of its type-and-effects system.
-
-## Fungi is a core calculus, and target language
-
-Fungi gives a **typed**, **general-purpose core caluclus** for
-**demand-driven incremental computations**, following the core calculi
-and run-time semantics of [Adapton](http://adapton.org).  Unlike prior
-Adapton-related projects, Fungi provides additional language
-affordances for describing names, both dynamically, and through sound static approximations.
-
-### Future work: Implicitly-incremental programs _translate_ to Fungi programs:
-
-In the future, Fungi will serve as a typed target language for
-[IODyn](https://github.com/cuplv/iodyn-lang.rust).  Unlike IODyn,
-which offers an **implicit** incremental language, the incremental
-features of Fungi are intentionally made **explicit**.
-
 ## Related Projects:
 
  - [Adapton](http://adapton.org) provides the semantic foundation for Fungi's approach to incremental computation.  
- - [IODyn](https://github.com/cuplv/iodyn-lang.rust) is an implicitly-incremental language, targetting Fungi via a type-directed translation  
+ - [IODyn](https://github.com/cuplv/iodyn-lang.rust) is an implicitly-incremental language, targetting Fungi via a type-directed translation
