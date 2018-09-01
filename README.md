@@ -1,8 +1,37 @@
 # <img src="http://adapton.org/fungi-lang-logo/Fungi-lang-logo-64.png" alt="Logo" style="width: 64px;"/> Fungi: Typed incremental computation with names [![Travis](https://api.travis-ci.org/Adapton/fungi-lang.rust.svg?branch=master)](https://travis-ci.org/Adapton/fungi-lang.rust)
 
-**Fungi is a programming language for incremental computation with
-names.** In particular, Fungi is a typed functional language for
-programs that name their own cached dependency graphs.
+Fungi is a Rust-based DSL that offers a **_typed functional language_ for _incremental computation with names_**.
+
+## Status:
+ - See [Example programs in Fungi](https://docs.rs/fungi-lang/0/fungi_lang/examples/index.html).
+   - We have implemented a prototype of the [bidirectional type system](https://docs.rs/fungi-lang/0/fungi_lang/bitype/index.html),
+     including the refinement types and associated [decision procedures for effects](https://docs.rs/fungi-lang/0/fungi_lang/decide/effect/index.html).
+   - To view these Fungi typing derivations interactively, especially to diagnose type or effect errors, see a related project, the [Human-Fungi Interface](https://github.com/Adapton/fungi-vis)  
+
+## Fungi Developer Resources:
+ - [Fungi technical report](https://arxiv.org/abs/1808.07826).
+ - Rust Implementation of Fungi:
+    - [Documentation](https://docs.rs/fungi-lang)  
+    - [Crate website](https://crates.io/crates/fungi-lang)  
+ - [Visualization tools for Fungi programs](https://github.com/Adapton/fungi-vis)  
+
+# Background
+
+**Fungi is a typed functional language for incremental computation with names.** 
+
+Incremental computations attempt to exploit input **similarities over
+time**, reusing work that is unaffected by input changes.
+To maximize this reuse in a general-purpose programming setting, 
+programmers need a mechanism to identify dynamic allocations 
+(of data and subcomputations) that **correspond over time**.
+
+Fungi's type-and-effect system permits the programmer
+to encode (program-specific) local invariants about names,
+and to use these invariants to establish **global uniqueness** for their
+composed programs, the property of using names correctly.
+Unlike prior general-purpose languages for incremental computing,
+Fungi's notion of names is formal, general, and statically verifiable.
+We prove (on paper) that well-typed Fungi programs respect global uniqueness.  We implement Fungi in Rust, as a "deeply-embedded" language, including Fungi's bidirectional type system and incremental evaluation semantics.
 
 ## Fungi programs _compute incrementally_
 
@@ -12,23 +41,6 @@ consists of successively running a program while it computes related
 outputs from related inputs that change over time.  Often, these input
 changes arise from an external source, such as a human, or another
 computer program.
-
-**Fungi** provides a pair of complementary sub-languages for
-expressing the interactions of incremental computations, which it
-organizes into two **computation roles**:
-
-1. The **Archivist role** computes output from input using a
-   _**functional** language_, and
-
-2. the **Editor role** uses an _**imperative** language_ to
-   incrementally mutate this input over time, and change demand for
-   output in the process (e.g., placing or removing focus on different
-   outputs of the archivists' functions).
-
-Note: _For now, the current Fungi prototype focuses only on the
-*archivist* role, leaving the editor role to the surrounding Rust
-code; future work will integrate the editor role into Fungi programs,
-to facilitate additional effects-related checks._
 
 ## Fungi programs name their (incremental) data and subcomputations
 
@@ -52,21 +64,6 @@ In the future, Fungi will serve as a typed target language for
 [IODyn](https://github.com/cuplv/iodyn-lang.rust).  Unlike IODyn,
 which offers an **implicit** incremental language, the incremental
 features of Fungi are intentionally made **explicit**.
-
-## Status:
-
- - See [Example programs in Fungi](https://docs.rs/fungi-lang/0/fungi_lang/examples/index.html).
-   - We have implemented a prototype of the [bidirectional type system](https://docs.rs/fungi-lang/0/fungi_lang/bitype/index.html),
-     including the refinement types and associated [decision procedures for effects](https://docs.rs/fungi-lang/0/fungi_lang/decide/effect/index.html).
-   - For technical background and formal definitions, see the [latest draft of the technical report](https://arxiv.org/abs/1610.00097).
-   - To view these Fungi typing derivations interactively, especially to diagnose type or effect errors, see a related project, the [Human-Fungi Interface](https://github.com/Adapton/fungi-vis)  
-
-## Fungi Developer Resources:
-
- - Rust Implementation of Fungi:
-    - [Documentation](https://docs.rs/fungi-lang)  
-    - [Crate website](https://crates.io/crates/fungi-lang)  
- - [Visualization tools for Fungi programs](https://github.com/Adapton/fungi-vis)  
 
 ## Related Projects:
 
