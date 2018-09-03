@@ -28,6 +28,7 @@ license = "MPL-2.0"
 
 
 [dependencies]
+proc-macro2 = "0.3"
 adapton = "0.3"
 regex = "0.2"
 serde = { version = "1.0", features = ["rc"] }
