@@ -8,12 +8,12 @@ pub mod dynamic_tests {
      *
      */
     #[test]
-    pub fn short_10_2() { use examples::{list_nat, list_nat_edit, list_nat_convert}; fgi_dynamic_trace!{
+    pub fn short_10_2() { fgi_dynamic_trace!{
         [Expect::SuccessXXX]
         use super::*;
-        use list_nat::*;
-        use list_nat_edit::*;
-        use list_nat_convert::*;
+        use crate::examples::list_nat::*;
+        use crate::examples::list_nat_edit::*;
+        use crate::examples::list_nat_convert::*;
         
         /// Generate input (use old list type, and a conversion function into our newer list type)
         let list1  = {ws(@@inp1) {force gen} 10 }

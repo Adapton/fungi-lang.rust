@@ -914,7 +914,7 @@ macro_rules! parse_fgi_pack_multi {
 /// e::=
 ///     fromast ast                     (inject ast nodes)
 ///     unsafe (arity) rustfn           (inject an evaluation function written in Rust)
-///     use x :: * ; e                  (all decls in module x made local to e)
+///     open x ; e                      (all decls in module x made local to e)
 ///     decls { d } ; e                 (all decls in d are made local to e)
 ///     decls { d }   e                 (optional semicolon)
 ///     e : C                           (type annotation, no effect)
@@ -972,15 +972,14 @@ macro_rules! fgi_exp {
     };
     // documentation
     { # [ doc = $doc:tt ] $($d:tt)* } => {
-        Exp::Doc( { use util;
-                    util::string_of_rust_raw_str(stringify![$doc]) },
-                  Rc::new( fgi_exp![ $($d)* ] ))
+        Exp::Doc( { crate::util::string_of_rust_raw_str(stringify![$doc]) },
+                    Rc::new( fgi_exp![ $($d)* ] ))
     };
-    //     use x :: * ; e                  (all decls in module x made "local" to e)
-    { use $path:ident :: * ; $($e:tt)* } => {
+    //     open x ; e                  (all decls in module x made "local" to e)
+    { open $path:path ; $($e:tt)* } => {
         Exp::UseAll(
             UseAllModule{
-                module:$path::fgi_module (),
+                module:{ use $path as x ; x::fgi_module () },
                 path:stringify![$path].to_string(),
             },
             Rc::new( fgi_exp![ $($e)* ] )
@@ -1446,8 +1445,7 @@ macro_rules! fgi_module {
 /// ```text
 /// d ::=
 ///     fromast ast              (inject ast nodes)
-///     use x :: * ; d           (all decls in module x are made "local")
-///     use ( path ) :: * ; d    (all decls at module path p are made "local")
+///     open x ; d               (all decls in module x are made "local")
 ///     nmtm  x = ( N ) d        (define x as a name term N)
 ///     idxtm x = ( i ) d        (define x as an index term i)
 ///     type  t = ( A ) d        (define a type alias `t` for value type `A`)
@@ -1472,24 +1470,14 @@ macro_rules! fgi_decls {
                     Rc::new( fgi_decls![ $($d)* ] ))
     };
     //     use x :: * ; d  (all decls in module x are made "local")
-    { use $path:ident :: * ; $($d:tt)* } => {
+    { open $path:path ; $($d:tt)* } => {
         // path is a Rust path (for now, just an identifier), from
         // which we project and run a public function called
         // `fgi_module`, that accepts no arguments and which produces
         // a Module.  We also save the given path, as a string.
         Decls::UseAll(
             UseAllModule{
-                module: $path::fgi_module (),
-                path:stringify![$path].to_string(),
-            },
-            Rc::new(fgi_decls![ $($d)* ])
-        )
-    };
-    //     use ( path ) :: * ; d   (all decls at module path p are made "local")
-    { use ( $path:ident ) :: * ; $($d:tt)* } => {
-        Decls::UseAll(
-            UseAllModule{
-                module: $path::fgi_module (),
+                module: { use $path as x ; x::fgi_module () },
                 path:stringify![$path].to_string(),
             },
             Rc::new(fgi_decls![ $($d)* ])

@@ -168,11 +168,11 @@ pub mod dynamic_tests {
      *
      */
     #[test]
-    pub fn short() { use examples::{list_nat_edit, list_nat_reverse}; fgi_dynamic_trace!{
+    pub fn short() { fgi_dynamic_trace!{
         [Expect::SuccessXXX]
-        use super::*;
-        use list_nat_edit::*;
-        use list_nat_reverse::*;
+        open crate::examples::list_nat;
+        open crate::examples::list_nat_edit;
+        open crate::examples::list_nat_reverse;
         
         /// Generate input
         let list1  = {ws (@@gen) {{force gen} 10}}
@@ -208,12 +208,12 @@ pub mod dynamic_tests {
     }}
     
     #[test]    
-    pub fn long() { use examples::{list_nat_edit, nat, list_nat_reverse}; fgi_dynamic_trace!{
+    pub fn long() { fgi_dynamic_trace!{
         [Expect::SuccessXXX]
-        use super::*;
-        use list_nat_edit::*;
-        use list_nat_reverse::*;
-        use nat::*;
+        open crate::examples::list_nat;
+        open crate::examples::list_nat_edit;
+        open crate::examples::list_nat_reverse;
+        open crate::examples::nat;
 
         /// Generate input
         let list1  = {{force gen} 10}

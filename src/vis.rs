@@ -185,10 +185,10 @@ macro_rules! fgi_listing_expect {
     [ [ $($outcome:tt)+ ] $($e:tt)+ ] => {{
         fn help() -> Result<(),String> {
             use std::rc::Rc;
-            use ast::*;
-            use bitype::*;
-            use vis::*;
-
+            use crate::ast::*;
+            use crate::bitype::*;
+            use crate::vis::*;
+            let _ = Rc::new(());
             let bundle : Bundle = fgi_bundle![
                 $($e)+
             ];
@@ -264,6 +264,7 @@ macro_rules! fgi_dynamic_trace {
         // --------------------------------------------------------------
         // 1. Parse fungi program (expression) to reduce, and visualize
         // --------------------------------------------------------------
+        let _ = Rc::new(());
         let e = fgi_exp![ $($e)+ ];
 
         // --------------------------------------------------------------
