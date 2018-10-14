@@ -60,11 +60,11 @@ pub mod dynamic_tests {
 
     // Be careful: Without --release, this version overflows my stack.
     //#[test]
-    pub fn big() { use examples::{list_nat, list_nat_convert}; fgi_dynamic_trace!{
+    pub fn big() { fgi_dynamic_trace!{
         [Expect::SuccessXXX]
         use super::*;
-        use list_nat::*;
-        use list_nat_convert::*;
+        use crate::examples::list_nat::*;
+        use crate::examples::list_nat_convert::*;
         
         /// Generate input
         let list1  = {ws(@@inp) {force gen} 64 }
@@ -349,7 +349,7 @@ fgi_mod!{
 pub mod trapdoor {
     // This code essentially extends the Fungi evaluator
     //use ast::{Name};
-    use dynamics::{RtVal,ExpTerm};
+    use crate::dynamics::{RtVal,ExpTerm};
     //use adapton::engine;
 
     pub fn hash_usize(x:usize) -> u64 {

@@ -47,9 +47,10 @@ use adapton::macros::*;
 use adapton::engine::{thunk,NameChoice};
 use adapton::engine;
 
-use ast::{Exp,PrimApp,Name,NameTm};
 use std::rc::Rc;
-use dynamics::*;
+
+use crate::ast::{Exp,PrimApp,Name,NameTm};
+use crate::dynamics::*;
 
 /// Dynamic type errors ("stuck cases" for evaluation)
 ///
@@ -193,7 +194,7 @@ pub fn eval(env:EnvRec, e:Exp) -> ExpTerm {
         Exp::App(e1, v) => {
             let v = close_val(&env, &v);
             match eval(env.clone(), (*e1).clone()) {
-                ExpTerm::Lam(mut env, x, e2) => {
+                ExpTerm::Lam(env, x, e2) => {
                     let env = env_push(&env, &x, v);
                     return eval(env, (*e2).clone())
                 },

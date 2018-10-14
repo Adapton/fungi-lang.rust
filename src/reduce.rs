@@ -15,14 +15,14 @@ See also:
 
 use std::rc::Rc;
 use std::env as std_env;
-use vt100;
     
 use adapton::macros::*;
 use adapton::engine::{thunk,NameChoice};
 use adapton::engine;
 
-use ast::*;
-use dynamics::*;
+use crate::vt100;
+use crate::ast::*;
+use crate::dynamics::*;
 
 /// Stack frame
 #[derive(Clone,Debug,Eq,PartialEq,Hash)]
@@ -268,7 +268,7 @@ pub fn system_config() -> SysCfg {
 }
 
 pub fn reduce_db(stk:Vec<Frame>, env:EnvRec, exp:Exp) -> ExpTerm {
-    use db;
+    use crate::db;
     let sys = system_config();
     let seam_count = db::seam_count_bump();
     if sys.verbose {
@@ -653,7 +653,7 @@ pub fn step(c:&mut Config) -> Result<(),StepError> {
 // Pretty VT100-style Debugging output
 // (Enable with `export FUNGI_VERBOSE_REDUCE=1` at shell)
 //////////////////////////////////////////////////////////////////////
-use util;
+use crate::util;
 
 fn debug_doc(c:&mut Config, s:&String) {
     if c.sys.verbose {

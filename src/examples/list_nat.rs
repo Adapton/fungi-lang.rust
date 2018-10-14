@@ -1,10 +1,8 @@
-use examples::op_nat;
-
 //
 // Fungi module: linked lists with names, holding natural numbers
 //
 fgi_mod!{
-    use op_nat::*;
+    use crate::examples::op_nat::*;
 
     /// Lists of natural numbers
     type List  = (

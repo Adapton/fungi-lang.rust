@@ -1,13 +1,9 @@
 //! Convert fungi execution traces into HTML files
 
-//use std::fs;
-//use std::io;
 use std::io::prelude::*;
-//use std::io::BufWriter;
-//use std::fs::File;
 use std::collections::HashMap;
 
-use dynamics;
+use crate::dynamics;
 
 use adapton::engine::Name;
 use adapton::reflect::{string_of_name,succs_of_node,trace,Node,Loc,Path,Succ,Effect,DCG};

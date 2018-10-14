@@ -35,8 +35,7 @@ pub fn logo() {
     LOGO_PRINT.with(
         |x| {
             if x.borrow().clone() {
-                use vt100;
-                println!("\n{}", vt100::FungiLogo5Lines20180811C{});
+                println!("\n{}", crate::vt100::FungiLogo5Lines20180811C{});
             };            
             *x.borrow_mut() = false;
         })
@@ -44,35 +43,31 @@ pub fn logo() {
 
 macro_rules! fgi_db {
     ( $fmt_string:expr ) => {{
-        use db;
-        //db::logo();
-        if db::test_show() {
+        if crate::db::test_show() {
             use regex::Regex;
             let re1 = Regex::new(r"\n").unwrap();
             let re2 = Regex::new(r"\^").unwrap();
             let s = format!( $fmt_string );
             let adjust = if re2.is_match(s.as_str()) { -1 } else { 0 };
             let s = format!("{}{}{}",
-                            db::indent_string(adjust),
+                            crate::db::indent_string(adjust),
                             if adjust == -1 { "├᚜" } else { "" },
-                            re1.replace_all(s.as_str(), db::newline_indent_string(0).as_str()));
+                            re1.replace_all(s.as_str(), crate::db::newline_indent_string(0).as_str()));
             let s = format!("{}", re2.replace_all(s.as_str(), ""));
             println!("{}", s);
         }
     }};
     ( $fmt_string:expr, $( $arg:expr ),* ) => {{
-        use db;
-        //db::logo();
-        if db::test_show() {
+        if crate::db::test_show() {
             use regex::Regex;
             let re1 = Regex::new(r"\n").unwrap();
             let re2 = Regex::new(r"\^").unwrap();
             let s = format!( $fmt_string, $( $arg ),* );
             let adjust = if re2.is_match(s.as_str()) { -1 } else { 0 };
             let s = format!("{}{}{}",
-                            db::indent_string(adjust),
+                            crate::db::indent_string(adjust),
                             if adjust == -1 { "├᚜\x1B[1m" } else { "" },
-                            re1.replace_all(s.as_str(), db::newline_indent_string(0).as_str()));
+                            re1.replace_all(s.as_str(), crate::db::newline_indent_string(0).as_str()));
             let s = format!("{}", re2.replace_all(s.as_str(), ""));
             println!("{}\x1B[0;0m", s);
         }}
@@ -80,27 +75,25 @@ macro_rules! fgi_db {
 }
 
 macro_rules! db_region_open {
-    () => {{ db_region_open!(false ; true ; vt100::NormBracket ) }}
+    () => {{ db_region_open!(false ; true ; crate::vt100::NormBracket ) }}
     ;
-    ($show:expr) => {{ db_region_open!(false ; $show ; vt100::NormBracket ) }}
+    ($show:expr) => {{ db_region_open!(false ; $show ; crate::vt100::NormBracket ) }}
     ;
     ($show:expr, $($br:tt)+) => {{
         db_region_open!( false ; $show ; $($br)+ )
     }};
     // Custom bracket style
     ($is_seam:expr ; $show:expr ; $($br:tt)+) => {{
-        use db;
-        use vt100;
         if $show {
             fgi_db!("{}{}{}{}:{}",
-                    vt100::Normal{},
+                    crate::vt100::Normal{},
                     $($br)+::Open,
-                    vt100::Lo{},
+                    crate::vt100::Lo{},
                     module_path!(), line!());
         }
-        db::INDENT.with(
+        crate::db::INDENT.with(
             |x| (*x.borrow_mut()).push(
-                db::Frame{
+                crate::db::Frame{
                     show:$show,
                     bracket_indent:Box::new($($br)+::Indent),
                     bracket_close:Box::new($($br)+::Close),
@@ -112,24 +105,21 @@ macro_rules! db_region_open {
 
 macro_rules! db_region_close {
     () => {{
-        use db;
-        use vt100;
-        let frame = db::INDENT.with(|x| (*x.borrow_mut()).pop().unwrap() );
+        let frame = crate::db::INDENT.with(|x| (*x.borrow_mut()).pop().unwrap() );
         //fgi_db!("└᚜═╸╸╸╸᚜\x1B[2m{}:{}\x1B[0;0m", module_path!(), line!());
         if frame.show {
             fgi_db!("{}{}{}{}:{}",
-                    vt100::Normal{},
+                    crate::vt100::Normal{},
                     frame.bracket_close,
-                    vt100::Lo{},
+                    crate::vt100::Lo{},
                     module_path!(), line!());
         }
     }}
 }
 
 pub fn write_indent<Wr:FmtWrite>(wr: &mut Wr, _adjust:i64) {
-    use vt100;
     INDENT.with(|x| for fr in (*x.borrow()).iter() {
-        write!(wr, "{}{}", vt100::Normal{}, fr.bracket_indent).unwrap();
+        write!(wr, "{}{}", crate::vt100::Normal{}, fr.bracket_indent).unwrap();
     });
 }
 

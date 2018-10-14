@@ -182,7 +182,7 @@ pub mod static_tests {
 pub mod trapdoor {
     // This code essentially extends the Fungi evaluator
     //use ast::{Name};
-    use dynamics::{RtVal,ExpTerm};
+    use crate::dynamics::{RtVal,ExpTerm};
     //use adapton::engine;
 
     pub fn hash_usize(x:usize) -> u64 {

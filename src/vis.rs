@@ -1,16 +1,16 @@
 //! Visualization of ASTs, typings, evaluation, etc.
 
-use shared::Shared;
 use std::rc::Rc;
+use std::fs::File;
+use std::io::Write;
 
-use ast::{Name, Exp, Val, PrimApp, UseAllModule, Module, Decls};
-use bitype;
-use dynamics;
 use adapton::reflect;
 use adapton::engine::manage;
 
-use std::fs::File;
-use std::io::Write;
+use crate::shared::Shared;
+use crate::ast::{Name, Exp, Val, PrimApp, UseAllModule, Module, Decls};
+use crate::bitype;
+use crate::dynamics;
 
 // use serde_json;
 
@@ -255,10 +255,10 @@ pub fn write_bundle(filename: &str, bundle: &Bundle) {
 #[macro_export]
 macro_rules! fgi_dynamic_trace {
     { [ $($expect:tt)+ ] $($e:tt)+ } => {{
-        use reduce;
-        use dynamics;
+        use crate::reduce;
+        use crate::dynamics;
         use std::rc::Rc;
-        use ast::*;
+        use crate::ast::*;
         use adapton::engine;
         
         // --------------------------------------------------------------
@@ -269,14 +269,14 @@ macro_rules! fgi_dynamic_trace {
         // --------------------------------------------------------------
         // 2. Run fungi program, and collect its Adapton trace
         // --------------------------------------------------------------
-        use html;
-        use vis;
+        use crate::html;
+        use crate::vis;
         use adapton::reflect;
         use adapton::reflect::trace;
         use std::fs::File;
         use std::io::BufWriter;
         use std::io::Write;
-        use html::WriteHTML;
+        use crate::html::WriteHTML;
         
         // Initialize Adapton
         engine::manage::init_dcg();

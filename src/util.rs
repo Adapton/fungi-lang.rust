@@ -25,7 +25,7 @@ pub fn filename_of_module_path_(module_path:&str) -> String {
 #[macro_export]
 macro_rules! filename_of_module_path {
     () => {{
-        use util::filename_of_module_path_;
+        use crate::util::filename_of_module_path_;
         filename_of_module_path_(module_path!())
     }}
 }

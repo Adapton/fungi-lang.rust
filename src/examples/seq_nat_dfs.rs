@@ -1,6 +1,3 @@
-use examples::seq_nat;
-use examples::list_nat;
-
 pub mod dynamic_tests {
 
     /* 
@@ -12,10 +9,10 @@ pub mod dynamic_tests {
      *
      */
     #[test]
-    pub fn short() { use examples::*; fgi_dynamic_trace!{
+    pub fn short() { fgi_dynamic_trace!{
         [Expect::SuccessXXX]
         use super::*;
-        use seq_nat_gen::*;
+        use crate::examples::seq_nat_gen::*;
 
         /// Generate the input sequence
         let s = {{force seq_gen} 10}
@@ -45,8 +42,8 @@ pub mod dynamic_tests {
 }
 
 fgi_mod!{
-    use list_nat::*;
-    use seq_nat::*;
+    use crate::examples::list_nat::*;
+    use crate::examples::seq_nat::*;
 
     // before/without memoization
     fn seq_dfs:(

@@ -55,7 +55,7 @@ fgi_mod!{
 
 mod trapdoor {
     // This code essentially extends the Fungi evaluator
-    use dynamics::{RtVal,ExpTerm};
+    use crate::dynamics::{RtVal,ExpTerm};
 
     pub fn vec_gen_range(args:Vec<RtVal>) -> ExpTerm {
         // gen_range(count)

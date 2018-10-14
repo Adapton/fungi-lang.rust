@@ -1,18 +1,18 @@
-use ast::*;
-use std::rc::Rc;
-use normal::NmSetTm;
-use normal::NmSetCons;
-use normal::NmSet;
-use bitype::Ctx;
-use decide::RelCtx;
-use bitype::HasClas;
-use decide::Dec;
-use decide::DecError;
-use bitype::NmTmRule;
+use crate::ast::*;
+use crate::bitype::Ctx;
+use crate::bitype::HasClas;
+use crate::bitype::NmTmRule;
+use crate::decide::Dec;
+use crate::decide::DecError;
+use crate::decide::RelCtx;
+use crate::dynamics::ExpTerm;
+use crate::dynamics::RtVal;
+use crate::normal::NmSet;
+use crate::normal::NmSetCons;
+use crate::normal::NmSetTm;
 use std::fmt;
+use std::rc::Rc;
 use std::result;
-use dynamics::RtVal;
-use dynamics::ExpTerm;
 
 pub struct Result<X,Y> {
     pub result:

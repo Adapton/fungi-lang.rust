@@ -15,7 +15,7 @@ fgi_mod!{
 
 pub mod trapdoor {
     // This code essentially extends the Fungi evaluator
-    use dynamics::{RtVal,ExpTerm};
+    use crate::dynamics::{RtVal,ExpTerm};
     use adapton::engine;
 
     pub fn ref_update(args:Vec<RtVal>) -> ExpTerm {

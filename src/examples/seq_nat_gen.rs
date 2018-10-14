@@ -1,11 +1,7 @@
-use examples::seq_nat;
-use examples::name;
-use examples::nat;
-
 fgi_mod!{
-    use seq_nat::*;
-    use name::*;
-    use nat::*;
+    use crate::examples::seq_nat::*;
+    use crate::examples::name::*;
+    use crate::examples::nat::*;
 
     /// Generate a sequence of natural numbers
     //

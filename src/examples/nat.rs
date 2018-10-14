@@ -27,7 +27,7 @@ fgi_mod!{
 
 pub mod trapdoor {
     // This code essentially extends the Fungi evaluator
-    use dynamics::{RtVal,ExpTerm};
+    use crate::dynamics::{RtVal,ExpTerm};
     
     pub fn nat_is_zero(args:Vec<RtVal>) -> ExpTerm {
         match &args[0] {

@@ -1,19 +1,20 @@
 /*! Bidirectional type system. */
 
-use ast::*;
+use crate::ast::*;
+use crate::decide;
+use crate::display;
+use crate::expand;
+use crate::normal;
+use crate::shared::Shared;
+use crate::subst;
+use crate::util::debug_truncate;
+use crate::vt100;
+
 use std::fmt;
 use std::rc::Rc;
-use vt100;
-use display;
-use util::debug_truncate;
 
-use shared::Shared;
 use serde::Serialize;
     
-use normal;
-use decide;
-use subst;
-use expand;
 
 /// "Extra" typing information carried by the typing judgements
 #[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
@@ -2919,7 +2920,7 @@ pub fn check_exp(ext:&Ext, ctx:&Ctx, exp:&Exp, ceffect:&CEffect) -> ExpDer {
                     td
                 }
                 else {
-                    use bitype::debug::*;
+                    use crate::bitype::debug::*;
                     db_region_open!();
                     fgi_db!("Detailed errors for checking an `Exp::{}` via subsumption:", td.rule.short());
                     fgi_db!(".. {}'s type:\n{} \n\n...does not check against type:\n{}\n", td.rule.short(), ty, ceffect);

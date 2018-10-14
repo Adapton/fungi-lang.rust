@@ -16,11 +16,11 @@ standard library primitives, such as vectors).
 See also: The [ExpTerm](https://docs.rs/fungi-lang/0/fungi_lang/dynamics/enum.ExpTerm.html) type.
 
 */
-use ast::*;
+use crate::shared::Shared;
+use crate::ast::*;
 use adapton::engine;
 // use serialize::ArtDef;
 
-use shared::Shared;
 use std::rc::Rc;
 
 //use serde::Serialize;
@@ -165,7 +165,7 @@ pub fn proj_namespace_name(n:NameTmVal) -> Option<NameTm> {
 
 /// Convert a name term value back into (the same) name term
 pub fn nametm_of_nametmval(v:NameTmVal) -> NameTm {
-    use ast::Sort;
+    use crate::ast::Sort;
     match v {
         NameTmVal::Name(n)  => NameTm::Name(n),
         // eval doesn't use sorts, unit is fine
@@ -269,7 +269,7 @@ pub fn engine_name_of_ast_name(n:Name) -> engine::Name {
 /// panics if the environment fails to close the given value's
 /// variables.
 pub fn close_val(env:&EnvRec, v:&Val) -> RtVal {
-    use ast::Val::*;
+    use crate::ast::Val::*;
     match *v {
         HostObj(ref o) => RtVal::HostObj(o.clone()),
         

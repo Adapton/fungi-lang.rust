@@ -33,16 +33,12 @@
 //!                               [abstract](https://docs.rs/fungi-lang/0/fungi_lang/ast/enum.Sort.html).  
 //!
 
-use std::rc::Rc;
-use shared::Shared;
-use std::fmt;
-use std::any;
-use std::fmt::{Debug,Formatter};
-//use std::fmt::{Debug,Result};
-use std::hash::{Hash,Hasher};
-
-use normal;
-use dynamics;
+use std::{rc::Rc, fmt, any, fmt::{Debug,Formatter}, hash::{Hash,Hasher}};
+use crate::{
+    shared::Shared,
+    normal,
+    dynamics
+};
 
 pub type Var = String;
 // type of identifiers

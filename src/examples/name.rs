@@ -27,8 +27,8 @@ fgi_mod!{
 
 pub mod trapdoor {
     // This code essentially extends the Fungi evaluator
-    use ast::{Name};
-    use dynamics::{RtVal,ExpTerm};
+    use crate::ast::{Name};
+    use crate::dynamics::{RtVal,ExpTerm};
     
     pub fn name_of_nat(args:Vec<RtVal>) -> ExpTerm {
         match &args[0] {

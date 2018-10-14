@@ -2,10 +2,7 @@
 
 //use std::fmt;
 use std::rc::Rc;
-
-use normal;
-use ast::*;
-use bitype::{Term};
+use crate::{normal, ast::*, bitype::{Term}};
 
 // TODO-Someday: Use Rc-based lists instead vectors to represent the
 // bound variable list, for cheaper O(1) clones.
@@ -44,7 +41,7 @@ pub fn fv_of_term(t:&Term) -> Vec<Term> {
 
 /// Compute the free variables of a name term
 pub fn fv_of_nmtm(n:&NameTm, bound:Vec<Term>, out:&mut Vec<Term>) {
-    use ast::NameTm::*;
+    use crate::ast::NameTm::*;
     match n {
         &Var(_) |
         &ValVar(_) => {
@@ -73,7 +70,7 @@ pub fn fv_of_nmtm(n:&NameTm, bound:Vec<Term>, out:&mut Vec<Term>) {
 
 /// Compute the free variables of an index term
 pub fn fv_of_idxtm(i:&IdxTm, bound:Vec<Term>, out:&mut Vec<Term>) {
-    use ast::IdxTm::*;
+    use crate::ast::IdxTm::*;
     match i {
         &Unknown => { },          
         &Var(ref _x) => {
@@ -104,7 +101,7 @@ pub fn fv_of_idxtm(i:&IdxTm, bound:Vec<Term>, out:&mut Vec<Term>) {
             fv_of_idxtm(i, bound, out);
         }
         &NmSet(ref nms) => {
-            use normal::NmSetTm::*;
+            use crate::normal::NmSetTm::*;
             for t in nms.terms.iter() {
                 match t {
                     &Single(ref n) => { fv_of_nmtm(n, bound.clone(), out)  }

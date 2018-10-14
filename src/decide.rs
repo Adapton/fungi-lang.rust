@@ -1,11 +1,6 @@
 /*! Decision procedures for Fungi type and effect system. */
 
-use ast::*;
-use bitype::{Ext,Ctx,HasClas,TypeError};
-use normal;
-//use vt100;
-use display;
-//use std::fmt;
+use crate::{ast::*, bitype::{Ext,Ctx,HasClas,TypeError}, normal, display};
 use std::rc::Rc;
 
 /// Pair of related variables
@@ -203,12 +198,10 @@ pub struct Dec<Rule:HasClas> {
 
 /// Decide effect relationships
 pub mod effect {
-    use ast::*;
-    use normal;
-    use normal::{NmSet,NmSetCons};
-    use bitype;
-    use bitype::{Ext,Ctx};
-    use super::equiv;
+    use crate::{
+        ast::*, normal, normal::{NmSet,NmSetCons}, bitype, bitype::{Ext,Ctx}, 
+        decide::equiv, vt100,
+    };
     use std::rc::Rc;
     
     /// Computation role, either _Archivist_ or _Editor_.
@@ -259,7 +252,7 @@ pub mod effect {
     /// Tactic to find an index term `j` such that `NmSet(ns1) == NmSet(ns2) % j`
     pub fn decide_nmset_subtraction(ctx:&Ctx, ns1:NmSet, ns2:NmSet) -> Result<IdxTm, Error> {
         fgi_db!("^decide_nmset_subtraction: from {}, subtract {}", &ns1, &ns2);
-        db_region_open!(false, vt100::DecideBracket);
+        db_region_open!(false, crate::vt100::DecideBracket);
         //
         // Step 1: Verify: Before computing subtraction, check
         // that each term in ns1 is really in the set ns1.
@@ -303,7 +296,7 @@ pub mod effect {
     
     pub fn test_idxtm_equiv(ctx:&Ctx, i:&IdxTm, j:&IdxTm) -> bool {
         fgi_db!("decide if {} ⊢ {} ≡ {} : NmSet", ctx, i, j);
-        db_region_open!(false, vt100::DecideBracket);
+        db_region_open!(false, crate::vt100::DecideBracket);
         let id = bitype::synth_idxtm(&Ext::empty(), ctx, i);
         let jd = bitype::synth_idxtm(&Ext::empty(), ctx, j);       
         let b = match id.clas {
@@ -328,7 +321,7 @@ pub mod effect {
 
     pub fn test_idxtm_empty(ctx:&Ctx, i:&IdxTm) -> bool {
         fgi_db!("decide if {} ⊢ {} ≡ 0 : NmSet", ctx, i);
-        db_region_open!(false, vt100::DecideBracket);
+        db_region_open!(false, crate::vt100::DecideBracket);
         let b = test_idxtm_equiv(ctx, 
                                  &normal::normal_idxtm(ctx, i.clone()), 
                                  &normal::normal_idxtm(ctx, IdxTm::Empty));
@@ -424,7 +417,7 @@ pub mod effect {
     }
 
     pub fn decide_effect_subtraction_db(ctx:&Ctx, r:Role, eff1:Effect, eff2:Effect) -> Result<Effect, Error> {
-        use vt100;
+        use crate::vt100;
         fgi_db!("{}decide if: {}{} {}⊢ {}{} {}- {}{} {}≡ {}?",
                 vt100::DecideIf{},
                 vt100::VDash{}, ctx,
@@ -564,7 +557,7 @@ pub mod effect {
     }
     
     pub fn decide_effect_sequencing_db(ctx:&Ctx, r:Role, eff1:Effect, eff2:Effect) -> Result<Effect, Error> {
-        use vt100;
+        use crate::vt100;
         fgi_db!("{}decide if: {}{} {}⊢ {}{} {}then {}{} {}≡ {}?",
                 vt100::DecideIf{},
                 vt100::VDash{}, ctx,
@@ -700,10 +693,11 @@ pub mod effect {
 /// Decide equivalence of two terms (types, indices, name terms)
 pub mod equiv {
     //use ast::*;
-    use bitype::{HasClas};
-    use bitype::{NmTmDer,IdxTmDer};
-    use bitype::NmTmRule as BiNmTm;
-    use bitype::IdxTmRule as BiIdxTm;
+    use crate::bitype::{HasClas};
+    use crate::bitype::{NmTmDer,IdxTmDer};
+    use crate::bitype::NmTmRule as BiNmTm;
+    use crate::bitype::IdxTmRule as BiIdxTm;
+    use crate::vt100;
     //use std::fmt;
     use std::rc::Rc;
     use super::*;
@@ -1122,15 +1116,16 @@ pub mod equiv {
 /// Decide subset relationships over name sets, index terms and types
 pub mod subset {
     //use ast::*;
-    use bitype;
-    use bitype::{Ctx};
+    use crate::bitype;
+    use crate::bitype::{Ctx};
     //use std::fmt;
-    use bitype::{IdxTmDer};
+    use crate::bitype::{IdxTmDer};
     use std::rc::Rc;
     use super::*;
     use super::equiv::{decide_nmtm_equiv};
-    use bitype::IdxTmRule as BiIdxTm;
-    use normal::NmSetTm;
+    use crate::bitype::IdxTmRule as BiIdxTm;
+    use crate::normal::NmSetTm;
+    use crate::vt100;
 
     /// Index term equivalence rules
     #[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
@@ -1742,7 +1737,7 @@ pub mod subset {
     }
 
     pub fn decide_type_subset_norm_db(ctx: &RelCtx, a:Type, b:Type) -> bool {
-        use vt100;
+        use crate::vt100;
         fgi_db!("{}decide if: {}{} {}⊢ {}{} {}⊆ {}{}",
                 vt100::DecideIf{},
                 vt100::VDash{}, ctx,
@@ -1777,7 +1772,7 @@ pub mod subset {
     
     /// Decide type subset relation on normalized versions of the given terms.
     pub fn decide_type_subset_norm(ctx: &RelCtx, a:Type, b:Type) -> bool {
-        use expand;
+        use crate::expand;
         if a == b { true }
         else {
             // TODO-someday: Make this operation cheaper somehow (use traits in a clever way?)
@@ -1796,13 +1791,11 @@ pub mod subset {
         if a == b { true } else {
             match (a,b) {
                 (Type::Ident(y), b) => {
-                    use expand;
-                    let a = expand::expand_type(&ctxs_of_relctx(ctx.clone()).0,Type::Ident(y));
+                    let a = crate::expand::expand_type(&ctxs_of_relctx(ctx.clone()).0,Type::Ident(y));
                     decide_type_subset(ctx, a, b)
                 }
                 (a, Type::Ident(y)) => {
-                    use expand;
-                    let b = expand::expand_type(&ctxs_of_relctx(ctx.clone()).1,Type::Ident(y));
+                    let b = crate::expand::expand_type(&ctxs_of_relctx(ctx.clone()).1,Type::Ident(y));
                     decide_type_subset(ctx, a, b)
                 }
                 (Type::IdentDef(_x, a), b) => {
@@ -1917,7 +1910,7 @@ pub mod subset {
     }
 
     pub fn decide_ceffect_subset_db(ctx: &RelCtx, ce1:CEffect, ce2:CEffect) -> bool {
-        use vt100;
+        use crate::vt100;
         fgi_db!("{}decide if: {}{} {}⊢ {}{} {}⊆ {}{}",
                 vt100::DecideIf{},
                 vt100::VDash{}, ctx,
@@ -1993,10 +1986,10 @@ pub mod subset {
 /// Decide apartness of two terms (indices, name terms)
 pub mod apart {
     //use ast::*;
-    use bitype::{HasClas};
-    use bitype::{NmTmDer,IdxTmDer};
-    use bitype::NmTmRule as BiNmTm;
-    use bitype::IdxTmRule as BiIdxTm;
+    use crate::bitype::{HasClas};
+    use crate::bitype::{NmTmDer,IdxTmDer};
+    use crate::bitype::NmTmRule as BiNmTm;
+    use crate::bitype::IdxTmRule as BiIdxTm;
     //use std::fmt;
     //use std::rc::Rc;
     use super::*;

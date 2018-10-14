@@ -17,9 +17,7 @@
 ///  wraps the Rust constructors and functions over Colors with Fungi functions.
 ///
 pub mod color {
-    use dynamics::RtVal;
-    use hostobj;
-
+    use crate::dynamics::RtVal;
 
     /// Example of a user-defined datatype in Rust, to inject into
     /// Fungi.
@@ -31,19 +29,19 @@ pub mod color {
     
     /// Inject a Color into a Val.
     pub fn rtval_of_color(c:Color) -> RtVal {
-        hostobj::rtval_of_obj(c)
+        crate::hostobj::rtval_of_obj(c)
     }
 
     /// Un-inject the Color from a Val, if it exists.
     pub fn color_of_rtval (x:&RtVal) -> Option<Color> {
-        hostobj::obj_of_rtval(x)
+        crate::hostobj::obj_of_rtval(x)
     }    
 
-    fgi_mod!{hostuse{ hostobj::val_of_obj }
+    fgi_mod!{
         type Color;
-        val color_red   : (Color) = (^val_of_obj(Color::Red))
-        val color_green : (Color) = (^val_of_obj(Color::Green))
-        val color_gold  : (Color) = (^val_of_obj(Color::Gold))
+        val color_red   : (Color) = (^crate::hostobj::val_of_obj(Color::Red))
+        val color_green : (Color) = (^crate::hostobj::val_of_obj(Color::Green))
+        val color_gold  : (Color) = (^crate::hostobj::val_of_obj(Color::Gold))
         fn color_next : (Thk[0] 0 Color -> 0 F Color) = {
             unsafe (1) trapdoor::color_next
         }
@@ -87,7 +85,7 @@ pub mod color {
     
     pub mod trapdoor {
         // This code essentially extends the Fungi evaluator
-        use dynamics::{RtVal,ExpTerm,ret};
+        use crate::dynamics::{RtVal,ExpTerm,ret};
         use super::*;
     
         pub fn color_next(args:Vec<RtVal>) -> ExpTerm {

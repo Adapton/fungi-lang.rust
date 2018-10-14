@@ -2,12 +2,7 @@
 
 //use std::fmt;
 use std::rc::Rc;
-
-use ast::*;
-use bitype;
-use bitype::{Ctx,Term};
-use subst;   
-//use normal;   
+use crate::{ast::*, bitype, bitype::{Ctx,Term}, subst};
 
 macro_rules! fgi_db_normal {
     ( $fmt_string:expr ) => {{
@@ -1179,8 +1174,7 @@ pub fn normal_type(ctx:&Ctx, typ:&Type) -> Type {
             Type::Exists(x.clone(), g.clone(), p.clone(), Rc::new(t2))
         }
         &Type::Ident(ref x) => {
-            use expand;
-            expand::expand_type(ctx, Type::Ident(x.clone()))
+            crate::expand::expand_type(ctx, Type::Ident(x.clone()))
         },
         &Type::IdentDef(ref _ident, ref def) => { 
             (**def).clone() 
@@ -1306,15 +1300,13 @@ pub fn match_type(ctx:&Ctx, t:&Type) -> Type {
     fgi_db!("match_type({}) ~~> ?", t);
     let res = match t.clone() {
         Type::IdxApp(ref t, ref i) => {
-            use expand;
             normal_type
                 (&Ctx::Empty, 
-                 &Type::IdxApp(expand::expand_type_rec(ctx, t.clone()), i.clone()))
+                 &Type::IdxApp(crate::expand::expand_type_rec(ctx, t.clone()), i.clone()))
         },
         Type::IdentDef(_, ref t) => (**t).clone(),
         Type::Ident(ref x) => {
-            use expand;
-            expand::expand_type(ctx, Type::Ident(x.clone()))
+            crate::expand::expand_type(ctx, Type::Ident(x.clone()))
         },
         t => t,
     };
@@ -1389,8 +1381,7 @@ pub fn unroll_type(ctx:&Ctx, typ:&Type) -> (Type, bool) {
         },
         &Type::Ident(_) => {
             //fgi_db!("UNROLL (1.5/2): {}", x);
-            use expand;
-            unroll_type(ctx, &expand::expand_type(ctx, typ.clone()))
+            unroll_type(ctx, &crate::expand::expand_type(ctx, typ.clone()))
         },
         // error
         _ => {

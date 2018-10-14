@@ -2,10 +2,7 @@
 
 //use std::fmt;
 use std::rc::Rc;
-
-use normal;
-use ast::*;
-use bitype::*;
+use crate::{normal, ast::*, bitype::*};
 
 // TODO-Someday: Use Rc-based lists instead vectors to represent the
 // bound variable lisctx, for cheaper O(1) clones.

@@ -6,10 +6,11 @@ use std::hash::Hash;
 use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::rc::Rc;
-use ast;
-use ast::Val;
-use dynamics::RtVal;
 use std::marker::PhantomData;
+
+use crate::ast;
+use crate::ast::Val;
+use crate::dynamics::RtVal;
 
 /// zero-sized struct to implement the `ast::HostObjOps` trait
 pub struct Ops<X> {

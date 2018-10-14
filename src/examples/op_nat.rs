@@ -1,9 +1,8 @@
-use examples::nat;
 //
 // Fungi module: Optional natural numbers
 //
 fgi_mod!{
-    use nat::*;
+    use crate::examples::nat::*;
 
     /// Optional natural numbers
     type OpNat  = (+ Unit + Nat );
