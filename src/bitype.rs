@@ -1525,7 +1525,7 @@ pub fn synth_items(ext:&Ext, ctx:&Ctx, d:&Decls) -> (Vec<ItemRule>, Ctx) {
                 break;
             },
             &Decls::UseAll(ref m, ref d) => {
-                fgi_db!("{}use {}{}::*", vt100::Kw{}, vt100::ModIdent{}, m.path);
+                fgi_db!("{}open {}{}", vt100::Kw{}, vt100::ModIdent{}, m.path);
                 let der = synth_module(ext, &m.module);
                 ctx = ctx.append(&der.ctx_out);
                 tds.push(ItemRule::UseAll(UseAllModuleDer{
@@ -1756,7 +1756,7 @@ pub fn synth_exp(ext:&Ext, ctx:&Ctx, exp:&Exp) -> ExpDer {
                  ce)
         }        
         &Exp::UseAll(ref m, ref exp) => {
-            fgi_db!("{}use {}{}::*", vt100::Kw{}, vt100::ModIdent{}, m.path);
+            fgi_db!("{}open {}{}", vt100::Kw{}, vt100::ModIdent{}, m.path);
             let m_der = synth_module(ext, &m.module);
             let ctx = ctx.append(&m_der.ctx_out);
             let e_der = synth_exp(ext, &ctx, exp);

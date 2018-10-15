@@ -74,7 +74,7 @@ impl fmt::Display for Exp {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
         match self {
             &Exp::Doc(ref s, ref e) => write!(f, "doc![{}]; {}", s, e),
-            &Exp::UseAll(ref m, ref e) => write!(f, "use {}::*; {}", m.path, e),
+            &Exp::UseAll(ref m, ref e) => write!(f, "open {}; {}", m.path, e),
             &Exp::Decls(ref d, ref e) => write!(f, "{{{}}}; {}", d, e),
             &Exp::AnnoE(ref e,ref ce) => write!(f, "{} : {}", e, ce),
             &Exp::AnnoC(ref e,ref ct) => write!(f, "{} : {}", e, ct),

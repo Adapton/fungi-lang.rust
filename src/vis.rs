@@ -185,9 +185,9 @@ macro_rules! fgi_listing_expect {
     [ [ $($outcome:tt)+ ] $($e:tt)+ ] => {{
         fn help() -> Result<(),String> {
             use std::rc::Rc;
-            use crate::ast::*;
-            use crate::bitype::*;
-            use crate::vis::*;
+            use $crate::ast::*;
+            use $crate::bitype::*;
+            use $crate::vis::*;
             let _ = Rc::new(());
             let bundle : Bundle = fgi_bundle![
                 $($e)+
@@ -255,10 +255,10 @@ pub fn write_bundle(filename: &str, bundle: &Bundle) {
 #[macro_export]
 macro_rules! fgi_dynamic_trace {
     { [ $($expect:tt)+ ] $($e:tt)+ } => {{
-        use crate::reduce;
-        use crate::dynamics;
+        use $crate::reduce;
+        use $crate::dynamics;
         use std::rc::Rc;
-        use crate::ast::*;
+        use $crate::ast::*;
         use adapton::engine;
         
         // --------------------------------------------------------------
@@ -270,14 +270,14 @@ macro_rules! fgi_dynamic_trace {
         // --------------------------------------------------------------
         // 2. Run fungi program, and collect its Adapton trace
         // --------------------------------------------------------------
-        use crate::html;
-        use crate::vis;
+        use $crate::html;
+        use $crate::vis;
         use adapton::reflect;
         use adapton::reflect::trace;
         use std::fs::File;
         use std::io::BufWriter;
         use std::io::Write;
-        use crate::html::WriteHTML;
+        use $crate::html::WriteHTML;
         
         // Initialize Adapton
         engine::manage::init_dcg();
