@@ -972,7 +972,7 @@ macro_rules! fgi_exp {
     };
     // documentation
     { # [ doc = $doc:tt ] $($d:tt)* } => {
-        Exp::Doc( { crate::util::string_of_rust_raw_str(stringify![$doc]) },
+        Exp::Doc( { $crate::util::string_of_rust_raw_str(stringify![$doc]) },
                     Rc::new( fgi_exp![ $($d)* ] ))
     };
     //     open x ; e                  (all decls in module x made "local" to e)
@@ -1369,8 +1369,8 @@ macro_rules! fgi_mod {
     { hostuse { $($deps:tt)+ } $($decls:tt)+ } => {
         use {$($deps)+};
         use std::rc::Rc;
-        use crate::shared::Shared;
-        use crate::ast::*;
+        use $crate::shared::Shared;
+        use $crate::ast::*;
         pub fn fgi_module () -> Shared<Module> {
             //let complete_parse_marker = ();
             Shared::new( fgi_module![ $($decls)+
@@ -1380,8 +1380,8 @@ macro_rules! fgi_mod {
     };
     { $($decls:tt)+ } => {
         use std::rc::Rc;
-        use crate::shared::Shared;
-        use crate::ast::*;
+        use $crate::shared::Shared;
+        use $crate::ast::*;
         pub fn fgi_module () -> Shared<Module> {
             //let complete_parse_marker = ();
             drop(Rc::new(())); // silence Rust compiler warnings about not using Rc
@@ -1403,8 +1403,8 @@ macro_rules! fgi_inner_mod {
     { ( $name:ident ) $($decls:tt)+ } => {    
         mod $name {
             use std::rc::Rc;
-            use crate::shared::Shared;
-            use crate::ast::*;
+            use $crate::shared::Shared;
+            use $crate::ast::*;
             pub fn fgi_module () -> Shared<Module> {
                 Rc::new( fgi_module![ $($decls)+ ] )
             }
@@ -1413,8 +1413,8 @@ macro_rules! fgi_inner_mod {
     { pub ( $name:ident ) $($decls:tt)+ } => {
         pub mod $name {
             use std::rc::Rc;
-            use crate::shared::Shared;
-            use crate::ast::*;
+            use $crate::shared::Shared;
+            use $crate::ast::*;
             pub fn fgi_module () -> Shared<Module> {
                 Rc::new( fgi_module![ $($decls)+ ] )
             }
