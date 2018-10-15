@@ -1,7 +1,7 @@
 fgi_mod!{
-    use crate::examples::seq_nat::*;
-    use crate::examples::name::*;
-    use crate::examples::nat::*;
+    open crate::examples::seq_nat;
+    open crate::examples::name;
+    open crate::examples::nat;
 
     /// Generate a sequence of natural numbers
     //
@@ -30,7 +30,7 @@ fgi_mod!{
 pub mod static_tests {
     #[test]
     pub fn typing() { fgi_listing_test!{
-        use super::*;
+        open crate::examples::seq_nat_gen;
         ret 0
     }}
 }

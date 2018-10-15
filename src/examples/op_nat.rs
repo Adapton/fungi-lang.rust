@@ -2,7 +2,7 @@
 // Fungi module: Optional natural numbers
 //
 fgi_mod!{
-    use crate::examples::nat::*;
+    open crate::examples::nat;
 
     /// Optional natural numbers
     type OpNat  = (+ Unit + Nat );
@@ -98,7 +98,7 @@ fgi_mod!{
 pub mod static_tests {
     #[test]
     pub fn typing() { fgi_listing_test!{
-        use super::*;
+        open crate::examples::op_nat;
         ret 0
     }}
 }

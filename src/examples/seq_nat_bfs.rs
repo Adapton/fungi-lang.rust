@@ -4,10 +4,10 @@ use examples::fifo;
 use examples::stream_nat;
 
 fgi_mod!{
-    use list_nat::*;
-    use seq_nat::*;
-    use fifo::*;
-    use stream_nat::*;
+    open crate::examples::list_nat
+    open crate::examples::seq_nat;
+    open crate::examples::fifo;
+    open crate::examples::stream_nat;
 
 
     fn seq_bfs:(
@@ -33,10 +33,10 @@ pub mod dynamic_tests {
      *
      */
     #[test]
-    pub fn short() { use examples::*; fgi_dynamic_trace!{
+    pub fn short() { fgi_dynamic_trace!{
         [Expect::SuccessXXX]
-        use super::*;
-        use seq_nat_gen::*;
+        open crate::examples::seq_nat_bfs;
+        open crate::examples::seq_nat_gen;
 
         /// Generate the input sequence
         let s = {{force seq_gen} 10}

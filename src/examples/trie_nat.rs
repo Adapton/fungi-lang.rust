@@ -174,7 +174,7 @@ fgi_mod!{
 pub mod static_tests {
     #[test]
     pub fn typing() { fgi_listing_test!{
-        use super::*;
+        open crate::examples::trie_nat;
         ret 0
     }}
 }

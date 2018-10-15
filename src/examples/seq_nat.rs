@@ -36,7 +36,7 @@ fgi_mod!{
 pub mod static_tests {
     #[test]
     pub fn typing() { fgi_listing_test!{
-        use super::*;
+        open crate::examples::seq_nat;
         ret 0
     }}
 }

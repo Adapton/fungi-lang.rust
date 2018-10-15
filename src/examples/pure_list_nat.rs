@@ -136,7 +136,7 @@ fgi_mod!{
 pub mod static_tests {
     #[test]
     pub fn typing() { fgi_listing_test!{
-        use super::*;
+        open crate::examples::pure_list_nat;
         ret 0
     }}
 }
@@ -152,7 +152,7 @@ pub mod static_tests {
 pub mod dynamic_tests {
     #[test]
     pub fn reduction() { fgi_dynamic_trace!{ [Expect::Success]
-        use super::*;
+        open crate::examples::pure_list_nat;
         let list1 = {{force gen} 5}
         let list2 = {{force map} (thunk #x. x + 1) list1}
         let list3 = {{force filter} nat_is_odd list2}

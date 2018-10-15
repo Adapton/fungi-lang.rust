@@ -34,7 +34,7 @@ pub mod trapdoor {
 pub mod static_tests {
     #[test]
     pub fn typing() { fgi_listing_test!{
-        use super::*;
+        open crate::examples::ref_edit;
         ret 0
     }}
 }

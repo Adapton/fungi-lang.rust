@@ -1,5 +1,5 @@
 fgi_mod!{
-    use crate::examples::list_nat::*;
+    open crate::examples::list_nat;
     /// Reverse a list of natural numbers, using the given accumulator
     /// value (a Ref cell holding a reversed list prefix).
     fn reverse:(

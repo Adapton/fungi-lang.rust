@@ -10,10 +10,10 @@ pub mod dynamic_tests {
     #[test]
     pub fn short_10_2() { fgi_dynamic_trace!{
         [Expect::SuccessXXX]
-        use super::*;
-        use crate::examples::list_nat::*;
-        use crate::examples::list_nat_edit::*;
-        use crate::examples::list_nat_convert::*;
+        open crate::examples::list_nat_dedup;
+        open crate::examples::list_nat;
+        open crate::examples::list_nat_edit;
+        open crate::examples::list_nat_convert;
         
         /// Generate input (use old list type, and a conversion function into our newer list type)
         let list1  = {ws(@@inp1) {force gen} 10 }
@@ -62,9 +62,9 @@ pub mod dynamic_tests {
     //#[test]
     pub fn big() { fgi_dynamic_trace!{
         [Expect::SuccessXXX]
-        use super::*;
-        use crate::examples::list_nat::*;
-        use crate::examples::list_nat_convert::*;
+        open crate::examples::list_nat;
+        open crate::examples::list_nat_convert;
+        open crate::examples::list_nat_dedup;
         
         /// Generate input
         let list1  = {ws(@@inp) {force gen} 64 }
@@ -111,7 +111,7 @@ pub mod dynamic_tests {
 pub mod static_tests {
     #[test]
     pub fn typing() { fgi_listing_test!{
-        use super::*;
+        open crate::examples::list_nat_dedup;
         ret 0
     }}
 }

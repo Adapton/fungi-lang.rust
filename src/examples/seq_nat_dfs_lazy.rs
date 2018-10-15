@@ -11,10 +11,10 @@ pub mod dynamic_tests {
      *
      */
     #[test]
-    pub fn short() { use examples::*; fgi_dynamic_trace!{
+    pub fn short() { fgi_dynamic_trace!{
         [Expect::SuccessXXX]
-        use super::*;
-        use seq_nat_gen::*;
+        open crate::examples::seq_nat_dfs_lazy;
+        open crate::examples::seq_nat_gen;
 
         /// Generate the input sequence
         let s = {{force seq_gen} 10}
@@ -29,8 +29,8 @@ pub mod dynamic_tests {
 }
 
 fgi_mod!{
-    use stream_nat::*;
-    use seq_nat::*;
+    open crate::examples::stream_nat;
+    open crate::examples::seq_nat;
 
     fn seq_dfs_lazy:(
         Thk[0]

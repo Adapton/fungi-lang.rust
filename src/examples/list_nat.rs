@@ -2,7 +2,7 @@
 // Fungi module: linked lists with names, holding natural numbers
 //
 fgi_mod!{
-    use crate::examples::op_nat::*;
+    open crate::examples::op_nat;
 
     /// Lists of natural numbers
     type List  = (
@@ -153,7 +153,7 @@ fgi_mod!{
 pub mod static_tests {
     #[test]
     pub fn typing() { fgi_listing_test!{
-        use super::*;
+        open crate::examples::list_nat;
         ret 0
     }}
 }

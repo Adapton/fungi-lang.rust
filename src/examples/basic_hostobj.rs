@@ -53,7 +53,7 @@ pub mod color {
     pub mod static_tests {
         #[test]
         pub fn typing() { fgi_listing_test!{
-            use super::*;
+            open crate::examples::basic_hostobj::color;
             let red   = {ret color_red}
             let green = {ret color_green}
             let gold  = {ret color_gold}
@@ -70,7 +70,7 @@ pub mod color {
     pub fn docolors() {
         fgi_dynamic_trace!
         {[Expect::Success]
-         use self::*;
+         open crate::examples::basic_hostobj::color;
          let red   = {ret color_red}
          let green = {ret color_green}
          let gold  = {ret color_gold}

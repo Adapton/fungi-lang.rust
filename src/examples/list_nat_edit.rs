@@ -2,9 +2,9 @@
 // Fungi module: Edit linked lists with names, holding natural numbers
 //
 fgi_mod!{
-    use crate::examples::name::*;
-    use crate::examples::ref_edit::*;
-    use crate::examples::list_nat::*;
+    open crate::examples::name;
+    open crate::examples::ref_edit;
+    open crate::examples::list_nat;
     
     /// Insert a Cons cell into a list, at the given Ref cell.
     //
