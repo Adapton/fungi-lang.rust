@@ -93,10 +93,10 @@ pub enum RtVal {
     Name(Name),
     /// Refs from Adapton engine; they each contain a run-time value
     #[serde(skip_serializing)] // #[serde(with="ArtDef")]
-    Ref(engine::Art<RtVal>),
+    Ref(Ref),
     /// Thunks from Adapton engine; they each _evaluate to_ a terminal expression
     #[serde(skip_serializing)] // #[serde(with="ArtDef")]
-    Thunk(engine::Art<ExpTerm>),
+    Thunk(Thk),
     /// Existential packings; at run-time, we forget the choice of indices
     Pack(RtValRec),
     /// "Host objects": native Rust objects
@@ -105,6 +105,12 @@ pub enum RtVal {
 }
 /// Run-time values
 pub type RtValRec = Rc<RtVal>;
+
+/// The Rust type of all Fungi references
+pub type Ref = engine::Art<RtVal>;
+
+/// The Rust type of all Fungi thunks
+pub type Thk = engine::Art<ExpTerm>;
 
 /// Terminal expressions (a la CBPV), but in environment-passing
 /// style, where (closed) lambda terms have closing environments.

@@ -92,6 +92,7 @@ its reference implementation; readers are encouraged to
 [read it](https://docs.rs/fungi-lang/0/fungi_lang/eval/index.html), _not_ run it (except for very small programs).
 
 */
+#![feature(crate_in_paths)]
 #![recursion_limit="512"]
 #![doc(html_logo_url = "http://adapton.org/fungi-lang-logo/Fungi-lang-logo.png",
        html_root_url = "https://docs.rs/fungi-lang/")]
