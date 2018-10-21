@@ -120,7 +120,8 @@ impl fmt::Display for Exp {
 impl fmt::Display for Val {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
         match self {
-            &Val::HostObj(ref o) => write!(f, "<hostobj {:?}>", o),
+            //&Val::HostObj(ref o) => write!(f, "<hostobj {:?}>", o),
+            &Val::HostObj(ref o) => write!(f, "⟅{:?}⟆", o),
             &Val::Anno(ref v, ref t) => write!(f, "{} : {}", v, t),
             &Val::Bool(ref b) => write!(f, "{}", b),
             &Val::Inj1(ref v) => write!(f, "inj1 {}", v),
@@ -153,7 +154,8 @@ impl fmt::Display for ExpTerm {
 impl fmt::Display for RtVal {
     fn fmt(&self, f:&mut fmt::Formatter) -> fmt::Result {
         match self {
-            &RtVal::HostObj(ref o) => write!(f, "<hostobj {:?}>", o),
+            //&RtVal::HostObj(ref o) => write!(f, "<hostobj {:?}>", o),
+            &RtVal::HostObj(ref o) => write!(f, "⟅{:?}⟆", o),
             &RtVal::Bool(ref b) => write!(f, "{}", b),
             &RtVal::Inj1(ref v) => write!(f, "inj1 {}", v),
             &RtVal::Inj2(ref v) => write!(f, "inj2 {}", v),

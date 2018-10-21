@@ -810,6 +810,20 @@ macro_rules! parse_fgi_earrow {
 ///
 /// ```text
 /// v::=
+///     host v 
+/// ```
+#[macro_export]
+macro_rules! fgi_rtval {
+    // hostobj
+    { host $v:expr } => {
+        fungi_lang::hostobj::rtval_of_obj( $v )
+    };    
+}
+
+/// Parser for values
+///
+/// ```text
+/// v::=
 ///     fromast ast (inject ast nodes)
 ///     thunk e     (anonymous thunk)
 ///     v : A       (annotation)
@@ -908,12 +922,54 @@ macro_rules! parse_fgi_pack_multi {
     )};
 }
 
+/// Parser for host expressions: the bodies of host functions. 
+///
+/// Unlike ordinary expressions, which expand into Fungi abstract
+/// syntax constructors, host expressions expand into Rust syntax.
+///
+/// ```text
+/// host_e ::=
+///           # x . host_e
+///           # mut x : host_ty . host_e
+///           # x : host_ty . host_e
+///           rust_exp
+#[macro_export]
+macro_rules! fgi_host_exp {
+    //           { host_e }
+    { ( $args:expr, $argi:expr, $arity:expr ) { $($e:tt)+ } } => {
+        fgi_host_exp!{ ( $args, $argi, $arity ) $($e)+ }
+    };
+    //           # x . host_e
+    { ( $args:expr, $argi:expr, $arity:expr ) # $x:ident . $($e:tt)+ } => {
+        let i = $argi; $argi += 1;
+        let $x : RtVal = ( & $args[ i ] ).unwrap();
+        fgi_host_exp!{ ( $args, $argi, $arity ) $($e)+ }
+    };
+    //           # mut x : host_ty . host_e
+    { ( $args:expr, $argi:expr, $arity:expr ) # ( mut $x:ident : $ty:ty ) . $($e:tt)+ } => {
+        let i = $argi; $argi += 1;
+        let mut $x : $ty = fungi_lang::hostobj::obj_of_rtval( & $args[ i ] ).unwrap();
+        fgi_host_exp!{ ( $args, $argi, $arity ) $($e)+ }
+    };
+    //           # x : host_ty . host_e
+    { ( $args:expr, $argi:expr, $arity:expr ) # ( $x:ident : $ty:ty ) . $($e:tt)+ } => {
+        let i = $argi; $argi += 1;
+        let $x : $ty = fungi_lang::hostobj::obj_of_rtval( & $args[ i ] ).unwrap();
+        fgi_host_exp!{ ( $args, $argi, $arity ) $($e)+ }
+    };
+    { ( $args:expr, $argi:expr, $arity:expr ) $($e:tt)+ } => {
+        // assert that all arguments were bound to variables
+        assert_eq!( $argi, $arity );
+        $($e)+
+    }
+}
 /// Parser for expressions
 ///
 /// ```text
 /// e::=
 ///     fromast ast                     (inject ast nodes)
-///     unsafe (arity) rustfn           (inject an evaluation function written in Rust)
+///     unsafe (arity) rustfn           (inject an evaluation function written in Rust) <-- DEPRECATED
+///     hostfn (arity) host_e           (inject an evaluation function written in Rust)
 ///     open x ; e                      (all decls in module x made local to e)
 ///     decls { d } ; e                 (all decls in d are made local to e)
 ///     decls { d }   e                 (optional semicolon)
@@ -968,6 +1024,23 @@ macro_rules! fgi_exp {
             path:stringify![$rustfn].to_string(),
             arity:$arity,
             eval:Rc::new($rustfn),
+        })
+    };
+    { hostfn ($arity:expr) $($host_e:tt)+ } => {
+        Exp::HostFn(HostEvalFn{
+            path:stringify![$rustfn].to_string(),
+            arity:$arity,
+            eval:Rc::new({
+                use $crate::dynamics::{RtVal,ExpTerm,ret};
+                // anonymous host function wrapper
+                |args:Vec<RtVal>| -> ExpTerm {
+                    let mut argi = 0; 
+                    let retv = {
+                        fgi_host_exp!{ ( args, argi, $arity ) $($host_e)+ }
+                    };
+                    ret( retv )                        
+                }
+            }),
         })
     };
     // documentation
@@ -1366,6 +1439,7 @@ macro_rules! parse_fgi_split {
 ///
 #[macro_export]
 macro_rules! fgi_mod {
+    // This form is (hopefully) deprecated now; no longer need this form (2018.10.20)
     { hostuse { $($deps:tt)+ } $($decls:tt)+ } => {
         use {$($deps)+};
         use std::rc::Rc;
@@ -1392,6 +1466,7 @@ macro_rules! fgi_mod {
     };
 }
 
+// "inner module": This form is (hopefully) deprecated now; no longer need this form (2018.10.20)
 /// Declare an inner, named Fungi module, using an inner host (Rust) module.
 ///
 /// ```text
