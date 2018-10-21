@@ -1,6 +1,6 @@
 [package]
 name = "fungi-lang"
-version = "0.1.62"
+version = "0.1.63"
 authors = ["Matthew A. Hammer", "Kyle Headley", "Ryan Vandersmith"]
 
 # 2018.10.19 -- 
