@@ -806,19 +806,74 @@ macro_rules! parse_fgi_earrow {
     { $($any:tt)* } => { CEffect::NoParse(stringify![(-> $($any)*)].to_string())};
 }
 
-/// Parser for values
+/// Parser for (run-time) values
+///
+///  With concise concrete syntax, inject values from Rust value space
+///  (back) into the Fungi value space.  This concrete syntax often
+///  expresses the return values within the bodies of host function
+///  definitions, which call native Rust code within the context of a
+///  larger Fungi computation.
 ///
 /// ```text
 /// v::=
-///     host v 
+///     (v1,...,vk)         unit, parens, tuples
+///     host   rust_exp     inject a Rust value (dynamic typing)
+///     bool   rust_exp     inject a Rust boolean as a Fungi boolean
+///     string rust_exp     inject a Rust String as a Fungi String
+///     usize  rust_exp     inject a Rust usize as a Fungi Nat
+///     name   rust_exp     inject a Rust Name as a Fungi Name
 /// ```
 #[macro_export]
 macro_rules! fgi_rtval {
-    // hostobj
+    // (v1,v2,...) (unit,parens,tuples)
+    { inj1 $($v:tt)+ } => { 
+        RtVal::Inj1( Rc::new( fgi_rtval!( $($v)+ ) ) ) 
+    };
+    // inj1 v      first (left) injection of a sum type
+    { inj2 $($v:tt)+ } => { 
+        RtVal::Inj2( Rc::new( fgi_rtval!( $($v)+ ) ) ) 
+    };
+    // inj2 v      second (right) injection of a sum type
+    { ($($tup:tt)*) } => { 
+        split_comma![parse_fgi_rt_tuple <= $($tup)*] 
+    };
+    // host v      inject a Rust value (use a form of dynamic typing)
     { host $v:expr } => {
         fungi_lang::hostobj::rtval_of_obj( $v )
     };    
+    // bool v      inject a Rust boolean as a Fungi boolean
+    { bool $v:expr } => {
+        RtVal::Bool( $v )
+    };    
+    // usize v     inject a Rust usize as a Fungi Nat
+    { usize $v:expr } => {
+        RtVal::Nat( $v )
+    };    
+    // name v      inject a Rust Name as a Fungi Nm
+    { name $v:expr } => {
+        RtVal::Name( $v )
+    };    
+    // string v    inject a Rust String as a Fungi String
+    { string $v:expr } => {
+        RtVal::String( $v )
+    };    
 }
+/// this macro is a helper for fgi_rtval, not for external use
+#[macro_export]
+macro_rules! parse_fgi_rt_tuple {
+    // unit
+    { } => { RtVal::Unit };
+    // parens, final tuple val
+    { ($($v:tt)+) } => { fgi_rtval![$($v)+] };
+    // tuple
+    { ($($v:tt)+) $($more:tt)+ } => { RtVal::Pair(
+        Rc::new(fgi_rtval![$($v)+]),
+        Rc::new(parse_fgi_rt_tuple![$($more)+]),
+    )};
+    // failure
+    { $($any:tt)* } => { RtVal::NoParse(stringify![(, $($any)*)].to_string())};
+}
+
 
 /// Parser for values
 ///
@@ -942,7 +997,7 @@ macro_rules! fgi_host_exp {
     //           # x . host_e
     { ( $args:expr, $argi:expr, $arity:expr ) # $x:ident . $($e:tt)+ } => {
         let i = $argi; $argi += 1;
-        let $x : RtVal = ( & $args[ i ] ).unwrap();
+        let $x : RtVal = ( $args[ i ] ).clone();
         fgi_host_exp!{ ( $args, $argi, $arity ) $($e)+ }
     };
     //           # mut x : host_ty . host_e
@@ -1028,7 +1083,7 @@ macro_rules! fgi_exp {
     };
     { hostfn ($arity:expr) $($host_e:tt)+ } => {
         Exp::HostFn(HostEvalFn{
-            path:stringify![$rustfn].to_string(),
+            path:stringify![$($host_e)+].to_string(),
             arity:$arity,
             eval:Rc::new({
                 use $crate::dynamics::{RtVal,ExpTerm,ret};
