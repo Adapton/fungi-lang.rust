@@ -31,7 +31,7 @@ pub type RelCtxRec = Rc<RelCtx>;
 impl RelCtx {
     pub fn prop_true(&self, p:Prop) -> Self {
         RelCtx::PropTrue(Rc::new(self.clone()), p)
-    }    
+    }
     pub fn add_tvars(&self, a:Var, b:Var) -> Self {
         RelCtx::TVarRelated(Rc::new(self.clone()),a,b)
     }
@@ -46,7 +46,7 @@ impl RelCtx {
     }
     pub fn lookup_type_def(&self, x:&Var) -> Option<Type> {
         self.lookup_bitype_ctx().lookup_type_def(x)
-    }    
+    }
     pub fn rest(&self) -> Option<RelCtxRec> {
         match self {
             &RelCtx::Empty => None,
@@ -112,7 +112,7 @@ impl RelCtx {
             &RelCtx::Ctx(ref c) => c.clone(),
             c => c.rest().map_or(Ctx::Empty,|c|c.lookup_bitype_ctx())
         }
-    }    
+    }
     pub fn lookup_ivarapart(&self, x1:&Var, x2:&Var, g:&Sort) -> bool {
         match self {
             &RelCtx::IVarApart(ref c, ref v1, ref v2, ref s) => {
@@ -199,11 +199,11 @@ pub struct Dec<Rule:HasClas> {
 /// Decide effect relationships
 pub mod effect {
     use crate::{
-        ast::*, normal, normal::{NmSet,NmSetCons}, bitype, bitype::{Ext,Ctx}, 
+        ast::*, normal, normal::{NmSet,NmSetCons}, bitype, bitype::{Ext,Ctx},
         decide::equiv, vt100,
     };
     use std::rc::Rc;
-    
+
     /// Computation role, either _Archivist_ or _Editor_.
     #[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
     pub enum Role {
@@ -214,7 +214,7 @@ pub mod effect {
     #[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
     pub enum Error {
         /// Cannot subtract the second index term from the first
-        CannotSubtractFromIdxTm(IdxTm, IdxTm),        
+        CannotSubtractFromIdxTm(IdxTm, IdxTm),
         /// Cannot subtract structure from a variable with unknown structure
         CannotSubtractFromVar(Var, IdxTm),
         /// Cannot subtract a name set term from a name set
@@ -278,7 +278,7 @@ pub mod effect {
             let mut t1_found = false;
             for t2 in ns2.terms.iter() {
                 if t1 == t2 { t1_found = true; break }
-                else { continue }                        
+                else { continue }
             }
             if t1_found { } else {
                 terms.push(t1.clone())
@@ -293,12 +293,12 @@ pub mod effect {
         db_region_close!();
         Result::Ok(i_minus_j)
     }
-    
+
     pub fn test_idxtm_equiv(ctx:&Ctx, i:&IdxTm, j:&IdxTm) -> bool {
         fgi_db!("decide if {} ⊢ {} ≡ {} : NmSet", ctx, i, j);
         db_region_open!(false, crate::vt100::DecideBracket);
         let id = bitype::synth_idxtm(&Ext::empty(), ctx, i);
-        let jd = bitype::synth_idxtm(&Ext::empty(), ctx, j);       
+        let jd = bitype::synth_idxtm(&Ext::empty(), ctx, j);
         let b = match id.clas {
             Result::Ok(ref sort) => {
                 let rctx = super::relctx_of_ctx(ctx);
@@ -322,8 +322,8 @@ pub mod effect {
     pub fn test_idxtm_empty(ctx:&Ctx, i:&IdxTm) -> bool {
         fgi_db!("decide if {} ⊢ {} ≡ 0 : NmSet", ctx, i);
         db_region_open!(false, crate::vt100::DecideBracket);
-        let b = test_idxtm_equiv(ctx, 
-                                 &normal::normal_idxtm(ctx, i.clone()), 
+        let b = test_idxtm_equiv(ctx,
+                                 &normal::normal_idxtm(ctx, i.clone()),
                                  &normal::normal_idxtm(ctx, IdxTm::Empty));
         if b { fgi_db!("^yes") } else { fgi_db!("^no") }
         db_region_close!();
@@ -337,14 +337,14 @@ pub mod effect {
         if false {
             fgi_db!("\x1B[0;1mdecide_idxtm_subtraction:\x1B[0;0m\n From:\n\t{}\n Subtract:\n\t{}", &i, &j);
         } else {
-            fgi_db!("\x1B[0;1mdecide_idxtm_subtraction:\x1B[0;0m from {}, subtract {}", &i, &j);            
+            fgi_db!("\x1B[0;1mdecide_idxtm_subtraction:\x1B[0;0m from {}, subtract {}", &i, &j);
         }
         if test_idxtm_empty(ctx, &j) {
             // Special (but common) case: The second index is the empty name set. The result is the first index.
             fgi_db!("^decide_idxtm_subtraction:\n\tEmpty second term.");
             return Result::Ok(i)
         } else if test_idxtm_equiv(ctx, &i, &j) {
-            // Special (but common) case: They are equal.  
+            // Special (but common) case: They are equal.
             // The result is the emptyset.
             fgi_db!("^decide_idxtm_subtraction: Equal");
             return Result::Ok(IdxTm::Empty)
@@ -366,7 +366,7 @@ pub mod effect {
             fgi_db!("^decide_idxtm_subtraction: Empty second term.");
             return Result::Ok(i)
         } else if test_idxtm_equiv(ctx, &ni, &nj) {
-            // Special (but common) case: They are equal.  
+            // Special (but common) case: They are equal.
             // The result is the emptyset.
             fgi_db!("^decide_idxtm_subtraction: Equal.");
             return Result::Ok(IdxTm::Empty)
@@ -413,11 +413,10 @@ pub mod effect {
                 fgi_db!("^decide_idxtm_subtraction: Failure:\n From index term:\n\t{}\n We do not know how to subtract index term:\n\t{}", &i, &j);
                 Result::Err( Error::CannotSubtractFromIdxTm(i, j) )
             }
-        }        
+        }
     }
 
     pub fn decide_effect_subtraction_db(ctx:&Ctx, r:Role, eff1:Effect, eff2:Effect) -> Result<Effect, Error> {
-        use crate::vt100;
         fgi_db!("{}decide if: {}{} {}⊢ {}{} {}- {}{} {}≡ {}?",
                 vt100::DecideIf{},
                 vt100::VDash{}, ctx,
@@ -449,7 +448,7 @@ pub mod effect {
                         vt100::VDash{}, ctx,
                         vt100::NotVDash{},
                         vt100::Effect{}, eff1,
-                        vt100::NotVDash{},                        
+                        vt100::NotVDash{},
                         vt100::Effect{}, eff2,
                         vt100::Equiv{},
                         vt100::Effect{})
@@ -461,7 +460,7 @@ pub mod effect {
 
     /// Tactic to find the result effect `eff3` such that `eff1 = eff2 then eff3`
     ///
-    /// TODO: "Verify" the results using our decision procedures; return those derivations with the term that we find    
+    /// TODO: "Verify" the results using our decision procedures; return those derivations with the term that we find
     pub fn decide_effect_subtraction(ctx:&Ctx, r:Role, eff1:Effect, eff2:Effect) -> Result<Effect, Error> {
         assert_eq!(r, Role::Archivist);
         let res = if decide_effect_empty(ctx, eff2.clone()) {
@@ -477,7 +476,7 @@ pub mod effect {
                     let wr3 = decide_idxtm_subtraction(ctx, wr1.clone(), wr2.clone());
                     db_region_close!();
                     use super::subset;
-                    
+
                     // TODO: Figure out the right place to put this
                     // normalization step, given the switching between
                     // relational and ordinary typing contexts
@@ -555,9 +554,8 @@ pub mod effect {
             }
         }
     }
-    
+
     pub fn decide_effect_sequencing_db(ctx:&Ctx, r:Role, eff1:Effect, eff2:Effect) -> Result<Effect, Error> {
-        use crate::vt100;
         fgi_db!("{}decide if: {}{} {}⊢ {}{} {}then {}{} {}≡ {}?",
                 vt100::DecideIf{},
                 vt100::VDash{}, ctx,
@@ -589,7 +587,7 @@ pub mod effect {
                         vt100::VDash{}, ctx,
                         vt100::NotVDash{},
                         vt100::Effect{}, eff1,
-                        vt100::NotVDash{},                        
+                        vt100::NotVDash{},
                         vt100::Effect{}, eff2,
                         vt100::Equiv{},
                         vt100::Effect{})
@@ -659,21 +657,21 @@ pub mod effect {
             CEffect::NoParse(s) => Ok(CEffect::NoParse(s)),
         }
     }
-    
+
     /// The result effect, if it exists, is `eff3` such that `eff1 then eff2 = eff3`
     pub fn decide_effect_sequencing(ctx:&Ctx, r:Role, eff1:Effect, eff2:Effect) -> Result<Effect, Error> {
         assert_eq!(r, Role::Archivist);
         if decide_effect_empty(ctx, eff1.clone()) {
             Result::Ok(eff2.clone())
         } else if decide_effect_empty(ctx, eff2.clone()) {
-            Result::Ok(eff1.clone())            
+            Result::Ok(eff1.clone())
         } else { match (eff1.clone(), eff2.clone()) {
             (Effect::WR(wr1, rd1), Effect::WR(wr2, rd2)) => {
                 let wr3 = decide_idxtm_cons(ctx, NmSetCons::Apart, wr1, wr2);
                 let rd3 = decide_idxtm_cons(ctx, NmSetCons::Union, rd1, rd2);
                 match (wr3, rd3) {
                     (Ok(wr3), Ok(rd3)) => {
-                        Result::Ok( Effect::WR(wr3, rd3) )                            
+                        Result::Ok( Effect::WR(wr3, rd3) )
                     },
                     _ => {
                         //fgi_db!("^decide_effect_sequencing: Cannot sequence:\n Effect 1:\n\t{}\n Effect 2:\n\t{}", &eff1, &eff2);
@@ -705,7 +703,7 @@ pub mod equiv {
     /// Name term equivalence rules
     #[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
     pub enum NmTmRule {
-        Refl(NmTmDer),        
+        Refl(NmTmDer),
         Var(Var2),
         Bin(NmTmDec, NmTmDec),
         Lam(Var2,Sort,NmTmDec),
@@ -714,13 +712,13 @@ pub mod equiv {
         FailDistinctNames(Name,Name),
         FailNoRule,
     }
-    pub type NmTmDec  = Dec<NmTmRule>;    
+    pub type NmTmDec  = Dec<NmTmRule>;
     impl HasClas for NmTmRule {
         type Term = NameTm;
         type Clas = Sort;
         fn tm_fam() -> String { "NmTm".to_string() }
     }
-    
+
     /// Index term equivalence rules
     #[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
     pub enum IdxTmRule {
@@ -761,7 +759,7 @@ pub mod equiv {
         type Term = Type;
         type Clas = Kind;
         fn tm_fam() -> String { "Type".to_string() }
-    }    
+    }
 
     /// Computation type equivalence rules
     #[derive(Clone,Debug,Eq,PartialEq,Hash,Serialize)]
@@ -769,12 +767,12 @@ pub mod equiv {
         /// Every term is equal to itself
         Refl(CEffect),
     }
-    pub type CEffectDec  = Dec<CEffectRule>;    
+    pub type CEffectDec  = Dec<CEffectRule>;
     impl HasClas for CEffectRule {
         type Term = CEffect;
         type Clas = Kind;
         fn tm_fam() -> String { "CEffect".to_string() }
-    }    
+    }
 
 
     /// Decide if two name terms are equivalent under the given context
@@ -917,9 +915,9 @@ pub mod equiv {
             }
         };
         match (&*i.rule,&*j.rule) {
-            (_ir, _jr) if i.term == j.term => { 
+            (_ir, _jr) if i.term == j.term => {
                 //fgi_db!("Refl equiv: {} == {}", i.term, j.term);
-                succ(IdxTmRule::Refl(i.clone())) 
+                succ(IdxTmRule::Refl(i.clone()))
             }
             (&BiIdxTm::Var(ref v1),&BiIdxTm::Var(ref v2)) => {
                 if ctx.lookup_ivareq(v1,v2,g) {
@@ -1159,7 +1157,7 @@ pub mod subset {
         type Clas = Sort;
         fn tm_fam () -> String { "IdxTm".to_string() }
     }
-    
+
     /// Decide if a proposition is true under the given context
     pub fn decide_prop(_ctx: &RelCtx, p:Prop) -> bool {
         match p {
@@ -1258,7 +1256,7 @@ pub mod subset {
                 decide_idxtm_subset_speculative(ctx, x, y)
             }
         };
-        db_region_close!();        
+        db_region_close!();
         res
     }
 
@@ -1290,13 +1288,13 @@ pub mod subset {
 
         let b     = normal::normal_idxtm(&ctx2, j.clone());
         let b_bit = bitype::synth_idxtm(&Ext::empty(), &ctx2, &b);
-        
+
         // Basecase: If `a` is the empty set, and `b` is anything with
         // sort NmSet, then the subset holds.
         {
             //fgi_db!("testing {} =?= emptyset", a);
             let (ctx1, _) = ctxs_of_relctx(ctx.clone());
-            let ed = bitype::synth_idxtm(&Ext::empty(), &ctx1, 
+            let ed = bitype::synth_idxtm(&Ext::empty(), &ctx1,
                                          &normal::normal_idxtm(&ctx1, IdxTm::Empty));
             let ad = bitype::synth_idxtm(&Ext::empty(), &ctx1, &a);
             let ad = equiv::decide_idxtm_equiv(&ctx, &ad, &ed, &Sort::NmSet);
@@ -1314,7 +1312,7 @@ pub mod subset {
                 }
             }
         }
-            
+
         // Basecase: "On the nose" equality.
         //
         // TODO: Use equiv module instead, to relate alpha-equiv terms.
@@ -1391,7 +1389,7 @@ pub mod subset {
             // set (`normal::NmSet`), with the smaller set as a
             // subterm.
             IdxTm::NmSet(b_ns) => {
-                match a {                        
+                match a {
                     IdxTm::Var(_) => {
                         // Look for the variable in the name set `b_ns`
                         let a_ns_tm = normal::NmSetTm::Subset(a);
@@ -1415,7 +1413,7 @@ pub mod subset {
                             res:Err(DecError::SubsetSearchFailureMisc(format!("Subcase-3")))
                         }
                     },
-                    IdxTm::NmSet(a_ns) => {                        
+                    IdxTm::NmSet(a_ns) => {
                         // Subcase 4: Check subset relationship, at
                         // the "term" level: If the terms normalize,
                         // then by canonical forms, both should each
@@ -1460,7 +1458,7 @@ pub mod subset {
                             clas:Sort::NmSet,
                             res:Ok(true)
                         }
-                    }                    
+                    }
                     // Subcase 5: Perhaps the term is present as a subset?
                     a => {
                         // Look for the term in the name set `b_ns`
@@ -1501,17 +1499,17 @@ pub mod subset {
                     &a_bit, &b_bit,
                     &Sort::NmSet
                 );
-                res                    
+                res
             }
         }}
     }
-        
+
 
     /// Decide type subset relation
     pub fn decide_type_subset_rec(ctx: &RelCtx, a:Rc<Type>, b:Rc<Type>) -> bool {
         decide_type_subset(ctx, (*a).clone(), (*b).clone())
     }
-    
+
     /// Decide if two index terms are congruent under the given context
     fn decide_idxtm_subset_congr(ctx: &RelCtx, i:&IdxTmDer, j:&IdxTmDer, g:&Sort) -> IdxTmDec {
         let succ = |r| {
@@ -1713,7 +1711,7 @@ pub mod subset {
         }
     }
 
-    /// Decide name set subset relation.  
+    /// Decide name set subset relation.
     ///
     /// This is like decide_idxtm_subset_simple, but is intended to be
     /// called in speculative situations (e.g., searching for an
@@ -1737,7 +1735,6 @@ pub mod subset {
     }
 
     pub fn decide_type_subset_norm_db(ctx: &RelCtx, a:Type, b:Type) -> bool {
-        use crate::vt100;
         fgi_db!("{}decide if: {}{} {}⊢ {}{} {}⊆ {}{}",
                 vt100::DecideIf{},
                 vt100::VDash{}, ctx,
@@ -1757,7 +1754,7 @@ pub mod subset {
                     vt100::Type{}, a,
                     vt100::DecideTrue{},
                     vt100::Type{}, b)
-        } else {        
+        } else {
             fgi_db!("{}  failure: {}{} {}⊢ {}{} {}⊆ {}{}",
                     vt100::DecideFail{},
                     vt100::VDash{}, ctx,
@@ -1769,7 +1766,7 @@ pub mod subset {
         res
     }
 
-    
+
     /// Decide type subset relation on normalized versions of the given terms.
     pub fn decide_type_subset_norm(ctx: &RelCtx, a:Type, b:Type) -> bool {
         use crate::expand;
@@ -1819,7 +1816,7 @@ pub mod subset {
                     decide_type_subset_rec(ctx, a1, b1) &&
                         decide_type_subset_rec(ctx, a2, b2)
                 }
-                (Type::Ref(i, a), Type::Ref(j, b)) => {                    
+                (Type::Ref(i, a), Type::Ref(j, b)) => {
                     decide_idxtm_subset_simple(ctx, &i, &j) &&
                         decide_type_subset_rec(ctx, a, b)
                 }
@@ -1863,7 +1860,7 @@ pub mod subset {
                         &ctx.add_ivars(x1,x2,g1),
                         a1, a2
                     )
-                }               
+                }
                 // Exists for index-level variables; they are classified by sorts
                 (Type::Exists(x1, g1, _p1, a1), Type::Exists(x2, g2, _p2, a2)) => {
                     // extend ctx with x1 ~~ x2.  Prove: p1 ==> p2 by
@@ -1878,22 +1875,22 @@ pub mod subset {
                     } else {
                         fgi_db!("Error: {} =/= {}", g1, g2);
                         false
-                            
+
                     }
                 }
                 (Type::Rec(x1, a1), Type::Rec(x2, a2)) => {
                     decide_type_subset_rec(
                         &ctx.add_tvars(x1, x2),
                         a1, a2)
-                }                
+                }
                 (x,y) => {
                     fgi_db!("Cannot prove these types are related (as first subtype of second):\n\t{}\nand:\n\t{}", x, y);
                     false
                 }
             }
-        }        
+        }
     }
-    
+
     /// Decide computation type subset relation
     pub fn decide_ctype_subset(ctx: &RelCtx, ct1:CType, ct2:CType) -> bool {
         match (ct1, ct2) {
@@ -1910,7 +1907,6 @@ pub mod subset {
     }
 
     pub fn decide_ceffect_subset_db(ctx: &RelCtx, ce1:CEffect, ce2:CEffect) -> bool {
-        use crate::vt100;
         fgi_db!("{}decide if: {}{} {}⊢ {}{} {}⊆ {}{}",
                 vt100::DecideIf{},
                 vt100::VDash{}, ctx,
@@ -1929,7 +1925,7 @@ pub mod subset {
                     vt100::Type{}, ce1,
                     vt100::DecideTrue{},
                     vt100::Type{}, ce2)
-        } else {        
+        } else {
             fgi_db!("{}  failure: {}{} {}⊢ {}{} {}⊆ {}{}",
                     vt100::DecideFail{},
                     vt100::VDash{}, ctx,
@@ -1941,8 +1937,8 @@ pub mod subset {
         res
     }
 
-    
-    /// Decide computation effect subset relation    
+
+    /// Decide computation effect subset relation
     pub fn decide_ceffect_subset(ctx: &RelCtx, ce1:CEffect, ce2:CEffect) -> bool {
         match (ce1, ce2) {
             (CEffect::Cons(ct1, eff1), CEffect::Cons(ct2, eff2)) => {
@@ -1960,12 +1956,12 @@ pub mod subset {
             _ => false
         }
     }
-    
+
     /// Decide computation effect subset relation
     pub fn decide_ceffect_subset_rec(ctx: &RelCtx, ce1:Rc<CEffect>, ce2:Rc<CEffect>) -> bool {
         decide_ceffect_subset(ctx, (*ce1).clone(), (*ce2).clone())
     }
-    
+
     /// Decide effect subset relation
     pub fn decide_effect_subset(ctx: &RelCtx, eff1:Effect, eff2:Effect) -> bool {
         match (eff1, eff2) {
@@ -1978,7 +1974,7 @@ pub mod subset {
                 }
             },
             _ => false
-        }        
+        }
     }
 }
 
@@ -2018,7 +2014,7 @@ pub mod apart {
         type Clas = Sort;
         fn tm_fam() -> String { "NmTm".to_string() }
     }
-    
+
     /// Index term apartness rules
     ///
     /// Fig. 29 of https://arxiv.org/abs/1610.00097v5
