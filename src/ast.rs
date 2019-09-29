@@ -413,14 +413,14 @@ pub type ValRec = Rc<Val>;
 #[derive(Clone,Serialize)]
 pub struct HostObj {
     #[serde(skip_serializing)]
-    pub ops:Rc<HostObjOps>,
+    pub ops:Rc<dyn HostObjOps>,
     #[serde(skip_serializing)]
-    pub any:Rc<any::Any>
+    pub any:Rc<dyn any::Any>
 }
 pub trait HostObjOps {
-    fn eq(&self, x:&Rc<any::Any>, y:&Rc<any::Any>) -> bool;
-    fn hash(&self, x:&Rc<any::Any>) -> u64;
-    fn fmt(&self, f:&mut Formatter, x:&Rc<any::Any> ) -> fmt::Result;
+    fn eq(&self, x:&Rc<dyn any::Any>, y:&Rc<dyn any::Any>) -> bool;
+    fn hash(&self, x:&Rc<dyn any::Any>) -> u64;
+    fn fmt(&self, f:&mut Formatter, x:&Rc<dyn any::Any> ) -> fmt::Result;
 }
 impl Hash for HostObj {
     fn hash<H:Hasher>(&self, hasher: &mut H) {
@@ -448,7 +448,7 @@ pub struct HostEvalFn {
     pub path:String,
     pub arity:usize,
     #[serde(skip_serializing)]
-    pub eval:Rc<Fn(Vec<dynamics::RtVal>) -> dynamics::ExpTerm>
+    pub eval:Rc<dyn Fn(Vec<dynamics::RtVal>) -> dynamics::ExpTerm>
 }
 impl Hash for HostEvalFn {
     fn hash<H:Hasher>(&self, hasher: &mut H) {

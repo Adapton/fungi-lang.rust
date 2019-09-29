@@ -176,7 +176,7 @@ impl<'de,T:Deserialize<'de>+Hash+'static> Deserialize<'de> for Shared<T> {
 
 struct Table {
     copy_count:usize,
-    table:HashMap<Id,Box<Rc<Any>>>
+    table:HashMap<Id,Box<Rc<dyn Any>>>
 }
 
 /// Global table of serialized objects; permits us to avoid multiple
@@ -212,8 +212,8 @@ fn table_get<T:'static>(id:&Id) -> Option<Rc<T>> {
     TABLE.with(|t| {
         match t.borrow().table.get(id) {
             Some(ref brc) => {
-                let x : &Rc<Any> = &**brc;
-                let y : Result<Rc<T>, Rc<Any>> = (x.clone()).downcast::<T>();
+                let x : &Rc<dyn Any> = &**brc;
+                let y : Result<Rc<T>, Rc<dyn Any>> = (x.clone()).downcast::<T>();
                 match y {
                     Err(_) => {
                         panic!("downcast failed for id {:?}", id)
