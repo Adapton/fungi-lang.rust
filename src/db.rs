@@ -7,8 +7,8 @@ pub struct Frame {
     pub show: bool,
     pub module_path: String,
     pub line: usize,
-    pub bracket_indent: Box<Display>,
-    pub bracket_close: Box<Display>,
+    pub bracket_indent: Box<dyn Display>,
+    pub bracket_close: Box<dyn Display>,
 }
 
 

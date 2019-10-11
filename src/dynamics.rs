@@ -171,7 +171,6 @@ pub fn proj_namespace_name(n:NameTmVal) -> Option<NameTm> {
 
 /// Convert a name term value back into (the same) name term
 pub fn nametm_of_nametmval(v:NameTmVal) -> NameTm {
-    use crate::ast::Sort;
     match v {
         NameTmVal::Name(n)  => NameTm::Name(n),
         // eval doesn't use sorts, unit is fine

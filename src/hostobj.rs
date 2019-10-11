@@ -50,8 +50,8 @@ pub fn obj_of_rtval<X:'static+Debug+Hash+Eq+PartialEq+Clone> (x:&RtVal) -> Optio
 }
 
 /// Un-inject a host-level object from a Rust 'Rc<Any>' reference.
-pub fn obj_of_any<X:'static+Debug+Hash+Eq+PartialEq+Clone> (x:&Rc<Any>) -> Option<X> {
-    let r : Result<Rc<X>, Rc<Any>> = (x.clone()).downcast::<X>();
+pub fn obj_of_any<X:'static+Debug+Hash+Eq+PartialEq+Clone> (x:&Rc<dyn Any>) -> Option<X> {
+    let r : Result<Rc<X>, Rc<dyn Any>> = (x.clone()).downcast::<X>();
     match r {
         Err(_) => None,
         Ok(rc) => Some((*rc).clone())
@@ -60,19 +60,19 @@ pub fn obj_of_any<X:'static+Debug+Hash+Eq+PartialEq+Clone> (x:&Rc<Any>) -> Optio
 
 /// Use the `PartialEq`, `Hash` and `Debug` implementations of the type `X`.
 impl<X:'static+Debug+Hash+Eq+PartialEq+Clone> ast::HostObjOps for Ops<X> {
-    fn eq(&self, x:&Rc<Any>, y:&Rc<Any>) -> bool {
+    fn eq(&self, x:&Rc<dyn Any>, y:&Rc<dyn Any>) -> bool {
         match (obj_of_any::<X>(x), obj_of_any::<X>(y)) {
             (Some(c1), Some(c2)) => c1 == c2,
             _ => false,
         }
     }
-    fn hash(&self, x:&Rc<Any>) -> u64 {
+    fn hash(&self, x:&Rc<dyn Any>) -> u64 {
         match obj_of_any::<X>(x) {
             Some(_x) => 1, // TODO
             None    => 0,
         }
     }
-    fn fmt(&self, f:&mut Formatter, x:&Rc<Any> ) -> fmt::Result {
+    fn fmt(&self, f:&mut Formatter, x:&Rc<dyn Any> ) -> fmt::Result {
         obj_of_any::<X>(x).unwrap().fmt(f)
     }
 }
